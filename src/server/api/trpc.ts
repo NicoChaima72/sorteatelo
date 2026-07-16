@@ -15,6 +15,12 @@ import { ZodError } from "zod";
 
 import { getServerAuthSession } from "~/server/auth";
 import { db } from "~/server/db";
+import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
+import { crearRepoTenants } from "~/server/tenancy/repoTenants";
+import {
+  resolverTenantDesdeHost,
+  type TenantDeContexto,
+} from "~/server/tenancy/resolverTenant";
 
 /**
  * 1. CONTEXT
@@ -26,6 +32,13 @@ import { db } from "~/server/db";
 
 interface CreateContextOptions {
   session: Session | null;
+  /**
+   * La Tienda del storefront, resuelta SERVER-SIDE desde el host del request
+   * (ADR-0007). `null` = zona plataforma o host que no resuelve una Tienda
+   * publicada. NUNCA se completa desde el input de un procedure: ese fue el bug
+   * H1 de datawalt-app (IDOR cross-tenant). Ver `src/server/tenancy/`.
+   */
+  tenant: TenantDeContexto | null;
 }
 
 /**
@@ -42,6 +55,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     session: opts.session,
     db,
+    tenant: opts.tenant,
   };
 };
 
@@ -57,8 +71,26 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   // Get the session from the server using the getServerSession wrapper function
   const session = await getServerAuthSession({ req, res });
 
+  // NO hay service Flow global en el contexto: con BYO-Flow (ADR-0006) cada
+  // operación de pago instancia el Flow del tenant dueño vía
+  // `crearFlowServiceDeTenant` (checkout) o el enrutador del webhook. Un
+  // `ctx.flow` global invitaría a un procedure futuro a cobrar con credenciales
+  // que no son del tenant — violación silenciosa de BYO-Flow.
+
+  // Tenant resuelto SERVER-SIDE desde el host, ANTES de que corra procedure
+  // alguno (I1 / ADR-0007). Se re-parsea el host en vez de leer el header que
+  // pone el middleware: así la resolución no depende de que el `matcher` del
+  // middleware cubra este path (defensa en profundidad). En la zona plataforma
+  // no consulta la DB.
+  const resolucion = await resolverTenantDesdeHost({
+    host: req.headers.host,
+    config: configPlataformaDesdeEnv(),
+    repo: crearRepoTenants(db),
+  });
+
   return createInnerTRPCContext({
     session,
+    tenant: resolucion.zona === "storefront" ? resolucion.tenant : null,
   });
 };
 
@@ -155,6 +187,34 @@ export const protectedProcedure = t.procedure
       ctx: {
         // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
+      },
+    });
+  });
+
+/**
+ * Storefront (tenant) procedure
+ *
+ * Para el borde de cara al Comprador, que vive SIEMPRE en el subdominio de una
+ * Tienda publicada (catálogo, carrito, inicio de checkout). Garantiza
+ * `ctx.tenant` no-null, resuelto del host server-side: un use case que lo reciba
+ * de acá tiene el `tenantId` con el que scopear TODA query (I1 / ADR-0005), sin
+ * que ningún `tenantId` del input pueda intervenir.
+ *
+ * No lleva sesión: el Comprador no tiene cuenta (ADR-0004).
+ *
+ * `NOT_FOUND` (y no `FORBIDDEN`) cuando no hay tenant: es la respuesta neutral
+ * de ADR-0007 — no delata si la Tienda no existe o existe suspendida.
+ */
+export const tenantProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.tenant) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    return next({
+      ctx: {
+        // infiere `tenant` como no-nullable
+        tenant: ctx.tenant,
       },
     });
   });

@@ -22,8 +22,22 @@ export const env = createEnv({
       // VERCEL_URL doesn't include `https` so it cant be validated as a URL
       process.env.VERCEL ? z.string() : z.string().url()
     ),
-    DISCORD_CLIENT_ID: z.string(),
-    DISCORD_CLIENT_SECRET: z.string(),
+    GOOGLE_CLIENT_ID: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string(),
+    ADMIN_ALLOWLIST: z.string(),
+    // Cifrado de credenciales por tenant (BYO-Flow, ADR-0006/S2). Clave AES-256 en
+    // base64 (openssl rand -base64 32 → 32 bytes). Opcional: la app arranca sin ella;
+    // `parsearClave` (services/cifrado) hace fail-fast al cifrar/descifrar si falta o
+    // es inválida (I5/I7). NUNCA se loguea.
+    CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
+    // Flow (pasarela de pago, BYO-Flow ADR-0006): NO hay credenciales globales de
+    // plataforma — cada tenant trae las suyas, cifradas en `FlowCredential` (las
+    // siembran los seeds / cargará el panel en F05). Estas dos URLs sí son de
+    // plataforma: se pasan a `payment/create` de Flow. Opcionales: la app arranca
+    // sin ellas; la factory hace fail-fast recién al ejecutar crearPago (I7).
+    // FLOW_URL_CONFIRMATION apunta al webhook único /api/webhooks/flow.
+    FLOW_URL_CONFIRMATION: z.string().url().optional(),
+    FLOW_URL_RETURN: z.string().url().optional(),
   },
 
   /**
@@ -32,7 +46,13 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    // Dominio raíz de la plataforma (ADR-0007): distingue el apex de un subdominio
+    // de Tienda. PÚBLICA a propósito: la lee el middleware (runtime edge, Next
+    // inlinea NEXT_PUBLIC_* en build) y no es secreto — es lo que se ve en la barra
+    // de direcciones. Opcional: en dev cae a `localhost` (S1); en producción
+    // `resolverConfigPlataforma` hace fail-fast si falta (I1). La decisión abierta
+    // #4 (QUÉ dominio será) sigue abierta: esto solo define de dónde se lee.
+    NEXT_PUBLIC_PLATFORM_DOMAIN: z.string().optional(),
   },
 
   /**
@@ -44,8 +64,13 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-    DISCORD_CLIENT_ID: process.env.DISCORD_CLIENT_ID,
-    DISCORD_CLIENT_SECRET: process.env.DISCORD_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    ADMIN_ALLOWLIST: process.env.ADMIN_ALLOWLIST,
+    CREDENTIALS_ENCRYPTION_KEY: process.env.CREDENTIALS_ENCRYPTION_KEY,
+    FLOW_URL_CONFIRMATION: process.env.FLOW_URL_CONFIRMATION,
+    FLOW_URL_RETURN: process.env.FLOW_URL_RETURN,
+    NEXT_PUBLIC_PLATFORM_DOMAIN: process.env.NEXT_PUBLIC_PLATFORM_DOMAIN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

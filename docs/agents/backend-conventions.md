@@ -35,14 +35,15 @@ El backend se organiza en tres capas con dependencias en una sola dirección. Es
 
 ## Procedures tRPC
 
-Definidos en `src/server/api/trpc.ts`. Hoy hay **2 procedures**:
+Definidos en `src/server/api/trpc.ts`. Hoy hay **3 procedures**:
 
 | Procedure | Qué valida / inyecta |
 |---|---|
-| `publicProcedure` | Sin auth. Para el borde de cara al comprador (catálogo, inicio de checkout — no hay sesión de comprador en el MVP). |
-| `protectedProcedure` | `session.user` presente (NextAuth + provider OAuth + allowlist del admin). Default para todo lo que opere el panel de la autora. |
+| `publicProcedure` | Sin auth ni tenant. Solo para lo que de verdad no depende de una Tienda ni de una sesión (raro en este dominio — ante la duda, no es este). |
+| `tenantProcedure` | Garantiza `ctx.tenant` no-null: la Tienda **publicada** resuelta SERVER-SIDE del subdominio (`src/server/tenancy/`, ADR-0005/0007). Default para el borde del Comprador (catálogo, checkout — sin sesión, ADR-0004). Sin tenant ⇒ `NOT_FOUND` (respuesta neutral: no delata si la Tienda no existe o está suspendida). El `tenantId` con el que se scopea TODA query sale de acá, **jamás del input** (lección H1 de datawalt-app). |
+| `protectedProcedure` | `session.user` presente (NextAuth + Google OAuth). Para el panel de Organizadores; F05 lo evoluciona a membresía User↔Tenant + rol Operador (hoy conserva la allowlist pre-pivote). |
 
-Si una feature futura necesita un guard distinto, se agrega como middleware nuevo en `trpc.ts` y se compone explícitamente — no autoencadenar middlewares dentro de handlers.
+El contexto tRPC resuelve el tenant re-parseando `req.headers.host` con el parser puro de `src/server/tenancy/` — NO lee el header `x-tenant-slug` que escribe el middleware (defensa en profundidad: no depende del `matcher`). Si una feature futura necesita un guard distinto, se agrega como middleware nuevo en `trpc.ts` y se compone explícitamente — no autoencadenar middlewares dentro de handlers.
 
 ## Routers
 
@@ -58,7 +59,7 @@ Si una feature futura necesita un guard distinto, se agrega como middleware nuev
 
 Algunos disparadores no son la UI con sesión NextAuth: una pasarela de pago que notifica por webhook, un servicio externo. Esos entran por un endpoint Next clásico en `src/pages/api/`. El layering sigue rigiendo — el endpoint es **borde** (transporte): toca `env`, resuelve el contexto y compone los adapters; la lógica de negocio vive en `domain/`, inyectada.
 
-El caso clave de este proyecto es el **webhook de Flow** (ver `docs/adr/0001-...`): Flow notifica el resultado del pago a un endpoint del backend, que **confirma server-side contra la API de Flow** antes de mutar estado (nunca confía en el redirect del navegador) y debe ser **idempotente** (el webhook puede llegar más de una vez). Al confirmar el pago se generan los `Entitlement`(s), se crea la `RaffleEntry` y se dispara el correo con el enlace firmado — idealmente dentro de una transacción.
+El caso clave de este proyecto es el **webhook de Flow** (ver `docs/adr/0001-...` y `0006-...`): un **endpoint único a nivel plataforma** (`/api/webhooks/flow`) al que Flow notifica el resultado del pago de CUALQUIER tenant. El núcleo **rutea por tenant** antes de confirmar: `token` → `Payment` → tenant dueño de la orden → `getStatus` **con las credenciales de ESE tenant** (BYO-Flow — nunca credenciales globales ni las de otro tenant; ver `src/server/pago/enrutarPagoFlow.ts`). Confirma server-side (nunca confía en el redirect del navegador), es **idempotente** (el webhook puede llegar más de una vez) y el `orderId` que confirma es el que NUESTRA DB liga al token — no el `commerceOrder` del body. Al confirmar el pago se generan los `Entitlement`(s), se crea la `RaffleEntry` y se dispara el correo con el enlace firmado — dentro de la transacción (contrato F02).
 
 ### Forma del archivo: núcleo testeable + wrapper Next
 
@@ -68,6 +69,7 @@ El caso clave de este proyecto es el **webhook de Flow** (ver `docs/adr/0001-...
 ### Composición de adapters en el borde (factory)
 
 - El endpoint **compone los adapters concretos** (cliente Flow, storage, correo) vía una factory de `services/`. La factory recibe la config como **argumento explícito** (no importa `~/env` adentro) para quedar testeable; el caller le pasa los valores leídos de `env`. Nunca se instancia un adapter externo dentro del `domain/`.
+- **Adapters por tenant (BYO-Flow, ADR-0006): NO hay cliente Flow global.** Cuando el adapter opera con credenciales DE un tenant, la instanciación pasa por el seam de `src/server/pago/flowDeTenant.ts`: `construirFlowDeCredencial` (núcleo puro: credencial CIFRADA + clave AES-256 ⇒ descifra y arma el `FlowService` con la baseUrl sandbox/prod de ESA cuenta) y su borde `crearFlowServiceDeTenant` (carga la `FlowCredential` por `tenantId` y delega en el núcleo). Lo usan el checkout (por `ctx.tenant.id`) y el enrutador del webhook (por token). El descifrado + armado vive en UN solo lugar; los secretos descifrados solo existen en memoria dentro del closure del service y jamás se loguean (I5). Un `ctx.flow`/cliente global sería una violación silenciosa de BYO-Flow — se retiró a propósito en F01.
 - **Fail-fast de credenciales**: las env vars de un feature pueden ser opcionales en `src/env.js` (la app arranca sin ellas), pero la factory **lanza un error claro en runtime** si faltan al ejecutar — mejor un 500 explícito que un efecto silenciosamente roto.
 
 ### Gate antes de cualquier efecto

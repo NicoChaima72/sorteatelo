@@ -19,7 +19,7 @@ Convenciones de evolución del schema (`prisma/schema.prisma`). PostgreSQL con F
   - `updatedAt DateTime @updatedAt` (no combinar con `@default(now())` — redundante).
 - **`@@index([fkId])` en TODOS los FKs queriables** — Postgres no auto-indexa FKs (sí PKs).
 - **`onDelete` explícito en cada relación**: `Cascade`, `SetNull` (FK opcional) o `Restrict`. El implícito `NoAction` es un smell.
-  - Criterio (sembrado en el schema inicial F01): `Restrict` hacia **padres auditables/append-only** (`Order`, `Book`, `Payment`) — no se borra un padre con hijos. `Cascade` **solo** para **composición intrínseca del agregado** (`OrderItem → Order`: un ítem-snapshot sin vida propia fuera de su orden). `SetNull` para FKs opcionales.
+  - Criterio (sembrado en el schema inicial F01): `Restrict` hacia **padres auditables/append-only** (`Order`, `Product`, `Payment`) y hacia **`Tenant`** desde todo el dominio comercial (una Tienda se SUSPENDE, no se borra — S9/ADR-0005; borrar un tenant con datos comerciales sería destruir registros de plata). `Cascade` **solo** para **composición intrínseca del agregado** (`OrderItem → Order`: un ítem-snapshot sin vida propia fuera de su orden; `FlowCredential → Tenant`: la credencial no tiene vida fuera de su Tienda). `SetNull` para FKs opcionales.
 - Relaciones con back-relation en ambos modelos.
 - Enums: convención `ModelNameStatus` / `ModelNameType`, valores en SCREAMING_CASE.
 - JSON: tipo `Json` nativo de Postgres.

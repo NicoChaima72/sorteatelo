@@ -8,7 +8,7 @@ Una fila = una línea corta. El detalle vive en la **Bitácora** de cada `tasks/
 
 | slug | agente / estado |
 |------|-----------------|
-| saas-roadmap | implementing — visto bueno del usuario 2026-07-16; F01 en ejecución paralela: 3 carriles (A schema+cifrado+seeds, B tenancy subdominio, C pago BYO-Flow) + integrador final (ver Bitácora D8) |
+| saas-roadmap | **testing** — F01 integrada 2026-07-16 [F01-INT]: los 3 carriles cableados (repoTenants real, ctx.flow global retirado, NEXT_PUBLIC_PLATFORM_DOMAIN, seeds por-tenant, dev page tenant-aware), **Vitest 82/82 + tsc + eslint verdes** (Supabase despausado, tests DB-backed incluidos), middleware + aislamiento por subdominio verificados en vivo. Falta feature-tester + E2E manual: AWAITING USER (2 cuentas Flow sandbox + túnel público — ver Bitácora). |
 
 ## En pausa
 

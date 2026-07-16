@@ -73,3 +73,147 @@ model VerificationToken {
 
     @@unique([identifier, token])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dominio libros-iselk — SaaS multi-tenant (F01, ADR-0005/0006).
+// Aprobado por schema-guardian (aplicado con db push, sin migraciones — S7/I8).
+//
+// Reglas de oro:
+// - Multi-tenancy (ADR-0005): todo modelo del dominio comercial (Product/Order/
+//   OrderItem/Payment) lleva `tenantId` + FK a Tenant + `@@index([tenantId, …])`;
+//   toda query de dominio se filtra por el tenant resuelto SERVER-SIDE, nunca por
+//   input del cliente. `Tenant` y `FlowCredential` son entidades de PLATAFORMA
+//   (fuera del scoping por tenantId). Uniques de negocio compuestos con tenantId
+//   cuando el valor puede reaparecer en otro tenant (aquí no hay slugs de producto).
+// - Dinero en Decimal(15,2) nunca Float; onDelete explícito; @@index en FKs queriables.
+// - Restrict hacia padres auditables (Tenant/Order/Product/Payment) — un Tenant no
+//   se borra, se SUSPENDE (S9). Cascade solo para composición intrínseca del agregado
+//   (OrderItem→Order; FlowCredential→Tenant).
+// - BYO-Flow (ADR-0006): FlowCredential 1-1 con Tenant, apiKey/secretKey CIFRADAS
+//   at-rest (AES-256-GCM), flag sandbox por tenant; secretos jamás en texto plano.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+    ALTA
+    CONFIGURACION
+    PUBLICADA
+    SUSPENDIDA
+}
+
+enum OrderStatus {
+    PENDIENTE
+    PAGADO
+    FALLIDO
+}
+
+enum PaymentStatus {
+    PENDIENTE
+    PAGADO
+    FALLIDO
+}
+
+// Una Tienda: la unidad de aislamiento del SaaS (ADR-0005). Vive en su subdominio
+// (slug, ADR-0007). Entidad de plataforma — NO lleva tenantId. Ver CONTEXT.md § Tienda.
+model Tenant {
+    id        String       @id @default(cuid())
+    slug      String       @unique // subdominio, único a nivel plataforma (S3); inmutable tras publicar
+    nombre    String
+    estado    TenantStatus @default(ALTA) // ciclo de vida (S9): solo PUBLICADA resuelve storefront
+    createdAt DateTime     @default(now())
+    updatedAt DateTime     @updatedAt
+
+    flowCredential FlowCredential?
+    products       Product[]
+    orders         Order[]
+    orderItems     OrderItem[]
+    payments       Payment[]
+}
+
+// Credenciales Flow propias del Organizador (BYO-Flow, ADR-0006). 1-1 con Tenant.
+// apiKey/secretKey CIFRADAS at-rest (I5) — nunca texto plano en DB, logs ni respuestas.
+// Composición intrínseca del agregado Tenant ⇒ Cascade. Ver CONTEXT.md § CredencialFlow.
+model FlowCredential {
+    id               String   @id @default(cuid())
+    tenantId         String   @unique // 1-1 con Tenant (el @unique ya crea el índice)
+    apiKeyCifrada    String // apiKey de Flow cifrada (AES-256-GCM, iv+tag+ct empaquetados)
+    secretKeyCifrada String // secretKey de Flow cifrada (mismo formato)
+    sandbox          Boolean  @default(true) // sandbox vs producción, por tenant
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+
+    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Un producto digital descargable (MVP: PDF) que una Tienda vende. Ver CONTEXT.md § Producto.
+// (rename de Book — D3/S5). Pertenece a exactamente una Tienda (tenantId).
+model Product {
+    id          String      @id @default(cuid())
+    tenantId    String
+    titulo      String
+    descripcion String
+    precio      Decimal     @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
+    portadaUrl  String?
+    pdfPath     String // ref al PDF en storage privado per-tenant (ADR-0002/0009); nunca enlace público
+    activo      Boolean     @default(true)
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+    tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+    orderItems  OrderItem[]
+
+    @@index([tenantId, activo]) // el catálogo consulta WHERE tenantId = ? AND activo = true; sirve tenant-only por prefijo
+}
+
+// Una compra dentro de una Tienda. Identidad del comprador = su correo (ADR-0004). Ver CONTEXT.md § Orden.
+model Order {
+    id        String      @id @default(cuid())
+    tenantId  String
+    email     String // identidad del comprador (ADR-0004)
+    estado    OrderStatus @default(PENDIENTE)
+    total     Decimal     @db.Decimal(15, 2) // suma de precios de ítems (I4)
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
+    tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+    items     OrderItem[]
+    payment   Payment?
+
+    @@index([tenantId, email]) // búsquedas siempre tenant-scoped; sirve tenant-only por prefijo
+    @@index([tenantId, estado])
+}
+
+// Línea de una Orden. El precio se congela como snapshot al comprar (I4). Fila inmutable (sin updatedAt).
+model OrderItem {
+    id        String   @id @default(cuid())
+    tenantId  String
+    orderId   String
+    productId String
+    precio    Decimal  @db.Decimal(15, 2) // snapshot del precio del Product al comprar (I4)
+    createdAt DateTime @default(now())
+
+    tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+    order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+    product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+    @@unique([orderId, productId]) // 1 línea por producto por orden (orderId ya es tenant-bound); prefijo cubre el índice de orderId
+    @@index([tenantId])
+    @@index([productId])
+}
+
+// El cobro vía Flow sobre una Orden, con las credenciales de SU Tenant (ADR-0006).
+// Confirmación server-side; webhook idempotente que rutea por tenant (ADR-0001). Ver CONTEXT.md § Pago.
+model Payment {
+    id        String        @id @default(cuid())
+    tenantId  String
+    orderId   String        @unique
+    token     String?       @unique // token de Flow (payment/create); global (el ruteo del webhook resuelve token⇒Payment⇒tenant); null hasta obtenerlo
+    flowOrder Int? // nº de orden interno de Flow (getStatus)
+    estado    PaymentStatus @default(PENDIENTE)
+    monto     Decimal       @db.Decimal(15, 2) // monto cobrado (= Order.total en F01)
+    fee       Decimal?      @db.Decimal(15, 2) // comisión CRUDA que devuelve Flow en getStatus (I4)
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
+
+    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+    order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+    @@index([tenantId])
+}

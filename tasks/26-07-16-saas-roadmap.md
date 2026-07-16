@@ -1,6 +1,6 @@
 ---
 slug: saas-roadmap
-status: planning              # planning | implementing | testing | done
+status: testing               # planning | implementing | testing | done
 owner: nicolas
 created: 2026-07-16
 related_adrs: [ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0005, ADR-0006, ADR-0007, ADR-0008]
@@ -9,7 +9,7 @@ related_context: [Plataforma, Tienda, Organizador, Operador de plataforma, Autor
 features:
   - id: F01
     behavior: "Fundación multi-tenant + circuito de pago BYO-Flow: modelo Tenant + scoping por tenantId, resolución por subdominio (middleware), CredencialFlow cifrada, checkout y webhook ruteados al tenant correcto, verificado con 2 tenants sandbox"
-    state: not_started
+    state: active
   - id: F02
     behavior: "Efectos post-pago per-tenant: DownloadGrant + Raffle/RaffleEntry scopeados, creados idempotentemente en la transacción del webhook"
     state: not_started
@@ -259,19 +259,19 @@ Solo F01 (fase detallada). F02–F10 definen las suyas en su propio task file.
 ### F01 — Fundación multi-tenant + circuito de pago BYO-Flow
 
 **Vitest** (integration):
-- [ ] El parser de host resuelve `a.dominio` → slug `a`; apex y `www` → zona plataforma (sin tenant); host inválido/anidado no resuelve tenant.
-- [ ] La resolución completa: slug existente y **publicada** ⇒ tenant en contexto; slug inexistente, en configuración o suspendida ⇒ sin storefront (respuesta neutral).
-- [ ] Cifrado: roundtrip encrypt/decrypt recupera el secreto; el ciphertext no contiene el plaintext; descifrar con key incorrecta falla.
-- [ ] `iniciarCheckout` crea `Order` `pendiente` + `OrderItem`(s) con snapshot de precio, `total` = suma, correo persistido y `tenantId` del tenant del contexto.
-- [ ] Aislamiento: `iniciarCheckout` en la tienda A con un producto de la tienda B ⇒ `NOT_FOUND`; los listados solo devuelven productos del tenant del contexto.
-- [ ] El service Flow se instancia con las credenciales del tenant y `crearPago` firma con la secretKey de ESE tenant (dos tenants ⇒ firmas distintas para el mismo payload).
-- [ ] El webhook rutea: dado un token/commerceOrder, deriva la orden y su tenant, y consulta `getStatus` con las credenciales de ese tenant (nunca las de otro, nunca globales).
-- [ ] El webhook confirma server-side y avanza `pendiente→pagado` una sola vez, en `$transaction`; replay ⇒ ack sin re-efectos; resultado fallido ⇒ `pendiente→fallido`; método ≠ POST ⇒ 405 sin efectos.
-- [ ] Los seeds son idempotentes y dejan 2 tenants con credenciales y producto propios.
-- [ ] Secretos (keys de Flow, key de cifrado) jamás aparecen en logs ni respuestas.
+- [ ] El parser de host resuelve `a.dominio` → slug `a`; apex y `www` → zona plataforma (sin tenant); host inválido/anidado no resuelve tenant. — [F01-B] `src/__tests__/server/tenancy/parsearHost.test.ts` (11 tests); [F01-INT] verificado además en vivo (curl por subdominio, ver Bitácora)
+- [ ] La resolución completa: slug existente y **publicada** ⇒ tenant en contexto; slug inexistente, en configuración o suspendida ⇒ sin storefront (respuesta neutral). — [F01-B] `src/__tests__/server/tenancy/resolverTenant.test.ts` (12 tests, repo fake); [F01-INT] repo real cableado (`crearRepoTenants`) y verificado en vivo: `autora.localhost`/`prueba.localhost` sirven SOLO su catálogo; apex y slug inexistente ⇒ `NOT_FOUND` neutral
+- [ ] Cifrado: roundtrip encrypt/decrypt recupera el secreto; el ciphertext no contiene el plaintext; descifrar con key incorrecta falla. — `src/__tests__/server/services/cifrado.test.ts::cifrado.001/002/003` (+ 004 IV aleatorio, 005 error sin filtrar clave) — PASSING 5/5
+- [ ] `iniciarCheckout` crea `Order` `pendiente` + `OrderItem`(s) con snapshot de precio, `total` = suma, correo persistido y `tenantId` del tenant del contexto. — [F01-C] `src/__tests__/server/checkout/iniciarCheckout.test.ts::checkout.iniciar.001` (fake db)
+- [ ] Aislamiento: `iniciarCheckout` en la tienda A con un producto de la tienda B ⇒ `NOT_FOUND`; los listados solo devuelven productos del tenant del contexto. — [F01-C] `iniciarCheckout.test.ts::checkout.iniciar.002/003` (producto de otra tienda ⇒ NOT_FOUND) + `listarProductos` scopea `where.tenantId` (query-level; E2E confirma el catálogo por subdominio)
+- [ ] El service Flow se instancia con las credenciales del tenant y `crearPago` firma con la secretKey de ESE tenant (dos tenants ⇒ firmas distintas para el mismo payload). — [F01-C] `src/__tests__/server/services/flow.test.ts::flow.crearPago.003` + `src/__tests__/server/pago/flowDeTenant.test.ts::flowDeTenant.001/002`
+- [ ] El webhook rutea: dado un token/commerceOrder, deriva la orden y su tenant, y consulta `getStatus` con las credenciales de ese tenant (nunca las de otro, nunca globales). — [F01-C] `src/__tests__/server/pago/enrutarPagoFlow.test.ts::ruteo.001/002/003` + `webhookFlow.test.ts::webhook.ruteo.pagado/unknown-token`
+- [ ] El webhook confirma server-side y avanza `pendiente→pagado` una sola vez, en `$transaction`; replay ⇒ ack sin re-efectos; resultado fallido ⇒ `pendiente→fallido`; método ≠ POST ⇒ 405 sin efectos. — [F01-C] `src/__tests__/server/pago/webhookFlow.test.ts::webhook.gate.405/getStatus-first/idempotencia/confirmacion.fallido/pendiente` + `confirmarPagoDeOrden.test.ts::confirmar.001..005` (fake db; atomicidad DB-level real la valida el E2E/feature-tester)
+- [ ] Los seeds son idempotentes y dejan 2 tenants con credenciales y producto propios. — `src/__tests__/scripts/seed-tenants.test.ts::seed.tenants.001/002` — [F01-INT] **PASSING 3/3 contra la DB real** (Supabase ya despausado) + `npm run seed:tenants` corrido idempotente (los 2 tenants ya existían; credenciales re-sembradas — hoy PLACEHOLDERS, pendientes las 2 cuentas sandbox reales)
+- [ ] Secretos (keys de Flow, key de cifrado) jamás aparecen en logs ni respuestas. — parcial [F01-A]: `cifrado.test.ts::cifrado.005` (mensaje de error sin filtrar la clave) + `seed-tenants.test.ts::seed.tenants.003` (ciphertext en DB sin plaintext); [F01-C]: `enrutarPagoFlow.test.ts::ruteo.004` (el ruteo + getStatus nunca loguean las creds del tenant, ni cifradas ni en claro) + el webhook responde solo `received/yaProcesado/transicion`/`ignorado` (nunca tenantId, creds ni token)
 
 **E2E** (manual en sandbox — el checkout corre en el dominio de Flow):
-- [ ] En `a.localhost` y `b.localhost`: elegir producto + email ⇒ pagar con tarjeta de prueba ⇒ cada `Order` queda `pagado` bajo SU tenant, confirmada con las credenciales de SU cuenta Flow sandbox, webhook procesado una sola vez (verificable en Prisma Studio).
+- [ ] En `autora.localhost` y `prueba.localhost`: elegir producto + email ⇒ pagar con tarjeta de prueba ⇒ cada `Order` queda `pagado` bajo SU tenant, confirmada con las credenciales de SU cuenta Flow sandbox, webhook procesado una sola vez (verificable en Prisma Studio). — [F01-INT] **PENDIENTE, bloqueado por externos**: (1) credenciales de 2 cuentas Flow sandbox DISTINTAS (AWAITING USER, ver Bitácora), (2) túnel público para `FLOW_URL_CONFIRMATION`. El cableado previo al pago SÍ está verificado en vivo (catálogo scoped por subdominio, gate 405 del webhook, ack de token desconocido).
 
 ### F02–F10
 - [ ] (se definen en el task file de cada fase al planificarla)
@@ -370,3 +370,269 @@ Para F01 (los demás en el planning de cada fase):
   cross-tenant nació de pasar `domain` como input por procedure), membresía User↔Tenant con unique
   compuesto, un solo nombre de columna (`tenantId`) desde el día 1, fail-closed. F03/F04 quedan sin
   bloqueo de proveedor. F01 pasa a implementing.
+- [2026-07-16 16:30] [F01-B] **Carril B (paso 3: resolución de tenant por subdominio) implementado**.
+  Archivos NUEVOS: `src/server/tenancy/parsearHost.ts` (parser puro host→zona/slug, sin env/DB/IO),
+  `src/server/tenancy/resolverTenant.ts` (resolución host→Tienda PUBLICADA con repo inyectado),
+  `src/server/tenancy/configPlataforma.ts` (de dónde sale el dominio raíz),
+  `src/server/tenancy/headerTenant.ts` (saneo de `x-tenant-slug`),
+  `src/server/tenancy/repoTenants.ts` (seam del integrador), `src/middleware.ts` (borde edge) +
+  tests `src/__tests__/server/tenancy/{parsearHost,resolverTenant,configPlataforma,headerTenant}.test.ts`.
+  MODIFICADO: `src/server/api/trpc.ts` (solo AGREGA tenant al contexto + `tenantProcedure`; el service
+  Flow global preexistente se preservó intacto — es del carril C re-scopearlo a BYO-Flow).
+  Gates: **34/34 Vitest verdes**, eslint limpio en los 7 archivos, tsc sin errores en archivos del carril.
+  Trazabilidad de las 2 Validaciones de este carril (NO marco checkboxes — es del feature-tester; y no
+  toco esas líneas para no pisar ediciones concurrentes de A/C): parser ⇒ `parsearHost.test.ts` (11
+  tests); resolución completa con repo fake ⇒ `resolverTenant.test.ts` (12 tests).
+- [2026-07-16 16:30] [F01-B] **Decisiones tácticas** (cubiertas por plan/ADR/convenciones; ninguna
+  cierra decisión abierta). (a) **Forma del slug = label DNS** (RFC 1035/1123: 1-63 chars `[a-z0-9-]`,
+  sin guion al borde) — no es regla inventada, es consecuencia de S3/ADR-0007 ("el slug ES el
+  subdominio"); exportada como `esSlugValido` para que el alta de Tiendas de F08 use ESTA definición y
+  no una paralela. (b) **Respuesta neutral estructural**: `ResolucionTenant` tiene UNA sola variante
+  `{ zona: "sin-storefront" }` **sin campo de motivo**, así inexistente / en-configuración / suspendida
+  son indistinguibles *por construcción* (ningún caller puede filtrar el motivo aunque quiera) —
+  ADR-0007. (c) **Defensa en profundidad**: el middleware sanea `x-tenant-slug` (lo pisa/borra siempre;
+  el cliente nunca lo escribe), pero el contexto tRPC **NO lo lee**: re-parsea `req.headers.host` con el
+  mismo parser puro, para no depender de que el `matcher` cubra el path (lección H1). (d)
+  `tenantProcedure` nuevo en `trpc.ts`: garantiza `ctx.tenant` no-null y tira **`NOT_FOUND`** (no
+  `FORBIDDEN`, que delataría "existe pero suspendida"). **Disponible para el carril C**: es el guard
+  natural para `iniciarCheckout` scopeado (hoy `routers/checkout.ts` usa `publicProcedure`). (e) El
+  parser distingue `plataforma` de `null`, pero el borde trata ambos como "sin tenant" (un host
+  inválido no sirve storefront; tampoco se le 404ea el apex a `127.0.0.1` en dev). Cambiar eso a
+  rechazo duro es una línea en el middleware si se decide.
+- [2026-07-16 16:30] [F01-B] **HANDOFF 1 → carril A (`src/env.js`, zona exclusiva suya)**: falta declarar
+  **`NEXT_PUBLIC_PLATFORM_DOMAIN`** (Zod `z.string().optional()` + `runtimeEnv` + `.env.example`). NO la
+  agregué: `src/env.js` no es mi zona. Mientras tanto `configPlataformaDesdeEnv()` lee `process.env`
+  **directo**, violando `backend-conventions.md` § Env vars — deuda **deliberada, confinada a esa única
+  función** y documentada in-situ como HANDOFF; al declararla, es un cambio de UNA línea
+  (`env.NEXT_PUBLIC_PLATFORM_DOMAIN`). El núcleo puro NO la toca: recibe el dominio raíz **inyectado**,
+  así que la **decisión abierta #4 sigue ABIERTA** y ningún test presume el dominio (fixture
+  `plataforma.test`, TLD reservado RFC 2606). Sin la var: dev cae a `localhost` (S1); **producción hace
+  fail-fast (throw)** — sin dominio raíz `a.dominio` no se distingue del apex y el aislamiento por
+  subdominio deja de significar algo (I1); mismo criterio que la factory de Flow. **Pregunta para el
+  carril A (NIT del backend-reviewer, no la cierro yo)**: ¿`NEXT_PUBLIC_` o var de server? El prefijo
+  solo hace falta si el valor debe llegar al bundle del browser; el middleware la lee server-side (edge)
+  y funcionaría sin prefijo. No es secreto (está en la barra de direcciones). Decide A al fijar el schema.
+- [2026-07-16 16:30] [F01-B] **HANDOFF 2 → integrador (pasos 8/9): cablear el repo, 1 línea.** Por D8
+  ("B y C escriben núcleos puros con deps inyectadas; el integrador cabla contra el Prisma Client
+  generado") NO cablé `db.tenant`. Hoy rige `repoTenantsSinCablear` (devuelve siempre `null` =
+  **fail-closed**: ningún subdominio resuelve hasta que se cable). El circuito host→parser→resolución→
+  contexto YA está cableado en `trpc.ts`; falta solo el repo. El snippet exacto está en el JSDoc de
+  `repoTenants.ts`. **Contrato cross-carril VERIFICADO contra el schema que landeó A**: `Tenant.slug
+  @unique` (S3) y `TenantStatus { ALTA CONFIGURACION PUBLICADA SUSPENDIDA }` coinciden **exacto** con
+  mi `EstadoTienda`, el delegate `tenant` ya está generado, y probé con un archivo throwaway (borrado)
+  que **el snippet compila tal cual** contra el client. El paso del integrador es mecánico.
+- [2026-07-16 16:30] [F01-B] **`backend-reviewer`: APPROVE** (Compliance A / Naming A / Tests A) tras
+  arreglar 1 **blocker que encontró y era real**: `middleware.ts` estaba en la RAÍZ del repo, donde Next
+  **nunca lo habría ejecutado** — con `src/pages` presente, Next 14 solo detecta el middleware en el
+  padre de `pagesDir`, o sea `src/` (`next/dist/build/index.js`: `rootDir = path.join(pagesDir || appDir,
+  "..")`). Compilaba, no daba error y era **código muerto**: el saneo del header (que existe justamente
+  para matar la clase de bug H1) no corría nunca. Movido a **`src/middleware.ts`** + comentario ⚠️
+  UBICACIÓN in-situ para que nadie lo "corrija" de vuelta siguiendo la redacción genérica de los docs de
+  Next. **Verificado empíricamente**: repliqué el predicado de detección de Next con sus PROPIOS módulos
+  (`MIDDLEWARE_FILENAME`/`getFilesInDir`/`findPagesDir`) ⇒ `rootPaths: ['\src\middleware.ts']`,
+  `hasMiddlewareFile: true` (antes: `[]` / `false`). NO corrí `next build` a propósito: hay procesos node
+  vivos y `.next` presente (posible dev server de otro carril) y un build concurrente puede corromperlo.
+  **PENDIENTE para el integrador**: confirmar en el E2E (paso 8/9) que el middleware corre de verdad
+  (log `ƒ Middleware` en build, o `curl` en dev con `x-tenant-slug` forjado ⇒ debe ser ignorado). Vitest
+  no puede atrapar un bug de ubicación — es el borde de cableado que el patrón núcleo+wrapper no testea.
+- [2026-07-16 16:30] [F01-B] **Notas para el cierre de F01**. (a) **DRIFT propuesto, NO aplicado**
+  (requiere OK del usuario y toca a los 3 carriles): `docs/agents/backend-conventions.md` § Procedures
+  sigue diciendo "Hoy hay **2 procedures**" y describe la allowlist mono-usuario pre-pivote; al cerrar
+  F01 debería documentar `tenantProcedure` y el módulo `src/server/tenancy/` (si no, F05/F06 reinventan
+  el patrón). (b) **Hueco para F08**: el único subdominio reservado hoy es `www` (lo único que el plan
+  declara). El alta self-service va a necesitar una lista de reservados (`api`, `admin`, `mail`, `app`…)
+  — NO la inventé acá porque es decisión de producto, no de este carril. (c) **No son míos**: al cerrar,
+  `tsc` reporta errores en `domain/checkout/*` y `pago/*` (`db.book`/`bookId` ya no existen) — los causó
+  el rename `Book`→`Product` (D3/S5) que landeó A mientras yo trabajaba; son zona del carril C (paso 5).
+  Los dejé intactos a propósito. (d) `src/server/api/trpc.ts` quedó tocado por B (contexto/tenant) y lo
+  va a tocar C (Flow por tenant): al integrar, revisar que ambos cambios convivan.
+- [2026-07-16 17:10] [feature-implementer] Arranca implementación **CARRIL C** de F01 (pasos 4, 5, 6 del
+  Detalle ejecutable: service Flow por credencial de tenant + checkout scoped + núcleo del webhook con
+  ruteo multi-tenant). Adapta el rescate S8. Zonas exclusivas del carril: `src/server/services/flow.ts`,
+  `src/server/pago/`, `src/server/domain/`, `src/pages/api/webhooks/`, `src/server/api/routers/checkout.ts`
+  + tests. Deps de A (schema Prisma generado) y B (`cifrado.ts`, `tenantProcedure`) ya landearon: tipo
+  contra ellas. NO toco `schema.prisma`, `env.js`, `middleware`, `trpc.ts`, `scripts/`, auth/login.
+- [2026-07-16 17:15] [feature-implementer] [F01-C] **Carril C implementado** (pasos 4/5/6). Archivos:
+  NUEVOS — `src/server/pago/flowDeTenant.ts` (núcleo puro `construirFlowDeCredencial`: descifra la
+  `FlowCredential` del tenant y arma su `FlowService` con baseUrl sandbox/prod por credencial; + borde
+  `crearFlowServiceDeTenant` que lo cabla para el checkout + helper compartido `claveDeCifradoDeEnv`),
+  `src/server/pago/enrutarPagoFlow.ts` (núcleo `crearEnrutadorFlow`: token→Payment→tenant→getStatus con
+  las creds de ESE tenant, deps inyectadas; + borde `crearRepoRuteoFlow` Prisma), `listarProductos.ts`
+  (rename de `listarLibros`, scoped por tenantId). MODIFICADOS — `services/flow.ts` (exporta
+  `FLOW_SANDBOX_BASE_URL`/`FLOW_PROD_BASE_URL`; factory sin cambio de firma — ya recibía config, la firma
+  HMAC ya es por-secretKey ⇒ por-tenant), `pago/webhookFlow.ts` (núcleo: reemplaza el `getStatus` global
+  por `enrutarFlow`; agrega ack+ignore de token desconocido; confirma con `ruteo.orderId` autoritativo, no
+  el `commerceOrder` del body de Flow), `pages/api/webhooks/flow.ts` (wrapper cablea enrutador + clave de
+  env, fail-fast 500), `domain/checkout/iniciarCheckout.ts` (scoped por `tenantId`, `Product`, Order/
+  OrderItem/Payment con tenantId, snapshot de precio intacto), `domain/checkout/schemas.ts`
+  (`bookIds`→`productIds`, SIN tenantId en el input), `api/routers/checkout.ts` (`tenantProcedure` +
+  Flow por tenant). ELIMINADO — `listarLibros.ts`. Toque courtesy — `pages/dev/checkout.tsx` (renombres
+  mecánicos al router para no romper tsc; el integrador la rehace tenant-aware). Tests reescritos a FAKES
+  (Supabase pausado, F01-A): `flowDeTenant.test.ts` (3), `enrutarPagoFlow.test.ts` (4), `webhookFlow.test.ts`
+  (9), `confirmarPagoDeOrden.test.ts` (5, fake db con $transaction que revierte), `iniciarCheckout.test.ts`
+  (4, fake db) + `flow.test.ts` (+1 firma por-tenant). **Vitest 31/31 PASSING**, `tsc --noEmit` exit 0
+  (proyecto entero), `eslint` limpio en los archivos del carril.
+- [2026-07-16 17:15] [feature-implementer] [F01-C] **Decisiones tácticas** (cubiertas por plan/ADR/
+  convenciones; ninguna cierra decisión abierta). (a) **Un solo seam de instanciación BYO-Flow**
+  (`construirFlowDeCredencial`) reusado por checkout (por tenantId) y webhook (por token) — el descifrado
+  + armado del service vive en UN lugar (I5/I7). (b) **`orderId` autoritativo del ruteo**: el webhook
+  confirma la orden que NUESTRA DB liga al token, NO el `commerceOrder` que devuelve Flow — así una
+  respuesta de Flow manipulada no puede redirigir la confirmación a otra orden. `getStatus` sigue siendo
+  la única prueba de PAGADO/FALLIDO+fee (I2). (c) **Token desconocido ⇒ ack+ignore (200)**, igual criterio
+  que token faltante: notificación ajena/irreintentable, no 4xx que gatille reintentos infinitos. (d)
+  **baseUrl sandbox/prod por credencial** (`FlowCredential.sandbox`), no global: cada tenant puede estar en
+  distinto ambiente de Flow. (e) **`confirmarPagoDeOrden` NO recibe tenantId**: opera por `order.id` (PK
+  global, único), y el tenant ya quedó fijado por el ruteo token→Payment→orderId — agregar tenantId sería
+  redundante (el PK ya es tenant-safe). (f) **Tests a fakes, no DB-backed**: por el bloqueo de Supabase
+  (F01-A) y la instrucción del carril ("usa fakes"); cubren toda la lógica de seguridad nueva (ruteo,
+  firmas por-tenant, getStatus-antes-de-efecto, idempotencia, aislamiento cross-tenant, no-logueo de
+  secretos). La atomicidad DB-level bajo carrera real y el snapshot-tras-cambio-de-precio quedan para el
+  E2E/feature-tester con la DB real.
+- [2026-07-16 17:17] [feature-implementer] [F01-C] `backend-reviewer`: **APPROVE** (Corrección A /
+  Compliance A / Naming B / Tests B), cero blockers. Verificó los 6 focos de riesgo: sin fuga cross-tenant,
+  confirmación server-side siempre antes de efecto, secretos nunca logueados/expuestos, dinero en Decimal,
+  idempotencia atómica en $transaction con hook post-pago intacto, adapters externos solo en el borde.
+  **NIT aplicado**: extraje el fail-fast duplicado de `CREDENTIALS_ENCRYPTION_KEY` a `claveDeCifradoDeEnv`
+  (un solo mensaje, usado por checkout y webhook). Re-corridos gates tras el fix: 31/31 + tsc/eslint verdes.
+  **NITs NO aplicados (fuera de scope de C o de fase posterior)**: (1) `ctx.flow` global en `trpc.ts:81-87`
+  quedó MUERTO — nada lo consume (checkout usa Flow por tenant); es riesgo latente (un futuro procedure que
+  lo use violaría BYO-Flow en silencio). **HANDOFF integrador/B**: retirar `ctx.flow` + la instanciación
+  global de `FLOW_*` en el contexto. (2) `listarProductos` serializa `precio` como `number` (display-only,
+  documentado; el monto autoritativo se re-lee como Decimal en checkout) — si F05 repite el patrón (panel/
+  ventas), decidir un transformer de `Prisma.Decimal` en superjson. (3) Si `flow.crearPago` (red, fuera de
+  la $transaction) falla, la Order/Payment PENDIENTE quedan huérfanas sin token — no mueve plata; limpieza
+  para una fase posterior.
+- [2026-07-16 17:17] [feature-implementer] [F01-C] **HANDOFFS al integrador (pasos 8/9)**. (a) El webhook
+  YA cabla el repo real (`crearRepoRuteoFlow(db)`) y el checkout el Flow real por tenant — el circuito de
+  pago está cableado de punta a punta salvo la resolución del subdominio (repo de tenancy = handoff de B) y
+  **credenciales Flow sandbox REALES de DOS cuentas distintas** en los seeds (hoy placeholders; la "prueba
+  de fuego" D1 exige dos cuentas Flow sandbox reales). (b) La `FLOW_URL_CONFIRMATION` debe apuntar al
+  webhook `/api/webhooks/flow` (endpoint único de plataforma) y `FLOW_URL_RETURN` a la dev page — en dev
+  con `*.localhost`, revisar que Flow sandbox acepte el host. (c) La dev page `pages/dev/checkout.tsx` la
+  toqué solo mecánicamente (router renombrado); el integrador la rehace tenant-aware (hoy consume
+  `tenantProcedure`, así que sin subdominio resuelto da NOT_FOUND — esperado). (d) Tests DB-backed: NO dejé
+  ninguno DB-backed en el carril (todo a fakes); cuando Supabase vuelva, el feature-tester valida el
+  circuito real + E2E con 2 tenants.
+- [2026-07-16 17:17] [feature-implementer] [F01-C] **DRIFT de doc propuesto, NO aplicado (requiere OK del
+  usuario, Step 4.5)** — a consolidar en el cierre de F01 junto con los drifts pendientes de A/B sobre el
+  mismo archivo. `docs/agents/backend-conventions.md`: (i) § "Endpoints pages/api" describe UN cliente Flow
+  global; con BYO-Flow el webhook es multi-tenant (ruteo token→Payment→tenant→getStatus con las creds de
+  ESE tenant) — agregar el patrón de ruteo + el seam `construirFlowDeCredencial`/`crearFlowServiceDeTenant`
+  (instanciación por-tenant de adapters con credenciales cifradas). (ii) § "Procedures" (ya lo marcó B):
+  documentar `tenantProcedure` como el guard del borde de Comprador scoped por subdominio. NO lo apliqué
+  yo. NO detecté vocabulario nuevo para CONTEXT (usé Product/Order/Payment/CredencialFlow/Tenant ya
+  definidos) ni decisión nueva para ADR (BYO-Flow ya es ADR-0006, confirmación server-side ADR-0001).
+- [2026-07-16 16:35] [feature-implementer] Arranca implementación **CARRIL A** de F01 (pasos 1, 2, 7 del
+  Detalle ejecutable: schema multi-tenant + service de cifrado + seeds). Zonas exclusivas del carril:
+  `prisma/schema.prisma`, `src/env.js`, `.env.example`, `src/server/services/cifrado.ts`, `scripts/` (seeds)
+  + tests. Status global → implementing, F01 state → active. Carriles B/C corren en paralelo (no toco sus zonas).
+- [2026-07-16 16:35] [feature-implementer] [F01-A] **Schema multi-tenant** (paso 1). Invocado `schema-guardian`
+  ANTES de editar → APPROVED. Cambios en `prisma/schema.prisma`: nuevo enum `TenantStatus`
+  (ALTA/CONFIGURACION/PUBLICADA/SUSPENDIDA), modelo `Tenant` (slug `@unique` global S3, `nombre`, `estado`,
+  timestamps), modelo `FlowCredential` (1-1 con Tenant, `apiKeyCifrada`/`secretKeyCifrada` cifradas at-rest I5,
+  flag `sandbox`, `onDelete: Cascade` = composición del agregado), rename `Book`→`Product` (D3/S5) y
+  re-scoping de `Product`/`Order`/`OrderItem`/`Payment` con `tenantId` + FK a Tenant (`onDelete: Restrict` —
+  un tenant se SUSPENDE, no se borra, S9) + índices compuestos `[tenantId, …]` (recomendación de
+  schema-guardian: `Product [tenantId, activo]`, `Order [tenantId, email]`+`[tenantId, estado]`, `OrderItem`
+  `[tenantId]`+`[productId]`, `Payment [tenantId]`). Uniques globales conservados donde el ruteo del webhook
+  los necesita: `Payment.token` y `Payment.orderId` (token⇒Payment⇒tenant, confirmado por schema-guardian
+  como REQUERIDO por Carril C). `@@unique([orderId, productId])` SIN tenantId (orderId ya es tenant-bound).
+  `bookId`→`productId` en OrderItem. Refrescado el comentario-cabecera del schema a multi-tenant.
+- [2026-07-16 16:35] [feature-implementer] [F01-A] **`prisma generate` corrido — B/C DESBLOQUEADOS en tipos.**
+  El Prisma Client generado ya expone `Tenant`/`FlowCredential`/`Product`/`Order`/`OrderItem`/`Payment` +
+  enum `TenantStatus`; `Book` eliminado. B/C compilan contra estos tipos. NOTA para B/C: sus archivos actuales
+  (checkout/webhook/flow y sus tests) referencian `Book`/`bookId`/Order sin tenantId y quedan temporalmente
+  rotos hasta que los adapten al rename+scoping — es esperado (S8).
+- [2026-07-16 16:35] [feature-implementer] [F01-A] ⚠ **BLOQUEO DE INFRA (no del carril): el proyecto Supabase
+  está pausado/inalcanzable.** `prisma db push` y toda query fallan con `FATAL: (ENOTFOUND) tenant/user
+  postgres.ssdnivmwvwowulztftfe not found` en AMBOS endpoints (pooler 6543 y 5432) — confirmado con
+  `prisma db execute` en los dos. Un typo de URL fallaría distinto; esto es el proyecto pausado (free-tier).
+  Consecuencia: (a) el **`db push` del schema NO se aplicó a la DB** (el schema.prisma está escrito+validado y
+  el client generado, pero la DB remota sigue con el schema viejo single-tenant); (b) el **seed test
+  (DB-backed) no se pudo ejecutar** — sus 3 fallos son solo la conexión, no lógica. **Acción requerida del
+  usuario**: restaurar/despausar el proyecto Supabase en el dashboard; luego correr `npm run db:push` y
+  `npm run seed:tenants`, y `npx vitest run src/__tests__/scripts/seed-tenants.test.ts`. Esto también
+  desbloquea los tests DB-backed de B/C.
+- [2026-07-16 16:35] [feature-implementer] [F01-A] **Service de cifrado** (paso 2). `src/server/services/cifrado.ts`
+  — AES-256-GCM puro (`cifrar`/`descifrar`/`parsearClave`), clave inyectada (Buffer 32 bytes), sin env ni I/O;
+  empaqueta iv(12)+authTag(16)+ciphertext en un base64 (alineado con el String único del schema). Mensajes de
+  error nunca incluyen el valor de la clave (I5). Env: agregado `CREDENTIALS_ENCRYPTION_KEY` a `src/env.js`
+  (opcional, fail-fast al usar — mismo patrón que las Flow creds, I7) y a `.env.example` (placeholder inválido a
+  propósito). Generada una key AES-256 REAL en `.env` local (gitignored; valor no expuesto). Tests:
+  `cifrado.test.ts` **5/5 PASSING** (roundtrip, ciphertext sin plaintext, clave incorrecta falla, IV aleatorio,
+  error sin fuga).
+- [2026-07-16 16:35] [feature-implementer] [F01-A] **Seeds** (paso 7). `scripts/seed-tenants.ts` (núcleo+wrapper):
+  núcleo `sembrarTenants({db, clave, specs})` idempotente (find-or-create por slug / tenantId / título), cifra
+  las credenciales con `cifrado.ts` antes de persistir; wrapper lee env + `CREDENTIALS_ENCRYPTION_KEY`, no loguea
+  secretos. Siembra 2 tenants **PUBLICADA** (para que el storefront resuelva en E2E dev; go-live real = F07):
+  `autora` (piloto, producto "Cómo enriquecer a tu idol favorito" $3000) y `prueba` (producto "Guía de prueba
+  del sorteo" $5000), con pdfPath per-tenant (`<slug>/seed/…`). **SUPUESTO tomado**: no hay `FLOW_API_KEY`/
+  `FLOW_SECRET_KEY` en `.env` → el seed usa **placeholders sandbox DISTINTOS por tenant** (obviamente falsos);
+  el E2E real contra Flow sandbox necesita credenciales reales (las cablea el integrador). Retirado el seed
+  single-tenant obsoleto: eliminados `scripts/seed-book.ts` + `src/__tests__/scripts/seed-book.test.ts` (Book ya
+  no existe); `package.json` script `seed:book`→`seed:tenants`. Tests: `seed-tenants.test.ts` (3: creación+cifrado,
+  idempotencia, ciphertext sin plaintext) escritos pero **no ejecutables hasta despausar Supabase**.
+- [2026-07-16 16:35] [feature-implementer] [F01-A] Cierre del carril: invocado `backend-reviewer` → **APPROVE**,
+  cero blockers. NITs: (1) cuando el env trae UN solo par de creds Flow reales, ambos tenants reciben el MISMO par
+  → **pendiente del Carril Integrador** cargar credenciales reales de DOS cuentas Flow sandbox distintas antes del
+  E2E manual de F01 (la "prueba de fuego" de D1: firmas HMAC distintas por tenant); con nuestros placeholders
+  actuales la propiedad SÍ se cumple (secretKeys distintas). (2) Aplicado: seed test compara precio con
+  `Prisma.Decimal` (no `Number`). (3) `cifrado.ts` vive en `services/` per plan paso 2, aunque es util pura no-I/O;
+  si crecen las utils puras, considerar `server/crypto/` — no bloquea. Aplicado también: `console.error` del seed
+  loguea solo `e.message` (defensa I5). **NOTA (fuera de scope de A)**: `docs/agents/backend-conventions.md` sigue
+  describiendo el modelo single-tenant/allowlist — lo actualizará Carril B (toca `trpc.ts`) o el change-set-reviewer
+  al cierre. Drift de doc detectado: `docs/agents/prisma-conventions.md:22` cita `Book` como padre auditable
+  (debería decir `Product`) — NO lo apliqué (requiere OK del usuario, Step 4.5); ver reporte final.
+- [2026-07-16 17:45] [F01-INT] **Integrador (pasos 8/9): cableado completo, verificado en vivo.** Los 3
+  handoffs de A/B/C aplicados. Archivos MODIFICADOS: `src/server/tenancy/repoTenants.ts` (placeholder
+  fail-closed → `crearRepoTenants(db)` real, el snippet del JSDoc de B compiló tal cual),
+  `src/server/api/trpc.ts` (cablea `crearRepoTenants(db)`; RETIRA `ctx.flow` global + instanciación
+  `FLOW_*` muerta — nit del backend-reviewer de C: nada lo consumía y un procedure futuro que lo usara
+  violaría BYO-Flow en silencio; queda comentario explicando por qué NO debe volver), `src/env.js`
+  (+`NEXT_PUBLIC_PLATFORM_DOMAIN` como var PÚBLICA opcional en `client` — decisión del orquestador; el
+  middleware edge la lee y no es secreto; −`FLOW_API_KEY`/`FLOW_SECRET_KEY`/`FLOW_API_URL`, huérfanas tras
+  retirar `ctx.flow`: con BYO-Flow no hay credenciales globales y la baseUrl sale de `FlowCredential.sandbox`;
+  `FLOW_URL_CONFIRMATION`/`FLOW_URL_RETURN` SIGUEN — las consume `flowDeTenant.ts` para `payment/create`),
+  `src/server/tenancy/configPlataforma.ts` (deuda saldada: `process.env` directo → `env.NEXT_PUBLIC_PLATFORM_DOMAIN`),
+  `.env.example` (+`NEXT_PUBLIC_PLATFORM_DOMAIN` documentada; sección Flow reescrita a BYO-Flow: −creds
+  globales, +`FLOW_{AUTORA,PRUEBA}_{API,SECRET}_KEY` por-tenant para el seed), `scripts/seed-tenants.ts`
+  (credenciales POR TENANT desde env — par completo ⇒ reales, ninguno ⇒ placeholder, a medias ⇒ error;
+  throw si ambos tenants traen la MISMA secretKey — D1 exige cuentas distintas; credencial pasa de
+  find-or-create a **UPSERT** para que re-correr el seed con creds reales pise los placeholders),
+  `src/pages/dev/checkout.tsx` (tenant-aware de verdad: muestra el host, y `NOT_FOUND` neutral ⇒ hint de
+  entrar por `autora.localhost`/`prueba.localhost` en vez de un error crudo). NUEVO:
+  `src/pages/api/dev/echo-tenant.ts` (throwaway, muere con la dev page en F06: ecoa `x-tenant-slug` para
+  poder OBSERVAR el middleware — el saneo es invisible desde afuera porque el contexto re-parsea el host).
+  `.env` local: +`FLOW_URL_RETURN`, `FLOW_URL_CONFIRMATION` comentada (placeholder de túnel no pasa `z.url()`),
+  scaffold comentado para las 4 vars de credenciales seed.
+- [2026-07-16 17:45] [F01-INT] **Verificación (paso 9) — todo lo no-bloqueado, en verde.** (a) Gates:
+  `tsc --noEmit` exit 0, `next lint` limpio, **Vitest COMPLETO 82/82 PASSING** — incluye los 3 tests
+  DB-backed del seed que A dejó sin ejecutar: **Supabase ya está despausado** (la DB tiene el schema
+  multi-tenant aplicado y los 2 tenants seed ya existían — alguien corrió `db push` + seed antes de esta
+  sesión). `npm run seed:tenants` re-corrido: idempotente, credenciales re-sembradas (PLACEHOLDERS aún).
+  (b) **Middleware verificado con requests reales** (cierra el PENDIENTE de B — bug de ubicación que Vitest
+  no puede atrapar): dev server propio en **:3001** porque el :3000 lo ocupa OTRO proyecto del usuario
+  («Grillos», app Mantine — no lo toqué; ojo feature-tester: `*.localhost:3000` NO es libros-iselk hoy).
+  Con curl: apex + `x-tenant-slug: forjado` ⇒ header BORRADO (null en el echo); `autora.localhost` ⇒ header
+  `autora` server-authored; `prueba.localhost` + header forjado ⇒ `prueba` (el spoof no sobrevive). (c)
+  **Circuito completo host→middleware→contexto→repo real→catálogo scoped**: `checkout.listarProductos` vía
+  curl devuelve SOLO el producto de su tenant en cada subdominio; apex y `nadie.localhost` ⇒ `NOT_FOUND`
+  neutral idéntico. (d) Webhook: GET ⇒ 405 `method_not_allowed`; POST token desconocido ⇒ 200
+  `{received, ignorado: unknown_token}` (ack+ignore). Dev server detenido al terminar (una sola instancia,
+  y era mía).
+- [2026-07-16 17:45] [F01-INT] **E2E manual: PENDIENTE, bloqueado por 2 externos** (per instrucción del
+  orquestador, cierro igual el cableado). **AWAITING USER**: (1) **credenciales de DOS cuentas Flow sandbox
+  DISTINTAS** (D1) — registrarlas en https://sandbox.flow.cl exige verificación de correo/datos personales,
+  así que no las creé yo; van en `.env` como `FLOW_AUTORA_API_KEY`/`FLOW_AUTORA_SECRET_KEY` +
+  `FLOW_PRUEBA_API_KEY`/`FLOW_PRUEBA_SECRET_KEY` (scaffold ya comentado en el `.env`), luego
+  `npm run seed:tenants` (el upsert pisa los placeholders). (2) **Túnel público** (ngrok o similar) para que
+  Flow sandbox alcance `/api/webhooks/flow` ⇒ descomentar `FLOW_URL_CONFIRMATION` en `.env` con esa URL.
+  Con ambos: el E2E de Validaciones (pagar con tarjeta de prueba en los 2 subdominios) queda ejecutable por
+  el feature-tester. **Nota adicional para el cierre**: el `.env` local NO tiene `GOOGLE_CLIENT_ID`/
+  `GOOGLE_CLIENT_SECRET`/`ADMIN_ALLOWLIST` (que `env.js` exige como requeridas) — hoy `next dev`/`lint` solo
+  arrancan con `SKIP_ENV_VALIDATION=1`; es pre-existente (scaffold trae DISCORD_*) y pega en F05 (auth), no
+  en F01. Drifts documentales del cierre APLICADOS con OK del usuario: `prisma-conventions.md` (Book→Product
+  + Tenant/FlowCredential en el criterio de cascades), `backend-conventions.md` § Procedures (tabla con
+  `tenantProcedure` + defensa en profundidad del contexto) y § Endpoints/factory (webhook multi-tenant con
+  ruteo por token + seam `construirFlowDeCredencial`/`crearFlowServiceDeTenant`, sin cliente Flow global).
+  Status → **testing**; INDEX actualizado. Siguiente: feature-tester (lo orquesta la sesión principal).

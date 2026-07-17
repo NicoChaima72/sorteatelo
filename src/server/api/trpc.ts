@@ -13,7 +13,13 @@ import { type Session } from "next-auth";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { env } from "~/env";
 import { getServerAuthSession } from "~/server/auth";
+import {
+  type AccesoPanel,
+  esOperador,
+  parsearAllowlist,
+} from "~/server/authPolicy";
 import { db } from "~/server/db";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { crearRepoTenants } from "~/server/tenancy/repoTenants";
@@ -215,6 +221,48 @@ export const tenantProcedure = t.procedure
       ctx: {
         // infiere `tenant` como no-nullable
         tenant: ctx.tenant,
+      },
+    });
+  });
+
+/**
+ * Panel (Organizador / Operador) procedure — el borde del panel de administración
+ * (ADR-0005, F05). Exige sesión NextAuth (Google OAuth) y carga SERVER-SIDE el
+ * `acceso`: quién es, si es Operador de plataforma (env `PLATFORM_OPERATOR_EMAILS`,
+ * D4), y las Tiendas de las que es miembro (`TenantMembership`). Los use cases del
+ * panel resuelven sobre qué Tienda operan con `resolverTenantAutorizado(ctx.acceso, …)`
+ * — el `tenantId` con el que scopean TODA query sale de la membresía o del flag
+ * Operador (ambos server-side), JAMÁS del input (I1; lección H1 de datawalt-app).
+ *
+ * NO gatea por membresía: un usuario logueado SIN membresía y sin rol Operador pasa el
+ * procedure pero cualquier use case tira `FORBIDDEN` (fail-closed en la capa de datos,
+ * D2/I2) y la UI muestra el empty state "sin tienda". Así `getAccesoActual` puede
+ * decidir qué renderizar sin tirar el request.
+ */
+export const panelProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(async ({ ctx, next }) => {
+    if (!ctx.session?.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    const membresias = await ctx.db.tenantMembership.findMany({
+      where: { userId: ctx.session.user.id },
+      select: { tenantId: true },
+    });
+    const acceso: AccesoPanel = {
+      userId: ctx.session.user.id,
+      email: ctx.session.user.email ?? null,
+      esOperador: esOperador(
+        ctx.session.user.email,
+        parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS),
+      ),
+      tenantIds: membresias.map((m) => m.tenantId),
+    };
+    return next({
+      ctx: {
+        // infiere `session.user` como no-nullable + expone el acceso resuelto
+        session: { ...ctx.session, user: ctx.session.user },
+        acceso,
       },
     });
   });

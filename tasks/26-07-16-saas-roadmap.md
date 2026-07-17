@@ -710,3 +710,49 @@ Para F01 (los demás en el planning de cada fase):
   usuario ("quitar el hermes, ya no va"). Barrido documental: CLAUDE.md, CONTEXT.md (término marcado
   histórico), decisiones-abiertas #3 retirada, ADR-0003 queda como registro. F10 depende ahora de
   F01-F08. El turno nocturno sigue sin ese paso.
+- [2026-07-17 05:00] [F05] **Fixes puntuales de cierre aplicados** por el feature-implementer (el usuario
+  decidió los 4 pendientes; solo estos fixes, sin re-implementar). (1) **Lint del panel limpio**
+  (`npx next lint` sin warnings ni errors): import muerto retirado, 3 `no-unsafe-argument` de tests con
+  helper tipado, y 6 `prefer-nullish-coalescing` resueltos vía helper `textoOpcionalANull`
+  (`domain/panel/_internal.ts`) — NO con `?? null`, que rompería la semántica "vacío ⇒ null". Vitest
+  filtrado 29/29, `tsc --noEmit` exit 0. (2) **Drifts de doc APLICADOS** (con OK del usuario):
+  `backend-conventions.md` § Auth reescrita (murió `ADMIN_ALLOWLIST` como gate; rige `TenantMembership`
+  + Operador vía `PLATFORM_OPERATOR_EMAILS`) + § Procedures con `panelProcedure`; `frontend-conventions.md`
+  (listas por cursor, formularios hidratados-desde-query, helpers `~/lib/formato`, input de monto). (3)
+  **Cerrado sin código**: bases del sorteo QUEDAN en `Tenant.basesSorteo` (no migran a `Raffle`); el
+  blocker del `Textarea` shadcn del frontend-reviewer se OMITE — el panel migra a **Mantine** en la
+  próxima task (ADR-0011 vendrá), NO es gap para el change-set-reviewer. (4) `env.js`/`.env.example`
+  verificados en sync con el `.env` real (OAuth `sortealo-dev` + `PLATFORM_OPERATOR_EMAILS`). Detalle
+  completo en la Bitácora del task file de F05. **Sin commit/push; el feature-tester lo orquesta la
+  sesión principal.**
+- [2026-07-17 05:20] [F05] **Fix post-review del `change-set-reviewer`** (REQUEST_CHANGES: 1 blocker +
+  3 nits) aplicado por el feature-implementer, exacto y acotado. Blocker: la grilla de KPIs del
+  dashboard (`admin/index.tsx`) quedaba en skeleton perpetuo ante fallo de `getResumenTienda`
+  (`retry:false` sin rama de error) — agregada rama `isError` con `text-destructive` + `Reintentar`
+  espejando la tabla de ventas. Nits: `id` en el `select` de participaciones del sorteo + `key={p.id}`
+  (evita keys duplicadas por email repetido en `RaffleEntry`); baja la rama muerta `AccessDenied` en
+  `login.tsx` (resabio de la allowlist); fake `aggregate` de `getResumenTienda.test.ts` devuelve
+  `_sum.total: null` sin filas (ejercita el coalesce Decimal). Diferido a la task Mantine: naming de
+  procedures + voseo del CLI. Lint limpio, `tsc --noEmit` 0, Vitest filtrado 6/6. Detalle en la
+  Bitácora del task file de F05. Sin commit/push.
+- [2026-07-17 00:59] [feature-tester] **Validación conjunta F02 + F05 (roadmap).** `vitest run` COMPLETO
+  **verde: 28 archivos / 145 tests, 0 fallos** (~162s, DB-backed contra Supabase real). **F02**
+  (`efectos-post-pago-tenant`): 12/12 (seed-raffles 3 + aplicarEfectosPostPago 9). **F05**
+  (`panel-auth-organizadores`): 23 checkboxes Vitest verdes (authPolicy 19, panel 35 con getAccesoActual/
+  productos/ventas/config/sorteo, otorgar-membresia 5). Checkboxes Vitest de ambos task files marcados
+  `[x]`. **E2E por evidencia DB read-only + el E2E en vivo de la sesión principal (NO browser, NO pagos,
+  NO ejecuté el sorteo)**: F02 confirmado (order `cmrogl4pi0002egexv45st4a5` PAGADO/`autora`, 1
+  DownloadGrant token+expiresAt, 1 RaffleEntry en "Sorteo de lanzamiento" del mismo tenant, una vez; 1
+  Raffle ACTIVO por tenant seed). F05 `panel.auth.membresia.001` ✅ (login Google real → `/admin`;
+  Operador sin membresía → empty state fail-closed; membresía `nikochaima72@gmail.com`↔`autora` en DB).
+  **Quedan `[ ]`** (por instrucción, no por fallo): `panel.auth.redirect.001` + los CRUD/ventas/config con
+  sesión (⏳ no cubiertos en vivo, backend verde) y `panel.sorteo.ejecutar.001` (⏳ PARCIAL: sorteo activo
+  + participaciones visto en vivo; ejecución RESERVADA para el usuario — irreversible). **NO cambié
+  `state`/`status`, NO commit** — el usuario/orquestador nocturno consolida. Detalle en las Bitácoras de
+  ambos task files.
+- [2026-07-17 05:12] [orquestador] Decisión nocturna delegada (turno autónomo): tester dio 145/145 +
+  E2E por evidencia. Se ejecuta commit por fase (opción 4) y las fases quedan operativamente passing
+  (opción 1) — cierre formal a done lo decide el usuario en la mañana. Los 5 ítems E2E de F05 con
+  sesión (redirect/CRUD/ventas/config) se cubrirán DESPUÉS de la migración Mantine para no verificar
+  dos veces la misma UI; la ejecución del sorteo queda RESERVADA al usuario (irreversible). R2 quedó
+  configurado (bucket sortealo-dev + token; credenciales en .env) — F03 desbloqueada por completo.

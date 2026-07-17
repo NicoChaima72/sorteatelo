@@ -24,7 +24,12 @@ export const env = createEnv({
     ),
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
-    ADMIN_ALLOWLIST: z.string(),
+    // Operadores de plataforma (F05/D4): CSV de emails con acceso a TODAS las Tiendas
+    // (rol de plataforma, no de una Tienda). Opcional y fail-closed: ausente/vacía ⇒
+    // nadie es Operador (la autorización normal del panel es la membresía User↔Tenant).
+    // Reemplaza a la `ADMIN_ALLOWLIST` mono-usuario pre-pivote (muerta con la allowlist
+    // como gate del signIn — ahora cualquier cuenta Google obtiene sesión, D2).
+    PLATFORM_OPERATOR_EMAILS: z.string().optional(),
     // Cifrado de credenciales por tenant (BYO-Flow, ADR-0006/S2). Clave AES-256 en
     // base64 (openssl rand -base64 32 → 32 bytes). Opcional: la app arranca sin ella;
     // `parsearClave` (services/cifrado) hace fail-fast al cifrar/descifrar si falta o
@@ -66,7 +71,7 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    ADMIN_ALLOWLIST: process.env.ADMIN_ALLOWLIST,
+    PLATFORM_OPERATOR_EMAILS: process.env.PLATFORM_OPERATOR_EMAILS,
     CREDENTIALS_ENCRYPTION_KEY: process.env.CREDENTIALS_ENCRYPTION_KEY,
     FLOW_URL_CONFIRMATION: process.env.FLOW_URL_CONFIRMATION,
     FLOW_URL_RETURN: process.env.FLOW_URL_RETURN,

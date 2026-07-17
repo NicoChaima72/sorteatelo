@@ -52,6 +52,8 @@ Regla práctica: si estás eligiendo un ícono para una pantalla o un botón, es
   - **error** → mensaje en `text-destructive` + botón "Reintentar" (`refetch`);
   - **data vacía** → estado vacío con ícono (Tabler) y mensaje en voz al usuario, no un hueco en blanco.
 - **Diálogos con submit**: deshabilitar el submit mientras cualquier mutation del form esté `isPending` (OR compuesto si hay varias).
+- **Listas paginadas por cursor** (ver `backend-conventions.md` § Paginación por cursor): se consumen con `useInfiniteQuery` — `getNextPageParam: (ultima) => ultima.nextCursor ?? undefined`; las filas se arman con `data?.pages.flatMap((p) => p.items) ?? []`; la UI es **forward-only con botón "Cargar más"** (`hasNextPage` + `fetchNextPage()`, con texto `"Cargando…"` mientras `isFetchingNextPage`), no un paginador de saltar-a-página-N. Ej.: `src/pages/admin/ventas.tsx`.
+- **Formularios hidratados desde una query** (editar una config que ya existe): la `useQuery` se declara antes de los `useState` del form y un `useEffect` **sincroniza** el estado local cuando llegan los datos. **Early-return en `isError` / sin-data ANTES de renderizar el form editable**: pintar el form en blanco con Guardar activo pisaría los datos reales con vacíos (regresión de pérdida de datos). Ej.: la card de config de Tienda en `src/pages/admin/configuracion.tsx`.
 
 ## Diálogos destructivos
 
@@ -66,6 +68,7 @@ Regla práctica: si estás eligiendo un ícono para una pantalla o un botón, es
 
 ## Formato de dinero
 
-- **Montos** siempre formateados con `Intl.NumberFormat` (CLP por defecto). **Nunca** concatenar `$` a mano.
+- **Los helpers viven en `~/lib/formato`** (única fuente): `clp(monto)` formatea CLP con `Intl.NumberFormat("es-CL")` y acepta el **string `Decimal`** del server o un `number` ya cruzado; `num(n)` formatea enteros con separador de miles (conteos, NO montos); `fechaHora(d)` da fecha+hora corta es-CL. **Nunca** re-crear un `Intl.NumberFormat` inline en una página ni concatenar `$` a un monto ya formateado.
 - Montos con **`tabular-nums`** en tablas y listas (cifras de ancho fijo — las columnas de precios no "bailan").
+- **Input de monto** (crear/editar precio): el `$` es un afijo **visual** (no parte del valor) — un `<span>` posicionado absoluto y no-interactivo (`pointer-events-none`, `text-muted-foreground`) sobre un `Input` con `pl-7 tabular-nums` e `inputMode="numeric"` (teclado numérico en móvil). El valor se maneja como **string** en el estado del form y viaja como string al server (CLP entero ⇒ `Decimal`), jamás como `number`. Ej.: `src/pages/admin/productos.tsx`.
 - El dinero del dominio es `Decimal` (precio, total, IVA, comisión de Flow, neto). El cruce a `number` ocurre SOLO en el borde de presentación para formatear, y es seguro porque CLP no tiene decimales — jamás hacer aritmética con ese `number` ni mandarlo de vuelta al server (ver `CLAUDE.md` § Regla de oro y `CONTEXT.md` § Dinero).

@@ -1,18 +1,16 @@
 import {
   IconArrowRight,
   IconBook2,
+  IconClock,
   IconCoin,
   IconShoppingCart,
-  IconTicket,
 } from "@tabler/icons-react";
+import { type GetServerSideProps } from "next";
 import Link from "next/link";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { EstadoBadge } from "~/components/admin/estado-badge";
-import { clp, LIBROS, num, ORDENES, SORTEO } from "~/components/admin/mock-data";
-import { SalesChart } from "~/components/admin/sales-chart";
 import { StatCard } from "~/components/admin/stat-card";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -21,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Skeleton } from "~/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -29,98 +28,78 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { clp, fechaHora, num } from "~/lib/formato";
+import { requireSession } from "~/server/auth";
+import { api } from "~/utils/api";
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const guard = await requireSession(ctx);
+  if ("redirect" in guard) return { redirect: guard.redirect };
+  return { props: {} };
+};
 
 export default function AdminDashboard() {
-  const ultimas = ORDENES.slice(0, 5);
-  const librosActivos = LIBROS.filter((l) => l.activo).length;
-  const progresoSorteo = Math.round((SORTEO.participantes / SORTEO.meta) * 100);
+  const resumen = api.panel.getResumenTienda.useQuery(undefined, {
+    retry: false,
+  });
+  const ventas = api.panel.listarVentas.useQuery(
+    { cursor: null },
+    { retry: false },
+  );
+
+  const ultimas = (ventas.data?.items ?? []).slice(0, 5);
+  const kpis = resumen.data;
 
   return (
     <AdminLayout
       title="Resumen"
-      description="Una mirada rápida a cómo va tu tienda este mes."
+      description="Una mirada rápida a cómo va tu tienda."
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Ventas del mes"
-          value="13"
-          icon={IconShoppingCart}
-          delta={{ value: "+8%", dir: "up" }}
-          hint="vs. mes anterior"
-        />
-        <StatCard
-          label="Ingresos netos"
-          value={clp(37657)}
-          icon={IconCoin}
-          delta={{ value: "+8%", dir: "up" }}
-          hint="ya con comisión de Flow"
-        />
-        <StatCard
-          label="Participantes"
-          value={num(SORTEO.participantes)}
-          icon={IconTicket}
-          delta={{ value: "+12", dir: "up" }}
-          hint="en el sorteo activo"
-        />
-        <StatCard
-          label="Libros activos"
-          value={String(librosActivos)}
-          icon={IconBook2}
-          hint={`${LIBROS.length} en total`}
-        />
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Ingresos por mes</CardTitle>
-            <CardDescription>Últimos 8 meses (bruto, antes de comisión)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SalesChart />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Sorteo activo</CardTitle>
-            <CardDescription>{SORTEO.premio}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-1.5">
-              <div className="flex items-baseline justify-between text-sm">
-                <span className="text-muted-foreground">Participantes</span>
-                <span className="font-semibold tabular-nums">
-                  {num(SORTEO.participantes)} / {num(SORTEO.meta)}
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${progresoSorteo}%` }}
-                />
-              </div>
-            </div>
-            <dl className="space-y-2.5 text-sm">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Fecha del sorteo</dt>
-                <dd className="font-medium">{SORTEO.fechaSorteo}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Estado</dt>
-                <dd>
-                  <Badge variant="secondary">Activo</Badge>
-                </dd>
-              </div>
-            </dl>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/admin/sorteo">
-                Ver sorteo
-                <IconArrowRight className="size-4" />
-              </Link>
+        {resumen.isLoading ? (
+          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[104px]" />)
+        ) : resumen.isError || !kpis ? (
+          <div className="col-span-full py-10 text-center">
+            <p className="text-sm text-destructive">
+              No pudimos cargar los indicadores.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => void resumen.refetch()}
+            >
+              Reintentar
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        ) : (
+          <>
+            <StatCard
+              label="Ventas pagadas"
+              value={num(kpis.ventasPagadas)}
+              icon={IconShoppingCart}
+              hint="órdenes confirmadas"
+            />
+            <StatCard
+              label="Ingresos"
+              value={clp(kpis.ingresos)}
+              icon={IconCoin}
+              hint="total cobrado (bruto)"
+            />
+            <StatCard
+              label="Pendientes"
+              value={num(kpis.ordenesPendientes)}
+              icon={IconClock}
+              hint="órdenes sin pagar"
+            />
+            <StatCard
+              label="Productos activos"
+              value={num(kpis.productosActivos)}
+              icon={IconBook2}
+              hint="a la venta"
+            />
+          </>
+        )}
       </div>
 
       <Card className="mt-4">
@@ -140,31 +119,80 @@ export default function AdminDashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Orden</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">Libro</TableHead>
+                <TableHead className="hidden md:table-cell">Productos</TableHead>
                 <TableHead className="hidden sm:table-cell">Fecha</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ultimas.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium tabular-nums">{o.id}</TableCell>
-                  <TableCell className="text-muted-foreground">{o.correo}</TableCell>
-                  <TableCell className="hidden max-w-[240px] truncate md:table-cell">
-                    {o.libro}
-                  </TableCell>
-                  <TableCell className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
-                    {o.fecha}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{clp(o.total)}</TableCell>
-                  <TableCell>
-                    <EstadoBadge estado={o.estado} />
+              {ventas.isLoading ? (
+                [0, 1, 2].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-40" />
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Skeleton className="ml-auto h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-20" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : ventas.isError ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-10 text-center">
+                    <p className="text-sm text-destructive">
+                      No pudimos cargar las ventas.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => void ventas.refetch()}
+                    >
+                      Reintentar
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : ultimas.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-10 text-center text-muted-foreground"
+                  >
+                    Todavía no hay ventas.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                ultimas.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="text-muted-foreground">
+                      {o.email}
+                    </TableCell>
+                    <TableCell className="hidden max-w-[240px] truncate md:table-cell">
+                      {o.productos.join(", ")}
+                    </TableCell>
+                    <TableCell className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
+                      {fechaHora(o.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {clp(o.total)}
+                    </TableCell>
+                    <TableCell>
+                      <EstadoBadge estado={o.estado} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -6,9 +6,10 @@ import {
   type NextAuthOptions,
 } from "next-auth";
 import { type Adapter } from "next-auth/adapters";
-import DiscordProvider from "next-auth/providers/discord";
+import GoogleProvider from "next-auth/providers/google";
 
 import { env } from "~/env";
+import { resolverGuard } from "~/server/authPolicy";
 import { db } from "~/server/db";
 
 /**
@@ -39,6 +40,13 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
+    // Sin gate en el signIn (D2, ADR-0005): tras el pivote SaaS la AUTENTICACIÓN es
+    // abierta — cualquier cuenta Google obtiene sesión (el adapter crea su `User`).
+    // La AUTORIZACIÓN real es fail-closed en la capa de datos: sin `TenantMembership`
+    // y sin rol Operador, ningún procedure del panel devuelve ni muta nada (FORBIDDEN),
+    // y la UI muestra el empty state "tu cuenta no tiene una tienda asignada". Un `User`
+    // huérfano es inocuo: la seguridad vive donde están los datos, no en la puerta.
+    // Prepara F08 (self-service). No se reintroduce un gate de plataforma sin decidirlo.
     session: ({ session, user }) => ({
       ...session,
       user: {
@@ -48,20 +56,14 @@ export const authOptions: NextAuthOptions = {
     }),
   },
   adapter: PrismaAdapter(db) as Adapter,
+  pages: {
+    signIn: "/login",
+  },
   providers: [
-    DiscordProvider({
-      clientId: env.DISCORD_CLIENT_ID,
-      clientSecret: env.DISCORD_CLIENT_SECRET,
+    GoogleProvider({
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
     }),
-    /**
-     * ...add more providers here.
-     *
-     * Most other providers require a bit more work than the Discord provider. For example, the
-     * GitHub provider requires you to add the `refresh_token_expires_in` field to the Account
-     * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
-     *
-     * @see https://next-auth.js.org/providers/github
-     */
   ],
 };
 
@@ -75,4 +77,18 @@ export const getServerAuthSession = (ctx: {
   res: GetServerSidePropsContext["res"];
 }) => {
   return getServerSession(ctx.req, ctx.res, authOptions);
+};
+
+/**
+ * Guard imperativo de páginas admin (pages router). Cada `getServerSideProps`
+ * de una página protegida lo llama y hace early-return del `redirect`, con lo que
+ * TS estrecha `session` a no-null en la rama de props. Cablea `getServerAuthSession`
+ * (nunca reimplementa `getServerSession`) con la decisión pura `resolverGuard`.
+ */
+export const requireSession = async (ctx: {
+  req: GetServerSidePropsContext["req"];
+  res: GetServerSidePropsContext["res"];
+}) => {
+  const session = await getServerAuthSession(ctx);
+  return resolverGuard(session);
 };

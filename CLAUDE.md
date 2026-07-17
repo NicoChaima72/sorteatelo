@@ -6,12 +6,12 @@ T3 stack: Next.js 14 (pages router) + tRPC 11 + NextAuth 4 (Google OAuth para Or
 
 ## Propósito y alcance
 
-- **Qué es**: plataforma multi-tenant — storefront por subdominio (catálogo + carrito + checkout Flow por tenant) + entrega segura de PDFs + sorteo por tienda + panel de Organizador + self-service de alta + Hermes (copy IA por tenant) + panel del Operador.
+- **Qué es**: plataforma multi-tenant — storefront por subdominio (catálogo + carrito + checkout Flow por tenant) + entrega segura de PDFs + sorteo por tienda + panel de Organizador + self-service de alta + panel del Operador.
 - **Principio rector**: sigue siendo **simple y barato** de construir y mantener. La plataforma NUNCA mueve plata de terceros (ADR-0006). No sobre-ingenierizar; MVP funcional sobre features avanzadas; el piloto (F07) antes que el self-service (F08).
-- **Decisiones cerradas**: ver `docs/adr/` — Flow server-side (0001), entrega por URL firmada (0002), Hermes LLM-agnóstico (0003), sin cuentas de comprador (0004), multi-tenant por `tenantId` en DB compartida (0005), BYO-Flow con credenciales cifradas (0006), resolución por subdominio (0007), responsabilidad legal del sorteo = del Organizador (0008), storage Cloudflare R2 (0009), correo Resend (0010).
-- **Decisiones abiertas**: ver `docs/decisiones-abiertas.md` (#3 modelo LLM, #4 dominio de la plataforma con wildcard, #5 hosting con wildcard, #6 marca de agua). **No las cierres sin consultar al usuario.**
+- **Decisiones cerradas**: ver `docs/adr/` — Flow server-side (0001), entrega por URL firmada (0002), sin cuentas de comprador (0004), multi-tenant por `tenantId` en DB compartida (0005), BYO-Flow con credenciales cifradas (0006), resolución por subdominio (0007), responsabilidad legal del sorteo = del Organizador (0008), storage Cloudflare R2 (0009), correo Resend (0010). **Hermes (ADR-0003) fue RETIRADO del producto el 2026-07-17** por decisión del usuario — no construir features de copy IA.
+- **Decisiones abiertas**: ver `docs/decisiones-abiertas.md` (#4 dominio de la plataforma con wildcard, #5 hosting con wildcard, #6 marca de agua). **No las cierres sin consultar al usuario.**
 - **Vocabulario del dominio**: `CONTEXT.md` (Tienda/`Tenant`, Organizador, Operador, `Product`, `FlowCredential`…). Roadmap vigente: `tasks/26-07-16-saas-roadmap.md`.
-- **Fuera de alcance (MVP)**: builder visual de tiendas, split de pagos / custodia de fondos, dominios custom por tenant, auto-posteo de Hermes, Mercado Pago directo, boletas SII automáticas, cuentas/login de compradores.
+- **Fuera de alcance (MVP)**: builder visual de tiendas, split de pagos / custodia de fondos, dominios custom por tenant, herramientas de copy IA (Hermes — retirado del producto), Mercado Pago directo, boletas SII automáticas, cuentas/login de compradores.
 - **Legal/tributario**: cada Organizador responde por lo suyo (Inicio de Actividades SII, boleta, IVA 19%, bases del sorteo). La plataforma exige ToS + bases + muestra disclaimer (ADR-0008); validación por abogado pendiente antes del go-live público (F10).
 
 ## Reglas de oro del dominio

@@ -32,8 +32,8 @@ features:
     behavior: "Self-service de tenants: registro de Organizadores, alta y wizard de configuración de Tienda, aceptación de ToS registrada, publicación; panel del Operador (alta/suspensión/supervisión)"
     state: not_started
   - id: F09
-    behavior: "Hermes por tenant: generación de copy con contexto de la tienda (LLM-agnóstico) en el panel del Organizador"
-    state: not_started
+    behavior: "RETIRADA (2026-07-17, decisión del usuario): Hermes salió del producto — no construir copy IA"
+    state: removed
   - id: F10
     behavior: "Go-live de la plataforma pública: ToS/disclaimer validados por abogado, migraciones versionadas, hardening, backups/monitoreo, primeros tenants externos"
     state: not_started
@@ -139,7 +139,7 @@ Fases ordenadas por dependencia. Cada fase (salvo F01) es coarse y detona su pro
 8. **F08 — Self-service de tenants + panel del Operador**. Depende de F05/F06/F07 (producto probado).
    Registro, wizard de alta (credenciales Flow, productos, sorteo, plantilla), aceptación de ToS
    registrada, publicación; suspensión/supervisión por el Operador.
-9. **F09 — Hermes por tenant**. Depende de F05. Bloqueada por decisión abierta #3 (LLM). Puede
+9. **F09 — Hermes por tenant**. **RETIRADA (2026-07-17)** — fuera del producto por decisión del usuario.
    correr en paralelo a F06–F08.
 10. **F10 — Go-live de la plataforma pública**. Depende de todo. Bloqueada por la validación legal
     de ToS/disclaimer por abogado (ADR-0008, dependencia externa) + hardening (migraciones
@@ -210,11 +210,9 @@ Fases ordenadas por dependencia. Cada fase (salvo F01) es coarse y detona su pro
 - Criterio de hecho: un Organizador nuevo llega a tienda publicada sin intervención manual; sin ToS
   aceptados o sin bases no hay publicación con sorteo.
 
-**F09 — Hermes por tenant** _(coarse)_
-- Objetivo: generación de copy con el contexto de la tienda (productos/precios/sorteo del tenant),
-  LLM-agnóstico (ADR-0003), en el panel del Organizador.
-- Dependencias: F05. | Bloqueos: decisión abierta #3 (modelo LLM; + quién absorbe el costo por tenant).
-- Criterio de hecho: el Organizador ingresa objetivo/plataforma/tono y recibe variaciones + hashtags.
+**F09 — Hermes por tenant** _(RETIRADA 2026-07-17)_
+- **Fuera del producto por decisión del usuario.** No se construye. ADR-0003 queda histórico;
+  decisión abierta #3 retirada. F10 pasa a depender de F01-F08 (sin F09).
 
 **F10 — Go-live de la plataforma pública** _(coarse)_
 - Objetivo: abrir la plataforma a tenants externos con respaldo legal y operativo.
@@ -662,3 +660,53 @@ Para F01 (los demás en el planning de cada fase):
   con la prueba de fuego D1 cumplida (2 tenants, 2 cuentas Flow sandbox, fees 96/160 con credenciales
   del tenant dueño, cero fuga). Se abren F02 (efectos post-pago) y F05 (auth Organizadores) en
   paralelo — planners despachados para sus task files propios.
+- [2026-07-16 22:00] [planner-grill] [F02] **F02 pasó a planning** — task file propio:
+  `tasks/26-07-16-pago-efectos-post-pago-tenant.md` (slug `efectos-post-pago-tenant`, registrado en
+  INDEX). Adapta el plan superseded `26-07-08-efectos-post-pago.md` (contrato del hook post-pago
+  intacto) con scoping por tenant: `DownloadGrant`/`Raffle`/`RaffleEntry` con `tenantId`, Raffle
+  ACTIVO buscado en la Tienda de la orden, seed per-tenant vía `scripts/seed-raffles.ts`. Sin grill
+  extenso (instrucción del usuario): Supuestos S1–S10 revisables. Coordinación con F05 en paralelo
+  asentada como D8 del task file (`schema.prisma` append-only + releer antes de editar + anotar acá
+  con tag `[F02]`; `trpc.ts`/auth/login/admin = territorio F05, F02 no los toca). **AWAITING USER
+  APPROVAL** para pasar a implementación.
+- [2026-07-16 22:10] [planner-grill] [F05] **F05 pasó a planning** — task file propio:
+  `tasks/26-07-16-panel-auth-organizadores.md` (slug `panel-auth-organizadores`, registrado en
+  INDEX). Parte del rescate F05 sin commitear del working tree (Google OAuth/authPolicy/guard del
+  plan superseded `26-07-08-auth-admin-google.md`); muere la allowlist mono-usuario, nace
+  `TenantMembership` (S6) + rol Operador por env var + `panelProcedure` fail-closed. Panel
+  conectado a datos reales: productos (seam PDF para F03), ventas con cursor, CredencialFlow
+  cifrada write-only, bases del sorteo como texto, config básica de plantilla en columnas
+  opcionales de `Tenant` (append aditivo al schema — coordinado con F02 paralelo per zonas
+  declaradas). Sub-feature Sorteo del panel BLOQUEADA hasta que F02 landee Raffle/RaffleEntry.
+  AWAITING USER APPROVAL del plan.
+- [2026-07-16 23:35] [F02] **Schema tocado (append-only, D8)** por el feature-implementer de F02.
+  `schema-guardian`: **APPROVE**. Agregado al final de `prisma/schema.prisma`: enum `RaffleStatus`
+  {ACTIVO, CERRADO} + modelos `Raffle`, `RaffleEntry`, `DownloadGrant` (los tres con `tenantId` + FK
+  `Restrict` a Tenant; uniques de idempotencia `RaffleEntry @@unique([raffleId, orderId])` /
+  `DownloadGrant @@unique([orderId, productId])` SIN tenantId redundante; `DownloadGrant.token @unique`
+  global; `Raffle @@index([tenantId, estado])` para el lookup del ACTIVO). Back-relations append-only
+  dentro de `Tenant` (raffles/raffleEntries/downloadGrants), `Order` (downloadGrants/raffleEntries),
+  `Product` (downloadGrants). `npm run db:push` **aditivo OK** (DB en sync, sin `--accept-data-loss`).
+  `prisma generate`: la regeneración del client TS incluyó los 3 modelos nuevos (index.d.ts), pero el
+  copiado del query-engine `.dll.node` dio **EPERM** porque el `next dev` de :3001 lo tiene bloqueado
+  (Windows) — inocuo: el binario del engine no cambia de versión y es schema-agnóstico (el datamodel se
+  pasa en runtime desde el client generado). Si el dev server se reinicia, `prisma generate` termina
+  limpio. **Zona F05 (`trpc.ts`/auth/login/admin) NO tocada.**
+- [2026-07-17 00:00] [F05] **Schema tocado (append-only aditivo)** por el feature-implementer de F05
+  (auth de Organizadores + panel, `tasks/26-07-16-panel-auth-organizadores.md`). Dos rondas, ambas con
+  `schema-guardian` **APPROVE** ANTES de editar + re-lectura del schema justo antes (F02 había landeado
+  sus modelos entre medio). Ronda 1: modelo nuevo `TenantMembership` (userId/tenantId, `@@unique([userId,
+  tenantId])`, onDelete Cascade desde User / Restrict hacia Tenant, `@@index([tenantId])`) + back-relations
+  en `User`/`Tenant` + columnas OPCIONALES nuevas en `Tenant` (`descripcion`/`logoUrl`/`colorPrimario`
+  = config básica de plantilla F06; `basesSorteo String?` = TEXTO borrador de bases, distinto del
+  `Raffle.basesUrl` de F02 —coexisten a propósito, D8/S4). Ronda 2 (al desbloquear el Sorteo del panel,
+  porque F02 pasó a testing): 3 columnas nullable AGREGADAS a `Raffle` de F02 —**jamás editando sus
+  campos**— para la ejecución auditable: `ganadorEmail String?`, `ejecutadoAt DateTime?`, `ejecutadoPor
+  String?` (email del ejecutor, snapshot durable). `npm run db:push` **aditivo OK** ambas veces (DB en
+  sync, sin `--accept-data-loss`); `prisma generate` regeneró los tipos TS (mismo EPERM inocuo del
+  engine `.dll` por el lock de :3001). **Zona F02 (`domain/pago`, seeds de sorteo) NO tocada.** Detalle
+  completo en la Bitácora del task file de F05.
+- [2026-07-17 04:30] [orquestador] **F09 (Hermes) RETIRADA del producto** por decisión explícita del
+  usuario ("quitar el hermes, ya no va"). Barrido documental: CLAUDE.md, CONTEXT.md (término marcado
+  histórico), decisiones-abiertas #3 retirada, ADR-0003 queda como registro. F10 depende ahora de
+  F01-F08. El turno nocturno sigue sin ese paso.

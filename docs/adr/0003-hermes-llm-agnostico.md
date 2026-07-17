@@ -10,3 +10,9 @@ Razón: los modelos varían fuerte en costo y calidad, y el costo lo absorbe la 
 - El **modelo por defecto** es **decisión abierta** (#4) — ver `docs/decisiones-abiertas.md`.
 - Las API keys del proveedor van en env (`src/env.js` + `.env.example`), nunca en el repo.
 - MVP = **"genera y copia"**: la autora publica a mano. El auto-posteo a redes queda **fuera de alcance** (requiere APIs/aprobaciones por plataforma; no se justifica al inicio).
+
+
+---
+
+> **RETIRADO (2026-07-17)**: Hermes salió del producto por decisión del usuario. Este ADR queda como
+> registro histórico; no construir sobre él.

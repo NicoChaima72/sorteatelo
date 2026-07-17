@@ -162,12 +162,10 @@ Quien compra en una [[Tienda]]. Entra por el [[Subdominio]], ve el [[Catálogo]]
 
 ## Marketing
 
-### Hermes
-Herramienta de IA para que el [[Organizador]] genere copy de marketing para su audiencia. Input
-mínimo: objetivo (promocionar producto / empujar sorteo / interactuar), plataforma, tono. Salida:
-variaciones de copy + hashtags. El **system prompt** (voz de la tienda + contexto de producto/precio/
-sorteo del tenant) lo inyecta el sistema. Proveedor LLM **agnóstico** (ADR-0003). MVP = "genera y
-copia" (sin auto-posteo). Es una feature **por-tenant**.
+### Hermes — RETIRADO (2026-07-17)
+Era la herramienta de copy IA por tenant (ADR-0003). **Salió del producto por decisión del usuario**:
+no construir features de generación de copy. El término queda solo como registro histórico — si
+aparece en planes o código nuevos, es un error.
 
 ---
 

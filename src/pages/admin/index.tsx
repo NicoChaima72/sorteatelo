@@ -1,3 +1,4 @@
+import { Button, Card, Group, SimpleGrid, Skeleton, Table, Text } from "@mantine/core";
 import {
   IconArrowRight,
   IconBook2,
@@ -11,23 +12,6 @@ import Link from "next/link";
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { EstadoBadge } from "~/components/admin/estado-badge";
 import { StatCard } from "~/components/admin/stat-card";
-import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
 import { clp, fechaHora, num } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
 import { api } from "~/utils/api";
@@ -55,147 +39,150 @@ export default function AdminDashboard() {
       title="Resumen"
       description="Una mirada rápida a cómo va tu tienda."
     >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {resumen.isLoading ? (
-          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[104px]" />)
-        ) : resumen.isError || !kpis ? (
-          <div className="col-span-full py-10 text-center">
-            <p className="text-sm text-destructive">
-              No pudimos cargar los indicadores.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3"
-              onClick={() => void resumen.refetch()}
-            >
-              Reintentar
-            </Button>
-          </div>
-        ) : (
-          <>
-            <StatCard
-              label="Ventas pagadas"
-              value={num(kpis.ventasPagadas)}
-              icon={IconShoppingCart}
-              hint="órdenes confirmadas"
-            />
-            <StatCard
-              label="Ingresos"
-              value={clp(kpis.ingresos)}
-              icon={IconCoin}
-              hint="total cobrado (bruto)"
-            />
-            <StatCard
-              label="Pendientes"
-              value={num(kpis.ordenesPendientes)}
-              icon={IconClock}
-              hint="órdenes sin pagar"
-            />
-            <StatCard
-              label="Productos activos"
-              value={num(kpis.productosActivos)}
-              icon={IconBook2}
-              hint="a la venta"
-            />
-          </>
-        )}
-      </div>
-
-      <Card className="mt-4">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div className="space-y-1.5">
-            <CardTitle>Últimas ventas</CardTitle>
-            <CardDescription>Las compras más recientes</CardDescription>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/admin/ventas">
-              Ver todas
-              <IconArrowRight className="size-4" />
-            </Link>
+      {resumen.isLoading ? (
+        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={104} radius="md" />
+          ))}
+        </SimpleGrid>
+      ) : resumen.isError || !kpis ? (
+        <div className="py-10 text-center">
+          <Text size="sm" c="red">
+            No pudimos cargar los indicadores.
+          </Text>
+          <Button
+            variant="default"
+            size="xs"
+            mt="sm"
+            onClick={() => void resumen.refetch()}
+          >
+            Reintentar
           </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">Productos</TableHead>
-                <TableHead className="hidden sm:table-cell">Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        </div>
+      ) : (
+        <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
+          <StatCard
+            label="Ventas pagadas"
+            value={num(kpis.ventasPagadas)}
+            icon={IconShoppingCart}
+            hint="órdenes confirmadas"
+          />
+          <StatCard
+            label="Ingresos"
+            value={clp(kpis.ingresos)}
+            icon={IconCoin}
+            hint="total cobrado (bruto)"
+          />
+          <StatCard
+            label="Pendientes"
+            value={num(kpis.ordenesPendientes)}
+            icon={IconClock}
+            hint="órdenes sin pagar"
+          />
+          <StatCard
+            label="Productos activos"
+            value={num(kpis.productosActivos)}
+            icon={IconBook2}
+            hint="a la venta"
+          />
+        </SimpleGrid>
+      )}
+
+      <Card withBorder mt="md" padding="lg" radius="md">
+        <Group justify="space-between" align="flex-start" mb="md" wrap="nowrap">
+          <div>
+            <Text fw={600}>Últimas ventas</Text>
+            <Text size="sm" c="dimmed">
+              Las compras más recientes
+            </Text>
+          </div>
+          <Button
+            component={Link}
+            href="/admin/ventas"
+            variant="subtle"
+            size="xs"
+            rightSection={<IconArrowRight className="size-4" />}
+          >
+            Ver todas
+          </Button>
+        </Group>
+
+        <Table.ScrollContainer minWidth={480}>
+          <Table verticalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Cliente</Table.Th>
+                <Table.Th className="hidden md:table-cell">Productos</Table.Th>
+                <Table.Th className="hidden sm:table-cell">Fecha</Table.Th>
+                <Table.Th className="text-right">Total</Table.Th>
+                <Table.Th>Estado</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {ventas.isLoading ? (
                 [0, 1, 2].map((i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-4 w-40" />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="ml-auto h-4 w-16" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-5 w-20" />
-                    </TableCell>
-                  </TableRow>
+                  <Table.Tr key={i}>
+                    <Table.Td>
+                      <Skeleton height={16} width={160} />
+                    </Table.Td>
+                    <Table.Td className="hidden md:table-cell">
+                      <Skeleton height={16} width={128} />
+                    </Table.Td>
+                    <Table.Td className="hidden sm:table-cell">
+                      <Skeleton height={16} width={96} />
+                    </Table.Td>
+                    <Table.Td className="text-right">
+                      <Skeleton height={16} width={64} className="ml-auto" />
+                    </Table.Td>
+                    <Table.Td>
+                      <Skeleton height={20} width={80} />
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               ) : ventas.isError ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center">
-                    <p className="text-sm text-destructive">
+                <Table.Tr>
+                  <Table.Td colSpan={5} className="py-10 text-center">
+                    <Text size="sm" c="red">
                       No pudimos cargar las ventas.
-                    </p>
+                    </Text>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
+                      variant="default"
+                      size="xs"
+                      mt="sm"
                       onClick={() => void ventas.refetch()}
                     >
                       Reintentar
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : ultimas.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="py-10 text-center text-muted-foreground"
-                  >
+                <Table.Tr>
+                  <Table.Td colSpan={5} className="py-10 text-center" c="dimmed">
                     Todavía no hay ventas.
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 ultimas.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="text-muted-foreground">
-                      {o.email}
-                    </TableCell>
-                    <TableCell className="hidden max-w-[240px] truncate md:table-cell">
+                  <Table.Tr key={o.id}>
+                    <Table.Td c="dimmed">{o.email}</Table.Td>
+                    <Table.Td className="hidden max-w-[240px] truncate md:table-cell">
                       {o.productos.join(", ")}
-                    </TableCell>
-                    <TableCell className="hidden whitespace-nowrap text-muted-foreground sm:table-cell">
+                    </Table.Td>
+                    <Table.Td className="hidden whitespace-nowrap sm:table-cell" c="dimmed">
                       {fechaHora(o.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    </Table.Td>
+                    <Table.Td className="text-right tabular-nums">
                       {clp(o.total)}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       <EstadoBadge estado={o.estado} />
-                    </TableCell>
-                  </TableRow>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </Table.ScrollContainer>
       </Card>
     </AdminLayout>
   );

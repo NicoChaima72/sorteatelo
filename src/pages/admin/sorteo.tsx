@@ -1,3 +1,6 @@
+import { Badge, Button, Card, Group, SimpleGrid, Skeleton, Stack, Table, Text } from "@mantine/core";
+import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 import {
   IconCalendarEvent,
   IconPlayerPlay,
@@ -6,37 +9,9 @@ import {
   IconUsers,
 } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
-import { useState } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { StatCard } from "~/components/admin/stat-card";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
-import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
 import { fechaHora, num } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
 import { api } from "~/utils/api";
@@ -49,18 +24,46 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
 export default function SorteoPage() {
   const utils = api.useUtils();
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const sorteoQuery = api.panel.getSorteo.useQuery(undefined, { retry: false });
 
   const ejecutar = api.panel.ejecutarSorteo.useMutation({
     onSuccess: async () => {
-      setConfirmOpen(false);
       await utils.panel.getSorteo.invalidate();
+      notifications.show({
+        message: "Sorteo ejecutado. Ya hay un ganador.",
+        color: "green",
+      });
+    },
+    onError: (error) => {
+      notifications.show({ message: error.message, color: "red" });
     },
   });
 
   const sorteo = sorteoQuery.data?.sorteo ?? null;
   const ejecutado = sorteo?.ejecutadoAt != null;
+
+  // Confirmación destructiva (D6/I7): la ejecución es IRREVERSIBLE — abre un modal explícito
+  // con `openConfirmModal` (reemplaza el Dialog ad-hoc). No auto-ejecuta: espera confirmación.
+  const confirmarEjecucion = () => {
+    if (!sorteo) return;
+    modals.openConfirmModal({
+      title: "Ejecutar el sorteo",
+      children: (
+        <Text size="sm">
+          Se elegirá un ganador al azar entre los{" "}
+          {num(sorteo.totalParticipantes)} participantes. Esta acción registra
+          quién y cuándo lo ejecutó y{" "}
+          <Text span fw={600} c="var(--mantine-color-text)">
+            no se puede deshacer
+          </Text>
+          .
+        </Text>
+      ),
+      labels: { confirm: "Sí, ejecutar", cancel: "Cancelar" },
+      confirmProps: { color: "red" },
+      onConfirm: () => ejecutar.mutate({ raffleId: sorteo.id }),
+    });
+  };
 
   return (
     <AdminLayout
@@ -68,22 +71,22 @@ export default function SorteoPage() {
       description="Administra el sorteo activo, sus participantes y el ganador."
     >
       {sorteoQuery.isLoading ? (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Skeleton className="h-[104px]" />
-            <Skeleton className="h-[104px]" />
-            <Skeleton className="h-[104px]" />
-          </div>
-          <Skeleton className="h-40 w-full" />
-        </div>
+        <Stack gap="md">
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+            <Skeleton height={104} radius="md" />
+            <Skeleton height={104} radius="md" />
+            <Skeleton height={104} radius="md" />
+          </SimpleGrid>
+          <Skeleton height={160} radius="md" />
+        </Stack>
       ) : sorteoQuery.isError ? (
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-          <p className="text-sm text-destructive">
+          <Text size="sm" c="red">
             No pudimos cargar el sorteo.
-          </p>
+          </Text>
           <Button
-            variant="outline"
-            className="mt-4"
+            variant="default"
+            mt="md"
             onClick={() => void sorteoQuery.refetch()}
           >
             Reintentar
@@ -92,17 +95,18 @@ export default function SorteoPage() {
       ) : !sorteo ? (
         <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
           <IconTicket
-            className="size-8 text-muted-foreground/50"
+            className="size-8"
             stroke={1.5}
+            color="var(--mantine-color-dimmed)"
           />
-          <p className="mt-3 max-w-sm text-sm text-muted-foreground">
+          <Text mt="sm" size="sm" c="dimmed" className="max-w-sm">
             Todavía no hay un sorteo en tu tienda. Los sorteos se crean con las
             ventas de tu tienda.
-          </p>
+          </Text>
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
             <StatCard
               label="Participantes"
               value={num(sorteo.totalParticipantes)}
@@ -121,128 +125,110 @@ export default function SorteoPage() {
               icon={IconCalendarEvent}
               hint="fecha de fin"
             />
-          </div>
+          </SimpleGrid>
 
-          <Card className="mt-4">
-            <CardHeader>
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1.5">
-                  <CardTitle>{sorteo.nombre}</CardTitle>
-                  <CardDescription>{sorteo.premio}</CardDescription>
-                </div>
-                <Badge variant={ejecutado ? "outline" : "secondary"}>
-                  {ejecutado ? "Cerrado" : "Activo"}
-                </Badge>
+          <Card withBorder mt="md" padding="lg" radius="md">
+            <Group justify="space-between" align="flex-start" gap="md" wrap="nowrap">
+              <div>
+                <Text fw={600}>{sorteo.nombre}</Text>
+                <Text size="sm" c="dimmed">
+                  {sorteo.premio}
+                </Text>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Badge
+                variant={ejecutado ? "outline" : "light"}
+                color={ejecutado ? "gray" : undefined}
+                styles={{ label: { textTransform: "none" } }}
+              >
+                {ejecutado ? "Cerrado" : "Activo"}
+              </Badge>
+            </Group>
+
+            <div className="mt-4">
               {ejecutado ? (
-                <div className="flex flex-col items-center rounded-lg border bg-muted/40 py-6 text-center">
-                  <IconTrophy className="size-8 text-primary" stroke={1.75} />
-                  <p className="mt-2 text-sm text-muted-foreground">Ganador</p>
-                  <p className="text-lg font-semibold">{sorteo.ganadorEmail}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                <Stack
+                  align="center"
+                  gap={4}
+                  py="lg"
+                  style={{
+                    border: "1px solid var(--mantine-color-default-border)",
+                    borderRadius: "var(--mantine-radius-md)",
+                    background: "var(--mantine-color-default-hover)",
+                  }}
+                >
+                  <IconTrophy
+                    className="size-8"
+                    stroke={1.75}
+                    color="var(--mantine-primary-color-filled)"
+                  />
+                  <Text size="sm" c="dimmed">
+                    Ganador
+                  </Text>
+                  <Text size="lg" fw={600}>
+                    {sorteo.ganadorEmail}
+                  </Text>
+                  <Text size="xs" c="dimmed">
                     Sorteado el {fechaHora(sorteo.ejecutadoAt!)}
                     {sorteo.ejecutadoPor ? ` por ${sorteo.ejecutadoPor}` : ""}
-                  </p>
-                </div>
+                  </Text>
+                </Stack>
               ) : (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Group gap="sm" wrap="wrap">
                   <Button
-                    onClick={() => setConfirmOpen(true)}
+                    onClick={confirmarEjecucion}
                     disabled={sorteo.totalParticipantes === 0}
+                    leftSection={<IconPlayerPlay className="size-4" />}
                   >
-                    <IconPlayerPlay className="size-4" />
                     Ejecutar sorteo
                   </Button>
-                  <p className="text-xs text-muted-foreground sm:ml-1">
+                  <Text size="xs" c="dimmed">
                     {sorteo.totalParticipantes === 0
                       ? "Aún no hay participantes para sortear."
                       : "Elige un ganador al azar. La acción no se puede deshacer."}
-                  </p>
-                </div>
+                  </Text>
+                </Group>
               )}
-            </CardContent>
+            </div>
           </Card>
 
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Participantes</CardTitle>
-              <CardDescription>
+          <Card withBorder mt="md" padding={0} radius="md">
+            <div className="px-6 pt-5">
+              <Text fw={600}>Participantes</Text>
+              <Text size="sm" c="dimmed">
                 Quienes están dentro del sorteo
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-6">Cliente</TableHead>
-                    <TableHead className="pr-6 text-right">
-                      Se inscribió
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              </Text>
+            </div>
+            <Table.ScrollContainer minWidth={320}>
+              <Table verticalSpacing="sm" mt="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th className="pl-6">Cliente</Table.Th>
+                    <Table.Th className="pr-6 text-right">Se inscribió</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                   {sorteo.participantes.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={2}
-                        className="py-10 text-center text-muted-foreground"
-                      >
+                    <Table.Tr>
+                      <Table.Td colSpan={2} className="py-10 text-center" c="dimmed">
                         Todavía no hay participantes.
-                      </TableCell>
-                    </TableRow>
+                      </Table.Td>
+                    </Table.Tr>
                   ) : (
                     sorteo.participantes.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="pl-6 text-muted-foreground">
+                      <Table.Tr key={p.id}>
+                        <Table.Td className="pl-6" c="dimmed">
                           {p.email}
-                        </TableCell>
-                        <TableCell className="pr-6 text-right whitespace-nowrap text-muted-foreground">
+                        </Table.Td>
+                        <Table.Td className="whitespace-nowrap pr-6 text-right" c="dimmed">
                           {fechaHora(p.createdAt)}
-                        </TableCell>
-                      </TableRow>
+                        </Table.Td>
+                      </Table.Tr>
                     ))
                   )}
-                </TableBody>
+                </Table.Tbody>
               </Table>
-            </CardContent>
+            </Table.ScrollContainer>
           </Card>
-
-          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Ejecutar el sorteo</DialogTitle>
-                <DialogDescription>
-                  Se elegirá un ganador al azar entre los{" "}
-                  {num(sorteo.totalParticipantes)} participantes. Esta acción
-                  registra quién y cuándo lo ejecutó y{" "}
-                  <span className="font-medium text-foreground">
-                    no se puede deshacer
-                  </span>
-                  .
-                </DialogDescription>
-              </DialogHeader>
-              {ejecutar.error && (
-                <p role="alert" className="text-sm text-destructive">
-                  {ejecutar.error.message}
-                </p>
-              )}
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline" disabled={ejecutar.isPending}>
-                    Cancelar
-                  </Button>
-                </DialogClose>
-                <Button
-                  onClick={() => ejecutar.mutate({ raffleId: sorteo.id })}
-                  disabled={ejecutar.isPending}
-                >
-                  {ejecutar.isPending ? "Sorteando…" : "Sí, ejecutar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </>
       )}
     </AdminLayout>

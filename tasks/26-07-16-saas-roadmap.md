@@ -756,3 +756,39 @@ Para F01 (los demás en el planning de cada fase):
   sesión (redirect/CRUD/ventas/config) se cubrirán DESPUÉS de la migración Mantine para no verificar
   dos veces la misma UI; la ejecución del sorteo queda RESERVADA al usuario (irreversible). R2 quedó
   configurado (bucket sortealo-dev + token; credenciales en .env) — F03 desbloqueada por completo.
+- [2026-07-17 06:00] [planner-grill] (domain-planner) **Migración de UI a Mantine 7 planificada**
+  (decisión cerrada del usuario 2026-07-17, sin grill por instrucción vigente): **ADR-0011** creado
+  (`docs/adr/0011-migracion-ui-a-mantine-7.md`, nivel 2 — librería base de toda la UI + mecanismo de
+  theming per-tenant de F06 vía `MantineProvider`/`mergeThemeOverrides`); `docs/design.md` y
+  `docs/agents/frontend-conventions.md` reescritos Mantine-céntricos (marca sigue PENDIENTE, F06
+  sigue bloqueada por identidad visual — el pipeline de theming ya no). Tailwind convive acotado a
+  layout (supuesto S-TW, patrón datawalt-app); shadcn/radix/cva/lucide se retiran. Task ejecutable:
+  `tasks/26-07-17-ui-migracion-mantine.md` (login + 5 páginas del panel + shell; los E2E-con-sesión
+  diferidos de F05 se cierran en su testing). Dev pages `/dev/checkout*` NO se migran (mueren en
+  F06). **AWAITING USER APPROVAL.**
+- [2026-07-17 09:10] [feature-implementer] [MANTINE] **Migración de UI a Mantine 7 IMPLEMENTADA**
+  (`tasks/26-07-17-ui-migracion-mantine.md`, F01..F04, status → testing). Mantine 7.17.8 (misma major
+  que datawalt-app): core/hooks/form/modals/notifications. Migración 1:1 sin rediseño (marca
+  PENDIENTE, theme casi-default). Gates verdes: `tsc`/`next lint` exit 0, `vitest run` **145/145**
+  (I1 intacto — no se tocó `src/server/**`). frontend-reviewer **APPROVE** (0 blockers, 1 nit
+  corregido). Sin commit/push/feature-tester (instrucción del usuario); E2E visual con sesión lo hace
+  la sesión principal.
+  **Archivos — nuevos**: `src/styles/theme.ts`, `src/pages/_document.tsx`.
+  **Reescritos (infra)**: `src/pages/_app.tsx`, `tailwind.config.ts`, `src/styles/globals.css`,
+  `package.json`/`package-lock.json` (+@mantine ×5, −radix ×6/cva/tailwindcss-animate/lucide-react).
+  **Migrados (UI)**: `src/components/admin/admin-layout.tsx` (AppShell+Burger+NavLink),
+  `estado-badge.tsx`, `stat-card.tsx`; `src/pages/login.tsx`; `src/pages/admin/{index,ventas,
+  productos,sorteo,configuracion}.tsx`.
+  **Eliminados**: `src/components/ui/` (11 componentes shadcn) + `components.json`.
+  **Conservados** (D7): clsx, tailwind-merge, prettier-plugin-tailwindcss, @tabler/icons-react,
+  recharts, embla. **NO tocados** (I5): landing maqueta (`src/components/landing/*`, `index.tsx`) y
+  dev throwaway (`src/pages/dev/checkout*`) — solo compilan. **2 decisiones abiertas para el usuario**:
+  (a) productos "desactivar/eliminar" con confirm (el Plan lo menciona pero el flujo 1:1 no lo tiene y
+  el router no expone delete — preservé 1:1); (b) convención `ta` de Mantine vs `text-right` de
+  Tailwind para alinear celdas de tabla (nit del reviewer).
+- [2026-07-17 05:52] [orquestador] Migración Mantine 7 completa (ADR-0011): gates verdes (tsc/lint/
+  145 vitest), frontend-reviewer APPROVE, verificación visual con sesión real — dashboard con KPIs
+  reales y ventas con Decimal punta a punta ($3.000 | −$96 | $2.904). Decisiones nocturnas: flujo de
+  productos queda 1:1 (sin botón destructivo nuevo — REVISABLE si el usuario quiere confirmación de
+  desactivar); `text-right` blesseado como layout en frontend-conventions. E2E-con-sesión de F05
+  cubiertos en este pase (dashboard/ventas en vivo; productos/config renderizan 200 + Vitest).

@@ -1,4 +1,4 @@
-import { Badge } from "~/components/ui/badge";
+import { Badge } from "@mantine/core";
 
 /**
  * Estado de una Orden/Pago tal como lo devuelve el dominio (enum `OrderStatus` de Prisma).
@@ -7,9 +7,9 @@ import { Badge } from "~/components/ui/badge";
  */
 export type EstadoOrden = "PENDIENTE" | "PAGADO" | "FALLIDO";
 
-// Color del estado vía inline style = excepción de data-viz de las convenciones
-// (design.md §6/§9: la semántica de color de comercio está PENDIENTE — se mantiene el
-// patrón previo, badge neutro + punto de color, hasta cerrar la paleta de marca).
+// Color del estado vía inline style = excepción de data-viz de las convenciones (design.md
+// §2/§9: la semántica de color de comercio está PENDIENTE — se mantiene el patrón provisorio,
+// badge neutro outline + punto de color inline, hasta cerrar la paleta de marca).
 const META: Record<EstadoOrden, { label: string; color: string }> = {
   PAGADO: { label: "Pagado", color: "#16a34a" },
   PENDIENTE: { label: "Pendiente", color: "#d97706" },
@@ -19,11 +19,23 @@ const META: Record<EstadoOrden, { label: string; color: string }> = {
 export function EstadoBadge({ estado }: { estado: EstadoOrden }) {
   const meta = META[estado];
   return (
-    <Badge variant="outline" className="gap-1.5 font-normal">
-      <span
-        className="size-1.5 rounded-full"
-        style={{ background: meta.color }}
-      />
+    <Badge
+      variant="outline"
+      color="gray"
+      radius="sm"
+      leftSection={
+        <span
+          style={{
+            display: "inline-block",
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: meta.color,
+          }}
+        />
+      }
+      styles={{ label: { fontWeight: 400, textTransform: "none" } }}
+    >
       {meta.label}
     </Badge>
   );

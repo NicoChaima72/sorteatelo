@@ -1,31 +1,28 @@
 import {
+  Badge,
+  Button,
+  Card,
+  Group,
+  Paper,
+  Select,
+  SimpleGrid,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import {
   IconCreditCard,
   IconPalette,
   IconTicket,
 } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
-import { type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import { Skeleton } from "~/components/ui/skeleton";
 import { fechaHora } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
 import { api } from "~/utils/api";
@@ -50,21 +47,18 @@ function SettingCard({
   children: ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon className="size-[18px] text-muted-foreground" stroke={1.75} />
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
+    <Card withBorder padding="lg" radius="md">
+      <Group gap="xs" mb={4}>
+        <Icon className="size-[18px]" stroke={1.75} />
+        <Text fw={600}>{title}</Text>
+      </Group>
+      <Text size="sm" c="dimmed" mb="md">
+        {description}
+      </Text>
+      {children}
     </Card>
   );
 }
-
-const textareaCls =
-  "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 /** Card de credenciales Flow: WRITE-ONLY (nunca precarga secretos; solo muestra el estado). */
 function CredencialFlowCard() {
@@ -73,19 +67,35 @@ function CredencialFlowCard() {
     retry: false,
   });
 
-  const [apiKey, setApiKey] = useState("");
-  const [secretKey, setSecretKey] = useState("");
-  const [sandbox, setSandbox] = useState("sandbox");
+  const form = useForm({
+    initialValues: { apiKey: "", secretKey: "", sandbox: "sandbox" },
+  });
 
   const guardar = api.panel.guardarCredencialFlow.useMutation({
     onSuccess: async () => {
-      setApiKey("");
-      setSecretKey("");
+      form.setFieldValue("apiKey", "");
+      form.setFieldValue("secretKey", "");
       await utils.panel.getEstadoCredencialFlow.invalidate();
+      notifications.show({
+        message: "Credenciales guardadas.",
+        color: "green",
+      });
+    },
+    onError: (error) => {
+      notifications.show({ message: error.message, color: "red" });
     },
   });
 
-  const puedeGuardar = apiKey.trim() !== "" && secretKey.trim() !== "";
+  const puedeGuardar =
+    form.values.apiKey.trim() !== "" && form.values.secretKey.trim() !== "";
+
+  const submit = form.onSubmit((valores) =>
+    guardar.mutate({
+      apiKey: valores.apiKey,
+      secretKey: valores.secretKey,
+      sandbox: valores.sandbox === "sandbox",
+    }),
+  );
 
   return (
     <SettingCard
@@ -93,94 +103,95 @@ function CredencialFlowCard() {
       title="Pagos (Flow)"
       description="Conecta tu cuenta de Flow para cobrar. Tus claves se guardan cifradas y nunca se muestran."
     >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-md border px-3 py-2.5 text-sm">
-          <span className="text-muted-foreground">Estado</span>
-          {estado.isLoading ? (
-            <Skeleton className="h-5 w-24" />
-          ) : estado.isError ? (
-            <button
-              onClick={() => void estado.refetch()}
-              className="text-xs text-destructive underline-offset-2 hover:underline"
-            >
-              Error al cargar · Reintentar
-            </button>
-          ) : estado.data?.configurada ? (
-            <span className="flex items-center gap-2">
-              <Badge variant="secondary">Configurada</Badge>
-              <span className="text-xs text-muted-foreground">
-                {estado.data.sandbox ? "sandbox" : "producción"}
-                {estado.data.updatedAt
-                  ? ` · ${fechaHora(estado.data.updatedAt)}`
-                  : ""}
-              </span>
-            </span>
-          ) : (
-            <Badge
-              variant="outline"
-              className="font-normal text-muted-foreground"
-            >
-              No conectada
-            </Badge>
-          )}
-        </div>
+      <form onSubmit={submit}>
+        <Stack gap="md">
+          <Paper withBorder p="sm" radius="md">
+            <Group justify="space-between" gap="sm">
+              <Text size="sm" c="dimmed">
+                Estado
+              </Text>
+              {estado.isLoading ? (
+                <Skeleton height={20} width={96} />
+              ) : estado.isError ? (
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="compact-xs"
+                  onClick={() => void estado.refetch()}
+                >
+                  Error al cargar · Reintentar
+                </Button>
+              ) : estado.data?.configurada ? (
+                <Group gap="xs">
+                  <Badge
+                    variant="light"
+                    styles={{ label: { textTransform: "none" } }}
+                  >
+                    Configurada
+                  </Badge>
+                  <Text size="xs" c="dimmed">
+                    {estado.data.sandbox ? "sandbox" : "producción"}
+                    {estado.data.updatedAt
+                      ? ` · ${fechaHora(estado.data.updatedAt)}`
+                      : ""}
+                  </Text>
+                </Group>
+              ) : (
+                <Badge
+                  variant="outline"
+                  color="gray"
+                  styles={{ label: { fontWeight: 400, textTransform: "none" } }}
+                >
+                  No conectada
+                </Badge>
+              )}
+            </Group>
+          </Paper>
 
-        <div className="grid gap-2">
-          <Label htmlFor="apiKey">API Key</Label>
-          <Input
-            id="apiKey"
+          <TextInput
+            label="API Key"
             type="password"
             autoComplete="off"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
             placeholder="••••••••••••"
+            {...form.getInputProps("apiKey")}
           />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="secretKey">Secret Key</Label>
-          <Input
-            id="secretKey"
+          <TextInput
+            label="Secret Key"
             type="password"
             autoComplete="off"
-            value={secretKey}
-            onChange={(e) => setSecretKey(e.target.value)}
             placeholder="••••••••••••"
+            {...form.getInputProps("secretKey")}
           />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="ambiente">Ambiente</Label>
-          <Select value={sandbox} onValueChange={setSandbox}>
-            <SelectTrigger id="ambiente" className="sm:w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sandbox">Sandbox (pruebas)</SelectItem>
-              <SelectItem value="produccion">Producción</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <Select
+            label="Ambiente"
+            className="sm:max-w-52"
+            allowDeselect={false}
+            data={[
+              { value: "sandbox", label: "Sandbox (pruebas)" },
+              { value: "produccion", label: "Producción" },
+            ]}
+            {...form.getInputProps("sandbox")}
+          />
 
-        {guardar.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {guardar.error.message}
-          </p>
-        )}
-
-        <Button
-          onClick={() =>
-            guardar.mutate({
-              apiKey,
-              secretKey,
-              sandbox: sandbox === "sandbox",
-            })
-          }
-          disabled={!puedeGuardar || guardar.isPending}
-        >
-          {guardar.isPending ? "Guardando…" : "Guardar credenciales"}
-        </Button>
-      </div>
+          <Button
+            type="submit"
+            loading={guardar.isPending}
+            disabled={!puedeGuardar}
+            className="self-start"
+          >
+            Guardar credenciales
+          </Button>
+        </Stack>
+      </form>
     </SettingCard>
   );
+}
+
+interface ConfigTiendaForm {
+  descripcion: string;
+  logoUrl: string;
+  colorPrimario: string;
+  basesSorteo: string;
 }
 
 /** Card de config de tienda: descripción, logo, color, bases del sorteo (texto). */
@@ -190,23 +201,35 @@ function ConfiguracionTiendaCard() {
     retry: false,
   });
 
-  const [descripcion, setDescripcion] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [colorPrimario, setColorPrimario] = useState("");
-  const [basesSorteo, setBasesSorteo] = useState("");
+  const form = useForm<ConfigTiendaForm>({
+    initialValues: {
+      descripcion: "",
+      logoUrl: "",
+      colorPrimario: "",
+      basesSorteo: "",
+    },
+  });
 
   // Rehidratar el form cuando llegan los datos.
   useEffect(() => {
     if (!config.data) return;
-    setDescripcion(config.data.descripcion ?? "");
-    setLogoUrl(config.data.logoUrl ?? "");
-    setColorPrimario(config.data.colorPrimario ?? "");
-    setBasesSorteo(config.data.basesSorteo ?? "");
+    form.setValues({
+      descripcion: config.data.descripcion ?? "",
+      logoUrl: config.data.logoUrl ?? "",
+      colorPrimario: config.data.colorPrimario ?? "",
+      basesSorteo: config.data.basesSorteo ?? "",
+    });
+    form.resetDirty();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.data]);
 
   const guardar = api.panel.guardarConfiguracionTienda.useMutation({
     onSuccess: async () => {
       await utils.panel.getConfiguracionTienda.invalidate();
+      notifications.show({ message: "Cambios guardados.", color: "green" });
+    },
+    onError: (error) => {
+      notifications.show({ message: error.message, color: "red" });
     },
   });
 
@@ -217,10 +240,10 @@ function ConfiguracionTiendaCard() {
         title="Tu tienda"
         description="La descripción, el logo y el color de tu tienda."
       >
-        <div className="space-y-3">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-9 w-full" />
-        </div>
+        <Stack gap="sm">
+          <Skeleton height={80} />
+          <Skeleton height={36} />
+        </Stack>
       </SettingCard>
     );
   }
@@ -234,19 +257,18 @@ function ConfiguracionTiendaCard() {
         title="Tu tienda"
         description="La descripción, el logo y el color de tu tienda."
       >
-        <div className="flex flex-col items-center py-6 text-center">
-          <p className="text-sm text-destructive">
+        <Stack align="center" py="lg" gap="sm">
+          <Text size="sm" c="red">
             No pudimos cargar la configuración de tu tienda.
-          </p>
+          </Text>
           <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
+            variant="default"
+            size="xs"
             onClick={() => void config.refetch()}
           >
             Reintentar
           </Button>
-        </div>
+        </Stack>
       </SettingCard>
     );
   }
@@ -257,78 +279,58 @@ function ConfiguracionTiendaCard() {
       title="Tu tienda"
       description="La descripción, el logo y el color de tu tienda. El diseño real llega más adelante."
     >
-      <div className="space-y-4">
-        <div className="grid gap-2">
-          <Label htmlFor="descripcion">Descripción</Label>
-          <textarea
-            id="descripcion"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
+      <form onSubmit={form.onSubmit((valores) => guardar.mutate(valores))}>
+        <Stack gap="md">
+          <Textarea
+            label="Descripción"
             placeholder="Una línea que describa tu tienda."
-            className={`${textareaCls} min-h-[72px]`}
+            minRows={2}
+            autosize
+            {...form.getInputProps("descripcion")}
           />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="logoUrl">Logo (URL)</Label>
-            <Input
-              id="logoUrl"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
+          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+            <TextInput
+              label="Logo (URL)"
               placeholder="https://…"
+              {...form.getInputProps("logoUrl")}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="colorPrimario">Color de marca (hex)</Label>
-            <Input
-              id="colorPrimario"
-              value={colorPrimario}
-              onChange={(e) => setColorPrimario(e.target.value)}
+            <TextInput
+              label="Color de marca (hex)"
               placeholder="#4f46e5"
+              {...form.getInputProps("colorPrimario")}
             />
-          </div>
-        </div>
+          </SimpleGrid>
 
-        <div className="border-t pt-4">
-          <div className="mb-2 flex items-center gap-2">
-            <IconTicket
-              className="size-[18px] text-muted-foreground"
-              stroke={1.75}
+          <div
+            className="pt-4"
+            style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
+          >
+            <Group gap="xs" mb="xs">
+              <IconTicket className="size-[18px]" stroke={1.75} />
+              <Text size="sm" fw={500}>
+                Bases del sorteo
+              </Text>
+            </Group>
+            <Textarea
+              placeholder="Escribe aquí las bases legales del sorteo. Tú eres responsable de su contenido."
+              minRows={6}
+              autosize
+              {...form.getInputProps("basesSorteo")}
             />
-            <Label htmlFor="basesSorteo" className="text-sm font-medium">
-              Bases del sorteo
-            </Label>
+            <Text size="xs" c="dimmed" mt={6}>
+              El texto de las bases. La responsabilidad legal del sorteo es tuya.
+            </Text>
           </div>
-          <textarea
-            id="basesSorteo"
-            value={basesSorteo}
-            onChange={(e) => setBasesSorteo(e.target.value)}
-            placeholder="Escribe aquí las bases legales del sorteo. Tú eres responsable de su contenido."
-            className={`${textareaCls} min-h-[140px]`}
-          />
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            El texto de las bases. La responsabilidad legal del sorteo es tuya.
-          </p>
-        </div>
 
-        {guardar.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {guardar.error.message}
-          </p>
-        )}
-        {guardar.isSuccess && !guardar.isPending && (
-          <p className="text-sm text-muted-foreground">Cambios guardados.</p>
-        )}
-
-        <Button
-          onClick={() =>
-            guardar.mutate({ descripcion, logoUrl, colorPrimario, basesSorteo })
-          }
-          disabled={guardar.isPending}
-        >
-          {guardar.isPending ? "Guardando…" : "Guardar cambios"}
-        </Button>
-      </div>
+          <Button
+            type="submit"
+            loading={guardar.isPending}
+            className="self-start"
+          >
+            Guardar cambios
+          </Button>
+        </Stack>
+      </form>
     </SettingCard>
   );
 }
@@ -339,10 +341,10 @@ export default function ConfiguracionPage() {
       title="Configuración"
       description="Los ajustes de tu tienda: pagos, marca y bases del sorteo."
     >
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" style={{ alignItems: "start" }}>
         <CredencialFlowCard />
         <ConfiguracionTiendaCard />
-      </div>
+      </SimpleGrid>
     </AdminLayout>
   );
 }

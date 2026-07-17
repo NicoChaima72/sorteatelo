@@ -1,10 +1,14 @@
+import { Card, Group, Text } from "@mantine/core";
 import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react";
 import { type ComponentType } from "react";
 
-import { Card, CardContent } from "~/components/ui/card";
 import { cn } from "~/lib/utils";
 
-type IconCmp = ComponentType<{ className?: string; stroke?: number | string }>;
+type IconCmp = ComponentType<{
+  className?: string;
+  stroke?: number | string;
+  color?: string;
+}>;
 
 interface StatCardProps {
   label: string;
@@ -14,33 +18,46 @@ interface StatCardProps {
   hint?: string;
 }
 
-export function StatCard({ label, value, icon: Icon, delta, hint }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  delta,
+  hint,
+}: StatCardProps) {
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </span>
-          <Icon className="size-[18px] text-primary" stroke={1.75} />
-        </div>
-        <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
-          {value}
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-          {delta && (
-            <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
-              {delta.dir === "up" ? (
-                <IconTrendingUp className="size-3.5" />
-              ) : (
-                <IconTrendingDown className="size-3.5" />
-              )}
-              {delta.value}
-            </span>
-          )}
-          {hint && <span className={cn(delta && "before:mr-1 before:content-['·']")}>{hint}</span>}
-        </div>
-      </CardContent>
+    <Card withBorder padding="lg" radius="md">
+      <Group justify="space-between" wrap="nowrap">
+        <Text size="xs" fw={500} tt="uppercase" c="dimmed" style={{ letterSpacing: "0.03em" }}>
+          {label}
+        </Text>
+        {/* Tinte primary del panel — casi-default (primary de Mantine) hasta cerrar la paleta. */}
+        <Icon
+          className="size-[18px]"
+          stroke={1.75}
+          color="var(--mantine-primary-color-filled)"
+        />
+      </Group>
+      <Text mt="sm" fw={600} fz="1.5rem" lh={1.2} className="tabular-nums">
+        {value}
+      </Text>
+      <Group mt={6} gap={6} align="center">
+        {delta && (
+          <Text span size="xs" fw={500} className="inline-flex items-center gap-0.5">
+            {delta.dir === "up" ? (
+              <IconTrendingUp className="size-3.5" />
+            ) : (
+              <IconTrendingDown className="size-3.5" />
+            )}
+            {delta.value}
+          </Text>
+        )}
+        {hint && (
+          <Text span size="xs" c="dimmed" className={cn(delta && "before:mr-1 before:content-['·']")}>
+            {hint}
+          </Text>
+        )}
+      </Group>
     </Card>
   );
 }

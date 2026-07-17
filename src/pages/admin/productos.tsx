@@ -1,38 +1,25 @@
+import {
+  ActionIcon,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Group,
+  Modal,
+  Select,
+  Skeleton,
+  Table,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import { IconPencil, IconPlus } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
 import { useEffect, useState } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent } from "~/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import { Skeleton } from "~/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
 import { clp } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
 import { api, type RouterOutputs } from "~/utils/api";
@@ -45,6 +32,24 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
 type Producto = RouterOutputs["panel"]["listarProductos"][number];
 
+interface ProductoForm {
+  titulo: string;
+  descripcion: string;
+  precio: string; // dinero SIEMPRE string (I2): CLP entero ⇒ Decimal en el server.
+  pdfPath: string;
+  portadaUrl: string;
+  activo: boolean;
+}
+
+const VALORES_INICIALES: ProductoForm = {
+  titulo: "",
+  descripcion: "",
+  precio: "3000",
+  pdfPath: "",
+  portadaUrl: "",
+  activo: true,
+};
+
 function iniciales(titulo: string) {
   return titulo
     .split(" ")
@@ -54,7 +59,7 @@ function iniciales(titulo: string) {
     .join("");
 }
 
-function ProductoFormDialog({
+function ProductoFormModal({
   open,
   onOpenChange,
   producto,
@@ -66,22 +71,32 @@ function ProductoFormDialog({
   const esEdicion = producto !== null;
   const utils = api.useUtils();
 
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [precio, setPrecio] = useState("3000");
-  const [pdfPath, setPdfPath] = useState("");
-  const [portadaUrl, setPortadaUrl] = useState("");
-  const [activo, setActivo] = useState(true);
+  const form = useForm<ProductoForm>({
+    initialValues: VALORES_INICIALES,
+    validate: {
+      titulo: (v) => (v.trim() === "" ? "El título es obligatorio" : null),
+      // El precio viaja como string (I2); validamos que sea un entero CLP > 0 en el cliente,
+      // el server vuelve a validar. Jamás aritmética con number.
+      precio: (v) =>
+        /^\d+$/.test(v.trim()) && Number(v) > 0
+          ? null
+          : "Ingresa un precio válido en pesos",
+    },
+  });
 
   // Rehidratar el form cada vez que se abre con un target distinto.
   useEffect(() => {
     if (!open) return;
-    setTitulo(producto?.titulo ?? "");
-    setDescripcion(producto?.descripcion ?? "");
-    setPrecio(producto?.precio ?? "3000");
-    setPdfPath(producto?.pdfPath ?? "");
-    setPortadaUrl(producto?.portadaUrl ?? "");
-    setActivo(producto?.activo ?? true);
+    form.setValues({
+      titulo: producto?.titulo ?? "",
+      descripcion: producto?.descripcion ?? "",
+      precio: producto?.precio ?? "3000",
+      pdfPath: producto?.pdfPath ?? "",
+      portadaUrl: producto?.portadaUrl ?? "",
+      activo: producto?.activo ?? true,
+    });
+    form.resetDirty();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto]);
 
   const onDone = async () => {
@@ -90,151 +105,119 @@ function ProductoFormDialog({
       // el KPI "Productos activos" del dashboard también depende de esto
       utils.panel.getResumenTienda.invalidate(),
     ]);
+    notifications.show({
+      message: esEdicion ? "Cambios guardados." : "Producto agregado.",
+      color: "green",
+    });
     onOpenChange(false);
   };
 
-  const crear = api.panel.crearProducto.useMutation({ onSuccess: onDone });
+  const onError = (error: { message: string }) => {
+    notifications.show({ message: error.message, color: "red" });
+  };
+
+  const crear = api.panel.crearProducto.useMutation({ onSuccess: onDone, onError });
   const actualizar = api.panel.actualizarProducto.useMutation({
     onSuccess: onDone,
+    onError,
   });
 
   const enviando = crear.isPending || actualizar.isPending;
-  const error = crear.error?.message ?? actualizar.error?.message ?? null;
 
-  const submit = () => {
+  const submit = form.onSubmit((valores) => {
     if (esEdicion) {
-      actualizar.mutate({
-        id: producto.id,
-        titulo,
-        descripcion,
-        precio,
-        pdfPath,
-        portadaUrl,
-        activo,
-      });
+      actualizar.mutate({ id: producto.id, ...valores });
     } else {
-      crear.mutate({ titulo, descripcion, precio, pdfPath, portadaUrl });
+      // crear no recibe `activo` (nace a la venta por defecto en el server).
+      crear.mutate({
+        titulo: valores.titulo,
+        descripcion: valores.descripcion,
+        precio: valores.precio,
+        pdfPath: valores.pdfPath,
+        portadaUrl: valores.portadaUrl,
+      });
     }
-  };
+  });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {esEdicion ? "Editar producto" : "Agregar producto"}
-          </DialogTitle>
-          <DialogDescription>
-            {esEdicion
-              ? "Modifica los datos del producto y guarda los cambios."
-              : "Completa los datos del producto que quieres poner a la venta."}
-          </DialogDescription>
-        </DialogHeader>
+    <Modal
+      opened={open}
+      onClose={() => onOpenChange(false)}
+      title={esEdicion ? "Editar producto" : "Agregar producto"}
+      size="lg"
+    >
+      <Text size="sm" c="dimmed" mb="md">
+        {esEdicion
+          ? "Modifica los datos del producto y guarda los cambios."
+          : "Completa los datos del producto que quieres poner a la venta."}
+      </Text>
 
-        <div className="grid gap-4 py-2">
-          <div className="grid gap-2">
-            <Label htmlFor="titulo">Título</Label>
-            <Input
-              id="titulo"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ej. Cómo enriquecer a tu idol favorito"
-            />
-          </div>
+      <form onSubmit={submit}>
+        <div className="grid gap-4">
+          <TextInput
+            label="Título"
+            placeholder="Ej. Cómo enriquecer a tu idol favorito"
+            {...form.getInputProps("titulo")}
+          />
 
-          <div className="grid gap-2">
-            <Label htmlFor="descripcion">Descripción</Label>
-            <textarea
-              id="descripcion"
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Un par de líneas que enganchen a tu lectora."
-              className="flex min-h-[88px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            />
-          </div>
+          <Textarea
+            label="Descripción"
+            placeholder="Un par de líneas que enganchen a tu lectora."
+            minRows={3}
+            autosize
+            {...form.getInputProps("descripcion")}
+          />
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="precio">Precio (CLP)</Label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  id="precio"
-                  className="pl-7 tabular-nums"
-                  value={precio}
-                  onChange={(e) => setPrecio(e.target.value)}
-                  inputMode="numeric"
-                />
-              </div>
-            </div>
+            <TextInput
+              label="Precio (CLP)"
+              leftSection="$"
+              inputMode="numeric"
+              classNames={{ input: "tabular-nums" }}
+              {...form.getInputProps("precio")}
+            />
             {esEdicion && (
-              <div className="grid gap-2">
-                <Label htmlFor="estado">Estado</Label>
-                <Select
-                  value={activo ? "activo" : "borrador"}
-                  onValueChange={(v) => setActivo(v === "activo")}
-                >
-                  <SelectTrigger id="estado">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="activo">A la venta</SelectItem>
-                    <SelectItem value="borrador">Borrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select
+                label="Estado"
+                data={[
+                  { value: "activo", label: "A la venta" },
+                  { value: "borrador", label: "Borrador" },
+                ]}
+                allowDeselect={false}
+                value={form.values.activo ? "activo" : "borrador"}
+                onChange={(v) => form.setFieldValue("activo", v === "activo")}
+              />
             )}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="portada">Portada (URL, opcional)</Label>
-            <Input
-              id="portada"
-              value={portadaUrl}
-              onChange={(e) => setPortadaUrl(e.target.value)}
-              placeholder="https://…"
-            />
-          </div>
+          <TextInput
+            label="Portada (URL, opcional)"
+            placeholder="https://…"
+            {...form.getInputProps("portadaUrl")}
+          />
 
-          <div className="grid gap-2">
-            <Label htmlFor="pdfPath">Ruta del PDF</Label>
-            <Input
-              id="pdfPath"
-              value={pdfPath}
-              onChange={(e) => setPdfPath(e.target.value)}
-              placeholder="autora/mi-libro.pdf"
-            />
-            <p className="text-xs text-muted-foreground">
-              Por ahora es una ruta de texto. La subida real del archivo llega
-              con la próxima etapa (entrega de PDF).
-            </p>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <TextInput
+            label="Ruta del PDF"
+            placeholder="autora/mi-libro.pdf"
+            description="Por ahora es una ruta de texto. La subida real del archivo llega con la próxima etapa (entrega de PDF)."
+            {...form.getInputProps("pdfPath")}
+          />
         </div>
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={enviando}>
-              Cancelar
-            </Button>
-          </DialogClose>
-          <Button onClick={submit} disabled={enviando}>
-            {enviando
-              ? "Guardando…"
-              : esEdicion
-                ? "Guardar cambios"
-                : "Agregar producto"}
+        <Group justify="flex-end" mt="lg" gap="sm">
+          <Button
+            variant="default"
+            onClick={() => onOpenChange(false)}
+            disabled={enviando}
+          >
+            Cancelar
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <Button type="submit" loading={enviando}>
+            {esEdicion ? "Guardar cambios" : "Agregar producto"}
+          </Button>
+        </Group>
+      </form>
+    </Modal>
   );
 }
 
@@ -242,24 +225,24 @@ function FilasSkeleton() {
   return (
     <>
       {[0, 1, 2].map((i) => (
-        <TableRow key={i}>
-          <TableCell className="pl-6">
-            <div className="flex items-center gap-3">
-              <Skeleton className="size-10 rounded-md" />
+        <Table.Tr key={i}>
+          <Table.Td className="pl-6">
+            <Group gap="sm" wrap="nowrap">
+              <Skeleton height={40} width={40} radius="md" />
               <div className="space-y-1.5">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-56" />
+                <Skeleton height={16} width={160} />
+                <Skeleton height={12} width={224} />
               </div>
-            </div>
-          </TableCell>
-          <TableCell className="text-right">
-            <Skeleton className="ml-auto h-4 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-5 w-20" />
-          </TableCell>
-          <TableCell className="pr-6" />
-        </TableRow>
+            </Group>
+          </Table.Td>
+          <Table.Td className="text-right">
+            <Skeleton height={16} width={64} className="ml-auto" />
+          </Table.Td>
+          <Table.Td>
+            <Skeleton height={20} width={80} />
+          </Table.Td>
+          <Table.Td className="pr-6" />
+        </Table.Tr>
       ))}
     </>
   );
@@ -288,106 +271,108 @@ export default function ProductosPage() {
       title="Productos"
       description="Agrega, edita y administra los productos de tu catálogo."
       actions={
-        <Button onClick={openNew}>
-          <IconPlus className="size-4" />
+        <Button onClick={openNew} leftSection={<IconPlus className="size-4" />}>
           <span className="hidden sm:inline">Agregar producto</span>
         </Button>
       }
     >
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Producto</TableHead>
-                <TableHead className="text-right">Precio</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="pr-6 text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      <Card withBorder padding={0} radius="md">
+        <Table.ScrollContainer minWidth={520}>
+          <Table verticalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th className="pl-6">Producto</Table.Th>
+                <Table.Th className="text-right">Precio</Table.Th>
+                <Table.Th>Estado</Table.Th>
+                <Table.Th className="pr-6 text-right">Acciones</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
               {productos.isLoading ? (
                 <FilasSkeleton />
               ) : productos.isError ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-12 text-center">
-                    <p className="text-sm text-destructive">
+                <Table.Tr>
+                  <Table.Td colSpan={4} className="py-12 text-center">
+                    <Text size="sm" c="red">
                       No pudimos cargar tus productos.
-                    </p>
+                    </Text>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
+                      variant="default"
+                      size="xs"
+                      mt="sm"
                       onClick={() => void productos.refetch()}
                     >
                       Reintentar
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : lista.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="py-12 text-center text-muted-foreground"
-                  >
+                <Table.Tr>
+                  <Table.Td colSpan={4} className="py-12 text-center" c="dimmed">
                     Todavía no tienes productos. Agrega el primero con el botón
                     de arriba.
-                  </TableCell>
-                </TableRow>
+                  </Table.Td>
+                </Table.Tr>
               ) : (
                 lista.map((producto) => (
-                  <TableRow key={producto.id}>
-                    <TableCell className="pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold text-secondary-foreground">
+                  <Table.Tr key={producto.id}>
+                    <Table.Td className="pl-6">
+                      <Group gap="sm" wrap="nowrap">
+                        <Avatar radius="md" color="gray" size={40}>
                           {iniciales(producto.titulo)}
-                        </div>
+                        </Avatar>
                         <div className="min-w-0">
-                          <div className="truncate font-medium">
+                          <Text fw={500} truncate>
                             {producto.titulo}
-                          </div>
-                          <div className="max-w-[280px] truncate text-xs text-muted-foreground">
+                          </Text>
+                          <Text size="xs" c="dimmed" className="max-w-[280px]" truncate>
                             {producto.descripcion}
-                          </div>
+                          </Text>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                      </Group>
+                    </Table.Td>
+                    <Table.Td className="text-right tabular-nums">
                       {clp(producto.precio)}
-                    </TableCell>
-                    <TableCell>
+                    </Table.Td>
+                    <Table.Td>
                       {producto.activo ? (
-                        <Badge variant="secondary">A la venta</Badge>
+                        <Badge
+                          variant="light"
+                          styles={{ label: { textTransform: "none" } }}
+                        >
+                          A la venta
+                        </Badge>
                       ) : (
                         <Badge
                           variant="outline"
-                          className="font-normal text-muted-foreground"
+                          color="gray"
+                          styles={{ label: { fontWeight: 400, textTransform: "none" } }}
                         >
                           Borrador
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell className="pr-6">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+                    </Table.Td>
+                    <Table.Td className="pr-6">
+                      <Group justify="flex-end" gap={4}>
+                        <ActionIcon
+                          variant="subtle"
+                          color="gray"
                           aria-label="Editar"
                           onClick={() => openEdit(producto)}
                         >
                           <IconPencil className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                        </ActionIcon>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
                 ))
               )}
-            </TableBody>
+            </Table.Tbody>
           </Table>
-        </CardContent>
+        </Table.ScrollContainer>
       </Card>
 
-      <ProductoFormDialog
+      <ProductoFormModal
         open={formOpen}
         onOpenChange={setFormOpen}
         producto={editTarget}

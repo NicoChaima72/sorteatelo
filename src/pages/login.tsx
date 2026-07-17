@@ -1,7 +1,6 @@
+import { Button, Stack, Text, Title } from "@mantine/core";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
-
-import { Button } from "~/components/ui/button";
 
 /**
  * Login del panel admin — página throwaway SIN marca (F05). La identidad visual
@@ -21,17 +20,19 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-6">
-      <div className="text-center">
-        <h1 className="text-lg font-semibold">Panel de administración</h1>
-        <p className="text-sm text-muted-foreground">
+      <Stack align="center" gap={4}>
+        <Title order={1} fz="lg">
+          Panel de administración
+        </Title>
+        <Text size="sm" c="dimmed">
           Ingresa con tu cuenta de Google para continuar.
-        </p>
-      </div>
+        </Text>
+      </Stack>
 
       {mensajeError && (
-        <p role="alert" className="text-sm text-destructive">
+        <Text role="alert" size="sm" c="red">
           {mensajeError}
-        </p>
+        </Text>
       )}
 
       <Button onClick={() => void signIn("google", { callbackUrl: "/admin" })}>

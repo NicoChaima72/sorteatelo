@@ -54,6 +54,19 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().optional(),
     R2_BUCKET: z.string().optional(),
     R2_ENDPOINT: z.string().url().optional(),
+    // Correo transaccional — Resend (ADR-0010, F04). API key SECRETA del proveedor de
+    // correo (una cuenta de PLATAFORMA, como el storage — no BYO por tenant). Opcional:
+    // la app arranca sin ella; la factory `crearCorreoService` hace fail-fast en runtime
+    // al enviar si falta. JAMÁS se loguea (I3). En el MVP se envía desde el remitente de
+    // prueba `onboarding@resend.dev` hasta que la decisión abierta #4 (dominio) habilite
+    // un dominio verificado.
+    RESEND_API_KEY: z.string().optional(),
+    // URL pública de la app para armar los enlaces de descarga del correo (D8/S5). El
+    // endpoint `/api/descargas/<token>` es de PLATAFORMA (el token es unique global, no
+    // resuelve tenant), así que el enlace NO lleva subdominio. Opcional: si falta, el
+    // borde cae a `NEXTAUTH_URL` (que ya apunta a la app) — `APP_URL` desacopla el correo
+    // del auth y permite un puerto de dev distinto (:3001) sin tocar NEXTAUTH_URL.
+    APP_URL: z.string().url().optional(),
   },
 
   /**
@@ -91,6 +104,8 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
     R2_BUCKET: process.env.R2_BUCKET,
     R2_ENDPOINT: process.env.R2_ENDPOINT,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    APP_URL: process.env.APP_URL,
     NEXT_PUBLIC_PLATFORM_DOMAIN: process.env.NEXT_PUBLIC_PLATFORM_DOMAIN,
   },
   /**

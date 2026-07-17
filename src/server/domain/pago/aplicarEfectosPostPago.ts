@@ -33,11 +33,18 @@ import { type EfectosPostPago } from "~/server/domain/pago/efectosPostPago";
  * `noopEfectosPostPago` sin tocar el núcleo del webhook ni el contrato (I6).
  */
 
-/** Ventana de validez del derecho de descarga (S3; política final en F03). */
-const GRANT_TTL_DIAS = 30;
+/**
+ * Ventana de validez del derecho de descarga (S3; política final en F03). Exportada (aditivo,
+ * sin cambio de comportamiento) para que el reenvío de F04 regenere los grants expirados con el
+ * MISMO TTL y el correo de F04 avise la expiración correcta — una sola fuente de verdad.
+ */
+export const GRANT_TTL_DIAS = 30;
 
-/** Token opaco crypto-random (autoridad intrínseca del grant; D5/I4). Nunca se loguea. */
-function generarTokenGrant(): string {
+/**
+ * Token opaco crypto-random (autoridad intrínseca del grant; D5/I4). Nunca se loguea. Exportado
+ * (aditivo) para que el reenvío de F04 regenere tokens con exactamente la misma entropía/forma.
+ */
+export function generarTokenGrant(): string {
   return randomBytes(32).toString("base64url");
 }
 

@@ -60,6 +60,17 @@ export const listarVentasInput = z.object({
 });
 export type ListarVentasInput = z.infer<typeof listarVentasInput>;
 
+/**
+ * Reenvío del correo de descarga de una orden PAGADA (F04/D9). Solo referencia la orden por id: la
+ * Tienda se resuelve server-side con `resolverTenantAutorizado` (I1), jamás del input.
+ */
+export const reenviarCorreoDescargaInput = z.object({
+  orderId: z.string().cuid(),
+});
+export type ReenviarCorreoDescargaInput = z.infer<
+  typeof reenviarCorreoDescargaInput
+>;
+
 export const guardarCredencialFlowInput = z.object({
   apiKey: z.string().trim().min(1, "Ingresa tu API Key de Flow"),
   secretKey: z.string().trim().min(1, "Ingresa tu Secret Key de Flow"),

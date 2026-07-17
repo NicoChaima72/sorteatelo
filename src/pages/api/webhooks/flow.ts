@@ -1,8 +1,11 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
+import { baseUrlApp, crearCorreoDeEnv } from "~/server/correo/correoDeEnv";
 import { aplicarEfectosPostPago } from "~/server/domain/pago/aplicarEfectosPostPago";
+import { enviarCorreoDescargaDeOrden } from "~/server/domain/correo/enviarCorreoDescargaDeOrden";
 import { confirmarPagoDeOrden } from "~/server/domain/pago/confirmarPagoDeOrden";
 import { db } from "~/server/db";
+import { conCorreoPostPago } from "~/server/pago/conCorreoPostPago";
 import {
   crearEnrutadorFlow,
   crearRepoRuteoFlow,
@@ -42,19 +45,33 @@ export default async function handler(
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // PUNTO DE EXTENSIÓN POST-PAGO (contrato F02). Cableado por F02 al use case real
+  // PUNTO DE EXTENSIÓN POST-PAGO (contrato F02). Cableado al use case real
   // `aplicarEfectosPostPago` (DownloadGrant por ítem + RaffleEntry en el Raffle ACTIVO
   // de la Tienda de la orden, scopeados por tenant, idempotentes — ADR-0002/0005). El
   // núcleo del webhook (`webhookFlow.ts`) y el contrato (`efectosPostPago.ts`) quedan
   // intactos. Se invoca UNA vez, dentro de la transacción de confirmarPagoDeOrden, y
   // solo en la transición a PAGADO (I2).
+  //
+  // CORREO DE DESCARGA (F04/D1/D2): `conCorreoPostPago` decora el confirmarPago para, tras
+  // COMMITEAR la transacción (los tokens ya existen), enviar UN correo con los enlaces
+  // `/api/descargas/<token>` — solo en la transición a PAGADO, una vez, y en try/catch
+  // log-and-continue (un fallo de Resend jamás compromete la venta ni el ack 200, I1). El
+  // envío va FUERA de la $transaction a propósito (D1). Esta es la ÚNICA parte que lee env
+  // del correo (RESEND_API_KEY vía factory, APP_URL/NEXTAUTH_URL para el baseUrl del enlace).
   // ───────────────────────────────────────────────────────────────────────────
+
+  const correo = crearCorreoDeEnv();
+  const baseUrl = baseUrlApp();
+
+  const confirmarPago = conCorreoPostPago(
+    (input) => confirmarPagoDeOrden({ db, input, aplicarEfectosPostPago }),
+    (orderId) => enviarCorreoDescargaDeOrden({ db, correo, orderId, baseUrl }),
+  );
 
   const { status, body } = await manejarWebhookFlow({
     req,
     enrutarFlow,
-    confirmarPago: (input) =>
-      confirmarPagoDeOrden({ db, input, aplicarEfectosPostPago }),
+    confirmarPago,
   });
 
   res.status(status).json(body);

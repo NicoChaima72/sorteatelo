@@ -1,4 +1,6 @@
 import { Button, Card, Group, Skeleton, Table, Text } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconMailForward } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
@@ -33,6 +35,9 @@ function FilasSkeleton() {
           <Table.Td>
             <Skeleton height={20} width={80} />
           </Table.Td>
+          <Table.Td className="pr-6 text-right">
+            <Skeleton height={28} width={96} className="ml-auto" />
+          </Table.Td>
         </Table.Tr>
       ))}
     </>
@@ -47,6 +52,21 @@ export default function VentasPage() {
       retry: false,
     },
   );
+
+  // Reenvío del correo de descarga (F04/D9). No invalida queries: la regeneración de tokens no
+  // cambia nada visible en la tabla de ventas. El loading es por-fila (variables.orderId).
+  const reenviar = api.panel.reenviarCorreoDescarga.useMutation({
+    onSuccess: () =>
+      notifications.show({
+        message: "Correo de descarga reenviado.",
+        color: "green",
+      }),
+    onError: () =>
+      notifications.show({
+        message: "No pudimos reenviar el correo. Intenta nuevamente en un momento.",
+        color: "red",
+      }),
+  });
 
   const filas = ventas.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -69,6 +89,7 @@ export default function VentasPage() {
                 </Table.Th>
                 <Table.Th className="text-right">Te queda</Table.Th>
                 <Table.Th>Estado</Table.Th>
+                <Table.Th className="pr-6 text-right">Acciones</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -76,7 +97,7 @@ export default function VentasPage() {
                 <FilasSkeleton />
               ) : ventas.isError ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7} className="py-12 text-center">
+                  <Table.Td colSpan={8} className="py-12 text-center">
                     <Text size="sm" c="red">
                       No pudimos cargar tus ventas.
                     </Text>
@@ -92,7 +113,7 @@ export default function VentasPage() {
                 </Table.Tr>
               ) : filas.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={7} className="py-12 text-center" c="dimmed">
+                  <Table.Td colSpan={8} className="py-12 text-center" c="dimmed">
                     Todavía no tienes ventas. Cuando alguien compre en tu tienda,
                     aparecerá aquí.
                   </Table.Td>
@@ -120,6 +141,26 @@ export default function VentasPage() {
                     </Table.Td>
                     <Table.Td>
                       <EstadoBadge estado={o.estado} />
+                    </Table.Td>
+                    <Table.Td className="pr-6 text-right">
+                      {o.estado === "PAGADO" ? (
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconMailForward className="size-3.5" />}
+                          loading={
+                            reenviar.isPending &&
+                            reenviar.variables?.orderId === o.id
+                          }
+                          onClick={() => reenviar.mutate({ orderId: o.id })}
+                        >
+                          Reenviar
+                        </Button>
+                      ) : (
+                        <Text size="sm" c="dimmed">
+                          —
+                        </Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))

@@ -1,5 +1,7 @@
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, panelProcedure } from "~/server/api/trpc";
+import { baseUrlApp, crearCorreoDeEnv } from "~/server/correo/correoDeEnv";
+import { reenviarCorreoDescargaDeOrden } from "~/server/domain/correo/reenviarCorreoDescargaDeOrden";
 import { actualizarProducto } from "~/server/domain/panel/actualizarProducto";
 import { confirmarPdfProducto } from "~/server/domain/panel/confirmarPdfProducto";
 import { crearProducto } from "~/server/domain/panel/crearProducto";
@@ -23,6 +25,7 @@ import {
   guardarConfiguracionTiendaInput,
   guardarCredencialFlowInput,
   listarVentasInput,
+  reenviarCorreoDescargaInput,
 } from "~/server/domain/panel/schemas";
 import { claveDeCifradoDeEnv } from "~/server/pago/flowDeTenant";
 import { crearStorageDeEnv } from "~/server/storage/storageDeEnv";
@@ -101,6 +104,23 @@ export const panelRouter = createTRPCRouter({
   getResumenTienda: panelProcedure.query(({ ctx }) =>
     runDomain(() => getResumenTienda({ db: ctx.db, acceso: ctx.acceso })),
   ),
+
+  // ── Reenvío del correo de descarga de una orden PAGADA (F04/D9) ────────────
+  // El correo y el baseUrl se cablan desde env en el borde (crearCorreoDeEnv/baseUrlApp, I6);
+  // el use case los recibe inyectados. Regenera los grants expirados antes de reenviar.
+  reenviarCorreoDescarga: panelProcedure
+    .input(reenviarCorreoDescargaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        reenviarCorreoDescargaDeOrden({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          input,
+          correo: crearCorreoDeEnv(),
+          baseUrl: baseUrlApp(),
+        }),
+      ),
+    ),
 
   // ── Configuración: CredencialFlow + plantilla + bases (F04) ───────────────
   getEstadoCredencialFlow: panelProcedure.query(({ ctx }) =>

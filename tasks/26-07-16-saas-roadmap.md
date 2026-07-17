@@ -826,3 +826,40 @@ Para F01 (los demás en el planning de cada fase):
   token inválido ⇒ 404 neutral. CORS del bucket configurado vía dashboard (el token API no tiene
   PutBucketCors — cubierto manualmente por el orquestador con la sesión del usuario). Gates 165/165.
   El circuito comercial completo (compra→pago→grant→descarga) está operativo en dev.
+- [2026-07-17 07:20] [planner-grill] **F04 planificada** → task file propio
+  `tasks/26-07-17-correo-transaccional-resend.md` (SIN grill, instrucción nocturna: criterio +
+  Supuestos revisables S1–S9). Alcance: (1) `services/correo.ts` — adapter Resend por **fetch
+  directo** (sin SDK ni react-email; cero deps nuevas), factory config-explícita patrón
+  flow/storage, interfaz `enviarCorreo`; (2) al confirmar el pago, **decorator post-commit** del
+  `confirmarPago` en el wrapper del webhook (núcleo webhookFlow + contrato EfectosPostPago
+  INTACTOS): solo en `transicion === "PAGADO" && !yaProcesado`, try/catch log-and-continue — un
+  fallo de Resend JAMÁS compromete la venta (el envío va FUERA de la $transaction); (3) UN correo
+  por orden con todos los enlaces `/api/descargas/<token>`, español neutro texto+HTML mínimo,
+  from "Tienda · vía Sortealo" (`onboarding@resend.dev` hasta decisión #4), reply-to = email de la
+  membresía más antigua, disclaimer ADR-0008; (4) reenvío MVP = mutation `panelProcedure` + botón
+  en admin/ventas que regenera grants expirados (token+TTL nuevos) — autoservicio público del
+  Comprador DIFERIDO. URL base = nueva `APP_URL` opcional con fallback `NEXTAUTH_URL`. Infra lista:
+  `RESEND_API_KEY` real en `.env` (declararla en env.js/.env.example es paso 1). Test real Resend
+  opt-in por flag → nikochaima72+test@gmail.com. Sin cambio de schema. **AWAITING USER APPROVAL**
+  para pasar F04 a implementing.
+- [2026-07-17 03:30] [feature-implementer] **[F04] IMPLEMENTADA** (task file
+  `tasks/26-07-17-correo-transaccional-resend.md` → status `testing`). F01 service correo (Resend fetch
+  directo, factory config-explícita, fail-fast, error sin volcar la key) + F02 envío post-pago POST-COMMIT
+  (`conCorreoPostPago` decora el webhook FUERA de la $tx, log-and-continue — la venta nunca se compromete;
+  núcleo webhook + confirmarPagoDeOrden + contrato EfectosPostPago INTACTOS) + F03 reenvío desde el panel
+  (mutation + botón Mantine en admin/ventas, regenera grants expirados en $tx). env `RESEND_API_KEY` + `APP_URL`.
+  **Envío real de Resend verificado 1 vez** (id OK) — destino = email de la cuenta `nikochaima72@gmail.com`, NO
+  `+test`: con `onboarding@resend.dev` sin dominio verificado (decisión abierta #4) Resend solo admite el email
+  exacto de la cuenta. Gates: backend+frontend+change-set reviewer APPROVE; **vitest 190/190** (+1 skip opt-in),
+  lint exit 0; `tsc` limpio salvo `tmp/e2e-descarga.ts` (scratch AJENO gitignored de F03 — decisión del usuario).
+  Sin commit/push/feature-tester (instrucción). Pendiente usuario: resolver el tmp + 2 drafts de drift de docs +
+  feature-tester (marcar `[x]` + E2E compra sandbox→inbox→descarga y reenvío).
+- [2026-07-17 07:45] [orquestador] F04 verificada E2E de punta a punta (el CIRCUITO COMERCIAL COMPLETO):
+  compra sandbox real (comprador nikochaima72@gmail.com) → webhook confirma → efectos post-pago
+  (grant+participación) → correo Resend REAL entregado a la bandeja del comprador ("Tienda de la Autora
+  (piloto) · vía Sortealo", enlace /api/descargas/<token>, disclaimer ADR-0008) → el enlace del correo
+  entrega el PDF real (302 presignado R2 → 200 %PDF). Drift de docs aplicado (backend: correo
+  post-commit; frontend: mutation por-fila). Gate npm run check verde (190/191, 1 skip = integración
+  Resend opt-in). RESEND_API_KEY en .env. Remitente dev de Resend solo envía al email de la cuenta hasta
+  verificar dominio (#4). Fases operativas del MVP: F01-F05 + entrega + correo. Falta: F06 storefront,
+  F08 self-service, F07/F10 (externos).

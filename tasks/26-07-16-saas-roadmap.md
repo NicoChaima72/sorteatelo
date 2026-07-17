@@ -934,3 +934,12 @@ Para F01 (los demás en el planning de cada fase):
   (whitespace-pre-wrap; 4ª rama "no autorizado"). No muté seeds publicados para no tumbar storefronts.
   REVISABLE: texto ToS = borrador operativo (validación legal = F10). CON ESTO EL MVP FUNCIONAL ESTÁ
   COMPLETO salvo F07 (piloto en prod) y F10 (go-live) que dependen de externos.
+- [2026-07-17 12:00] [orquestador] CIERRE DEL TURNO NOCTURNO. Build de producción (next build) OK —
+  app desplegable. DEPLOY A VERCEL NO EJECUTADO autónomamente por 2 razones honestas: (1) el storefront
+  multi-tenant resuelve por SUBDOMINIO; una preview *.vercel.app es host único ⇒ los storefronts de
+  tenant NO resolverían sin dominio wildcard, que es la decisión abierta #4 (dominio) + #5 (hosting) —
+  CLAUDE.md prohíbe cerrarlas sin el usuario; (2) el deploy sube secretos al proyecto Vercel. El deploy
+  queda listo (Vercel MCP autenticado, build verificado) — es paso de 10 min una vez elegido el dominio.
+  ESTADO MVP: F01-F06 + entrega + correo + self-service/Operador HECHAS, pusheadas, con E2E real donde
+  aplica. Pendiente: F07 (piloto en prod) y F10 (go-live) — ambas gated por externos (dominio wildcard,
+  Flow producción de la autora + SII, abogado para ToS). 16 commits en GitHub.

@@ -32,8 +32,8 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
 });
 
 describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
-  // panel.productos.crear.001 — persiste con el tenantId resuelto, precio Decimal, PDF pendiente
-  it("crea el producto con el tenantId resuelto server-side, precio Decimal, pdfPath null y activo false", async () => {
+  // panel.productos.crear.001 — persiste con el tenantId resuelto, precio Decimal, PDF pendiente, flag sorteo
+  it("crea el producto con el tenantId resuelto server-side, precio Decimal, pdfPath null, activo false y participaEnSorteo del input", async () => {
     const { db, getCreado } = fakeDb();
     await crearProducto({
       db,
@@ -43,6 +43,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
         descripcion: "una descripción",
         precio: "3000",
         portadaUrl: "",
+        participaEnSorteo: true,
       },
     });
     const data = getCreado()!;
@@ -55,6 +56,8 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
     expect(data.activo).toBe(false);
     // portadaUrl vacía ⇒ null (no string vacío)
     expect(data.portadaUrl).toBeNull();
+    // ADR-0012/D1: el flag del sorteo se persiste tal cual del input.
+    expect(data.participaEnSorteo).toBe(true);
   });
 
   // panel.productos.crear.002 — sin membresía ⇒ FORBIDDEN (no crea nada)
@@ -69,6 +72,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
           descripcion: "y",
           precio: "1000",
           portadaUrl: "",
+          participaEnSorteo: false,
         },
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });

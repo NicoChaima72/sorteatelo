@@ -10,23 +10,28 @@ import { type EfectosPostPago } from "~/server/domain/pago/efectosPostPago";
  * núcleo del webhook lo invoca una sola vez — I2):
  *
  *  1. **Entitlement** (`DownloadGrant`, ADR-0002): un grant por `OrderItem`/producto
- *     (D2), con un `token` opaco crypto-random inadivinable (nunca logueado — I4) y
+ *     (D4), con un `token` opaco crypto-random inadivinable (nunca logueado — I4) y
  *     `expiresAt` (S3: 30 días desde la confirmación). Idempotente por
- *     `@@unique([orderId, productId])`.
- *  2. **Participación** (`RaffleEntry`, CONTEXT § Participación): una entry por Orden
- *     (D3) en el `Raffle` ACTIVO **de la Tienda de la orden** (lookup scoped al
- *     `tenantId` derivado de la orden cargada vía `tx` — server-side, nunca input, I1),
- *     con `email` snapshot de `Order.email` (I5). Idempotente por
- *     `@@unique([raffleId, orderId])`.
+ *     `@@unique([orderId, productId])`. **La cantidad NO lo altera** (I5/D4): comprar
+ *     3 unidades de un PDF da 1 derecho de descarga, no 3.
+ *  2. **Participación por TICKET** (`RaffleEntry`, CONTEXT § Participación, ADR-0012):
+ *     `K = Σ cantidad de los ítems cuyo snapshot `participaEnSorteo` es true` (cada unidad
+ *     de un producto participante = 1 ticket). Se crean **K** entries con `ordinal` 0..K-1
+ *     (D3) en el `Raffle` ACTIVO **de la Tienda de la orden** (lookup scoped al `tenantId`
+ *     derivado de la orden cargada vía `tx` — server-side, nunca input, I1), con `email`
+ *     snapshot de `Order.email` (I5). `K = 0` (sin productos participantes) ⇒ ninguna entry.
+ *     Idempotente por `@@unique([raffleId, orderId, ordinal])`.
  *
  * Reglas duras:
- * - **I1 (tenancy)**: el `tenantId` que se escribe en grants/entry y el que scopea el
+ * - **I1 (tenancy)**: el `tenantId` que se escribe en grants/entries y el que scopea el
  *   lookup del raffle salen de la ORDEN cargada por `tx`, jamás de un parámetro.
- * - **I3 (la venta es lo primario)**: sin `Raffle` ACTIVO en la Tienda de la orden, se
- *   crean igual los grants y se OMITE la entry sin lanzar (log inocuo). Un problema del
- *   sorteo NUNCA revierte ni falla una orden pagada.
- * - **Idempotencia**: `createMany({ skipDuplicates: true })` se apoya en los `@@unique`
- *   para que una segunda invocación deje exactamente N grants + 1 entry (sin duplicar).
+ * - **I3 (la venta es lo primario)**: sin productos participantes (K=0) o sin `Raffle`
+ *   ACTIVO en la Tienda de la orden, se crean igual los grants y se OMITEN los tickets sin
+ *   lanzar (log inocuo). Un problema del sorteo NUNCA revierte ni falla una orden pagada.
+ * - **Idempotencia (ADR-0012)**: `createMany({ skipDuplicates: true })` se apoya en los
+ *   `@@unique` para que una segunda invocación deje exactamente N grants + K entries (sin
+ *   duplicar). K es estable entre corridas porque `participaEnSorteo`/`cantidad` son SNAPSHOT
+ *   en el `OrderItem` (D2): el conjunto de ordinales 0..K-1 es determinístico y reproducible.
  *
  * Cumple el contrato `EfectosPostPago` tal cual (`{ tx, orderId }`), no toca
  * env/res/Flow, y se cabla desde el borde (wrapper del webhook), reemplazando
@@ -57,7 +62,11 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
       id: true,
       tenantId: true,
       email: true,
-      items: { select: { productId: true } },
+      // `cantidad` + `participaEnSorteo` (snapshot al comprar, D2) alimentan K de tickets;
+      // `productId` alimenta los grants (uno por producto, la cantidad no lo altera — I5/D4).
+      items: {
+        select: { productId: true, cantidad: true, participaEnSorteo: true },
+      },
     },
   });
 
@@ -71,8 +80,8 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
     );
   }
 
-  // 1) Entitlement: un DownloadGrant por ítem/producto (D2), con el tenantId de la orden.
-  //    Idempotente por @@unique([orderId, productId]) + skipDuplicates.
+  // 1) Entitlement: un DownloadGrant por ítem/producto (D4 — la cantidad NO lo altera), con el
+  //    tenantId de la orden. Idempotente por @@unique([orderId, productId]) + skipDuplicates.
   const expiresAt = new Date(
     Date.now() + GRANT_TTL_DIAS * 24 * 60 * 60 * 1000,
   );
@@ -87,10 +96,26 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
     skipDuplicates: true,
   });
 
-  // 2) Participación: el Raffle ACTIVO de la Tienda de la orden (scoped al tenantId
-  //    derivado server-side, I1). `orderBy` determinista para que, si por error de
-  //    sembrado hubiera más de un ACTIVO (S5), la elección sea estable y reproducible —
-  //    NUNCA se lanza por esto (I3: la venta no se compromete por el sorteo).
+  // 2) Participación por TICKET (ADR-0012): K = Σ cantidad de los ítems cuyo snapshot
+  //    `participaEnSorteo` es true. Cada unidad de un producto participante = 1 ticket.
+  const K = order.items.reduce(
+    (acc, item) => (item.participaEnSorteo ? acc + item.cantidad : acc),
+    0,
+  );
+
+  if (K === 0) {
+    // I3: sin productos participantes ⇒ 0 tickets, ninguna entry. La venta no se compromete.
+    // Log inocuo (sin email ni token — I4): tenantId y orderId no son secretos.
+    console.info(
+      `[efectos-post-pago] Orden ${order.id} (tenant ${order.tenantId}): ` +
+        `sin productos participantes; se omiten los tickets (la venta no se compromete).`,
+    );
+    return;
+  }
+
+  // Raffle ACTIVO de la Tienda de la orden (scoped al tenantId derivado server-side, I1).
+  // `orderBy` determinista para que, si por error de sembrado hubiera más de un ACTIVO (S5),
+  // la elección sea estable y reproducible — NUNCA se lanza por esto (I3).
   const raffleActivo = await tx.raffle.findFirst({
     where: { tenantId: order.tenantId, estado: "ACTIVO" },
     orderBy: { createdAt: "asc" },
@@ -98,26 +123,26 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
   });
 
   if (!raffleActivo) {
-    // D4/I3: sin sorteo ACTIVO en ESTA Tienda se omite la entry sin fallar. Log inocuo
-    // (sin email ni token — I4): tenantId y orderId no son secretos.
+    // I3: sin sorteo ACTIVO en ESTA Tienda se omiten los tickets sin fallar. Log inocuo.
     console.info(
       `[efectos-post-pago] Orden ${order.id} (tenant ${order.tenantId}): ` +
-        `sin Raffle ACTIVO en la Tienda; se omite la RaffleEntry (la venta no se compromete).`,
+        `sin Raffle ACTIVO en la Tienda; se omiten los ${K} tickets (la venta no se compromete).`,
     );
     return;
   }
 
-  // Una RaffleEntry por Orden (D3), email snapshot (I5). Idempotente por
-  // @@unique([raffleId, orderId]) + skipDuplicates.
+  // K RaffleEntry con ordinal 0..K-1 (D3), email snapshot (I5). Idempotente por
+  // @@unique([raffleId, orderId, ordinal]) + skipDuplicates: una segunda invocación
+  // colisiona con el MISMO conjunto determinístico de ordinales y no duplica (exactly-once,
+  // ADR-0012). K es estable porque participaEnSorteo/cantidad son snapshot en el OrderItem (D2).
   await tx.raffleEntry.createMany({
-    data: [
-      {
-        tenantId: order.tenantId,
-        raffleId: raffleActivo.id,
-        orderId: order.id,
-        email: order.email,
-      },
-    ],
+    data: Array.from({ length: K }, (_unused, ordinal) => ({
+      tenantId: order.tenantId,
+      raffleId: raffleActivo.id,
+      orderId: order.id,
+      email: order.email,
+      ordinal,
+    })),
     skipDuplicates: true,
   });
 };

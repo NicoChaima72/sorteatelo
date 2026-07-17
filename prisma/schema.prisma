@@ -204,6 +204,7 @@ model Product {
   portadaUrl     String?
   pdfPath        String? // null = PDF pendiente; NO-null = key determinística `<tenantId>/<productId>.pdf` verificada en R2 privado (ADR-0002/0009), la escribe SOLO confirmarPdfProducto tras headObject; nunca enlace público
   activo         Boolean         @default(true)
+  participaEnSorteo Boolean      @default(false) // opt-in al Sorteo (ADR-0012/D1): comprarlo genera Tickets en el Raffle ACTIVO del tenant. Se snapshotea en OrderItem al comprar. No queriable por sí solo (se lee por el Product ya scopeado) ⇒ sin @@index
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -232,14 +233,17 @@ model Order {
   @@index([tenantId, estado])
 }
 
-// Línea de una Orden. El precio se congela como snapshot al comprar (I4). Fila inmutable (sin updatedAt).
+// Línea de una Orden. Snapshot inmutable al comprar (sin updatedAt): precio UNITARIO congelado (I4),
+// más `cantidad` y `participaEnSorteo` congelados (ADR-0012/D2/D5). Subtotal = precio × cantidad en Decimal server-side.
 model OrderItem {
-  id        String   @id @default(cuid())
-  tenantId  String
-  orderId   String
-  productId String
-  precio    Decimal  @db.Decimal(15, 2) // snapshot del precio del Product al comprar (I4)
-  createdAt DateTime @default(now())
+  id                String   @id @default(cuid())
+  tenantId          String
+  orderId           String
+  productId         String
+  precio            Decimal  @db.Decimal(15, 2) // snapshot del precio UNITARIO del Product al comprar (I4)
+  cantidad          Int      @default(1) // unidades de esta línea (≥1 vía Zod; default 1 = ítems históricos, implícitamente 1u)
+  participaEnSorteo Boolean  @default(false) // SNAPSHOT del flag del Product al comprar (D2): mantiene K de tickets estable ante replay del webhook aunque el Organizador togglee el flag vivo
+  createdAt         DateTime @default(now())
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -314,21 +318,22 @@ model Raffle {
   @@index([tenantId, estado]) // lookup del ACTIVO de ESA tienda
 }
 
-// Participación (CONTEXT § Participación): una por Orden pagada, en el Raffle ACTIVO
-// de su Tienda. Inmutable (sin updatedAt, patrón OrderItem). Ver CONTEXT.md § Participación.
+// Participación (CONTEXT § Participación): una fila por TICKET (ADR-0012), no una por orden.
+// Se crean K filas con ordinal 0..K-1 en el Raffle ACTIVO del tenant de la orden. Inmutable (sin updatedAt).
 model RaffleEntry {
   id        String   @id @default(cuid())
   tenantId  String
   raffleId  String
   orderId   String
   email     String // snapshot de Order.email al crear la entry (I5)
+  ordinal   Int      @default(0) // discriminador 0..K-1 del ticket dentro de la orden (D3); default 0 satisface el unique ampliado en entries históricas (cada (raffle,orden) tenía ≤1)
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Restrict)
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
-  @@unique([raffleId, orderId]) // idempotencia: una entry por compra por sorteo (prefijo cubre raffleId)
+  @@unique([raffleId, orderId, ordinal]) // idempotencia por-ticket: K filas 0..K-1 vía createMany(skipDuplicates); prefijo [raffleId, orderId] cubre lookups por raffle y por (raffle, orden)
   @@index([tenantId])
   @@index([orderId])
 }

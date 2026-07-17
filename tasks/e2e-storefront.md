@@ -46,7 +46,18 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
 
 ## Requiere Flow (credenciales sandbox reales por tenant + túnel del webhook)
 
+- [ ] **storefront.cantidad.001** — En `autora.localhost:3001`, agregar un producto al carrito y subir la
+  cantidad con el stepper **+/−** a 3 (el número refleja 3; el `−` se deshabilita en 1; el `+` en 99); el
+  drawer y el checkout muestran el stepper y el precio UNITARIO (`c/u`). Ir a pagar con correo ⇒ el monto que
+  recibe Flow = precio × 3. La interacción del stepper (carrito/detalle/checkout) es verificable SIN Flow; el
+  total en Flow requiere credenciales sandbox. (Plan F02 E2E — sorteo-por-producto, ADR-0012)
+
 - [ ] **storefront.checkout.001** — Agregar productos al carrito en `autora.localhost:3001` → checkout con
   correo → redirect a Flow (sandbox); tras pagar, el retorno con marca dice que el pago se confirma por
   correo (NO es prueba de pago, ADR-0001). La orden queda bajo el tenant correcto; la URL de retorno es
   del subdominio de la Tienda (`autora.localhost:3001/checkout/retorno`), no el apex ni la env global. (Plan F04 E2E)
+
+- [ ] **sorteo.tickets.e2e.001** — Comprar en `autora.localhost:3001` un producto participante con
+  cantidad N (pago sandbox + webhook con túnel) ⇒ en `/admin/sorteo` aparecen **N participaciones/tickets**
+  para ese correo (agrupados por correo con su conteo de tickets); un replay del webhook deja las N intactas
+  (no 2N). Un producto NO participante ×M no suma tickets. (Plan F03 E2E — sorteo-por-producto, ADR-0012)

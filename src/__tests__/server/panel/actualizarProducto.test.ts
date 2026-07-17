@@ -63,6 +63,7 @@ const inputBase = {
   precio: "5000",
   portadaUrl: "",
   activo: true,
+  participaEnSorteo: true,
 };
 
 describe("domain/panel/actualizarProducto (fake db, tenant-scoped)", () => {
@@ -81,6 +82,8 @@ describe("domain/panel/actualizarProducto (fake db, tenant-scoped)", () => {
     expect(args.where).toEqual({ id: "p1", tenantId: "A" }); // scoping en el where
     expect(Prisma.Decimal.isDecimal(args.data.precio)).toBe(true);
     expect((args.data.precio as Prisma.Decimal).toFixed(2)).toBe("5000.00");
+    // ADR-0012/D1: persiste el flag del sorteo tal cual del input.
+    expect(args.data.participaEnSorteo).toBe(true);
     // F03/D4/I6: el update NO toca pdfPath (lo escribe solo confirmarPdfProducto).
     expect("pdfPath" in args.data).toBe(false);
   });

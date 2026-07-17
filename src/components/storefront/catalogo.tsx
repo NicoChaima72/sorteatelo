@@ -11,6 +11,7 @@ import { IconBooks } from "@tabler/icons-react";
 import Link from "next/link";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
 import { api, type RouterOutputs } from "~/utils/api";
 
@@ -103,14 +104,17 @@ function TarjetaProducto({ producto }: { producto: ProductoCatalogo }) {
             {clp(producto.precio)}
           </Text>
           {enCarrito ? (
-            <Button
-              variant="light"
-              color="gray"
-              size="xs"
-              onClick={() => quitar(producto.id)}
-            >
-              Quitar
-            </Button>
+            <Group gap="xs" wrap="nowrap">
+              <StepperCantidad id={producto.id} size="sm" />
+              <Button
+                variant="subtle"
+                color="gray"
+                size="xs"
+                onClick={() => quitar(producto.id)}
+              >
+                Quitar
+              </Button>
+            </Group>
           ) : (
             <Button
               size="xs"

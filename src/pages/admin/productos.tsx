@@ -9,6 +9,7 @@ import {
   Modal,
   Select,
   Skeleton,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -18,6 +19,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
   IconFileText,
+  IconGift,
   IconPencil,
   IconPlus,
   IconUpload,
@@ -44,6 +46,7 @@ interface ProductoForm {
   precio: string; // dinero SIEMPRE string (I2): CLP entero ⇒ Decimal en el server.
   portadaUrl: string;
   activo: boolean;
+  participaEnSorteo: boolean; // opt-in al sorteo (ADR-0012/D1)
 }
 
 const VALORES_INICIALES: ProductoForm = {
@@ -52,6 +55,7 @@ const VALORES_INICIALES: ProductoForm = {
   precio: "3000",
   portadaUrl: "",
   activo: false, // un producto nace como borrador (sin PDF no hay venta, F03/I7)
+  participaEnSorteo: false, // opt-in: no entra al sorteo sin que el Organizador lo decida (D1)
 };
 
 /** Content-type único que firma el server para la subida (debe coincidir en el PUT). */
@@ -104,6 +108,7 @@ function ProductoFormModal({
       precio: producto?.precio ?? "3000",
       portadaUrl: producto?.portadaUrl ?? "",
       activo: producto?.activo ?? false,
+      participaEnSorteo: producto?.participaEnSorteo ?? false,
     });
     form.resetDirty();
     setArchivo(null);
@@ -190,6 +195,7 @@ function ProductoFormModal({
           descripcion: valores.descripcion,
           precio: valores.precio,
           portadaUrl: valores.portadaUrl,
+          participaEnSorteo: valores.participaEnSorteo,
         });
         // Si se adjuntó un PDF, subirlo y confirmarlo (queda listo para activar después).
         if (archivo) await subirPdf(creado.id, archivo);
@@ -255,6 +261,12 @@ function ProductoFormModal({
             label="Portada (URL, opcional)"
             placeholder="https://…"
             {...form.getInputProps("portadaUrl")}
+          />
+
+          <Switch
+            label="Participa en el sorteo"
+            description="Si tu tienda tiene un sorteo activo, comprar este producto genera participaciones: un ticket por cada unidad comprada."
+            {...form.getInputProps("participaEnSorteo", { type: "checkbox" })}
           />
 
           <FileInput
@@ -412,9 +424,24 @@ export default function ProductosPage() {
                           {iniciales(producto.titulo)}
                         </Avatar>
                         <div className="min-w-0">
-                          <Text fw={500} truncate>
-                            {producto.titulo}
-                          </Text>
+                          <Group gap={6} wrap="nowrap">
+                            <Text fw={500} truncate>
+                              {producto.titulo}
+                            </Text>
+                            {producto.participaEnSorteo && (
+                              <Badge
+                                variant="light"
+                                size="xs"
+                                leftSection={<IconGift className="size-3" />}
+                                styles={{
+                                  root: { flexShrink: 0 },
+                                  label: { textTransform: "none" },
+                                }}
+                              >
+                                Sorteo
+                              </Badge>
+                            )}
+                          </Group>
                           <Text size="xs" c="dimmed" className="max-w-[280px]" truncate>
                             {producto.descripcion}
                           </Text>

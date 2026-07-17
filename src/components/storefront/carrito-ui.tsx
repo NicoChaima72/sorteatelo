@@ -11,15 +11,16 @@ import { IconShoppingCart, IconTrash } from "@tabler/icons-react";
 import Link from "next/link";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
 
 /**
  * UI del carrito (F04). Botón del header con contador + drawer con los ítems. Mobile-first:
  * el drawer entra desde la derecha y ocupa el ancho útil en móvil.
  *
- * I4: se muestran los precios POR ÍTEM con `clp()` + la CANTIDAD de productos; NO se suma un total
- * en el cliente (jamás aritmética de dinero acá). El total definitivo lo calcula el server en
- * `iniciarCheckout` y lo muestra Flow en su página de pago.
+ * I4: se muestran los precios UNITARIOS con `clp()` + el stepper de cantidad por ítem (ADR-0012);
+ * NO se suma ni multiplica un total en el cliente (jamás aritmética de dinero acá). El total
+ * definitivo (Σ precio × cantidad) lo calcula el server en `iniciarCheckout` y lo muestra Flow.
  */
 export function BotonCarrito({ onOpen }: { onOpen: () => void }) {
   const { cantidad } = useCarrito();
@@ -88,17 +89,20 @@ export function CarritoDrawer({
                     {item.titulo}
                   </Text>
                   <Text size="sm" c="dimmed" className="tabular-nums">
-                    {clp(item.precio)}
+                    {clp(item.precio)} c/u
                   </Text>
                 </div>
-                <ActionIcon
-                  variant="subtle"
-                  color="gray"
-                  onClick={() => quitar(item.id)}
-                  aria-label={`Quitar ${item.titulo}`}
-                >
-                  <IconTrash className="size-4" stroke={1.75} />
-                </ActionIcon>
+                <Group gap="xs" wrap="nowrap">
+                  <StepperCantidad id={item.id} size="sm" />
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => quitar(item.id)}
+                    aria-label={`Quitar ${item.titulo}`}
+                  >
+                    <IconTrash className="size-4" stroke={1.75} />
+                  </ActionIcon>
+                </Group>
               </Group>
             ))}
           </Stack>

@@ -31,6 +31,8 @@ export interface EspecificacionTenant {
     /** CLP entero como string (se persiste como Decimal). */
     precio: string;
     pdfPath: string;
+    /** Opt-in al sorteo (ADR-0012/D1, S3). Ausente ⇒ false. */
+    participaEnSorteo?: boolean;
   };
 }
 
@@ -92,6 +94,7 @@ export async function sembrarTenants({
       select: { id: true },
     });
     const productoCreado = prodExistente === null;
+    const participaEnSorteo = spec.producto.participaEnSorteo ?? false;
     if (!prodExistente) {
       await db.product.create({
         data: {
@@ -100,8 +103,16 @@ export async function sembrarTenants({
           descripcion: spec.producto.descripcion,
           precio: spec.producto.precio,
           pdfPath: spec.producto.pdfPath,
+          participaEnSorteo, // opt-in al sorteo (ADR-0012/D1, S3)
           activo: true,
         },
+      });
+    } else {
+      // Re-sincroniza SOLO el flag del sorteo (S3): permite alternar la promo del piloto en
+      // una DB ya sembrada sin pisar título/precio/PDF ya cargados (el resto es find-or-create).
+      await db.product.update({
+        where: { id: prodExistente.id },
+        data: { participaEnSorteo },
       });
     }
 
@@ -188,6 +199,7 @@ function construirSpecs(envFlow: {
           "La guía definitiva (y con humor) para apoyar a tu idol favorito del K-pop. Incluye tips de fandom ARMY.",
         precio: "3000",
         pdfPath: "autora/seed/como-enriquecer-a-tu-idol-favorito.pdf",
+        participaEnSorteo: true, // el piloto demuestra la promo (ADR-0012/S3)
       },
     },
     {
@@ -201,6 +213,7 @@ function construirSpecs(envFlow: {
           "Producto de prueba del segundo tenant para verificar el aislamiento cross-tenant de F01.",
         precio: "5000",
         pdfPath: "prueba/seed/guia-de-prueba-del-sorteo.pdf",
+        participaEnSorteo: false, // ejerce el camino "no participa" (ADR-0012/S3)
       },
     },
   ];

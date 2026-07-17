@@ -82,3 +82,9 @@ Paquetes instalados: `@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@manti
 - Montos con **`tabular-nums`** (clase Tailwind) en tablas y listas — las columnas de precios no "bailan".
 - **Input de monto** (crear/editar precio): `TextInput` de Mantine con `leftSection={"$"}` (afijo visual, no parte del valor), `inputMode="numeric"` (teclado numérico en móvil) y clase `tabular-nums`. El valor se maneja como **string** en el form y viaja como string al server (CLP entero ⇒ `Decimal`), jamás como `number`. **NO usar `NumberInput`** para dinero — su value `number` invita a aritmética prohibida en el cliente. Ej.: `src/pages/admin/productos.tsx`.
 - El dinero del dominio es `Decimal` (precio, total, IVA, comisión de Flow, neto). El cruce a `number` ocurre SOLO en el borde de presentación para formatear, y es seguro porque CLP no tiene decimales — jamás hacer aritmética con ese `number` ni mandarlo de vuelta al server (ver `CLAUDE.md` § Regla de oro y `CONTEXT.md` § Dinero).
+
+## Carrito y stepper de cantidad (storefront)
+
+- El carrito del Comprador es estado de CLIENTE per-slug (localStorage `carrito:<slug>`, sin modelo `Cart`, ADR-0004). Cada `ItemCarrito` lleva `cantidad` (≥1); el contexto expone `agregar` (inicia en 1), `setCantidad` (clampeada a `[1, MAX_CANTIDAD_POR_ITEM]`) y `quitar`.
+- Ajustar cantidad → **`StepperCantidad`** (`src/components/storefront/stepper-cantidad.tsx`): par de `ActionIcon variant="default"` (−/+) con un `Text` `tabular-nums` en medio; deshabilita `−` en 1 y `+` en el tope; lee/escribe vía `useCarrito`, con `aria-label` en ambos botones. Reusado en carrito-drawer, catálogo, detalle y checkout.
+- **I4**: el stepper solo cuenta UNIDADES, nunca opera dinero. `MAX_CANTIDAD_POR_ITEM` se duplica a propósito entre cliente (`carrito.tsx`) y server (`checkout/schemas.ts`) — el cliente no puede importar código server; ambos lo documentan como espejo del `max` de Zod.

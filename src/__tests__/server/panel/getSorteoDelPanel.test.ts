@@ -35,26 +35,36 @@ const RAFFLE_A = {
   ganadorEmail: null,
   ejecutadoAt: null,
   ejecutadoPor: null,
+  // 3 tickets de a@x.cl + 1 de b@x.cl ⇒ 4 participaciones, 2 participantes (ADR-0012).
   entries: [
+    { email: "a@x.cl", createdAt: new Date("2026-01-06") },
     { email: "a@x.cl", createdAt: new Date("2026-01-05") },
-    { email: "b@x.cl", createdAt: new Date("2026-01-04") },
+    { email: "a@x.cl", createdAt: new Date("2026-01-04") },
+    { email: "b@x.cl", createdAt: new Date("2026-01-03") },
   ],
 };
 
 describe("domain/panel/getSorteoDelPanel (fake db, tenant-scoped)", () => {
-  // panel.sorteo.get.001 — devuelve el sorteo del tenant con sus participaciones
-  it("devuelve el sorteo del tenant con participantes y total, sin ejecutar", async () => {
+  // panel.sorteo.get.001 — agrupa las participaciones por correo con su conteo de tickets
+  it("agrupa las participaciones por correo con su conteo de tickets y devuelve totalParticipaciones", async () => {
     const res = await getSorteoDelPanel({
       db: fakeDb(RAFFLE_A),
       acceso: acceso(["A"]),
     });
     expect(res.sorteo).not.toBeNull();
     expect(res.sorteo!.nombre).toBe("Sorteo BTS");
-    expect(res.sorteo!.totalParticipantes).toBe(2);
-    expect(res.sorteo!.participantes.map((p) => p.email)).toEqual([
-      "a@x.cl",
-      "b@x.cl",
-    ]);
+    // totalParticipaciones = nº de tickets (RaffleEntry), no de participantes.
+    expect(res.sorteo!.totalParticipaciones).toBe(4);
+    const porCorreo = new Map(
+      res.sorteo!.participantes.map((p) => [p.email, p]),
+    );
+    expect(porCorreo.size).toBe(2); // 2 participantes distintos
+    expect(porCorreo.get("a@x.cl")!.tickets).toBe(3);
+    expect(porCorreo.get("b@x.cl")!.tickets).toBe(1);
+    // ultimaInscripcion = el ticket más reciente de ese correo
+    expect(porCorreo.get("a@x.cl")!.ultimaInscripcion).toEqual(
+      new Date("2026-01-06"),
+    );
     expect(res.sorteo!.ejecutadoAt).toBeNull();
     expect(res.sorteo!.ganadorEmail).toBeNull();
   });

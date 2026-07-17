@@ -17,6 +17,7 @@ import { type GetServerSideProps, type InferGetServerSidePropsType } from "next"
 import Link from "next/link";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { clp } from "~/lib/formato";
 import {
@@ -89,7 +90,7 @@ function ResumenYPago() {
   const submit = form.onSubmit((valores) =>
     iniciar.mutate({
       email: valores.email.trim(),
-      productIds: items.map((i) => i.id),
+      items: items.map((i) => ({ productId: i.id, cantidad: i.cantidad })),
     }),
   );
 
@@ -103,13 +104,16 @@ function ResumenYPago() {
         <Stack gap="sm">
           {items.map((item) => (
             <Group key={item.id} justify="space-between" wrap="nowrap" gap="sm">
-              <Text size="sm" className="min-w-0" truncate>
-                {item.titulo}
-              </Text>
-              <Group gap="xs" wrap="nowrap">
-                <Text size="sm" fw={500} className="tabular-nums">
-                  {clp(item.precio)}
+              <div className="min-w-0">
+                <Text size="sm" truncate>
+                  {item.titulo}
                 </Text>
+                <Text size="xs" c="dimmed" className="tabular-nums">
+                  {clp(item.precio)} c/u
+                </Text>
+              </div>
+              <Group gap="xs" wrap="nowrap">
+                <StepperCantidad id={item.id} size="sm" />
                 <Anchor
                   size="xs"
                   c="dimmed"
@@ -125,7 +129,8 @@ function ResumenYPago() {
           <Divider />
           <Text size="xs" c="dimmed">
             {cantidad} {cantidad === 1 ? "producto" : "productos"}. El total a
-            pagar se calcula de forma segura y lo confirmas en el siguiente paso.
+            pagar (según las cantidades elegidas) se calcula de forma segura y lo
+            confirmas en el siguiente paso.
           </Text>
         </Stack>
       </Card>

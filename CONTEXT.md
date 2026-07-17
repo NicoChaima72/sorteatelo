@@ -84,9 +84,17 @@ responsable del sorteo es el [[Organizador]] detrás de la tienda, no la [[Plata
 ### Producto (`Product`)
 Un producto digital descargable (MVP: **PDF**) que una [[Tienda]] vende. Atributos: título,
 descripción, precio (`Decimal`, CLP), portada, referencia al archivo en **storage privado**, flag de
-activo, y su `tenantId`. El archivo **nunca** se expone por enlace público (ver [[Entitlement]] y
-ADR-0002). _Evitar_: Libro, `Book`, e-book (términos del single-tenant; el primer Producto del
-piloto sigue siendo un e-book, pero el modelo es genérico).
+activo, **flag `participaEnSorteo`** (ver [[Producto participante]]), y su `tenantId`. El archivo
+**nunca** se expone por enlace público (ver [[Entitlement]] y ADR-0002). _Evitar_: Libro, `Book`,
+e-book (términos del single-tenant; el primer Producto del piloto sigue siendo un e-book, pero el
+modelo es genérico).
+
+### Producto participante
+Un [[Producto]] con el flag `participaEnSorteo = true`: comprarlo genera [[Ticket]]s para el
+[[Sorteo]] ACTIVO de su Tienda (ADR-0012). El flag lo editable el [[Organizador]] en el panel; una
+Tienda mezcla productos participantes y no participantes (ej. 4 productos, 1 participa). Default
+`false` (opt-in: un producto no entra al sorteo sin que el Organizador lo decida). _Evitar_: "producto
+del sorteo" (ambiguo con el premio).
 
 ### Catálogo
 El listado de [[Producto]]s activos de **una** [[Tienda]] que ve el [[Comprador]] en su subdominio.
@@ -106,8 +114,12 @@ Una compra dentro de una [[Tienda]]. Registra el **correo** del comprador, el es
 su `tenantId`. Una Orden tiene uno o más [[ÍtemDeOrden]]. Es el ancla de la entrega y del sorteo.
 
 ### ÍtemDeOrden (`OrderItem`)
-Una línea de una [[Orden]]: el [[Producto]] comprado y su precio al momento de la compra
-(`Decimal`, snapshot).
+Una línea de una [[Orden]]: el [[Producto]] comprado, la **cantidad** (`Int`, ≥1) y su **precio
+unitario** al momento de la compra (`Decimal`, snapshot). El subtotal de línea (`precio × cantidad`) y
+el `total` de la Orden se calculan con `Decimal` server-side (I4), nunca en el cliente. Congela también
+el flag `participaEnSorteo` del producto al comprar (snapshot), para que los [[Ticket]]s del sorteo
+sean deterministas aunque el Organizador togglee el flag después (ADR-0012). Una línea por producto por
+orden (`@@unique([orderId, productId])`); la cantidad vive en la línea, no en filas repetidas.
 
 ### Pago (`Payment`)
 El registro del cobro vía **Flow** sobre una [[Orden]], ejecutado con la [[CredencialFlow]] de la
@@ -130,15 +142,28 @@ por enlace público (ADR-0002).
 ## Sorteo
 
 ### Sorteo (`Raffle`)
-La promoción que una [[Tienda]] monta sobre su venta: entre quienes compran se sortea un premio
-definido por el [[Organizador]] (piloto: 2 entradas a un recital de BTS). Atributos: nombre, premio,
-fechas, estado, referencia a las **bases**, `tenantId`. Cada compra inscribe al comprador como
+La promoción que una [[Tienda]] monta sobre su venta: entre quienes compran productos participantes se
+sortea un premio definido por el [[Organizador]] (piloto: 2 entradas a un recital de BTS). Atributos:
+nombre, premio, fechas, estado, referencia a las **bases**, `tenantId`. Cada compra genera cero o más
+[[Ticket]]s. El ganador se elige **entre tickets** (más tickets = más chance), de forma auditable
+(ganador, fecha, quién ejecutó). A lo sumo un Sorteo ACTIVO por Tienda (S5).
+
+### Ticket
+La **unidad de chance** en un [[Sorteo]]. Una compra genera **un Ticket por cada unidad de
+[[Producto participante]]** en la [[Orden]]: tickets = suma de `cantidad` de los [[ÍtemDeOrden]] cuyo
+producto participa (ADR-0012). Ej.: participante×3 ⇒ 3 tickets; solo productos no participantes ⇒ 0
+tickets (ninguna [[Participación]], la venta no se compromete). Hoy 1 ticket por unidad; un
+multiplicador por unidad es puerta abierta (ADR-0012). Cada Ticket se materializa como una
 [[Participación]].
 
 ### Participación (`RaffleEntry`)
-La inscripción de un comprador (por su **correo**, vía la [[Orden]]) en el [[Sorteo]] activo de esa
-[[Tienda]]. Se crea **al confirmarse el pago**, junto con el [[Entitlement]]. El [[Organizador]]
-puede ver participantes y ejecutar su sorteo de forma auditable (ganador/es, fecha, criterio).
+La materialización de **un** [[Ticket]]: una fila por ticket en el [[Sorteo]] ACTIVO de la [[Tienda]]
+de la [[Orden]], con el **correo** del comprador (snapshot) y un `ordinal` 0..K-1 dentro de la orden.
+Se crean **al confirmarse el pago**, junto con el [[Entitlement]], dentro de la misma `$transaction`;
+K = tickets de la orden. Idempotentes por `@@unique([raffleId, orderId, ordinal])` (exactly-once ante
+replay del webhook, ADR-0001/0012). El [[Organizador]] ve las participaciones (puede agruparlas por
+correo, mostrando tickets por participante) y ejecuta el sorteo de forma auditable. _Nota_: "una
+Participación = un ticket", NO "una por orden" (semántica pre-ADR-0012, ya obsoleta).
 
 ### Bases del sorteo
 El documento legal del [[Sorteo]] (quiénes participan, cómo se elige, fechas, premio). Son

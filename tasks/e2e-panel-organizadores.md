@@ -61,6 +61,16 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   > ⏳ [feature-tester 2026-07-17] NO cubierto por la evidencia de esta corrida. Backend verde por Vitest
   > (write-only, sin fuga de secretos). Queda para una corrida browser con sesión + revisión de Network.
 
+- [ ] **panel.productos.sorteo-toggle.001** — En `/admin/productos`, abrir el form de un producto, activar
+  el switch "Participa en el sorteo" y guardar ⇒ el producto muestra el badge **Sorteo** en la lista;
+  reabrir el form y ver el switch encendido (persistió, hidratado desde `listarProductos`). Desactivarlo lo
+  quita del badge. El flag es del `tenantId` de la sesión (ADR-0012/D1). (Plan F04 E2E — sorteo-por-producto)
+
+- [ ] **panel.sorteo.tickets.001** — En `/admin/sorteo`, con participaciones de grano fino (varios tickets
+  de un mismo correo, ej. una compra ×N de un producto participante): la tarjeta "Participaciones" muestra
+  el total de **tickets** (no de órdenes) y la tabla de Participantes agrupa por correo mostrando su
+  **conteo de tickets** + su última participación. (Plan F04 E2E — sorteo-por-producto, ADR-0012)
+
 - [ ] **panel.sorteo.ejecutar.001** — Con un Raffle ACTIVO sembrado por F02 (`npm run seed:raffles` u
   origen equivalente) y participaciones reales: `/admin/sorteo` muestra el sorteo activo + los
   participantes; "Ejecutar sorteo" (con confirmación) elige un ganador, lo muestra con fecha y ejecutor,

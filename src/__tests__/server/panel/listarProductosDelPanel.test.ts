@@ -18,6 +18,7 @@ interface ProductoFake {
   descripcion: string;
   precio: Prisma.Decimal;
   activo: boolean;
+  participaEnSorteo: boolean;
   portadaUrl: string | null;
   pdfPath: string;
   createdAt: Date;
@@ -40,9 +41,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
 });
 
 const PRODUCTOS: ProductoFake[] = [
-  { id: "pa1", tenantId: "A", titulo: "A activo", descripcion: "d", precio: dec("3000"), activo: true, portadaUrl: null, pdfPath: "A/x.pdf", createdAt: new Date("2026-01-02") },
-  { id: "pa2", tenantId: "A", titulo: "A inactivo", descripcion: "d", precio: dec("4000"), activo: false, portadaUrl: null, pdfPath: "A/y.pdf", createdAt: new Date("2026-01-01") },
-  { id: "pb1", tenantId: "B", titulo: "B activo", descripcion: "d", precio: dec("9999"), activo: true, portadaUrl: null, pdfPath: "B/z.pdf", createdAt: new Date("2026-01-03") },
+  { id: "pa1", tenantId: "A", titulo: "A activo", descripcion: "d", precio: dec("3000"), activo: true, participaEnSorteo: true, portadaUrl: null, pdfPath: "A/x.pdf", createdAt: new Date("2026-01-02") },
+  { id: "pa2", tenantId: "A", titulo: "A inactivo", descripcion: "d", precio: dec("4000"), activo: false, participaEnSorteo: false, portadaUrl: null, pdfPath: "A/y.pdf", createdAt: new Date("2026-01-01") },
+  { id: "pb1", tenantId: "B", titulo: "B activo", descripcion: "d", precio: dec("9999"), activo: true, participaEnSorteo: false, portadaUrl: null, pdfPath: "B/z.pdf", createdAt: new Date("2026-01-03") },
 ];
 
 describe("domain/panel/listarProductosDelPanel (fake db, tenant-scoped)", () => {
@@ -56,6 +57,9 @@ describe("domain/panel/listarProductosDelPanel (fake db, tenant-scoped)", () => 
     expect(res.some((p) => p.id === "pa2" && p.activo === false)).toBe(true);
     // precio viaja como string (nunca number en el server)
     expect(res.find((p) => p.id === "pa1")!.precio).toBe("3000");
+    // el flag del sorteo viaja para que el form del panel lo hidrate (ADR-0012/D1)
+    expect(res.find((p) => p.id === "pa1")!.participaEnSorteo).toBe(true);
+    expect(res.find((p) => p.id === "pa2")!.participaEnSorteo).toBe(false);
   });
 
   // panel.productos.listar.002 — sin membresía ⇒ FORBIDDEN (fail-closed, nunca lista global)

@@ -24,6 +24,7 @@ export async function listarProductosDelPanel({
     descripcion: string;
     precio: string;
     activo: boolean;
+    participaEnSorteo: boolean; // ADR-0012/D1 — el form del panel lo hidrata
     portadaUrl: string | null;
     pdfPath: string | null; // null = PDF pendiente (F03/D4)
     createdAt: Date;
@@ -42,6 +43,7 @@ export async function listarProductosDelPanel({
       descripcion: true,
       precio: true,
       activo: true,
+      participaEnSorteo: true,
       portadaUrl: true,
       pdfPath: true,
       createdAt: true,

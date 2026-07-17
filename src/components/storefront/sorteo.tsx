@@ -59,8 +59,8 @@ export function SorteoStorefront() {
           </Text>
           <Group gap="xs" mt={4}>
             <Badge variant="light" styles={{ label: { textTransform: "none" } }}>
-              {num(s.totalParticipantes)}{" "}
-              {s.totalParticipantes === 1 ? "participante" : "participantes"}
+              {num(s.totalParticipaciones)}{" "}
+              {s.totalParticipaciones === 1 ? "participación" : "participaciones"}
             </Badge>
           </Group>
         </Stack>

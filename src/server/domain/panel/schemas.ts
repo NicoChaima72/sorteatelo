@@ -25,6 +25,9 @@ export const crearProductoInput = z.object({
   descripcion: z.string().trim().min(1, "La descripción es obligatoria").max(2000),
   precio: precioClp,
   portadaUrl: z.string().trim().url().optional().or(z.literal("")),
+  // Opt-in al sorteo (ADR-0012/D1): comprarlo genera Tickets. Default false vía el form; se
+  // persiste tal cual en el Product (scoped por tenant, nunca del input el tenantId, I1).
+  participaEnSorteo: z.boolean(),
 });
 export type CrearProductoInput = z.infer<typeof crearProductoInput>;
 
@@ -35,6 +38,7 @@ export const actualizarProductoInput = z.object({
   precio: precioClp,
   portadaUrl: z.string().trim().url().optional().or(z.literal("")),
   activo: z.boolean(),
+  participaEnSorteo: z.boolean(), // ADR-0012/D1 — editable en el panel; el snapshot al comprar es de OrderItem
 });
 export type ActualizarProductoInput = z.infer<typeof actualizarProductoInput>;
 

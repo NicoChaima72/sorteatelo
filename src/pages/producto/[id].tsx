@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { clp } from "~/lib/formato";
 import {
@@ -121,11 +122,14 @@ function Detalle({ id }: { id: string }) {
 
       <Text style={{ whiteSpace: "pre-wrap" }}>{p.descripcion}</Text>
 
-      <Group gap="sm">
+      <Group gap="sm" wrap="wrap">
         {enCarrito ? (
-          <Button variant="light" color="gray" onClick={() => quitar(p.id)}>
-            Quitar del carrito
-          </Button>
+          <>
+            <StepperCantidad id={p.id} />
+            <Button variant="light" color="gray" onClick={() => quitar(p.id)}>
+              Quitar del carrito
+            </Button>
+          </>
         ) : (
           <Button
             onClick={() =>

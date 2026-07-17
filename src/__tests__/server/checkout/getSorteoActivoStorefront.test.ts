@@ -77,7 +77,7 @@ describe("domain/checkout/getSorteoActivoStorefront (fake db, público, tenant-s
       nombre: "Sorteo de lanzamiento",
       premio: "Un ejemplar firmado",
       basesTexto: "Participan las compras pagadas…",
-      totalParticipantes: 3,
+      totalParticipaciones: 3,
     });
     // Privacidad (ADR-0004): jamás correos ni lista de participantes.
     expect(JSON.stringify(res)).not.toContain("@");

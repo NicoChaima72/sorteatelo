@@ -943,3 +943,29 @@ Para F01 (los demás en el planning de cada fase):
   ESTADO MVP: F01-F06 + entrega + correo + self-service/Operador HECHAS, pusheadas, con E2E real donde
   aplica. Pendiente: F07 (piloto en prod) y F10 (go-live) — ambas gated por externos (dominio wildcard,
   Flow producción de la autora + SII, abogado para ToS). 16 commits en GitHub.
+- [2026-07-17 00:00] [planner-grill] (domain-planner) **Feature ADITIVA nueva planificada fuera del
+  roadmap de fases**: "Sorteo por producto participante (tickets por cantidad)" ⇒
+  `tasks/26-07-17-sorteo-por-producto.md`. NO altera el orden ni el alcance de F01–F10: es una evolución
+  del Sorteo (F02/F05 ya en verde) que el usuario pidió tras cerrar el MVP funcional. Cambia la
+  **semántica del Sorteo**: flag `Product.participaEnSorteo` + compra por `cantidad` ⇒ tickets = Σ
+  cantidades de productos participantes; cada ticket = 1 `RaffleEntry` de grano fino; idempotencia
+  ampliada a `@@unique([raffleId, orderId, ordinal])` con K estable por snapshot en `OrderItem`.
+  `DownloadGrant` (F02) y `ejecutarSorteo` (F05) quedan intactos. Docs mantenidos: **ADR-0012** (nivel 2)
+  + CONTEXT.md (§ Producto/ÍtemDeOrden/Sorteo/Participación + términos Ticket, Producto participante).
+  AWAITING USER APPROVAL de ese task file (no de este roadmap).
+- [2026-07-17 16:20] [feature-implementer] **[SORTEO-PROD]** feature aditiva IMPLEMENTADA (F01..F04 de
+  `26-07-17-sorteo-por-producto.md`), `status: testing`. Schema aditivo aplicado (db push `--accept-data-loss`
+  autorizado tras verificar 0 duplicados). Checkout por cantidad + stepper +/−, efectos post-pago por ticket
+  (K RaffleEntry ordinal 0..K-1 idempotente), panel con toggle + conteo por tickets, seed autora=true. Gate
+  `npm run check` VERDE (tsc+lint+vitest 264/265, +1 skip); schema-guardian/backend/frontend/change-set
+  reviewer TODOS APPROVE (0 blockers). NO altera F01–F10. Sin commit/push/feature-tester (instrucción).
+  Pendiente: feature-tester (E2E asistido) + 2 drafts de drift de docs sin aplicar.
+- [2026-07-17 17:57] [orquestador] Feature "sorteo por producto (tickets por cantidad)" implementada y
+  verificada. Regla: cada unidad de un producto participante = 1 ticket. Schema aditivo (Product.
+  participaEnSorteo, OrderItem.cantidad+snapshot, RaffleEntry.ordinal + unique ampliado con ordinal,
+  aplicado con --accept-data-loss tras verificar 0 duplicados). Stepper de cantidad end-to-end,
+  K tickets en efectos post-pago (exactly-once por snapshot), toggle en el panel. Gate 264/265;
+  schema-guardian+backend+frontend+change-set APPROVE. Verificado en vivo: stepper cant 1→2 en el
+  carrito, badge "Sorteo" en el producto del panel; la matemática K-tickets cubierta por los 12 tests
+  de aplicarEfectosPostPago (cantidad×N → N entries). ADR-0012 + CONTEXT (Producto participante,
+  Ticket). Drift docs aplicado (stepper en frontend-conv, swap de unique en prisma-conv).

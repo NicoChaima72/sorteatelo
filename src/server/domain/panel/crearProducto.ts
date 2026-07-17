@@ -37,6 +37,7 @@ export async function crearProducto({
       precio: new Prisma.Decimal(input.precio), // CLP entero ⇒ Decimal (I4)
       pdfPath: null, // PDF pendiente; lo escribe solo confirmarPdfProducto (I6)
       portadaUrl: textoOpcionalANull(input.portadaUrl),
+      participaEnSorteo: input.participaEnSorteo, // opt-in al sorteo (ADR-0012/D1)
       activo: false, // fail-closed: sin PDF no hay venta (I7)
     },
     select: { id: true },

@@ -60,6 +60,7 @@ export async function actualizarProducto({
       descripcion: input.descripcion,
       precio: new Prisma.Decimal(input.precio),
       portadaUrl: textoOpcionalANull(input.portadaUrl),
+      participaEnSorteo: input.participaEnSorteo, // opt-in al sorteo (ADR-0012/D1)
       activo: input.activo,
     },
   });

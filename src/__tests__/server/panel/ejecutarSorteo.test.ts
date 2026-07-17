@@ -128,6 +128,43 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
     expect(segunda.ejecutadoAt).toEqual(AHORA); // la fecha original, no la segunda
   });
 
+  // panel.sorteo.ejecutar.007 — draw entre TICKETS (ADR-0012): 3 entries de A + 1 de B ⇒ pool de 4,
+  //                             A ocupa 3 de las 4 filas (3× chance); el algoritmo NO cambia
+  it("sortea entre TICKETS: con 3 entries de A y 1 de B el pool es de 4 y A puede ganar en 3 de las 4 filas", async () => {
+    const entries = [
+      { raffleId: "r1", tenantId: "A", email: "a@x.cl" },
+      { raffleId: "r1", tenantId: "A", email: "a@x.cl" },
+      { raffleId: "r1", tenantId: "A", email: "a@x.cl" },
+      { raffleId: "r1", tenantId: "A", email: "b@x.cl" },
+    ];
+    const nuevoDb = () =>
+      fakeDb(
+        { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+        entries,
+      ).db;
+
+    let pool = 0;
+    const ganadorEn = async (idx: number) =>
+      (
+        await ejecutarSorteo({
+          db: nuevoDb(),
+          acceso: acceso(["A"]),
+          input: { raffleId: "r1" },
+          ahora: AHORA,
+          elegirIndice: (n) => {
+            pool = n;
+            return idx;
+          },
+        })
+      ).ganadorEmail;
+
+    // El pool es 4 (los TICKETS), no 2 (los correos distintos): A pesa 3×.
+    expect(await ganadorEn(0)).toBe("a@x.cl");
+    expect(pool).toBe(4);
+    expect(await ganadorEn(2)).toBe("a@x.cl"); // A ocupa las filas 0,1,2
+    expect(await ganadorEn(3)).toBe("b@x.cl"); // B, la 4ª fila
+  });
+
   // panel.sorteo.ejecutar.006 — carrera concurrente: el guard atómico pierde (count 0) ⇒
   // devuelve el ganador AUTORITATIVO re-leído, sin re-sortear (idempotencia bajo carrera real)
   it("bajo carrera (updateMany count 0) devuelve el ganador re-leído, descartando su propio sorteo", async () => {

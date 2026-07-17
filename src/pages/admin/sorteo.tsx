@@ -50,9 +50,9 @@ export default function SorteoPage() {
       title: "Ejecutar el sorteo",
       children: (
         <Text size="sm">
-          Se elegirá un ganador al azar entre los{" "}
-          {num(sorteo.totalParticipantes)} participantes. Esta acción registra
-          quién y cuándo lo ejecutó y{" "}
+          Se elegirá un ganador al azar entre las{" "}
+          {num(sorteo.totalParticipaciones)} participaciones (tickets). Esta
+          acción registra quién y cuándo lo ejecutó y{" "}
           <Text span fw={600} c="var(--mantine-color-text)">
             no se puede deshacer
           </Text>
@@ -108,10 +108,10 @@ export default function SorteoPage() {
         <>
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
             <StatCard
-              label="Participantes"
-              value={num(sorteo.totalParticipantes)}
+              label="Participaciones"
+              value={num(sorteo.totalParticipaciones)}
               icon={IconUsers}
-              hint="participaciones registradas"
+              hint="tickets en el sorteo"
             />
             <StatCard
               label="Estado"
@@ -176,15 +176,15 @@ export default function SorteoPage() {
                 <Group gap="sm" wrap="wrap">
                   <Button
                     onClick={confirmarEjecucion}
-                    disabled={sorteo.totalParticipantes === 0}
+                    disabled={sorteo.totalParticipaciones === 0}
                     leftSection={<IconPlayerPlay className="size-4" />}
                   >
                     Ejecutar sorteo
                   </Button>
                   <Text size="xs" c="dimmed">
-                    {sorteo.totalParticipantes === 0
-                      ? "Aún no hay participantes para sortear."
-                      : "Elige un ganador al azar. La acción no se puede deshacer."}
+                    {sorteo.totalParticipaciones === 0
+                      ? "Aún no hay participaciones para sortear."
+                      : "Elige un ganador al azar entre los tickets. La acción no se puede deshacer."}
                   </Text>
                 </Group>
               )}
@@ -195,32 +195,38 @@ export default function SorteoPage() {
             <div className="px-6 pt-5">
               <Text fw={600}>Participantes</Text>
               <Text size="sm" c="dimmed">
-                Quienes están dentro del sorteo
+                Quienes están dentro del sorteo y cuántos tickets tienen
               </Text>
             </div>
-            <Table.ScrollContainer minWidth={320}>
+            <Table.ScrollContainer minWidth={360}>
               <Table verticalSpacing="sm" mt="sm">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th className="pl-6">Cliente</Table.Th>
-                    <Table.Th className="pr-6 text-right">Se inscribió</Table.Th>
+                    <Table.Th className="text-right">Tickets</Table.Th>
+                    <Table.Th className="pr-6 text-right">
+                      Última participación
+                    </Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {sorteo.participantes.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={2} className="py-10 text-center" c="dimmed">
+                      <Table.Td colSpan={3} className="py-10 text-center" c="dimmed">
                         Todavía no hay participantes.
                       </Table.Td>
                     </Table.Tr>
                   ) : (
                     sorteo.participantes.map((p) => (
-                      <Table.Tr key={p.id}>
+                      <Table.Tr key={p.email}>
                         <Table.Td className="pl-6" c="dimmed">
                           {p.email}
                         </Table.Td>
+                        <Table.Td className="text-right tabular-nums" c="dimmed">
+                          {num(p.tickets)}
+                        </Table.Td>
                         <Table.Td className="whitespace-nowrap pr-6 text-right" c="dimmed">
-                          {fechaHora(p.createdAt)}
+                          {fechaHora(p.ultimaInscripcion)}
                         </Table.Td>
                       </Table.Tr>
                     ))

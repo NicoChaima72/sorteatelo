@@ -95,6 +95,12 @@ export const guardarConfiguracionTiendaInput = z.object({
     .optional()
     .or(z.literal("")),
   basesSorteo: z.string().trim().max(20000).optional().or(z.literal("")),
+  // Textos de la plantilla del storefront (F06/D4). Opcionales; vacío ⇒ null (el storefront
+  // degrada con fallback a nombre/descripcion). El disclaimer del sorteo NO es un campo del
+  // tenant (ADR-0008/D7) — no se edita acá.
+  heroTitulo: z.string().trim().max(200).optional().or(z.literal("")),
+  heroSubtitulo: z.string().trim().max(500).optional().or(z.literal("")),
+  avisoTexto: z.string().trim().max(500).optional().or(z.literal("")),
 });
 export type GuardarConfiguracionTiendaInput = z.infer<
   typeof guardarConfiguracionTiendaInput

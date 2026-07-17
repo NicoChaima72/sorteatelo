@@ -16,6 +16,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
   IconCreditCard,
+  IconLayoutNavbar,
   IconPalette,
   IconTicket,
 } from "@tabler/icons-react";
@@ -191,6 +192,9 @@ interface ConfigTiendaForm {
   descripcion: string;
   logoUrl: string;
   colorPrimario: string;
+  heroTitulo: string;
+  heroSubtitulo: string;
+  avisoTexto: string;
   basesSorteo: string;
 }
 
@@ -206,6 +210,9 @@ function ConfiguracionTiendaCard() {
       descripcion: "",
       logoUrl: "",
       colorPrimario: "",
+      heroTitulo: "",
+      heroSubtitulo: "",
+      avisoTexto: "",
       basesSorteo: "",
     },
   });
@@ -217,6 +224,9 @@ function ConfiguracionTiendaCard() {
       descripcion: config.data.descripcion ?? "",
       logoUrl: config.data.logoUrl ?? "",
       colorPrimario: config.data.colorPrimario ?? "",
+      heroTitulo: config.data.heroTitulo ?? "",
+      heroSubtitulo: config.data.heroSubtitulo ?? "",
+      avisoTexto: config.data.avisoTexto ?? "",
       basesSorteo: config.data.basesSorteo ?? "",
     });
     form.resetDirty();
@@ -300,6 +310,40 @@ function ConfiguracionTiendaCard() {
               {...form.getInputProps("colorPrimario")}
             />
           </SimpleGrid>
+
+          <div
+            className="pt-4"
+            style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
+          >
+            <Group gap="xs" mb="xs">
+              <IconLayoutNavbar className="size-[18px]" stroke={1.75} />
+              <Text size="sm" fw={500}>
+                Portada del storefront
+              </Text>
+            </Group>
+            <Stack gap="md">
+              <TextInput
+                label="Título del hero"
+                placeholder="Bienvenido a mi tienda"
+                description="Si lo dejas vacío, se usa el nombre de tu tienda."
+                {...form.getInputProps("heroTitulo")}
+              />
+              <TextInput
+                label="Subtítulo del hero"
+                placeholder="Una frase corta que enganche."
+                description="Si lo dejas vacío, se usa la descripción."
+                {...form.getInputProps("heroSubtitulo")}
+              />
+              <Textarea
+                label="Aviso (banner)"
+                placeholder="Un aviso opcional que aparece arriba de tu tienda."
+                description="Opcional. Si lo dejas vacío, no se muestra el banner."
+                minRows={2}
+                autosize
+                {...form.getInputProps("avisoTexto")}
+              />
+            </Stack>
+          </div>
 
           <div
             className="pt-4"

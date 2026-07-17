@@ -14,3 +14,15 @@ export const iniciarCheckoutInput = z.object({
 });
 
 export type IniciarCheckoutInput = z.infer<typeof iniciarCheckoutInput>;
+
+/**
+ * Detalle de un producto del storefront (F03). El `id` SELECCIONA dentro de la Tienda; el
+ * `tenantId` con el que se scopea sale del contexto (subdominio), NUNCA del input (I1).
+ */
+export const getProductoStorefrontInput = z.object({
+  id: z.string().cuid(),
+});
+
+export type GetProductoStorefrontInput = z.infer<
+  typeof getProductoStorefrontInput
+>;

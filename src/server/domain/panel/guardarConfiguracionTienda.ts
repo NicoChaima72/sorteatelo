@@ -32,6 +32,10 @@ export async function guardarConfiguracionTienda({
       logoUrl: textoOpcionalANull(input.logoUrl),
       colorPrimario: textoOpcionalANull(input.colorPrimario),
       basesSorteo: textoOpcionalANull(input.basesSorteo),
+      // Textos de la plantilla del storefront (F06/D4).
+      heroTitulo: textoOpcionalANull(input.heroTitulo),
+      heroSubtitulo: textoOpcionalANull(input.heroSubtitulo),
+      avisoTexto: textoOpcionalANull(input.avisoTexto),
     },
     select: { id: true },
   });

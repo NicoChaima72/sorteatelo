@@ -21,6 +21,7 @@ import {
   parsearAllowlist,
 } from "~/server/authPolicy";
 import { db } from "~/server/db";
+import { origenDeRequest } from "~/server/pago/urlRetorno";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { crearRepoTenants } from "~/server/tenancy/repoTenants";
 import {
@@ -45,6 +46,11 @@ interface CreateContextOptions {
    * H1 de datawalt-app (IDOR cross-tenant). Ver `src/server/tenancy/`.
    */
   tenant: TenantDeContexto | null;
+  /**
+   * Origen (`<proto>://<host>`) del request, o `null`. Lo usa SOLO el checkout para armar la
+   * URL de retorno de Flow del subdominio (D6) — NUNCA para scopear queries (eso es `tenant`).
+   */
+  origin: string | null;
 }
 
 /**
@@ -62,6 +68,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
     session: opts.session,
     db,
     tenant: opts.tenant,
+    origin: opts.origin,
   };
 };
 
@@ -97,6 +104,11 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   return createInnerTRPCContext({
     session,
     tenant: resolucion.zona === "storefront" ? resolucion.tenant : null,
+    // Origen del request para la URL de retorno de Flow (D6). Server-side, solo lo usa el checkout.
+    origin: origenDeRequest({
+      host: req.headers.host,
+      forwardedProto: req.headers["x-forwarded-proto"],
+    }),
   });
 };
 

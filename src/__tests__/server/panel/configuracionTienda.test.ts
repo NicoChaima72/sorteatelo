@@ -49,6 +49,9 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
         logoUrl: "https://x.cl/logo.png",
         colorPrimario: "#4f46e5",
         basesSorteo: "Bases del sorteo: participan las compras pagadas…",
+        heroTitulo: "Bienvenido a mi tienda",
+        heroSubtitulo: "Libros con humor",
+        avisoTexto: "Envío inmediato tras el pago.",
       },
     });
     const args = getUpdateArgs()!;
@@ -56,6 +59,10 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
     expect(args.data.descripcion).toBe("Mi tienda");
     expect(args.data.colorPrimario).toBe("#4f46e5");
     expect(args.data.basesSorteo).toContain("Bases del sorteo");
+    // F06/D4: los 3 campos de plantilla nuevos se persisten (aditivo, no rompe lo previo).
+    expect(args.data.heroTitulo).toBe("Bienvenido a mi tienda");
+    expect(args.data.heroSubtitulo).toBe("Libros con humor");
+    expect(args.data.avisoTexto).toBe("Envío inmediato tras el pago.");
   });
 
   // panel.config.guardar.002 — campos vacíos ⇒ null (limpia el valor)
@@ -64,13 +71,24 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
     await guardarConfiguracionTienda({
       db,
       acceso: acceso(["A"]),
-      input: { descripcion: "", logoUrl: "", colorPrimario: "", basesSorteo: "" },
+      input: {
+        descripcion: "",
+        logoUrl: "",
+        colorPrimario: "",
+        basesSorteo: "",
+        heroTitulo: "",
+        heroSubtitulo: "",
+        avisoTexto: "",
+      },
     });
     const args = getUpdateArgs()!;
     expect(args.data.descripcion).toBeNull();
     expect(args.data.logoUrl).toBeNull();
     expect(args.data.colorPrimario).toBeNull();
     expect(args.data.basesSorteo).toBeNull();
+    expect(args.data.heroTitulo).toBeNull();
+    expect(args.data.heroSubtitulo).toBeNull();
+    expect(args.data.avisoTexto).toBeNull();
   });
 
   // panel.config.guardar.003 — sin membresía ⇒ FORBIDDEN, no escribe
@@ -80,7 +98,15 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
       guardarConfiguracionTienda({
         db,
         acceso: acceso([]),
-        input: { descripcion: "x", logoUrl: "", colorPrimario: "", basesSorteo: "" },
+        input: {
+          descripcion: "x",
+          logoUrl: "",
+          colorPrimario: "",
+          basesSorteo: "",
+          heroTitulo: "",
+          heroSubtitulo: "",
+          avisoTexto: "",
+        },
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(getUpdateArgs()).toBeNull();
@@ -110,6 +136,9 @@ describe("domain/panel/getConfiguracionTienda (fake db)", () => {
         logoUrl: null,
         colorPrimario: "#4f46e5",
         basesSorteo: "bases…",
+        heroTitulo: "Hola",
+        heroSubtitulo: null,
+        avisoTexto: "aviso",
       }),
       acceso: acceso(["A"]),
     });
@@ -118,6 +147,9 @@ describe("domain/panel/getConfiguracionTienda (fake db)", () => {
       slug: "a",
       colorPrimario: "#4f46e5",
       basesSorteo: "bases…",
+      heroTitulo: "Hola",
+      heroSubtitulo: null,
+      avisoTexto: "aviso",
     });
   });
 

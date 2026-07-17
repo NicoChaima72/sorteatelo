@@ -125,6 +125,14 @@ model Tenant {
   descripcion   String? // texto breve de la tienda (marketing)
   logoUrl       String? // ref al logo (F06 define su storage/tratamiento real)
   colorPrimario String? // color de marca del tenant (hex/HSL; F06 lo aplica al tema)
+  // ── Textos del storefront (F06/D4, schema-guardian APPROVE). El Organizador los edita en el
+  // panel (guardarConfiguracionTienda); el render del hero/aviso los consume con fallback. NO
+  // queriables (se leen por el tenant ya resuelto por id/slug) ⇒ sin @@index.
+  // OJO: `avisoTexto` es un banner promocional OPCIONAL — NO es el Disclaimer del sorteo
+  // (ADR-0008/D7), que es obligatorio, fijo de plataforma y se muestra siempre con sorteo activo.
+  heroTitulo    String? // título del hero del storefront; fallback a `nombre`
+  heroSubtitulo String? // subtítulo del hero; fallback a `descripcion`
+  avisoTexto    String? // banner de aviso opcional; null = no se muestra
   // Bases del sorteo como TEXTO borrador del Organizador (F05/D8, ADR-0008). Distinto de
   // `Raffle.basesUrl` (F02), que es el enlace al ARCHIVO de bases (lo sube F03). Coexisten a
   // propósito: acá vive el borrador editable a nivel Tienda; el archivo final vive en el Sorteo.

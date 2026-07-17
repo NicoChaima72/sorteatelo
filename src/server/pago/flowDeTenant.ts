@@ -90,13 +90,19 @@ export function claveDeCifradoDeEnv(): Buffer {
  * `FlowCredential` de la DB por `tenantId` y descifrándola. Lo llama el router de
  * checkout dentro de `runDomain`, así que lanza `DomainError` si la Tienda no tiene
  * credenciales cargadas (una Tienda PUBLICADA debería tenerlas — ADR-0006).
+ *
+ * `urlReturn` (F06/D6): si se pasa (derivada del subdominio del request en el borde del checkout),
+ * GANA a la env global `FLOW_URL_RETURN` — así el comprador vuelve al storefront con marca. El
+ * `urlConfirmation` del WEBHOOK queda SIEMPRE global (rutea por token⇒tenant, ADR-0006): no se toca.
  */
 export async function crearFlowServiceDeTenant({
   db,
   tenantId,
+  urlReturn,
 }: {
   db: PrismaClient;
   tenantId: string;
+  urlReturn?: string;
 }): Promise<FlowService> {
   const cred = await db.flowCredential.findUnique({
     where: { tenantId },
@@ -113,7 +119,7 @@ export async function crearFlowServiceDeTenant({
     clave: claveDeCifradoDeEnv(),
     urls: {
       urlConfirmation: env.FLOW_URL_CONFIRMATION,
-      urlReturn: env.FLOW_URL_RETURN,
+      urlReturn: urlReturn ?? env.FLOW_URL_RETURN,
     },
   });
 }

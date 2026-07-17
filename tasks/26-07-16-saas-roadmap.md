@@ -863,3 +863,41 @@ Para F01 (los demás en el planning de cada fase):
   Resend opt-in). RESEND_API_KEY en .env. Remitente dev de Resend solo envía al email de la cuenta hasta
   verificar dominio (#4). Fases operativas del MVP: F01-F05 + entrega + correo. Falta: F06 storefront,
   F08 self-service, F07/F10 (externos).
+- [2026-07-17 08:30] [planner-grill] **F06 (storefront del comprador con plantilla configurable)
+  planificada** → task file propio `tasks/26-07-17-storefront-plantilla.md` (status `planning`, 6
+  features). Sin grill (instrucción del usuario): resuelto por criterio, Supuestos S1–S8. Alcance:
+  storefront mobile-first en el subdominio, tematizado por tienda con theme override de Mantine
+  (ADR-0011) sobre los datos del `Tenant`, que reemplaza `dev/checkout*`; catálogo→detalle→carrito→
+  checkout (reusa `iniciarCheckout`/`listarProductos` ya hechos) →retorno con marca; sección del sorteo
+  activo + disclaimer obligatorio (ADR-0008); apex = placeholder neutral (marca de plataforma sigue
+  PENDIENTE, no se inventa). **Campos de plantilla decididos (D4/S2)**: se agregan 3 columnas aditivas
+  nullable al `Tenant` — `heroTitulo`, `heroSubtitulo`, `avisoTexto` — coordinadas con schema-guardian y
+  con `get/guardarConfiguracionTienda` + `admin/configuracion.tsx` (superficie ya testeada de F05 se
+  EXTIENDE, no se rompe); el resto de la plantilla reusa columnas existentes (`nombre`, `descripcion`,
+  `logoUrl`, `colorPrimario`, `basesSorteo`). URL de retorno de Flow derivada del slug del tenant (D6, no
+  reabre #4). INDEX actualizado. **AWAITING USER APPROVAL** — implementación no arranca sin visto bueno.
+- [2026-07-17 06:22] [feature-implementer] [F06] **Storefront con plantilla IMPLEMENTADO**
+  (`tasks/26-07-17-storefront-plantilla.md`, F01..F06, status → testing). Schema aditivo
+  `heroTitulo/heroSubtitulo/avisoTexto` en `Tenant` (schema-guardian APPROVE + `db push`). Storefront
+  mobile-first en el subdominio, tematizado per-tenant (helper puro `overrideDesdeBranding` hex→escala
+  Mantine SIN dependencia nueva — S3; `mergeThemeOverrides` en `_app` con `pageProps.tenantBranding`
+  resuelto SSR, ADR-0011). Catálogo (reusa `listarProductos`) + detalle (`getProductoStorefront`
+  tenant-scoped) + carrito client-side per-slug (localStorage, sin cuenta ADR-0004, no cruza tiendas) +
+  checkout → Flow con URL de retorno derivada del **host del request** = subdominio (D6; `urlConfirmation`
+  del webhook GLOBAL intacto, ADR-0006) + retorno con marca que solo informa (I6/ADR-0001). Sorteo público
+  `getSorteoActivoStorefront` (solo conteo, NUNCA correos — ADR-0004) + disclaimer OBLIGATORIO (ADR-0008).
+  Apex = placeholder neutral (marca de plataforma sigue PENDIENTE, no se inventa). Limpieza: `dev/checkout*`
+  + maquetas `landing/*` eliminadas, `embla-carousel-*` desinstalado (recharts conservado). Gates: tsc+lint
+  verdes, **vitest completo 215/216 (+1 skip), 0 fallos**; backend+frontend-reviewer APPROVE. Verificación
+  visual en :3001 (curl SSR+tRPC): 2 storefronts tematizados distintos (autora `#e11d48` / prueba `#0d9488`),
+  aislamiento de catálogo/sorteo, apex neutral, 404s. Sin commit/push/feature-tester (instrucción). Detalle
+  en la Bitácora del task file. **AWAITING USER + feature-tester.**
+- [2026-07-17 10:50] [orquestador] F06 verificada en vivo: storefront mobile-first tematizado por
+  tenant funcionando en el subdominio. autora.localhost:3001 con su color #e11d48 + hero + producto +
+  sorteo + disclaimer ADR-0008; prueba.localhost:3001 con teal #0d9488 + su producto, CERO fuga
+  cross-tenant; apex = placeholder neutral; subdominio inexistente = 404. Theming per-tenant vía
+  mergeThemeOverrides (helper de escala propio, sin dep nueva). 3 columnas aditivas en Tenant
+  (heroTitulo/heroSubtitulo/avisoTexto) editables desde el panel. Maquetas throwaway (landing/*,
+  dev/checkout*) eliminadas. Gates 215/216 (1 skip). Drift de docs aplicado (helper fecha()).
+  REVISABLE: identidad de plataforma sigue pendiente (apex neutral); branding demo de los seed;
+  carrito sin subtotal client-side (respeta I4). El "mini-wix enfocado" está vivo.

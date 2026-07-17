@@ -35,3 +35,14 @@ const NF_FECHA = new Intl.DateTimeFormat("es-CL", {
 export function fechaHora(d: Date): string {
   return NF_FECHA.format(d);
 }
+
+const NF_DIA = new Intl.DateTimeFormat("es-CL", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+/** Fecha corta SIN hora es-CL (ej. "28 jun 2026"). Para rangos de fechas (sorteo). */
+export function fecha(d: Date): string {
+  return NF_DIA.format(d);
+}

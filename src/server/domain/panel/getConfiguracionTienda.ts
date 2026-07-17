@@ -21,6 +21,9 @@ export async function getConfiguracionTienda({
   logoUrl: string | null;
   colorPrimario: string | null;
   basesSorteo: string | null;
+  heroTitulo: string | null;
+  heroSubtitulo: string | null;
+  avisoTexto: string | null;
 }> {
   const tenantId = resolverTenantAutorizado({
     esOperador: acceso.esOperador,
@@ -37,6 +40,9 @@ export async function getConfiguracionTienda({
       logoUrl: true,
       colorPrimario: true,
       basesSorteo: true,
+      heroTitulo: true,
+      heroSubtitulo: true,
+      avisoTexto: true,
     },
   });
 

@@ -15,6 +15,8 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "seed:tenants": "tsx scripts/seed-tenants.ts",
+    "otorgar:membresia": "tsx scripts/otorgar-membresia.ts",
+    "seed:raffles": "tsx scripts/seed-raffles.ts",
     "lint": "next lint",
     "start": "next start",
     "test": "vitest run",

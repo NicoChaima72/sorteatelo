@@ -2,76 +2,77 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+  // Further reading:
+  // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+  // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
 
-    @@index([name])
+  @@index([name])
 }
 
 // Necessary for Next auth
 model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? // @db.Text
+  access_token             String? // @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? // @db.Text
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
 
-    @@unique([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    image         String?
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
+  id            String             @id @default(cuid())
+  name          String?
+  email         String?            @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  posts         Post[]
+  memberships   TenantMembership[] // Tiendas que este Organizador administra (F05, S6)
 }
 
 model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
+  identifier String
+  token      String   @unique
+  expires    DateTime
 
-    @@unique([identifier, token])
+  @@unique([identifier, token])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,126 +95,245 @@ model VerificationToken {
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum TenantStatus {
-    ALTA
-    CONFIGURACION
-    PUBLICADA
-    SUSPENDIDA
+  ALTA
+  CONFIGURACION
+  PUBLICADA
+  SUSPENDIDA
 }
 
 enum OrderStatus {
-    PENDIENTE
-    PAGADO
-    FALLIDO
+  PENDIENTE
+  PAGADO
+  FALLIDO
 }
 
 enum PaymentStatus {
-    PENDIENTE
-    PAGADO
-    FALLIDO
+  PENDIENTE
+  PAGADO
+  FALLIDO
 }
 
 // Una Tienda: la unidad de aislamiento del SaaS (ADR-0005). Vive en su subdominio
 // (slug, ADR-0007). Entidad de plataforma — NO lleva tenantId. Ver CONTEXT.md § Tienda.
 model Tenant {
-    id        String       @id @default(cuid())
-    slug      String       @unique // subdominio, único a nivel plataforma (S3); inmutable tras publicar
-    nombre    String
-    estado    TenantStatus @default(ALTA) // ciclo de vida (S9): solo PUBLICADA resuelve storefront
-    createdAt DateTime     @default(now())
-    updatedAt DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  slug          String       @unique // subdominio, único a nivel plataforma (S3); inmutable tras publicar
+  nombre        String
+  estado        TenantStatus @default(ALTA) // ciclo de vida (S9): solo PUBLICADA resuelve storefront
+  // Config básica de plantilla (F05/D8, S4): el Organizador la carga en el panel;
+  // el theming real del storefront sobre estos valores lo hace F06 (solo persiste acá).
+  descripcion   String? // texto breve de la tienda (marketing)
+  logoUrl       String? // ref al logo (F06 define su storage/tratamiento real)
+  colorPrimario String? // color de marca del tenant (hex/HSL; F06 lo aplica al tema)
+  // Bases del sorteo como TEXTO borrador del Organizador (F05/D8, ADR-0008). Distinto de
+  // `Raffle.basesUrl` (F02), que es el enlace al ARCHIVO de bases (lo sube F03). Coexisten a
+  // propósito: acá vive el borrador editable a nivel Tienda; el archivo final vive en el Sorteo.
+  basesSorteo   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-    flowCredential FlowCredential?
-    products       Product[]
-    orders         Order[]
-    orderItems     OrderItem[]
-    payments       Payment[]
+  flowCredential FlowCredential?
+  products       Product[]
+  orders         Order[]
+  orderItems     OrderItem[]
+  payments       Payment[]
+  raffles        Raffle[] // efectos post-pago F02
+  raffleEntries  RaffleEntry[] // efectos post-pago F02
+  downloadGrants DownloadGrant[] // efectos post-pago F02
+  memberships    TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
 }
 
 // Credenciales Flow propias del Organizador (BYO-Flow, ADR-0006). 1-1 con Tenant.
 // apiKey/secretKey CIFRADAS at-rest (I5) — nunca texto plano en DB, logs ni respuestas.
 // Composición intrínseca del agregado Tenant ⇒ Cascade. Ver CONTEXT.md § CredencialFlow.
 model FlowCredential {
-    id               String   @id @default(cuid())
-    tenantId         String   @unique // 1-1 con Tenant (el @unique ya crea el índice)
-    apiKeyCifrada    String // apiKey de Flow cifrada (AES-256-GCM, iv+tag+ct empaquetados)
-    secretKeyCifrada String // secretKey de Flow cifrada (mismo formato)
-    sandbox          Boolean  @default(true) // sandbox vs producción, por tenant
-    createdAt        DateTime @default(now())
-    updatedAt        DateTime @updatedAt
+  id               String   @id @default(cuid())
+  tenantId         String   @unique // 1-1 con Tenant (el @unique ya crea el índice)
+  apiKeyCifrada    String // apiKey de Flow cifrada (AES-256-GCM, iv+tag+ct empaquetados)
+  secretKeyCifrada String // secretKey de Flow cifrada (mismo formato)
+  sandbox          Boolean  @default(true) // sandbox vs producción, por tenant
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Membresía Organizador↔Tienda (F05, S6): liga un User (cuenta de plataforma, frontera
+// NextAuth) a un Tenant que administra. MVP: un Organizador dueño por Tienda, SIN campo
+// rol (roles finos post-MVP). Entidad de PLATAFORMA/acceso (como los modelos NextAuth):
+// su tenantId es FK real, no una columna de scoping de dominio. La AUTORIZACIÓN del panel
+// sale de acá (o del flag Operador por env), nunca del input (I1, lección H1 de datawalt-app).
+// Ver CONTEXT.md § Organizador.
+model TenantMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, tenantId]) // 1 membresía por (usuario, tienda); prefijo cubre lookups por userId (sesión→tiendas)
+  @@index([tenantId]) // dirección inversa: organizadores de una tienda (panel Operador)
 }
 
 // Un producto digital descargable (MVP: PDF) que una Tienda vende. Ver CONTEXT.md § Producto.
 // (rename de Book — D3/S5). Pertenece a exactamente una Tienda (tenantId).
 model Product {
-    id          String      @id @default(cuid())
-    tenantId    String
-    titulo      String
-    descripcion String
-    precio      Decimal     @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
-    portadaUrl  String?
-    pdfPath     String // ref al PDF en storage privado per-tenant (ADR-0002/0009); nunca enlace público
-    activo      Boolean     @default(true)
-    createdAt   DateTime    @default(now())
-    updatedAt   DateTime    @updatedAt
-    tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-    orderItems  OrderItem[]
+  id             String          @id @default(cuid())
+  tenantId       String
+  titulo         String
+  descripcion    String
+  precio         Decimal         @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
+  portadaUrl     String?
+  pdfPath        String // ref al PDF en storage privado per-tenant (ADR-0002/0009); nunca enlace público
+  activo         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orderItems     OrderItem[]
+  downloadGrants DownloadGrant[] // efectos post-pago F02
 
-    @@index([tenantId, activo]) // el catálogo consulta WHERE tenantId = ? AND activo = true; sirve tenant-only por prefijo
+  @@index([tenantId, activo]) // el catálogo consulta WHERE tenantId = ? AND activo = true; sirve tenant-only por prefijo
 }
 
 // Una compra dentro de una Tienda. Identidad del comprador = su correo (ADR-0004). Ver CONTEXT.md § Orden.
 model Order {
-    id        String      @id @default(cuid())
-    tenantId  String
-    email     String // identidad del comprador (ADR-0004)
-    estado    OrderStatus @default(PENDIENTE)
-    total     Decimal     @db.Decimal(15, 2) // suma de precios de ítems (I4)
-    createdAt DateTime    @default(now())
-    updatedAt DateTime    @updatedAt
-    tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-    items     OrderItem[]
-    payment   Payment?
+  id             String          @id @default(cuid())
+  tenantId       String
+  email          String // identidad del comprador (ADR-0004)
+  estado         OrderStatus     @default(PENDIENTE)
+  total          Decimal         @db.Decimal(15, 2) // suma de precios de ítems (I4)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  payment        Payment?
+  downloadGrants DownloadGrant[] // efectos post-pago F02
+  raffleEntries  RaffleEntry[] // efectos post-pago F02
 
-    @@index([tenantId, email]) // búsquedas siempre tenant-scoped; sirve tenant-only por prefijo
-    @@index([tenantId, estado])
+  @@index([tenantId, email]) // búsquedas siempre tenant-scoped; sirve tenant-only por prefijo
+  @@index([tenantId, estado])
 }
 
 // Línea de una Orden. El precio se congela como snapshot al comprar (I4). Fila inmutable (sin updatedAt).
 model OrderItem {
-    id        String   @id @default(cuid())
-    tenantId  String
-    orderId   String
-    productId String
-    precio    Decimal  @db.Decimal(15, 2) // snapshot del precio del Product al comprar (I4)
-    createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  productId String
+  precio    Decimal  @db.Decimal(15, 2) // snapshot del precio del Product al comprar (I4)
+  createdAt DateTime @default(now())
 
-    tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-    order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-    product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-    @@unique([orderId, productId]) // 1 línea por producto por orden (orderId ya es tenant-bound); prefijo cubre el índice de orderId
-    @@index([tenantId])
-    @@index([productId])
+  @@unique([orderId, productId]) // 1 línea por producto por orden (orderId ya es tenant-bound); prefijo cubre el índice de orderId
+  @@index([tenantId])
+  @@index([productId])
 }
 
 // El cobro vía Flow sobre una Orden, con las credenciales de SU Tenant (ADR-0006).
 // Confirmación server-side; webhook idempotente que rutea por tenant (ADR-0001). Ver CONTEXT.md § Pago.
 model Payment {
-    id        String        @id @default(cuid())
-    tenantId  String
-    orderId   String        @unique
-    token     String?       @unique // token de Flow (payment/create); global (el ruteo del webhook resuelve token⇒Payment⇒tenant); null hasta obtenerlo
-    flowOrder Int? // nº de orden interno de Flow (getStatus)
-    estado    PaymentStatus @default(PENDIENTE)
-    monto     Decimal       @db.Decimal(15, 2) // monto cobrado (= Order.total en F01)
-    fee       Decimal?      @db.Decimal(15, 2) // comisión CRUDA que devuelve Flow en getStatus (I4)
-    createdAt DateTime      @default(now())
-    updatedAt DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  tenantId  String
+  orderId   String        @unique
+  token     String?       @unique // token de Flow (payment/create); global (el ruteo del webhook resuelve token⇒Payment⇒tenant); null hasta obtenerlo
+  flowOrder Int? // nº de orden interno de Flow (getStatus)
+  estado    PaymentStatus @default(PENDIENTE)
+  monto     Decimal       @db.Decimal(15, 2) // monto cobrado (= Order.total en F01)
+  fee       Decimal?      @db.Decimal(15, 2) // comisión CRUDA que devuelve Flow en getStatus (I4)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-    order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
-    @@index([tenantId])
+  @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Efectos post-pago per-tenant (F02, ADR-0002/0005). Aprobado por schema-guardian
+// (APPROVE; aplicado con db push aditivo). Los tres modelos llevan `tenantId` +
+// FK Restrict a Tenant (una Tienda se SUSPENDE, no se borra — S9). Se materializan
+// dentro de la MISMA $transaction que la transición PENDIENTE→PAGADO del webhook,
+// idempotentes por sus @@unique (I2). Uniques de idempotencia SIN tenantId redundante
+// (orderId/raffleId ya son tenant-bound — mismo criterio que OrderItem).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum RaffleStatus {
+  ACTIVO
+  CERRADO
+}
+
+// El sorteo promocional de una Tienda (CONTEXT § Sorteo). Per-tenant (ADR-0005).
+// A lo sumo un Raffle ACTIVO por tenant (S5): invariante de sembrado/gestión (F05),
+// NO constraint de DB (Prisma no expresa unique parciales). El use case lo lee con
+// `findFirst` scoped al tenantId de la orden. Ver CONTEXT.md § Sorteo.
+model Raffle {
+  id           String       @id @default(cuid())
+  tenantId     String
+  nombre       String
+  premio       String
+  estado       RaffleStatus @default(ACTIVO)
+  fechaInicio  DateTime
+  fechaFin     DateTime
+  basesUrl     String? // bases del sorteo (del Organizador, ADR-0008); carga real en F05
+  // ── Ejecución auditable del sorteo (F05, aditivo sobre el modelo de F02). ──────────
+  // Los tres campos se escriben JUNTOS, UNA sola vez, en el use case que ejecuta el
+  // sorteo (transición ACTIVO→CERRADO). `ejecutadoAt` es la llave de idempotencia:
+  // null = no ejecutado; el guard es `WHERE ejecutadoAt IS NULL` — invariante de use
+  // case, NO constraint de DB (mismo criterio que "1 Raffle ACTIVO por tenant", S5).
+  ganadorEmail String? // snapshot del correo del ganador (identidad = correo, ADR-0004); denormalizado, sin 2ª FK a RaffleEntry
+  ejecutadoAt  DateTime? // timestamp de ejecución; null hasta ejecutar (llave de idempotencia)
+  ejecutadoPor String? // snapshot del EMAIL del ejecutor (auditoría de "quién"; durable si el User se borra, ADR-0004)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  entries RaffleEntry[]
+
+  @@index([tenantId, estado]) // lookup del ACTIVO de ESA tienda
+}
+
+// Participación (CONTEXT § Participación): una por Orden pagada, en el Raffle ACTIVO
+// de su Tienda. Inmutable (sin updatedAt, patrón OrderItem). Ver CONTEXT.md § Participación.
+model RaffleEntry {
+  id        String   @id @default(cuid())
+  tenantId  String
+  raffleId  String
+  orderId   String
+  email     String // snapshot de Order.email al crear la entry (I5)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Restrict)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([raffleId, orderId]) // idempotencia: una entry por compra por sorteo (prefijo cubre raffleId)
+  @@index([tenantId])
+  @@index([orderId])
+}
+
+// Entitlement (CONTEXT § Entitlement, ADR-0002): autoridad de descarga por (Orden
+// pagada, Producto). Inmutable (sin updatedAt). El `token` opaco crypto-random es la
+// autoridad intrínseca; la URL firmada corta de R2 la genera F03. Ver CONTEXT.md § Entitlement.
+model DownloadGrant {
+  id        String   @id @default(cuid())
+  tenantId  String
+  orderId   String
+  productId String
+  token     String   @unique // opaco crypto-random; global como Payment.token (F03 rutea token⇒grant⇒tenant)
+  expiresAt DateTime // ventana de validez del derecho (S3: 30 días; política final en F03)
+  createdAt DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId]) // idempotencia: un grant por (orden, producto); orderId ya es tenant-bound
+  @@index([tenantId])
+  @@index([productId])
 }

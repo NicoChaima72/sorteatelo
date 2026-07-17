@@ -1,7 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
+import { aplicarEfectosPostPago } from "~/server/domain/pago/aplicarEfectosPostPago";
 import { confirmarPagoDeOrden } from "~/server/domain/pago/confirmarPagoDeOrden";
-import { noopEfectosPostPago } from "~/server/domain/pago/efectosPostPago";
 import { db } from "~/server/db";
 import {
   crearEnrutadorFlow,
@@ -42,12 +42,12 @@ export default async function handler(
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // PUNTO DE EXTENSIÓN POST-PAGO (contrato F02, `tasks/26-07-08-efectos-post-pago.md`).
-  // En F01 es no-op. F02 reemplaza SOLO esta línea por el use case real
-  // `aplicarEfectosPostPago` (DownloadGrant + RaffleEntry scopeados por tenant), sin
-  // tocar el núcleo del webhook. Se invoca una vez, dentro de la transacción de
-  // confirmarPagoDeOrden, y solo en la transición a PAGADO.
-  const aplicarEfectosPostPago = noopEfectosPostPago;
+  // PUNTO DE EXTENSIÓN POST-PAGO (contrato F02). Cableado por F02 al use case real
+  // `aplicarEfectosPostPago` (DownloadGrant por ítem + RaffleEntry en el Raffle ACTIVO
+  // de la Tienda de la orden, scopeados por tenant, idempotentes — ADR-0002/0005). El
+  // núcleo del webhook (`webhookFlow.ts`) y el contrato (`efectosPostPago.ts`) quedan
+  // intactos. Se invoca UNA vez, dentro de la transacción de confirmarPagoDeOrden, y
+  // solo en la transición a PAGADO (I2).
   // ───────────────────────────────────────────────────────────────────────────
 
   const { status, body } = await manejarWebhookFlow({

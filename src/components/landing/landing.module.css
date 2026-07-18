@@ -1,0 +1,505 @@
+/*
+ * Gramática visual de «El Talonario» — CSS module ACOTADO (D6, excepción registrada en
+ * frontend-conventions § Mantine). Regla dura: **cero hex propio**. Todo color sale de tokens del
+ * theme vía `--mantine-color-*`; las sombras difusas se derivan de un token con `color-mix`.
+ *
+ * Arquitectura de la tinta (importante): `.sistema` sólo aliasa los tokens ESTABLES (`--azul`,
+ * `--amarillo`, `--teal`, `--papel-card`, `--linea`, sombras) — NO las variables de tinta. La
+ * tinta se "voltea" por HERENCIA: las bandas oscuras (`.bandaAzul`/`.bandaTinta`) declaran
+ * `--tinta*` en blanco y sus descendientes las heredan; el texto las lee con FALLBACK al token
+ * oscuro (`var(--tinta-suave, var(--mantine-color-gray-6))`) para funcionar también standalone. Las
+ * cards (`.card`/`.cardSuave`) RE-ANCLAN `--tinta*` a oscuro sobre sí mismas (son superficies
+ * blancas: su texto va oscuro aunque estén sobre una banda azul). El plumón fuerza tinta directa
+ * (siempre legible sobre el amarillo), sin depender del volteo.
+ *
+ * Única excepción de color-dato (I1): `--tenant` (color de la tienda de EJEMPLO del teléfono) lo
+ * inyecta el `.tsx` por style inline — es DATO de ejemplo, mismo estatus que el swatch per-tenant.
+ */
+
+.sistema {
+  --azul: var(--mantine-color-sorteatelo-6);
+  --azul-hover: var(--mantine-color-sorteatelo-7);
+  --amarillo: var(--mantine-color-amarillo-6);
+  --amarillo-hover: var(--mantine-color-amarillo-7);
+  --teal: var(--mantine-color-exito-6);
+  --papel-card: var(--mantine-color-white);
+  --papel-hundido: var(--mantine-color-hundido-1);
+  --gris-banda: var(--mantine-color-gray-1);
+  --linea: var(--mantine-color-gray-3);
+  /* Sombras difusas del talonario, derivadas del navy más oscuro del theme (cero hex/rgba). */
+  --sombra-card: 0 10px 30px
+    color-mix(in srgb, var(--mantine-color-sorteatelo-9) 12%, transparent);
+  --sombra-suave: 0 6px 18px
+    color-mix(in srgb, var(--mantine-color-sorteatelo-9) 9%, transparent);
+}
+
+/* ---------- etiqueta mono estampada (eyebrows, series, cabeceras) ---------- */
+
+.etiqueta {
+  composes: sistema;
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  /* Hereda la tinta-suave del contexto de banda; fallback al token oscuro (uso standalone). */
+  color: var(--tinta-suave, var(--mantine-color-gray-6));
+}
+
+/* ---------- plumón: trazo orgánico amarillo detrás de la palabra ---------- */
+
+.plumon {
+  composes: sistema;
+  position: relative;
+  z-index: 0;
+  padding: 0 0.06em;
+  /* El texto resaltado SIEMPRE va en tinta (legible sobre el amarillo), sin volteo de banda. */
+  color: var(--mantine-color-black);
+}
+.plumon::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0.1em -0.18em 0.02em -0.14em;
+  background: var(--amarillo);
+  opacity: 0.85;
+  transform: rotate(-1.7deg);
+  border-radius: 0.5em 0.25em 0.6em 0.2em / 0.75em 0.35em 0.25em 0.6em;
+}
+/* Segundo trazo: otra inclinación y otro borde, para que no se vean clonados. */
+.plumonB {
+  composes: plumon;
+}
+.plumonB::before {
+  transform: rotate(1.2deg);
+  inset: 0.06em -0.14em 0.06em -0.2em;
+  border-radius: 0.25em 0.6em 0.2em 0.5em / 0.3em 0.7em 0.5em 0.25em;
+  opacity: 0.8;
+}
+
+/* ---------- perforación (separador dashed) ---------- */
+
+.perforacion {
+  composes: sistema;
+  border: none;
+  border-top: 2px dashed var(--linea);
+  margin: 0;
+}
+
+/* ---------- sello de goma (mono, inclinado, borde) ---------- */
+
+.sello {
+  composes: sistema;
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  padding: 2px 8px;
+  transform: rotate(-2deg);
+}
+
+/* ---------- cards (gramática SUAVE: sin bordes, sombra difusa, radio medio) ---------- */
+
+/* Las cards son superficies BLANCAS: re-anclan `--tinta*` a oscuro sobre sí mismas y fijan su
+   `color`, así su texto va oscuro aunque estén sobre una banda azul/tinta (que volteó la tinta). */
+.card {
+  composes: sistema;
+  background: var(--papel-card);
+  border: none;
+  border-radius: 18px;
+  box-shadow: var(--sombra-card);
+  --tinta: var(--mantine-color-black);
+  --tinta-suave: var(--mantine-color-gray-6);
+  --tinta-tenue: var(--mantine-color-gray-4);
+  color: var(--tinta);
+}
+.cardSuave {
+  composes: card;
+  box-shadow: var(--sombra-suave);
+}
+
+/* ---------- bandas de sección (volteo de tinta en las oscuras) ---------- */
+
+.banda {
+  composes: sistema;
+}
+.bandaAzul {
+  composes: banda;
+  background: var(--azul);
+  /* Voltea la tinta a blanco para el texto DIRECTO de la banda (las cards re-anclan la suya). */
+  --tinta: var(--mantine-color-white);
+  --tinta-suave: color-mix(in srgb, var(--mantine-color-white) 85%, transparent);
+  --tinta-tenue: color-mix(in srgb, var(--mantine-color-white) 60%, transparent);
+  color: var(--mantine-color-white);
+}
+.bandaAmarilla {
+  composes: banda;
+  background: var(--amarillo);
+}
+/* Sobre banda amarilla el plumón amarillo desaparece: pasa a blanco. */
+.bandaAmarilla .plumon::before {
+  background: var(--papel-card);
+}
+.bandaGris {
+  composes: banda;
+  background: var(--gris-banda);
+  border-top: 2px dashed var(--linea);
+  border-bottom: 2px dashed var(--linea);
+}
+.bandaTinta {
+  composes: banda;
+  background: var(--mantine-color-black);
+  --tinta: var(--mantine-color-white);
+  --tinta-suave: color-mix(in srgb, var(--mantine-color-white) 60%, transparent);
+  color: var(--mantine-color-white);
+}
+/* Nota: no hace falta una regla `.bandaAzul .card {…}` — cada card ya re-ancla `--tinta*` sobre sí
+   misma (ver `.card`), valor cascadeado que gana sobre el heredado de la banda. */
+
+/* ---------- teléfono con la tienda de un tenant de ejemplo ---------- */
+
+.telefono {
+  composes: card;
+  width: 296px;
+  max-width: 100%;
+  border-radius: 34px;
+  overflow: hidden;
+  box-shadow: 0 26px 60px
+    color-mix(in srgb, var(--mantine-color-sorteatelo-9) 22%, transparent);
+}
+.telefonoNotch {
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.telefonoNotch span {
+  width: 76px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--linea);
+}
+/* El teléfono es una CAPTURA de una app ajena (la tienda del tenant), no una card de la landing:
+   sus hairlines 1.5px son deliberados (separadores de UI), distintos de la gramática suave sin
+   bordes del resto del sistema. */
+.tiendaHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px 12px;
+  border-bottom: 1.5px solid var(--linea);
+}
+.tiendaAva {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tenant);
+  color: var(--mantine-color-white);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tiendaNombre {
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tiendaBadge {
+  margin-left: auto;
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tenant);
+  border: 1.5px solid var(--tenant);
+  border-radius: 99px;
+  padding: 3px 8px;
+}
+.tiendaCuerpo {
+  padding: 16px 16px 0;
+}
+.tiendaTitulo {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.tiendaSub {
+  font-size: 12.5px;
+  color: var(--tinta-suave);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+.tiendaProd {
+  margin: 14px 16px;
+  border: 1.5px solid var(--linea);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.tiendaProdCover {
+  height: 88px;
+  background: var(--tenant);
+  color: var(--mantine-color-white);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+.tiendaProdFila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+}
+.tiendaProdNombre {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tiendaProdPrecio {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--tinta-suave);
+}
+.tiendaProdBtn {
+  margin-left: auto;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: none;
+  background: var(--tenant);
+  color: var(--mantine-color-white);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+.tiendaSorteo {
+  margin: 0 16px 46px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--tenant);
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.tiendaSorteo b {
+  color: var(--tenant);
+}
+
+/* ---------- chip de ticket con muescas ---------- */
+
+.ticketChip {
+  composes: sistema;
+  position: relative;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--amarillo);
+  color: var(--tinta, var(--mantine-color-black));
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+}
+/* Muescas: círculos del color de la carta que "perforan" el chip. */
+.ticketChip::before,
+.ticketChip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--papel-card);
+  transform: translateY(-50%);
+}
+.ticketChip::before {
+  left: -7px;
+}
+.ticketChip::after {
+  right: -7px;
+}
+
+/* ---------- ticket toast (compra confirmada) ---------- */
+
+.ticketToast {
+  composes: card;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 13px;
+  transform: rotate(-1deg);
+  max-width: 300px;
+  white-space: nowrap;
+  box-shadow: 0 16px 36px
+    color-mix(in srgb, var(--mantine-color-sorteatelo-9) 24%, transparent);
+}
+.ticketToastFlotante {
+  position: absolute;
+  right: -22px;
+  bottom: -16px;
+}
+.ticketToastTexto {
+  min-width: 0;
+}
+.ticketToastEtiqueta {
+  composes: etiqueta;
+  display: block;
+  font-size: 10.5px;
+}
+.ticketToastTitulo {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* ---------- talonario vivo (firma del hero) ---------- */
+
+.telefonoWrap {
+  composes: sistema;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.talonario {
+  composes: card;
+  overflow: hidden;
+}
+.talonarioCabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--azul);
+}
+.talonarioCabecera .etiqueta {
+  color: color-mix(in srgb, var(--mantine-color-white) 75%, transparent);
+}
+.talonarioGrilla {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--linea);
+  gap: 1.5px;
+  border-bottom: 2px dashed var(--linea);
+}
+.numero {
+  aspect-ratio: 5 / 4;
+  background: var(--papel-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+.numeroLibre {
+  composes: numero;
+  color: var(--tinta-tenue);
+}
+.numeroVendido {
+  composes: numero;
+  color: var(--tinta);
+}
+.numeroVendido small {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--tinta-suave);
+}
+.numeroTuyo {
+  composes: numero;
+  background: var(--amarillo);
+  color: var(--tinta);
+}
+.numeroTuyo small {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.numeroGanador::after {
+  content: "¡SALE!";
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--azul);
+  border: 1.5px solid var(--azul);
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: var(--papel-card);
+  transform: rotate(-8deg) translateY(-14px);
+}
+.talonarioPie {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+}
+.talonarioPie .etiqueta:last-child {
+  color: var(--tinta);
+}
+
+/* ---------- boleto CTA (talón amarillo) ---------- */
+
+.boleto {
+  composes: card;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  overflow: hidden;
+}
+.boletoCuerpo {
+  padding: 34px 34px 30px;
+}
+.boletoTalon {
+  border-left: 2px dashed var(--tinta);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
+  background: var(--amarillo);
+  text-align: center;
+  color: var(--mantine-color-black);
+}
+.boletoNumero {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--mantine-color-black);
+}
+@media (max-width: 48em) {
+  .boleto {
+    grid-template-columns: 1fr;
+  }
+  .boletoTalon {
+    border-left: none;
+    border-top: 2px dashed var(--tinta);
+  }
+}
+
+/* ---------- FAQ ---------- */
+
+/* La FAQ usa el `Accordion` de Mantine (patrón de `storefront/faq.tsx`), no un `<details>` a mano:
+   no necesita clases propias acá. */

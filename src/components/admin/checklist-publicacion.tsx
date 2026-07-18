@@ -26,6 +26,7 @@ import Link from "next/link";
 import { type ReactNode } from "react";
 
 import { EstadoTiendaBadge } from "~/components/admin/estado-tienda-badge";
+import { abrirTienda } from "~/components/admin/url-tienda";
 import { api } from "~/utils/api";
 
 /**
@@ -55,7 +56,7 @@ function FilaRequisito({ item }: { item: ItemChecklist }) {
       <Group wrap="nowrap" align="flex-start" gap="sm">
         <ThemeIcon
           variant="light"
-          color={item.cumplido ? "green" : "gray"}
+          color={item.cumplido ? "exito" : "gray"}
           radius="xl"
           size="md"
         >
@@ -217,11 +218,9 @@ export function ChecklistPublicacion() {
       onConfirm: () => despublicar.mutate(),
     });
 
-  // Abrir el storefront en su subdominio (construido desde el host del panel, dev y prod).
+  // Abrir el storefront en su subdominio (helper compartido con el chrome del admin, D6).
   const verTienda = () => {
-    if (typeof window === "undefined" || !estado.data) return;
-    const { protocol, host } = window.location;
-    window.open(`${protocol}//${estado.data.slug}.${host}`, "_blank", "noopener");
+    if (estado.data) abrirTienda(estado.data.slug);
   };
 
   if (estado.isLoading) {
@@ -260,7 +259,7 @@ export function ChecklistPublicacion() {
       <Card withBorder padding="lg" radius="md">
         <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
           <Group wrap="nowrap" gap="sm" align="flex-start">
-            <ThemeIcon variant="light" color="green" radius="xl" size="lg">
+            <ThemeIcon variant="light" color="exito" radius="xl" size="lg">
               <IconCircleCheck className="size-5" stroke={1.75} />
             </ThemeIcon>
             <div>

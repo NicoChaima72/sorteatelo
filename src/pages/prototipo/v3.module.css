@@ -1,0 +1,114 @@
+/* VARIANTE 3 — "El Cartel de Feria": afiche popular chileno. Bloques de color
+   plano, tipografía gorda, bordes gruesos. Sin gradientes, sin sombras. */
+
+.root {
+  --hueso: #fcf8ef;
+  --tinta: #191714;
+  --cobalto: #2b3fbf;
+  --amarillo: #ffc530;
+  --linea: rgba(25, 23, 20, 0.16);
+  --teal: #0e7f74;
+
+  background: var(--hueso);
+  color: var(--tinta);
+  min-height: 100vh;
+}
+
+.etiqueta {
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--hueso);
+  background: var(--cobalto);
+  border: 3px solid var(--tinta);
+  border-radius: 0;
+  padding: 13px 26px;
+  cursor: pointer;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: background 150ms ease, color 150ms ease;
+}
+.btn:hover { background: var(--tinta); }
+.btn:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+
+.btnSecundario {
+  composes: btn;
+  color: var(--tinta);
+  background: var(--hueso);
+}
+.btnSecundario:hover { background: var(--amarillo); }
+
+/* líneas del cartel: cada palabra del titular es un bloque */
+.lineaCartel {
+  display: inline-block;
+  padding: 0.04em 0.18em;
+  margin: 0.05em 0;
+}
+.bloqueTinta { composes: lineaCartel; background: var(--tinta); color: var(--hueso); }
+.bloqueCobalto { composes: lineaCartel; background: var(--cobalto); color: var(--hueso); }
+.bloqueAmarillo { composes: lineaCartel; background: var(--amarillo); color: var(--tinta); }
+
+/* etiqueta de precio colgante */
+.precio {
+  display: inline-block;
+  font-family: var(--fuente-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--amarillo);
+  border: 3px solid var(--tinta);
+  padding: 10px 16px;
+  transform: rotate(3deg);
+}
+
+.marco {
+  border: 3px solid var(--tinta);
+  background: #fff;
+}
+
+.franja {
+  border-top: 3px solid var(--tinta);
+}
+
+.numeroPasoCaja {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: var(--cobalto);
+  color: var(--hueso);
+  font-family: var(--fuente-display);
+  font-size: 24px;
+  border: 3px solid var(--tinta);
+}
+
+/* fila de boletos repetidos, separador decorativo del cartel */
+.tiraBoletos {
+  display: flex;
+  overflow: hidden;
+  border-top: 3px solid var(--tinta);
+  border-bottom: 3px solid var(--tinta);
+  background: var(--amarillo);
+}
+.tiraBoletos span {
+  font-family: var(--fuente-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  border-right: 2px dashed var(--tinta);
+  white-space: nowrap;
+  flex: none;
+}

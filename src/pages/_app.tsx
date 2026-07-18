@@ -4,6 +4,7 @@
 import "~/styles/globals.css";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
+import "@mantine/spotlight/styles.css";
 
 import { MantineProvider, mergeThemeOverrides } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";

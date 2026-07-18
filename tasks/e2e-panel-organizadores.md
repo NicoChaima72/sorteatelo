@@ -81,3 +81,31 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   > `ejecutadoAt=null`, `ganadorEmail=null`, 1 `RaffleEntry` de `nikochaima72+e2ef02@gmail.com`. La
   > EJECUCIÓN **NO se corre** (irreversible; el usuario quiere presenciarla). Queda [ ] hasta que el
   > usuario ejecute el sorteo.
+
+## Rediseño del chrome + identidad de marca (admin-marca F01–F07)
+
+Checks del plan `tasks/26-07-17-admin-marca.md` (ruta C · violeta). Los de marca en `/login` NO
+requieren OAuth (el login es público); los del panel sí requieren sesión con membresía (mismo bloqueo I9).
+
+- [ ] **marca.paleta.001** (F01) — El chrome usa la paleta violeta (primario) y la tipografía Manrope:
+  botones/acentos primarios en **violeta `#7239d5`** (NO el azul default de Mantine) y los headings en
+  Manrope. Verificable YA en `/login` sin OAuth (wordmark + CTA violeta + font); en el panel requiere sesión.
+- [ ] **marca.badges.001** (F02) — En `/admin/ventas` y `/admin/operador` los badges de estado se pintan
+  con la semántica nueva (pagado→teal, pendiente→ámbar, fallido/suspendida→rojo ladrillo) y no queda ningún
+  hex inline en `src/components/admin/estado-*.tsx` (grep + visual). Requiere sesión.
+- [ ] **marca.chrome.001** (F03) — El navbar corona con el **wordmark Sortéatelo** arriba y la tienda como
+  **chip con swatch** de su color; el **menú de avatar** (arriba a la derecha) abre con email/rol y permite
+  **cerrar sesión**; **"Ver mi tienda"** abre `<slug>.<host>` en pestaña nueva. Requiere sesión.
+- [ ] **marca.chrome.002** (F03) — Un **Operador sin tienda propia** NO ve el chip ni "Ver mi tienda" y el
+  resto del chrome no se rompe (avatar + menú siguen funcionando). Requiere sesión (cuenta Operador sin membresía).
+- [ ] **marca.pageheader.001** (F04) — Las **6 páginas** del admin muestran título/descripción/acciones
+  DENTRO del contenido (no en la barra superior), sin solaparse con el header liviano, en **mobile y desktop**.
+  Requiere sesión.
+- [ ] **marca.login.001** (F05) — `/login` muestra el **wordmark** y la marca de plataforma (card centrada +
+  fondo sutil del primario), ya no la página cruda sin marca. Verificable YA sin OAuth.
+- [ ] **marca.empty.001** (F05) — Los estados vacíos (dashboard sin ventas, ventas, participantes del sorteo,
+  tiendas del operador) muestran **ícono + mensaje + CTA** cuando corresponde. Requiere sesión.
+- [ ] **marca.meta.001** (F05) — La pestaña del navegador muestra `<página> · Sortéatelo` y el **favicon** de
+  plataforma (la "S" violeta). Login verificable sin OAuth; panel requiere sesión.
+- [ ] **marca.spotlight.001** (F07) — **Cmd+K** abre el Spotlight y navega a cada página del panel; el **toggle
+  de dark mode** conmuta y el chrome (crema→oscuro) sigue legible. Requiere sesión.

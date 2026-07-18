@@ -1,0 +1,111 @@
+/* VARIANTE 5 — "La Vitrina": tienda de barrio cálida y ordenada. Crema, arcos
+   de vitrina en color plano, serif cálida, oliva + mantequilla. Sin gradientes. */
+
+.root {
+  --crema: #f6f0e6;
+  --blanco: #fffdf9;
+  --tinta: #2e2921;
+  --tinta-suave: #6f6555;
+  --oliva: #5a7a4e;
+  --oliva-oscuro: #48653e;
+  --mantequilla: #f2c94c;
+  --arcilla: #d9c9ab;
+  --linea: rgba(46, 41, 33, 0.12);
+  --teal: #1d7a70;
+
+  background: var(--crema);
+  color: var(--tinta);
+  min-height: 100vh;
+}
+
+.etiqueta {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--oliva);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--oliva);
+  border: none;
+  border-radius: 999px;
+  padding: 14px 30px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.btn:hover { background: var(--oliva-oscuro); }
+.btn:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; }
+
+.btnSecundario {
+  composes: btn;
+  color: var(--tinta);
+  background: var(--blanco);
+  border: 1.5px solid var(--linea);
+}
+.btnSecundario:hover { background: var(--crema); }
+
+/* arcos de vitrina */
+.arco {
+  border-radius: 999px 999px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  padding: 26px 18px 22px;
+  min-height: 250px;
+}
+.arcoOliva { composes: arco; background: var(--oliva); color: #fff; }
+.arcoMantequilla { composes: arco; background: var(--mantequilla); color: var(--tinta); }
+.arcoArcilla { composes: arco; background: var(--arcilla); color: var(--tinta); }
+
+.arcoDato {
+  font-family: var(--fuente-display);
+  font-size: 34px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.arcoNota {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  opacity: 0.85;
+}
+
+.tarjeta {
+  background: var(--blanco);
+  border: 1.5px solid var(--linea);
+  border-radius: 22px;
+  padding: 26px 24px;
+}
+
+.pasoNumero {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--crema);
+  border: 1.5px solid var(--linea);
+  font-family: var(--fuente-display);
+  font-size: 20px;
+}
+
+.ctaFinal {
+  background: var(--oliva);
+  color: #fff;
+  border-radius: 999px 999px 26px 26px;
+  padding: 56px 44px 44px;
+  text-align: center;
+}

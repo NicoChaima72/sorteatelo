@@ -9,21 +9,27 @@
  */
 
 .root {
-  --papel: #f6efe3;
-  --papel-card: #fffdf8;
-  --papel-hundido: #efe6d4;
-  --tinta: #2a231b;
-  --tinta-suave: #6e6353;
-  --tinta-tenue: #a39682;
-  --linea: rgba(42, 35, 27, 0.22);
+  /* Iteración 2 (feedback usuario): blanco + azul cobalto + amarillo. */
+  --papel: #ffffff;
+  --papel-card: #ffffff;
+  --papel-hundido: #eef2fb;
+  --tinta: #191b22;
+  --tinta-suave: #565b68;
+  --tinta-tenue: #9aa0ad;
+  --linea: rgba(25, 27, 34, 0.18);
   --amarillo: #ffc530;
   --amarillo-hover: #f5b814;
+  --azul: #2b3fbf;
+  --azul-hover: #2333a0;
   --teal: #1d7a70;
   --teal-fondo: rgba(29, 122, 112, 0.1);
   --ambar-sello: #a06b08;
   --ambar-fondo: rgba(160, 107, 8, 0.1);
   --rojo-sello: #c03e2e;
   --rojo-fondo: rgba(192, 62, 46, 0.08);
+  /* color de la tienda de EJEMPLO del hero (cada tenant trae el suyo; índigo
+     que armoniza con el cobalto/amarillo de plataforma — el verde no pegaba) */
+  --tenant: #3a4fc9;
 
   background: var(--papel);
   color: var(--tinta);
@@ -42,26 +48,48 @@
   color: var(--tinta-suave);
 }
 
-/* Resaltado de marcador amarillo dentro de un titular (sin gradiente: bloque pleno) */
+/* Resaltado de PLUMÓN: trazo orgánico detrás de la palabra — bordes
+   irregulares + leve rotación, como destacador real sobre lo impreso. */
 .marcador {
+  position: relative;
+  z-index: 0;
+  padding: 0 0.06em;
+}
+.marcador::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0.1em -0.18em 0.02em -0.14em;
   background: var(--amarillo);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  padding: 0 0.14em;
+  opacity: 0.85;
+  transform: rotate(-1.7deg);
+  border-radius: 0.5em 0.25em 0.6em 0.2em / 0.75em 0.35em 0.25em 0.6em;
+}
+/* Segundo trazo: otra inclinación y otro borde, para que no se vean clonados */
+.marcadorB {
+  composes: marcador;
+}
+.marcadorB::before {
+  transform: rotate(1.2deg);
+  inset: 0.06em -0.14em 0.06em -0.2em;
+  border-radius: 0.25em 0.6em 0.2em 0.5em / 0.3em 0.7em 0.5em 0.25em;
+  opacity: 0.8;
 }
 
-/* Carta impresa: borde duro + sombra dura desplazada */
+/* Carta: gramática SUAVE (ganadora de la ronda de estilo — sin bordes,
+   sombras difusas, radios medios; el neobrutalismo fue descartado) */
 .impreso {
   background: var(--papel-card);
-  border: 2px solid var(--tinta);
-  border-radius: 8px;
-  box-shadow: 5px 5px 0 rgba(42, 35, 27, 0.9);
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(15, 20, 50, 0.1);
 }
 
 .impresoSuave {
   background: var(--papel-card);
-  border: 1.5px solid var(--linea);
-  border-radius: 8px;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(15, 20, 50, 0.07);
 }
 
 /* Línea de perforación entre secciones */
@@ -95,27 +123,26 @@
   font-family: var(--fuente-texto);
   font-size: 16px;
   font-weight: 600;
-  color: var(--tinta);
-  background: var(--amarillo);
-  border: 2px solid var(--tinta);
-  border-radius: 8px;
+  color: #fff;
+  background: var(--azul);
+  border: none;
+  border-radius: 12px;
   padding: 13px 26px;
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 4px 4px 0 var(--tinta);
+  box-shadow: 0 3px 10px rgba(43, 63, 191, 0.22);
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
     background 150ms ease;
 }
 .btn:hover {
-  background: var(--amarillo-hover);
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--tinta);
+  background: var(--azul-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(43, 63, 191, 0.28);
 }
 .btn:active {
-  transform: translate(4px, 4px);
-  box-shadow: 0 0 0 var(--tinta);
+  transform: translateY(0);
 }
 .btn:focus-visible {
   outline: 3px solid var(--teal);
@@ -124,7 +151,9 @@
 
 .btnSecundario {
   composes: btn;
+  color: var(--tinta);
   background: var(--papel-card);
+  border: 1.5px solid var(--linea);
   box-shadow: none;
 }
 .btnSecundario:hover {
@@ -135,6 +164,188 @@
 .btnSecundario:active {
   transform: none;
 }
+
+/* ---------- bandas de sección: arco cobalto → amarillo → tinta → blanco → cobalto ---------- */
+
+.bandaAmarilla {
+  background: var(--amarillo);
+}
+/* el plumón del wordmark es amarillo: sobre banda amarilla pasa a blanco */
+.bandaAmarilla .marcador::before {
+  background: var(--papel-card);
+}
+
+.bandaGris {
+  background: #eef0f5;
+  border-top: 2px dashed var(--linea);
+  border-bottom: 2px dashed var(--linea);
+}
+
+.footerTinta {
+  background: #191b22;
+  color: #fff;
+  --tinta-suave: rgba(255, 255, 255, 0.6);
+}
+
+/* ---------- hero: franja azul cobalto (variante B ganadora del prototipo) ---------- */
+
+.heroBandaAzul {
+  background: var(--azul);
+}
+
+/* Texto claro dentro de la franja azul: se voltean las variables de tinta,
+   así los estilos inline de la copy heredan sin tocar el JSX. */
+.heroTextoClaro {
+  --tinta: #ffffff;
+  --tinta-suave: rgba(255, 255, 255, 0.85);
+  --tinta-tenue: rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
+.heroTextoClaro .marcador,
+.heroTextoClaro .marcadorB {
+  color: #191b22;
+}
+/* una card blanca dentro de la franja azul re-ancla su tinta */
+.heroTextoClaro .talonario {
+  --tinta: #191b22;
+  --tinta-suave: #565b68;
+  --tinta-tenue: #9aa0ad;
+  color: var(--tinta);
+}
+.heroTextoClaro .btn {
+  background: var(--amarillo);
+  color: #191b22;
+  box-shadow: 0 3px 10px rgba(10, 12, 40, 0.22);
+}
+.heroTextoClaro .btn:hover {
+  background: var(--amarillo-hover);
+}
+.heroTextoClaro .btnSecundario {
+  background: #fff;
+  color: #191b22;
+  border: none;
+  box-shadow: none;
+}
+
+/* ---------- teléfono con la tienda de un tenant (hero) ---------- */
+
+.telefono {
+  composes: impreso;
+  width: 296px;
+  border-radius: 34px;
+  overflow: hidden;
+  box-shadow: 0 26px 60px rgba(10, 12, 40, 0.24);
+}
+.telefonoNotch {
+  height: 20px;
+  display: grid;
+  place-items: center;
+}
+.telefonoNotch span {
+  width: 76px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--linea);
+}
+.tiendaHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px 12px;
+  border-bottom: 1.5px solid var(--linea);
+}
+.tiendaAva {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tenant);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tiendaBadge {
+  margin-left: auto;
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--fuente-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tenant);
+  border: 1.5px solid var(--tenant);
+  border-radius: 99px;
+  padding: 3px 8px;
+}
+.tiendaProd {
+  margin: 14px 16px;
+  border: 1.5px solid var(--linea);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.tiendaProdCover {
+  height: 88px;
+  background: var(--tenant);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+.tiendaSorteo {
+  margin: 0 16px 46px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--tenant);
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* ticket flotante de compra confirmada */
+.ticketToast {
+  composes: impreso;
+  position: absolute;
+  right: -22px;
+  bottom: -16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 13px;
+  transform: rotate(-1deg);
+  max-width: 300px;
+  white-space: nowrap;
+  box-shadow: 0 16px 36px rgba(10, 12, 40, 0.26);
+}
+.ticketChip {
+  position: relative;
+  flex: none;
+  font-family: var(--fuente-mono);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--amarillo);
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+}
+/* muescas del ticket: círculos del color de la carta que lo "perforan" */
+.ticketChip::before,
+.ticketChip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--papel-card);
+  transform: translateY(-50%);
+}
+.ticketChip::before { left: -7px; }
+.ticketChip::after { right: -7px; }
 
 /* ---------- talonario vivo (firma del hero) ---------- */
 
@@ -149,7 +360,10 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 18px;
-  border-bottom: 2px solid var(--tinta);
+  background: var(--azul);
+}
+.talonarioCabecera span {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .talonarioGrilla {
@@ -206,8 +420,8 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--teal);
-  border: 1.5px solid var(--teal);
+  color: var(--azul);
+  border: 1.5px solid var(--azul);
   border-radius: 4px;
   padding: 1px 6px;
   background: var(--papel-card);
@@ -255,6 +469,7 @@
 .faqItem {
   composes: impresoSuave;
   padding: 0 20px;
+  box-shadow: 0 4px 14px rgba(15, 20, 50, 0.06);
 }
 .faqItem summary {
   cursor: pointer;

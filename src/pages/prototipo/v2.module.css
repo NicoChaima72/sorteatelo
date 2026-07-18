@@ -1,0 +1,166 @@
+/* VARIANTE 2 — "La Noche del Live": el momento del sorteo a medianoche.
+   Café negro cálido + ámbar de foco de estudio. Flat, sin gradientes. */
+
+.root {
+  --fondo: #201812;
+  --panel: #2c2117;
+  --panel-alto: #372a1d;
+  --linea: rgba(245, 236, 224, 0.16);
+  --linea-suave: rgba(245, 236, 224, 0.09);
+  --texto: #f5ecdf;
+  --texto-suave: #c9b8a2;
+  --texto-tenue: #94826c;
+  --ambar: #ffb53c;
+  --ambar-tinta: #241a0e;
+  --teal: #52c7b8;
+  --crema-bola: #f5ecdf;
+
+  background: var(--fondo);
+  color: var(--texto);
+  min-height: 100vh;
+}
+
+.etiqueta {
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--texto-tenue);
+}
+
+.chipVivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ambar);
+  border: 1.5px solid var(--ambar);
+  border-radius: 999px;
+  padding: 5px 14px;
+}
+.chipVivo::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ambar);
+  animation: latido 1.6s ease-in-out infinite;
+}
+@keyframes latido {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chipVivo::before { animation: none; }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ambar-tinta);
+  background: var(--ambar);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 28px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.btn:hover { background: #ffc45e; }
+.btn:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+
+.btnSecundario {
+  composes: btn;
+  color: var(--texto);
+  background: transparent;
+  border: 1.5px solid var(--linea);
+}
+.btnSecundario:hover { background: var(--panel); }
+
+/* ---- el bombo: bolitas de tómbola ---- */
+
+.bombo {
+  background: var(--panel);
+  border: 1.5px solid var(--linea);
+  border-radius: 20px;
+  padding: 26px;
+}
+.bolas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  justify-items: center;
+}
+.bola {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--crema-bola);
+  color: #241a0e;
+  display: grid;
+  place-items: center;
+  font-family: var(--fuente-mono);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  /* bisel plano de bola: anillo interior, sin gradiente */
+  box-shadow: inset 0 0 0 5px rgba(36, 26, 14, 0.08);
+}
+.bolaApagada {
+  composes: bola;
+  background: var(--panel-alto);
+  color: var(--texto-tenue);
+  box-shadow: inset 0 0 0 5px rgba(245, 236, 224, 0.05);
+}
+.bolaGanadora {
+  composes: bola;
+  background: var(--ambar);
+  color: var(--ambar-tinta);
+  box-shadow:
+    inset 0 0 0 5px rgba(36, 26, 14, 0.14),
+    0 0 0 5px var(--panel),
+    0 0 0 6.5px var(--ambar);
+}
+
+.marquesina {
+  border-top: 1.5px solid var(--linea);
+  margin-top: 24px;
+  padding-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* ---- secciones ---- */
+
+.carta {
+  background: var(--panel);
+  border: 1.5px solid var(--linea-suave);
+  border-radius: 16px;
+  padding: 24px 22px;
+}
+
+.numeroPaso {
+  font-family: var(--fuente-display);
+  font-size: 34px;
+  line-height: 1;
+  color: var(--ambar);
+  letter-spacing: 0.02em;
+}
+
+.ctaFinal {
+  background: var(--ambar);
+  color: var(--ambar-tinta);
+  border-radius: 20px;
+  padding: 48px 40px;
+}

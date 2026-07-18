@@ -1,0 +1,138 @@
+/* VARIANTE 4 — "El Cuaderno": del cuaderno de rifas a la tienda ordenada.
+   Papel cuadriculado, UI limpia, anotaciones a lápiz azul encima. */
+
+.root {
+  --papel: #fdfcf6;
+  --cuadricula: rgba(47, 75, 160, 0.09);
+  --tinta: #26221c;
+  --tinta-suave: #6d6557;
+  --lapiz: #2f4ba0;
+  --resaltador: #ffe24a;
+  --tarjeta: #ffffff;
+  --linea: rgba(38, 34, 28, 0.14);
+  --cinta: rgba(239, 224, 166, 0.85);
+  --teal: #177f6f;
+
+  background-color: var(--papel);
+  /* cuadrícula de cuaderno: líneas planas, no hay degradado visual */
+  background-image:
+    linear-gradient(var(--cuadricula) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cuadricula) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--tinta);
+  min-height: 100vh;
+}
+
+.etiqueta {
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.mano {
+  font-family: var(--fuente-mano);
+  color: var(--lapiz);
+  font-weight: 600;
+}
+
+.resaltado {
+  background: var(--resaltador);
+  padding: 0 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--lapiz);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 26px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+.btn:hover { background: #24398a; }
+.btn:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+
+.btnSecundario {
+  composes: btn;
+  color: var(--tinta);
+  background: var(--tarjeta);
+  border: 1.5px solid var(--linea);
+}
+.btnSecundario:hover { background: var(--papel); }
+
+/* tarjeta con cinta adhesiva en la esquina */
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1.5px solid var(--linea);
+  border-radius: 12px;
+  position: relative;
+}
+.cinta {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  background: var(--cinta);
+  transform: translateX(-50%) rotate(-2deg);
+  border-left: 1px dashed rgba(38, 34, 28, 0.2);
+  border-right: 1px dashed rgba(38, 34, 28, 0.2);
+}
+
+/* mini UI del hero (la tienda ordenada) */
+.filaVenta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px;
+  border-top: 1.5px dashed var(--linea);
+  font-size: 13.5px;
+}
+.numeroChip {
+  font-family: var(--fuente-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--tinta);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.pagadoChip {
+  font-family: var(--fuente-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--teal);
+  border: 1.5px solid var(--teal);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* anotación con flecha (svg aparte) */
+.anotacion {
+  font-family: var(--fuente-mano);
+  font-size: 21px;
+  line-height: 1.15;
+  color: var(--lapiz);
+  transform: rotate(-3deg);
+}
+
+.tachado {
+  text-decoration: line-through;
+  text-decoration-thickness: 2.5px;
+  text-decoration-color: var(--lapiz);
+}

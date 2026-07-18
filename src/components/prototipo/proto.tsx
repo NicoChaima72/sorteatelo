@@ -30,9 +30,11 @@ export const fuentes = { display, texto, mono };
 /** Envoltorio de página del prototipo: papel, tinta y las tres fuentes. */
 export function ProtoShell({
   titulo,
+  claseExtra,
   children,
 }: {
   titulo: string;
+  claseExtra?: string;
   children: ReactNode;
 }) {
   return (
@@ -42,7 +44,7 @@ export function ProtoShell({
         <meta name="robots" content="noindex" />
       </Head>
       <div
-        className={`${estilos.root} ${texto.className}`}
+        className={`${estilos.root} ${texto.className} ${claseExtra ?? ""}`}
         style={
           {
             "--fuente-display": display.style.fontFamily,
@@ -97,6 +99,91 @@ export function IconoGoogle({ tamano = 18 }: { tamano?: number }) {
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
       />
     </svg>
+  );
+}
+
+/**
+ * Teléfono con la tienda de un tenant de ejemplo + ticket flotante de compra
+ * confirmada (visual del hero). La tienda usa SU color (verde), distinto del
+ * azul/amarillo de plataforma: muestra la convivencia plataforma/tenant.
+ */
+export function TelefonoTienda() {
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <div className={estilos.telefono} aria-label="Ejemplo de tienda creada con Sortéatelo">
+        <div className={estilos.telefonoNotch}>
+          <span />
+        </div>
+        <div className={estilos.tiendaHead}>
+          <span className={estilos.tiendaAva}>C</span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+            Tienda de Camila
+          </span>
+          <span className={estilos.tiendaBadge}>Sorteo abierto</span>
+        </div>
+        <div style={{ padding: "16px 16px 0" }}>
+          <p style={{ fontSize: 17, fontWeight: 700, margin: 0, letterSpacing: "-0.01em" }}>
+            Aprende acuarela conmigo
+          </p>
+          <p style={{ fontSize: 12.5, color: "var(--tinta-suave)", margin: "4px 0 0", lineHeight: 1.5 }}>
+            Cada compra te da un número para el sorteo del set profesional.
+          </p>
+        </div>
+        <div className={estilos.tiendaProd}>
+          <div className={estilos.tiendaProdCover}>Guía de acuarela</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 13px" }}>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>
+                Guía de acuarela (PDF)
+              </span>
+              <span
+                className={mono.className}
+                style={{ fontSize: 12.5, color: "var(--tinta-suave)" }}
+              >
+                $3.990
+              </span>
+            </span>
+            <button
+              type="button"
+              aria-label="Agregar al carrito"
+              style={{
+                marginLeft: "auto",
+                flex: "none",
+                width: 30,
+                height: 30,
+                borderRadius: 9,
+                border: "1.5px solid var(--tinta)",
+                background: "var(--tenant)",
+                color: "#fff",
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: "pointer",
+                lineHeight: 1,
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div className={estilos.tiendaSorteo}>
+          <b style={{ fontSize: 12.5 }}>Sorteo: set de acuarelas profesional</b>
+          <br />
+          Cierra en <b style={{ color: "var(--tenant)" }}>3 días</b> · 312 números vendidos
+        </div>
+      </div>
+
+      <div className={estilos.ticketToast} role="img" aria-label="Compra confirmada: número 0428 dentro del sorteo">
+        <span className={estilos.ticketChip}>#0428</span>
+        <span style={{ minWidth: 0 }}>
+          <span className={`${estilos.etiqueta} block`} style={{ fontSize: 10.5 }}>
+            Compra confirmada
+          </span>
+          <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, lineHeight: 1.3 }}>
+            Tu número quedó adentro
+          </span>
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -157,7 +244,7 @@ export function TalonarioVivo() {
     <div className={estilos.talonario} aria-label="Ejemplo de talonario de sorteo">
       <div className={estilos.talonarioCabecera}>
         <span className={estilos.etiqueta}>Sorteo · Tienda de Luna</span>
-        <span className={estilos.etiqueta} style={{ color: "var(--tinta)" }}>
+        <span className={estilos.etiqueta} style={{ color: "#fff" }}>
           Serie A
         </span>
       </div>

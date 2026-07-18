@@ -11,6 +11,7 @@ import Link from "next/link";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { ChecklistPublicacion } from "~/components/admin/checklist-publicacion";
+import { EmptyState } from "~/components/admin/empty-state";
 import { EstadoBadge } from "~/components/admin/estado-badge";
 import { StatCard } from "~/components/admin/stat-card";
 import { clp, fechaHora, num } from "~/lib/formato";
@@ -162,8 +163,23 @@ export default function AdminDashboard() {
                 </Table.Tr>
               ) : ultimas.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5} className="py-10 text-center" c="dimmed">
-                    Todavía no hay ventas.
+                  <Table.Td colSpan={5}>
+                    <EmptyState
+                      icon={IconShoppingCart}
+                      title="Todavía no vendes nada — y está bien"
+                      description="Cuando alguien compre en tu tienda, sus compras aparecerán acá."
+                      action={
+                        <Button
+                          component={Link}
+                          href="/admin/productos"
+                          variant="light"
+                          size="xs"
+                          rightSection={<IconArrowRight className="size-3.5" />}
+                        >
+                          Crear tu primer producto
+                        </Button>
+                      }
+                    />
                   </Table.Td>
                 </Table.Tr>
               ) : (

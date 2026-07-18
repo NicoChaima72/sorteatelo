@@ -1,9 +1,10 @@
 import { Button, Card, Group, Skeleton, Table, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconMailForward } from "@tabler/icons-react";
+import { IconMailForward, IconShoppingCart } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
+import { EmptyState } from "~/components/admin/empty-state";
 import { EstadoBadge } from "~/components/admin/estado-badge";
 import { clp, fechaHora } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
@@ -113,9 +114,12 @@ export default function VentasPage() {
                 </Table.Tr>
               ) : filas.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={8} className="py-12 text-center" c="dimmed">
-                    Todavía no tienes ventas. Cuando alguien compre en tu tienda,
-                    aparecerá aquí.
+                  <Table.Td colSpan={8}>
+                    <EmptyState
+                      icon={IconShoppingCart}
+                      title="Todavía no vendes nada — y está bien"
+                      description="Cuando alguien compre en tu tienda, cada venta aparecerá acá con su estado y lo que te queda."
+                    />
                   </Table.Td>
                 </Table.Tr>
               ) : (

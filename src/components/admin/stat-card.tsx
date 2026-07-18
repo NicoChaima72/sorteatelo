@@ -31,7 +31,7 @@ export function StatCard({
         <Text size="xs" fw={500} tt="uppercase" c="dimmed" style={{ letterSpacing: "0.03em" }}>
           {label}
         </Text>
-        {/* Tinte primary del panel — casi-default (primary de Mantine) hasta cerrar la paleta. */}
+        {/* Acento primario del panel (cobalto de plataforma). Hereda la paleta del theme por token. */}
         <Icon
           className="size-[18px]"
           stroke={1.75}

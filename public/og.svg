@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Sortéatelo">
+  <defs>
+    <style>
+      .wm { font-family: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif; font-weight: 800; letter-spacing: -3px; }
+      .tg { font-family: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif; font-weight: 500; }
+      .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 600; letter-spacing: 2px; }
+    </style>
+  </defs>
+  <!-- Banda cobalto del talonario (fondo plano, sin gradiente) -->
+  <rect width="1200" height="630" fill="#2b3fbf"/>
+  <!-- Isotipo provisional: ticket en tile translúcido -->
+  <rect x="96" y="150" width="84" height="84" rx="19" fill="#ffffff" opacity="0.12"/>
+  <path d="M119 178h42a6 6 0 0 1 6 6v14a10 10 0 0 0 0 20v14a6 6 0 0 1-6 6h-42a6 6 0 0 1-6-6v-14a10 10 0 0 0 0-20v-14a6 6 0 0 1 6-6z" fill="none" stroke="#ffffff" stroke-width="4"/>
+  <!-- Wordmark: «éa» resaltado en plumón amarillo -->
+  <rect x="292" y="176" width="60" height="34" rx="6" fill="#ffc530" transform="rotate(-1.5 322 193)"/>
+  <text x="208" y="212" class="wm" font-size="60" fill="#ffffff">Sort<tspan fill="#191b22">éa</tspan>telo</text>
+  <!-- Titular con plumón amarillo bajo «Tu sorteo.» -->
+  <text x="96" y="368" class="wm" font-size="92" fill="#ffffff">Tu tienda.</text>
+  <rect x="90" y="432" width="470" height="30" rx="8" fill="#ffc530" transform="rotate(-1 325 447)"/>
+  <text x="96" y="462" class="wm" font-size="92" fill="#ffffff">Tu sorteo.</text>
+  <text x="96" y="542" class="tg" font-size="33" fill="#d0d5f1">Vende lo que hiciste y sortéalo entre quienes te compraron.</text>
+  <!-- Chip de ticket mono, guiño al talonario -->
+  <rect x="96" y="576" width="196" height="34" rx="8" fill="#ffc530"/>
+  <text x="118" y="599" class="mono" font-size="19" fill="#191b22">N° 000428</text>
+</svg>

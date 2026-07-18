@@ -1,10 +1,16 @@
 import { Button, Card, Group, Skeleton, Table, Text } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
-import { IconBan, IconRefresh, IconShieldLock } from "@tabler/icons-react";
+import {
+  IconBan,
+  IconBuildingStore,
+  IconRefresh,
+  IconShieldLock,
+} from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
+import { EmptyState } from "~/components/admin/empty-state";
 import { EstadoTiendaBadge } from "~/components/admin/estado-tienda-badge";
 import { fecha, num } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
@@ -151,8 +157,12 @@ export default function OperadorPage() {
                 </Table.Tr>
               ) : filas.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6} className="py-10 text-center" c="dimmed">
-                    Todavía no hay tiendas en la plataforma.
+                  <Table.Td colSpan={6}>
+                    <EmptyState
+                      icon={IconBuildingStore}
+                      title="Todavía no hay tiendas en la plataforma"
+                      description="Cuando alguien cree su tienda, la verás acá para supervisarla."
+                    />
                   </Table.Td>
                 </Table.Tr>
               ) : (
@@ -194,7 +204,7 @@ export default function OperadorPage() {
                             <Button
                               size="compact-sm"
                               variant="light"
-                              color="green"
+                              color="exito"
                               leftSection={<IconRefresh className="size-3.5" />}
                               loading={reactivando}
                               onClick={() =>

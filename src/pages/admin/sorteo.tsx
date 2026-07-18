@@ -1,4 +1,4 @@
-import { Badge, Button, Card, Group, SimpleGrid, Skeleton, Stack, Table, Text } from "@mantine/core";
+import { Badge, Button, Card, Divider, Group, Paper, SimpleGrid, Skeleton, Stack, Table, Text } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import {
@@ -12,6 +12,7 @@ import { type GetServerSideProps } from "next";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { AssetUploader } from "~/components/admin/asset-uploader";
+import { EmptyState } from "~/components/admin/empty-state";
 import { StatCard } from "~/components/admin/stat-card";
 import { fechaHora, num } from "~/lib/formato";
 import { requireSession } from "~/server/auth";
@@ -94,17 +95,11 @@ export default function SorteoPage() {
           </Button>
         </div>
       ) : !sorteo ? (
-        <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
-          <IconTicket
-            className="size-8"
-            stroke={1.5}
-            color="var(--mantine-color-dimmed)"
-          />
-          <Text mt="sm" size="sm" c="dimmed" className="max-w-sm">
-            Todavía no hay un sorteo en tu tienda. Los sorteos se crean con las
-            ventas de tu tienda.
-          </Text>
-        </div>
+        <EmptyState
+          icon={IconTicket}
+          title="Todavía no hay un sorteo en tu tienda"
+          description="Los sorteos se arman con las ventas de tu tienda. Cuando tengas uno activo, lo administras acá."
+        />
       ) : (
         <>
           <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
@@ -146,10 +141,8 @@ export default function SorteoPage() {
             </Group>
 
             {!ejecutado && (
-              <div
-                className="mt-4 pt-4"
-                style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
-              >
+              <>
+                <Divider my="md" />
                 <AssetUploader
                   destino={{ destino: "premio", raffleId: sorteo.id }}
                   urlActual={sorteo.premioImageUrl}
@@ -157,37 +150,35 @@ export default function SorteoPage() {
                   description="Se muestra en la vitrina del sorteo de tu tienda. Sin imagen se usa un degradado con tu color."
                   onSubido={() => utils.panel.getSorteo.invalidate()}
                 />
-              </div>
+              </>
             )}
 
             <div className="mt-4">
               {ejecutado ? (
-                <Stack
-                  align="center"
-                  gap={4}
+                <Paper
+                  withBorder
+                  radius="md"
                   py="lg"
-                  style={{
-                    border: "1px solid var(--mantine-color-default-border)",
-                    borderRadius: "var(--mantine-radius-md)",
-                    background: "var(--mantine-color-default-hover)",
-                  }}
+                  bg="var(--mantine-color-default-hover)"
                 >
-                  <IconTrophy
-                    className="size-8"
-                    stroke={1.75}
-                    color="var(--mantine-primary-color-filled)"
-                  />
-                  <Text size="sm" c="dimmed">
-                    Ganador
-                  </Text>
-                  <Text size="lg" fw={600}>
-                    {sorteo.ganadorEmail}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    Sorteado el {fechaHora(sorteo.ejecutadoAt!)}
-                    {sorteo.ejecutadoPor ? ` por ${sorteo.ejecutadoPor}` : ""}
-                  </Text>
-                </Stack>
+                  <Stack align="center" gap={4}>
+                    <IconTrophy
+                      className="size-8"
+                      stroke={1.75}
+                      color="var(--mantine-color-premio-6)"
+                    />
+                    <Text size="sm" c="dimmed">
+                      Ganador
+                    </Text>
+                    <Text size="lg" fw={600}>
+                      {sorteo.ganadorEmail}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Sorteado el {fechaHora(sorteo.ejecutadoAt!)}
+                      {sorteo.ejecutadoPor ? ` por ${sorteo.ejecutadoPor}` : ""}
+                    </Text>
+                  </Stack>
+                </Paper>
               ) : (
                 <Group gap="sm" wrap="wrap">
                   <Button
@@ -228,8 +219,12 @@ export default function SorteoPage() {
                 <Table.Tbody>
                   {sorteo.participantes.length === 0 ? (
                     <Table.Tr>
-                      <Table.Td colSpan={3} className="py-10 text-center" c="dimmed">
-                        Todavía no hay participantes.
+                      <Table.Td colSpan={3}>
+                        <EmptyState
+                          icon={IconUsers}
+                          title="Todavía no hay participantes"
+                          description="Cuando alguien compre un producto que participa del sorteo, entrará acá con sus tickets."
+                        />
                       </Table.Td>
                     </Table.Tr>
                   ) : (

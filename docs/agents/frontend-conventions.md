@@ -17,14 +17,17 @@ Paquetes instalados: `@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@manti
   ```
   Árbol: `MantineProvider theme={theme} defaultColorScheme="light"` → `ModalsProvider` → `<Notifications />` + la app. `ColorSchemeScript` va en `src/pages/_document.tsx`.
 - **PostCSS queda solo-tailwind** (sin `postcss-preset-mantine`): no escribimos CSS propio con mixins de Mantine. Si algún día hace falta, se agrega en ese momento.
-- Estilos por componente: props del sistema de Mantine (`p`, `mt`, `gap`, `c`, `fw`, `size`, `visibleFrom`/`hiddenFrom`…) o clases Tailwind de layout. **No** crear CSS Modules salvo decisión registrada acá.
+- Estilos por componente: props del sistema de Mantine (`p`, `mt`, `gap`, `c`, `fw`, `size`, `visibleFrom`/`hiddenFrom`…) o clases Tailwind de layout. **No** crear CSS Modules salvo decisión registrada acá. **Decisión registrada (identidad «El Talonario»)**: los componentes de la gramática de marca en `src/components/landing/` (plumón, perforación, sello, talonario vivo, teléfono-tienda, chip de ticket, boleto CTA, bandas) SÍ pueden usar un **CSS module acotado**, pero **solo con CSS vars del theme** (`--mantine-color-*`, `--font-*`) — cero hex propio. Es la única familia de componentes con CSS module; el resto sigue con props Mantine.
 
 ## Theming
 
-- El theme base vive en **`src/styles/theme.ts`** (`createTheme`): fuente Geist, `defaultRadius: "md"`, `respectReducedMotion: true`. **`docs/design.md` es la fuente de verdad visual** — la identidad de marca está PENDIENTE; no inventar dirección visual propia.
-- Color SIEMPRE vía tokens del theme (props `color`/`c`/`bg`, CSS vars `--mantine-color-*`), **nunca hex inline** ni clases de color Tailwind. `color="red"` reservado para errores/destructivo.
-- **Theming per-tenant (F06)**: el storefront arma su theme por request con `mergeThemeOverrides(themeBase, overrideDesdeTenant)` — los colores/logo del tenant son **dato del modelo `Tenant`**, jamás código. El panel usa el theme de la Plataforma, sin override.
-- **Tailwind acotado a layout**: `flex`, `grid`, `gap-*`, `p-*`/`m-*`, `max-w-*`, responsive (`lg:`), `truncate`, `tabular-nums`, **alineación de texto** (`text-right`/`text-center` — `text-align` es layout; en celdas de tabla conviven con el `ta` de Mantine, cualquiera de los dos vale) y `whitespace-pre-wrap` para texto preformateado versionado (ToS, bases). **Prohibidas** sus clases de color/tipografía/sombra y las clases interpoladas (`bg-${x}` no sobrevive el purge). Composición condicional con `cn()` de `~/lib/utils`.
+- El theme base vive en **`src/styles/theme.ts`** (`createTheme`): paleta **«El Talonario»** (`primaryColor: "sorteatelo"` = cobalto `#2b3fbf` en el índice 6, `primaryShade: 6`, `autoContrast: true`), acento `amarillo` (`#ffc530`), neutrales fríos (`gray` frío con tinta-suave `#565b68`, escala `hundido` celeste `#eef2fb` para el fondo del chrome, `black: #191b22` = tinta), tuplas semánticas (`exito` teal `#1d7a70` / `pendiente` ámbar `#a06b08` / `premio` = amarillo de marca, override de `red` a ladrillo `#c03e2e`), fuentes por **CSS var** (`var(--font-instrument)` texto, `var(--font-display)` headings = Bricolage 800, `var(--font-mono)` = IBM Plex Mono; el theme NO importa `next/font` — el loader vive en `fonts.ts`/`_document.tsx`), `defaultRadius: "md"`, `respectReducedMotion: true`. **`primaryShade: 6` está alineado con `tenantTheme.generarEscalaColor`** (base del tenant en el índice 6) — el `filled` per-tenant sale EXACTO en su `colorPrimario`. **`docs/design.md` §2/§3 es la fuente de verdad visual.**
+- Color SIEMPRE vía tokens del theme (props `color`/`c`/`bg`, CSS vars `--mantine-color-*`), **nunca hex inline** ni clases de color Tailwind. `color="red"` reservado para errores/destructivo; "pendiente" nunca en rojo (usa `pendiente`).
+- **Semántica de comercio**: los estados de orden/tienda se pintan con los mapas `ESTADO_ORDEN_COLOR` / `ESTADO_TIENDA_COLOR` exportados desde `theme.ts` (los consumen `estado-badge.tsx` / `estado-tienda-badge.tsx`) — no hardcodear el color de un estado en el componente.
+- **Theming per-tenant (seam D13)**: el storefront arma su theme por request con `mergeThemeOverrides(themeBase, overrideDesdeTenant)` — los colores/logo del tenant son **dato del modelo `Tenant`**, jamás código. El panel/apex usan el theme de la Plataforma, SIN override. El único color-desde-dato en el admin es el swatch del chip de tienda (`ColorSwatch color={colorPrimario}`).
+- **Fondo por color scheme**: para un fondo que difiera entre claro/oscuro (ej. el celeste hundido del chrome del panel/login), usar la función CSS `light-dark(claro, oscuro)` de Mantine 7 con tokens en `styles`/`style` — `light-dark(var(--mantine-color-hundido-1), var(--mantine-color-dark-8))` — no selectores propios por scheme.
+- **Tailwind acotado a layout**: `flex`, `grid`, `gap-*`, `p-*`/`m-*`, `max-w-*`, responsive (`lg:`), `truncate`, `tabular-nums`, **alineación de texto** (`text-right`/`text-center` — `text-align` es layout; en celdas de tabla conviven con el `ta` de Mantine, cualquiera de los dos vale) y `whitespace-pre-wrap` para texto preformateado versionado (ToS, bases). Los **`screens` de Tailwind están sincronizados con los breakpoints em de Mantine** (`xs 36em / sm 48em / md 62em / lg 75em / xl 88em`, patrón datawalt-app) — así los `lg:` de layout coinciden con `visibleFrom`/`hiddenFrom` y `AppShell`. **Prohibidas** sus clases de color/tipografía/sombra y las clases interpoladas (`bg-${x}` no sobrevive el purge). Composición condicional con `cn()` de `~/lib/utils`.
+- **Motion (dependencia `motion`, ex framer-motion)**: SOLO para las entradas de sección de la **landing pública** (fade + translate leve, una definición reutilizada). **Acotado a la landing** — no importar `motion` en el panel ni en el storefront. Siempre respetar `prefers-reduced-motion`: con reduced-motion las secciones aparecen completas, sin animar (nunca ocultas).
 
 ## Iconografía
 
@@ -72,9 +75,10 @@ Paquetes instalados: `@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@manti
 
 ## Idioma
 
-- UI en **español** (strings hardcodeados — no hay i18n).
-- **Español neutro**: "tienes", "puedes", "elige" (no voseo).
-- **Excepción al hardcodeo**: el nombre de la app se consume SIEMPRE desde la config (`APP_CONFIG.name` en `~/config/app`, cuando se cree) — nunca literal en JSX/títulos. Hoy el nombre de marca está pendiente (ver `docs/design.md`).
+- UI en **español** con tuteo (strings hardcodeados — no hay i18n).
+- **Español con tuteo**: "tienes", "puedes", "elige" (no voseo).
+- **Tono cercano chileno** (dirección «El Talonario», `docs/design.md` §8): microcopy y empty states pueden usar un registro humano y de contención, no solo texto funcional (ej. "Todavía no vendes nada — y está bien"). Evitar jerga SaaS y lenguaje de urgencia/escasez de rifa en el chrome de plataforma.
+- **Excepción al hardcodeo**: el nombre de la app se consume SIEMPRE desde `APP_CONFIG` (`~/config/app` — `name`/`tagline`/`dominio`) — nunca literal en JSX/títulos. La marca ya está resuelta (Sortéatelo, «El Talonario» — cobalto/amarillo/tinta; ver `docs/design.md`).
 
 ## Formato de dinero
 

@@ -1,24 +1,29 @@
-=== feature-tester run — FEATURE MODE (dual) ===
-slugs: efectos-post-pago-tenant (F02) + panel-auth-organizadores (F05)
-server: :3001 (de la sesión principal — NO tocado). Modo: NO browser (E2E ya corridos por la sesión principal; verifico evidencia DB read-only).
-inicio: 2026-07-17 ~00:56
+# E2E run log — feature-tester
+modo: feature (slug=admin-marca)
+scope: marca.* (tasks/e2e-panel-organizadores.md) + Vitest suite completa
+server: http://localhost:3001 (dev, apex=localhost)
+inicio: 2026-07-18 (ver timestamps abajo)
 
---- Vitest (suite COMPLETA) ---
-28 archivos / 145 tests / 0 fallos (~162s, DB-backed contra Supabase real)
-F02: seed-raffles 3/3 (seed.raffles.001/002/003) + aplicarEfectosPostPago 9/9 (efectos.001..009) = 12/12
-F05: authPolicy 19 + getAccesoActual 3 + otorgar-membresia 5 + listarProductosDelPanel 2 + crearProducto 2 + actualizarProducto 3 + checkout/listarProductos 1 + listarVentas 3 + getResumenTienda 3 + credencialFlow 4 + configuracionTienda 5 + getSorteoDelPanel 3 + ejecutarSorteo 6
+## Vitest
+- Suite completa: 406 passed | 1 skipped (407). Exit 0.
+- config/app: 2/2 · styles/theme: theme+estado green · getAccesoActual: 4/4 (colorPrimario value+null)
+- HALLAZGO: theme.ts fue SUPERSEDED por identidad «El Talonario» (cobalto #2b3fbf, Instrument/Bricolage/Plex, fondo celeste 'hundido') — NO la violeta «En Vivo»/Manrope que describe el prompt. Semántica teal/ámbar/ladrillo intacta. Los tests validan los valores talonario.
 
---- E2E (verificación por evidencia DB read-only, NO browser, NO pagos, NO ejecuté sorteo) ---
-F02 F01-E2E (seed raffles ACTIVO/tenant) ...... [x] DB: autora→"Sorteo de lanzamiento" ACTIVO, prueba→"Sorteo de prueba" ACTIVO
-F02 F02-E2E (order PAGADO ⇒ grant+entry 1 vez) . [x] DB: order cmrogl4pi0002egexv45st4a5 PAGADO/autora, fee=96, 1 grant (token, expira 2026-08-16), 1 entry mismo tenant
-F05 panel.auth.redirect.001 .................... [ ] ⏳ no re-corrido en browser; guard en Vitest resolverGuard + login en vivo arrancó en /login
-F05 panel.auth.membresia.001 .................. [x] login Google real→/admin; Operador sin membresía→empty state; DB: nikochaima72@gmail.com ↔ autora (1 membresía)
-F05 panel.productos.crud.001 .................. [ ] ⏳ no cubierto en vivo (login+sorteo solo); backend verde
-F05 panel.ventas.dashboard.001 ................ [ ] ⏳ no cubierto en vivo; la orden real existe en DB
-F05 panel.config.credencial.001 ............... [ ] ⏳ no cubierto en vivo; backend verde
-F05 panel.sorteo.ejecutar.001 ................. [ ] ⏳ PARCIAL: sorteo activo + 1 participante visto en vivo; EJECUCIÓN reservada para el usuario (irreversible; DB ejecutadoAt=null)
+## E2E (browser-verify)
+- [login público] /login carga: wordmark «Sort·éa·telo» (éa en plumón amarillo), split cobalto con arte de talonario (N°312 «TÚ» en amarillo), testimonial, CTA «Continuar con Google» en cobalto rgb(43,63,191)=#2b3fbf (NO azul default Mantine), tab title «Entrar · Sortéatelo», favicon /favicon.svg. marca.login.001 PASS (estructura+paleta). marca.meta.001 login-part PASS.
+- [FONT BUG — CRÍTICO] next/font NO emite CSS. HTML server-rendered: 0 @font-face, 0 media woff2, --font-instrument/display/mono VACÍAS, document.fonts.size=0. Los classNames __variable_* SÍ están en <html>. Causa: fonts referenciadas SOLO en src/pages/_document.tsx (línea 18) — pitfall pages-router: next/font en _document aplica className pero no colecta su <style> de @font-face. Cascada: --font-instrument vacía ⇒ --mantine-font-family inválida ⇒ TODA la app cae a Times New Roman serif. Afecta login Y panel. El gate npm run check no lo detecta (no renderiza). Riesgo #7 del prompt + riesgo (1) del implementer: MATERIALIZADO.
+- [panel /admin] dev-login autora OK. Chrome invertido: wordmark arriba, chip «Tienda de la Autora (piloto)» con swatch ROSA (colorPrimario tenant, D2), avatar con foto de sesión. Menú: «Nicolás Chaima / nikochaima72@gmail.com / Operador de plataforma» + Modo oscuro + Cerrar sesión. «Ver mi tienda» (header) abre http://autora.localhost:3001/ en pestaña nueva. marca.chrome.001 PASS.
+- [dark toggle] Modo oscuro conmuta a data-mantine-color-scheme=dark; navbar/main oscuros, wordmark/chip/nav/KPIs/badges legibles. Rama dark de light-dark() OK (riesgo señalado: RESUELTO). marca.spotlight.001 dark-half PASS.
+- [spotlight] Ctrl+K abre dialog «Buscar en el panel…» con 7 acciones (5 rutas + Operador + Ver mi tienda); click «Ventas» navegó a /admin/ventas. marca.spotlight.001 nav-half PASS.
+- [badges] /admin/ventas: Pagado=teal, Pendiente=ámbar, Comisión −$96 / Te queda $2.904. /admin/operador: Publicada=teal ×2, Suspender=rojo-ladrillo. Grep src/components/admin: 0 hex. marca.badges.001 PASS.
+- [pageheader] 6 páginas con PageHeader (h1+desc) DENTRO del contenido: Resumen, Productos, Ventas, Sorteo, Configuración, Operador. Header liviano (bannerHasH1=false en configuracion). marca.pageheader.001 desktop PASS. Mobile NO exercitado: ni chrome-devtools ni Playwright exponen tool de viewport/emulación (window.resizeTo no cambia innerWidth). Residual.
+- [meta] Tab titles «X · Sortéatelo» en login + las 6 páginas; favicon /favicon.svg (SVG cobalto). marca.meta.001 PASS.
+- [empty states] marca.empty.001 NO verificado en vivo: todas las superficies de autora tienen datos sembrados (ventas, participantes sorteo, tiendas operador, producto). prueba no tiene dueño ⇒ dev-login 404. Componente empty-state.tsx existe + frontend-reviewer APPROVE, pero no se pudo surfacear. Data-blocked.
+- [chrome.002] Operador-sin-tienda NO verificado: la cuenta autora es dueña Y Operador; dev-login solo crea sesión para dueños de tienda. Sin fixture de Operador sin membresía. Data-blocked.
+- [console] /admin sin errores ni warnings.
 
---- veredicto ---
-Vitest: 145/145 verde. E2E: cubierto por evidencia donde aplica; los flujos con sesión no cubiertos en vivo y la ejecución del sorteo quedan [ ].
-NO cambié state/status. NO commit. NO browser. NO dev server nuevo.
-fin: 2026-07-17 ~01:05
+## Veredicto E2E
+- PASS (6): badges.001, chrome.001, login.001, meta.001, spotlight.001, pageheader.001 (desktop; mobile residual)
+- FAIL (1): paleta.001 — paleta cobalto OK pero TIPOGRAFÍA rota (Times New Roman, fonts no cargan). Defecto real en src/pages/_document.tsx (next/font solo en _document). No auto-retryable.
+- BLOCKED (2): empty.001 (data), chrome.002 (data)
+fin: corrida completa.

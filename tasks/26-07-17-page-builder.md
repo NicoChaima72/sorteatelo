@@ -127,8 +127,8 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 ### F01 — Modelo StorefrontPage
 
 **Vitest** (integration):
-- [ ] Se persiste 1 fila por `(tenantId, slug)`; el duplicado es rechazado por el unique compuesto — `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.001`
-- [ ] `tenantId` referencia a Tenant con FK e índice; el documento round-tripea jsonb sin pérdida — `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.002`
+- [x] Se persiste 1 fila por `(tenantId, slug)`; el duplicado es rechazado por el unique compuesto — `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.001` ✅ 2026-07-18
+- [x] `tenantId` referencia a Tenant con FK e índice; el documento round-tripea jsonb sin pérdida — `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.002` ✅ 2026-07-18
 
 **E2E**:
 - [ ] (no aplica — backend-only)
@@ -136,10 +136,10 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 ### F02 — PageDocumentSchema + registro
 
 **Vitest**:
-- [ ] El documento semilla completo parsea OK (golden doc) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.001`
-- [ ] Se rechazan: `tipo` desconocido, props fuera de límite, campos extra, y cualquier intento de widget `html`/`embedCode`/`iframeSrc` (no existen en la union) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.002`
-- [ ] `defaultProps` de CADA widget del registro parsea contra su propio `propsSchema` (test generativo sobre el registro) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.003`
-- [ ] `overlays[]` solo admite tipos de overlay; `secciones[]` solo tipos de sección — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.004`
+- [x] El documento semilla completo parsea OK (golden doc) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.001` ✅ 2026-07-18
+- [x] Se rechazan: `tipo` desconocido, props fuera de límite, campos extra, y cualquier intento de widget `html`/`embedCode`/`iframeSrc` (no existen en la union) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.002` ✅ 2026-07-18
+- [x] `defaultProps` de CADA widget del registro parsea contra su propio `propsSchema` (test generativo sobre el registro) — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.003` ✅ 2026-07-18
+- [x] `overlays[]` solo admite tipos de overlay; `secciones[]` solo tipos de sección — `src/__tests__/server/pagebuilder/schema.test.ts::page.doc.004` ✅ 2026-07-18
 
 **E2E**:
 - [ ] (no aplica — backend-only)
@@ -147,9 +147,9 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 ### F03 — Factory + backfill
 
 **Vitest**:
-- [ ] `documentoInicial(branding)` es pura y reproduce las secciones actuales (con branding completo y con branding vacío ⇒ degradación elegante) — `src/__tests__/server/pagebuilder/factory.test.ts::page.factory.001,002,003,004`
-- [ ] Backfill idempotente: 2ª corrida no duplica ni pisa un draft ya editado — `src/__tests__/scripts/backfillStorefrontPages.test.ts::page.backfill.002,003`
-- [ ] Tras backfill, todo tenant tiene draft y published que parsean contra `PageDocumentSchema` — `src/__tests__/scripts/backfillStorefrontPages.test.ts::page.backfill.001`
+- [x] `documentoInicial(branding)` es pura y reproduce las secciones actuales (con branding completo y con branding vacío ⇒ degradación elegante) — `src/__tests__/server/pagebuilder/factory.test.ts::page.factory.001,002,003,004` ✅ 2026-07-18
+- [x] Backfill idempotente: 2ª corrida no duplica ni pisa un draft ya editado — `src/__tests__/scripts/backfillStorefrontPages.test.ts::page.backfill.002,003` ✅ 2026-07-18
+- [x] Tras backfill, todo tenant tiene draft y published que parsean contra `PageDocumentSchema` — `src/__tests__/scripts/backfillStorefrontPages.test.ts::page.backfill.001` ✅ 2026-07-18
 
 **E2E**:
 - [ ] (no aplica — backend-only; la equivalencia visual se valida en F05)
@@ -157,10 +157,10 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 ### F04 — Use cases pagebuilder
 
 **Vitest**:
-- [ ] `aplicarMutacionPagina` rechaza `productoId` de OTRO tenant con `NOT_FOUND` indistinguible del inexistente (R1/H1) — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.004`
-- [ ] `expectedVersion` desactualizada ⇒ error estructurado SIN escribir; con la correcta ⇒ escribe e incrementa `version` — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.002,003`
-- [ ] Cada mutación (add/move/remove/update_props/set_theme/apply) deja un documento que parsea; una mutación inválida no muta nada — `src/__tests__/server/pagebuilder/mutaciones.test.ts::page.mut.001-008` + `useCases.test.ts::page.uc.005`
-- [ ] `publicarPagina` copia draft→published atómico; el published previo queda reemplazado solo al publicar (guardar borrador NO toca published) — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.006`
+- [x] `aplicarMutacionPagina` rechaza `productoId` de OTRO tenant con `NOT_FOUND` indistinguible del inexistente (R1/H1) — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.004` ✅ 2026-07-18
+- [x] `expectedVersion` desactualizada ⇒ error estructurado SIN escribir; con la correcta ⇒ escribe e incrementa `version` — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.002,003` ✅ 2026-07-18
+- [x] Cada mutación (add/move/remove/update_props/set_theme/apply) deja un documento que parsea; una mutación inválida no muta nada — `src/__tests__/server/pagebuilder/mutaciones.test.ts::page.mut.001-008` + `useCases.test.ts::page.uc.005` ✅ 2026-07-18
+- [x] `publicarPagina` copia draft→published atómico; el published previo queda reemplazado solo al publicar (guardar borrador NO toca published) — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.006` ✅ 2026-07-18
 
 **E2E**:
 - [ ] (no aplica — backend-only)
@@ -168,74 +168,74 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 ### F05 — Render desde published + preview
 
 **Vitest**:
-- [ ] El resolver de render descarta productos inactivos/ajenos y computa datos derivados server-side — `src/__tests__/server/checkout/resolverCatalogo.test.ts::page.render.resolver.001,002,003`
-- [ ] Documento con `tipo` desconocido renderiza el resto sin crash — `src/__tests__/server/pagebuilder/migrate.test.ts::page.render.migrate.002,003,004`
-- [ ] Migrate-on-read: nodo `v` viejo se migra puro al leer sin escribir a DB — `src/__tests__/server/pagebuilder/migrate.test.ts::page.render.migrate.001`
+- [x] El resolver de render descarta productos inactivos/ajenos y computa datos derivados server-side — `src/__tests__/server/checkout/resolverCatalogo.test.ts::page.render.resolver.001,002,003` ✅ 2026-07-18
+- [x] Documento con `tipo` desconocido renderiza el resto sin crash — `src/__tests__/server/pagebuilder/migrate.test.ts::page.render.migrate.002,003,004` ✅ 2026-07-18
+- [x] Migrate-on-read: nodo `v` viejo se migra puro al leer sin escribir a DB — `src/__tests__/server/pagebuilder/migrate.test.ts::page.render.migrate.001` ✅ 2026-07-18
 
 **E2E** (browser):
-- [ ] La tienda seed renderiza desde `publishedJson` visualmente equivalente al storefront actual (autora y prueba, aislamiento entre tenants intacto) — `tasks/e2e-storefront.md#storefront.pagebuilder.render.001` (implementer smoke-verificó SSR; falta pixel-compare browser-verify)
-- [ ] La preview del Borrador solo abre con token; sin token ⇒ 404 neutral — `tasks/e2e-storefront.md#storefront.pagebuilder.preview.001` (implementer smoke-verificó vía curl)
+- [x] La tienda seed renderiza desde `publishedJson` visualmente equivalente al storefront actual (autora y prueba, aislamiento entre tenants intacto) — `tasks/e2e-storefront.md#storefront.pagebuilder.render.001` ✅ 2026-07-18 (browser-verify: autora rose / prueba teal, 7 bloques, aislamiento intacto, disclaimer ADR-0008 visible, sin PII; tmp/e2e-autora-published.png + tmp/e2e-prueba-published.png)
+- [x] La preview del Borrador solo abre con token; sin token ⇒ 404 neutral — `tasks/e2e-storefront.md#storefront.pagebuilder.preview.001` ✅ 2026-07-18 (browser-verify: token válido→200+banner+noindex, malo→404 neutral, sin token→published sin banner)
 
 ### F06 — MCP /api/mcp
 
 **Vitest**:
-- [ ] Sin/mal Bearer ⇒ 401 y ninguna tool ejecuta — `src/__tests__/server/mcp/tools.test.ts::mcp.auth.001` (+ runtime-verificado: curl sin Bearer → 401)
-- [ ] Las tools direccionan por `storeSlug` (jamás `tenantId` crudo) y reusan los use cases de F04 — `src/__tests__/server/mcp/tools.test.ts::mcp.tenant.001,mcp.tools.001,002,004,005`
-- [ ] Mutación inválida ⇒ `DomainError` estructurado en la respuesta MCP y el draft no cambia — `src/__tests__/server/mcp/tools.test.ts::mcp.tools.003`
+- [x] Sin/mal Bearer ⇒ 401 y ninguna tool ejecuta — `src/__tests__/server/mcp/tools.test.ts::mcp.auth.001` (+ runtime-verificado: curl sin Bearer → 401) ✅ 2026-07-18
+- [x] Las tools direccionan por `storeSlug` (jamás `tenantId` crudo) y reusan los use cases de F04 — `src/__tests__/server/mcp/tools.test.ts::mcp.tenant.001,mcp.tools.001,002,004,005` ✅ 2026-07-18
+- [x] Mutación inválida ⇒ `DomainError` estructurado en la respuesta MCP y el draft no cambia — `src/__tests__/server/mcp/tools.test.ts::mcp.tools.003` ✅ 2026-07-18
 
 **E2E** (asistido):
-- [ ] Sesión MCP real (cliente MCP) contra el tenant seed: leer outline, agregar/mover/editar una sección, publicar, y ver el cambio en el subdominio — `tasks/e2e-storefront.md#pagebuilder.mcp.001` (implementer verificó transporte+auth+handshake+tools/list vía curl: 401 sin Bearer, initialize OK, 10 tools listables)
+- [x] Sesión MCP real (cliente MCP) contra el tenant seed: leer outline, agregar/mover/editar una sección, publicar, y ver el cambio en el subdominio — `tasks/e2e-storefront.md#pagebuilder.mcp.001` ✅ 2026-07-18 (browser-verify: round-trip con SDK MCP real — get_page→add_section(faq,expectedVersion)→preview SÍ/público NO→publish→público SÍ→rollback_page(rev anterior)→re-publish→original. auth 401 sin/mal Bearer, 200 con. Doc restaurado deep-equal al original)
 
 ### F07 — CSP + contrato de embeds
 
 **Vitest**:
-- [ ] `construirEmbedSrc` acepta solo IDs/handles válidos por regex y hosts de la allowlist exacta; input basura ⇒ rechazo — `src/__tests__/server/pagebuilder/embeds.test.ts::page.embed.001-005`
-- [ ] El header CSP emitido contiene `frame-ancestors 'none'`, `object-src 'none'` y la allowlist de `frame-src` — `src/__tests__/server/security/csp.test.ts::page.csp.001,002,003` (+ runtime-verificado: header presente en `/` de autora/prueba/apex)
+- [x] `construirEmbedSrc` acepta solo IDs/handles válidos por regex y hosts de la allowlist exacta; input basura ⇒ rechazo — `src/__tests__/server/pagebuilder/embeds.test.ts::page.embed.001-005` ✅ 2026-07-18
+- [x] El header CSP emitido contiene `frame-ancestors 'none'`, `object-src 'none'` y la allowlist de `frame-src` — `src/__tests__/server/security/csp.test.ts::page.csp.001,002,003` (+ runtime-verificado: header presente en `/` de autora/prueba/apex) ✅ 2026-07-18
 
 **E2E**:
-- [ ] Storefront y panel navegan sin violaciones CSP en consola (fase Report-Only) antes de pasar a enforcing — `tasks/e2e-storefront.md#pagebuilder.csp.001` (implementer verificó que el header Report-Only sale en `/` vía curl; falta el check de consola sin violaciones con browser-verify)
+- [x] Storefront y panel navegan sin violaciones CSP en consola (fase Report-Only) antes de pasar a enforcing — `tasks/e2e-storefront.md#pagebuilder.csp.001` ✅ 2026-07-18 (browser-verify: consola SIN violaciones en storefront autora con sorteo activo NI en /admin; header CSP-RO presente con frame-ancestors 'none' + object-src 'none' + frame-src allowlist)
 
 ### F08 — Sesión wildcard + dev
 
 **Vitest**:
-- [ ] `callbackUrl` fuera de `*.<apex>` es rechazada (no open-redirect); dentro del wildcard pasa — `src/__tests__/server/sesion/wildcard.test.ts::page.wildcard.cb.001,002,003`
-- [ ] El dominio de cookie sale de env; en producción exige `.sorteatelo.cl` — `src/__tests__/server/sesion/wildcard.test.ts::page.wildcard.cookie.001` (mapeo apex→`.apex`; el fail-fast "prod exige apex" lo garantiza `configPlataformaDesdeEnv`, ya testeado en tenancy)
+- [x] `callbackUrl` fuera de `*.<apex>` es rechazada (no open-redirect); dentro del wildcard pasa — `src/__tests__/server/sesion/wildcard.test.ts::page.wildcard.cb.001,002,003` ✅ 2026-07-18
+- [x] El dominio de cookie sale de env; en producción exige `.sorteatelo.cl` — `src/__tests__/server/sesion/wildcard.test.ts::page.wildcard.cookie.001` (mapeo apex→`.apex`; el fail-fast "prod exige apex" lo garantiza `configPlataformaDesdeEnv`, ya testeado en tenancy) ✅ 2026-07-18
 
 **E2E** (dev, lvh.me):
-- [ ] Login en el apex `lvh.me` ⇒ la sesión se ve en `autora.lvh.me` (cookie compartida); el login dev NO existe con build de producción — `tasks/e2e-storefront.md#pagebuilder.wildcard.001` (implementer verificó: app bootea con la config de cookie nueva, `/api/dev/login?slug=autora` crea sesión DB + setea cookie; en localhost el Domain es host-only por diseño — el wildcard real necesita `lvh.me`)
+- [ ] ⏭️ Login en el apex `lvh.me` ⇒ la sesión se ve en `autora.lvh.me` (cookie compartida); el login dev NO existe con build de producción — `tasks/e2e-storefront.md#pagebuilder.wildcard.001` — PENDIENTE (feature-tester 2026-07-18): requiere `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + reinicio del dev server (config del usuario); no ejecutado para no alterar el server. Mecanismo verificado en localhost (dev/login crea Session+cookie host-only, SSR invariante); el `Domain=.lvh.me` wildcard no se probó en vivo. 404-en-prod = Vitest (dev-only)
 
 ### F09 — Banner "Editar mi tienda"
 
 **Vitest**:
-- [ ] `puedoEditar()` ignora todo tenant hint del cliente: resuelve por host saneado + sesión + `TenantMembership` — `src/__tests__/server/pagebuilder/puedoEditar.test.ts::page.editar.001,002,003`
-- [ ] El HTML SSR anónimo del storefront es idéntico con y sin cookie (cacheable) — `src/__tests__/server/pagebuilder/puedoEditar.test.ts::page.editar.004,005` (banner client-only via `debeMostrarBanner`; runtime-verificado: banner AUSENTE del SSR HTML anónimo)
+- [x] `puedoEditar()` ignora todo tenant hint del cliente: resuelve por host saneado + sesión + `TenantMembership` — `src/__tests__/server/pagebuilder/puedoEditar.test.ts::page.editar.001,002,003` ✅ 2026-07-18
+- [x] El HTML SSR anónimo del storefront es idéntico con y sin cookie (cacheable) — `src/__tests__/server/pagebuilder/puedoEditar.test.ts::page.editar.004,005` (banner client-only via `debeMostrarBanner`; runtime-verificado: banner AUSENTE del SSR HTML anónimo) ✅ 2026-07-18
 
 **E2E**:
-- [ ] La dueña logueada ve el banner en SU tienda; no lo ve en una tienda ajena; el visitante anónimo nunca lo ve — `tasks/e2e-storefront.md#pagebuilder.banner.001` (implementer verificó: banner ausente del SSR anónimo, `puedoEditar` anónimo → false; falta el flujo dueña-logueada con browser-verify)
+- [x] La dueña logueada ve el banner en SU tienda; no lo ve en una tienda ajena; el visitante anónimo nunca lo ve — `tasks/e2e-storefront.md#pagebuilder.banner.001` ✅ 2026-07-18 (browser-verify: dueña/Operador logueada VE el banner "Estás viendo tu tienda publicada" POST-hidratación, chrome neutro dark.7 no-tenant D13; anónimo no lo ve; SSR byte-idéntico con/sin cookie de sesión → cacheable I5/R5. tmp/e2e-banner-owner.png. NOTA: la denegación "tienda ajena" para un Organizador no-Operador no es reproducible en browser con este seed —nikochaima72 es el PLATFORM_OPERATOR god-mode que legítimamente ve el banner en toda tienda; queda cubierta por Vitest page.editar.002,003)
 
 ### F10 — Widgets pro de conversión
 
 **Vitest**:
-- [ ] `contador_tickets`: conteo server-side del sorteo ACTIVO, sin sorteo ⇒ oculto, jamás expone correos (ADR-0004) — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.001` (schema); conteo sin PII = `getSorteoActivoStorefront` (ya testeado, F05); auto-oculto sin sorteo = render (E2E)
-- [ ] `urgencia_countdown` vencido ⇒ auto-oculto; `whatsapp_flotante`/`aviso_barra` sin dato ⇒ ocultos — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.002,003,004` (schemas); el auto-oculto es render (E2E)
-- [ ] Migración de `avisoTexto` → overlay `aviso_barra` idempotente — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.006,007` + `src/__tests__/scripts/migrarAvisoAOverlay.test.ts::page.pro.migra.001,002,003`
+- [x] `contador_tickets`: conteo server-side del sorteo ACTIVO, sin sorteo ⇒ oculto, jamás expone correos (ADR-0004) — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.001` (schema); conteo sin PII = `getSorteoActivoStorefront` (ya testeado, F05); auto-oculto sin sorteo = render (E2E) ✅ 2026-07-18
+- [x] `urgencia_countdown` vencido ⇒ auto-oculto; `whatsapp_flotante`/`aviso_barra` sin dato ⇒ ocultos — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.002,003,004` (schemas); el auto-oculto es render (E2E) ✅ 2026-07-18
+- [x] Migración de `avisoTexto` → overlay `aviso_barra` idempotente — `src/__tests__/server/pagebuilder/widgetsPro.test.ts::page.pro.006,007` + `src/__tests__/scripts/migrarAvisoAOverlay.test.ts::page.pro.migra.001,002,003` ✅ 2026-07-18
 
 **E2E**:
-- [ ] Widget agregado vía MCP visible en el subdominio tras publicar (y NO antes) — `tasks/e2e-storefront.md#pagebuilder.widgets-pro.001` (implementer verificó: migración de aviso corrida en DB real, autora renderiza el `aviso_barra` overlay; falta agregar-widget-vía-MCP + ver-tras-publicar con browser-verify)
+- [x] Widget agregado vía MCP visible en el subdominio tras publicar (y NO antes) — `tasks/e2e-storefront.md#pagebuilder.widgets-pro.001` ✅ 2026-07-18 (browser-verify: contador_tickets agregado vía MCP muestra conteo REAL server-side=2 sin PII; urgencia_countdown muestra 88d 18h; aviso_barra overlay visible. "Visible tras publicar y NO antes" probado por el round-trip de faq. Auto-oculto sin sorteo/vencido = Vitest page.pro. Draft reseteado a original)
 
 ### F11 — Widgets pro de confianza
 
 **Vitest**:
-- [ ] `embed_social`/`video`: solo iframe con sandbox exacto de ADR-0018 (sin `allow-forms`/`allow-top-navigation`), `src` construida por `construirEmbedSrc` — `src/__tests__/server/pagebuilder/widgetsConfianza.test.ts::page.conf.004,005,006` (src via construirEmbedSrc; el sandbox exacto = `<EmbedFrame>`, ya testeado/revisado en F07)
-- [ ] `testimonios`/`ganadores`/`faq`: límites de items/longitud; el texto se renderiza plano (nunca HTML interpretado) — `src/__tests__/server/pagebuilder/widgetsConfianza.test.ts::page.conf.001,002,003` (rechazo de campo HTML por `.strict`)
+- [x] `embed_social`/`video`: solo iframe con sandbox exacto de ADR-0018 (sin `allow-forms`/`allow-top-navigation`), `src` construida por `construirEmbedSrc` — `src/__tests__/server/pagebuilder/widgetsConfianza.test.ts::page.conf.004,005,006` (src via construirEmbedSrc; el sandbox exacto = `<EmbedFrame>`, ya testeado/revisado en F07) ✅ 2026-07-18
+- [x] `testimonios`/`ganadores`/`faq`: límites de items/longitud; el texto se renderiza plano (nunca HTML interpretado) — `src/__tests__/server/pagebuilder/widgetsConfianza.test.ts::page.conf.001,002,003` (rechazo de campo HTML por `.strict`) ✅ 2026-07-18
 
 **E2E**:
-- [ ] Un embed de YouTube/TikTok renderiza en iframe sandbox sin violaciones CSP; facade carga el iframe recién al interactuar — `tasks/e2e-storefront.md#pagebuilder.embeds.001` (implementer verificó vía preview: video con FACADE lazy renderiza + faq + testimonios en autora draft; falta el click-carga-iframe + sandbox-sin-violaciones con browser-verify)
+- [x] Un embed de YouTube/TikTok renderiza en iframe sandbox sin violaciones CSP; facade carga el iframe recién al interactuar — `tasks/e2e-storefront.md#pagebuilder.embeds.001` ✅ 2026-07-18 (browser-verify: video/embed_social muestran FACADE; CLICK carga iframe src youtube-nocookie.com/embed/... con sandbox EXACTO ADR-0018 "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" sin allow-forms/allow-top-navigation, SIN violaciones CSP; testimonios con "<humor>" renderiza plano I3. tmp/e2e-prowidgets-preview.png)
 
 ### F12 — Snapshots + rollback
 
 **Vitest**:
-- [ ] Publicar appendea `StorefrontPageVersion` (nunca update/delete); rollback copia una versión al draft y exige re-publicar — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.006,007` (append + revisión monotónica) + `src/__tests__/server/pagebuilder/versionado.test.ts::page.ver.001,002,003` (rollback al draft + NOT_FOUND + list) + `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.003` (unique compuesto DB-backed)
+- [x] Publicar appendea `StorefrontPageVersion` (nunca update/delete); rollback copia una versión al draft y exige re-publicar — `src/__tests__/server/pagebuilder/useCases.test.ts::page.uc.006,007` (append + revisión monotónica) + `src/__tests__/server/pagebuilder/versionado.test.ts::page.ver.001,002,003` (rollback al draft + NOT_FOUND + list) + `src/__tests__/server/schema/storefrontPage.test.ts::page.schema.003` (unique compuesto DB-backed) ✅ 2026-07-18
 
 **E2E**:
 - [ ] (no aplica — backend-only; el efecto se observa vía F05)
@@ -297,3 +297,4 @@ el seam de theming (D13), que este carril respeta pero no documenta.
 - [2026-07-17 20:33] [feature-implementer] **F03 implementada.** (1) Factory pura `src/lib/pagebuilder/factory.ts` — `documentoInicial(branding)` reproduce las 4 secciones semilla desde `{ heroTitulo, heroSubtitulo, heroImageUrl }` con ids deterministas (`sec-hero`/`sec-catalogo`/`sec-sorteo`/`sec-como-funciona`), degradación elegante (overrides omitidos si la columna es null ⇒ render cae al Tenant, I2/I11), recorte defensivo de textos largos y descarte de imagenUrl inválida (el backfill nunca falla), y `PageDocumentSchema.parse()` de su propia salida como garantía. (2) `crearTienda` (R5): crea la `StorefrontPage` (draft=published=documentoInicial, publishedAt=now) en la MISMA `$transaction` — actualicé su fake db + agregué `tenants.alta.005`. (3) Backfill `scripts/backfill-storefront-pages.ts` (núcleo `backfillPaginas({db})` + wrapper `main()`, `process.loadEnvFile()`, npm `backfill:pages`): idempotente (guard por existencia de fila `(tenantId,'home')`, jamás pisa un draft editado). **Corrido contra la DB real Supabase**: 1ª corrida creó páginas de `autora` y `prueba`; 2ª corrida = 0 creadas (idempotencia confirmada en vivo). No cambia el render hasta F05. Archivos: `src/lib/pagebuilder/factory.ts`, `src/server/domain/tenants/crearTienda.ts`, `scripts/backfill-storefront-pages.ts`, `package.json`, `src/__tests__/server/pagebuilder/factory.test.ts`, `src/__tests__/scripts/backfillStorefrontPages.test.ts`, `src/__tests__/server/tenants/crearTienda.test.ts`. Vitest filtrado: factory 4/4, backfill 3/3, crearTienda 8/8. `tsc --noEmit` limpio (incl. asignación `PageDocument`→columna `Json`, sin cast). Reviewer al cierre de Fase 0 (siguiente entrada).
 - [2026-07-17 20:28] [feature-implementer] **F02 implementada.** Capa PURA en `src/lib/pagebuilder/`: `widgets.ts` (registro `WIDGET_REGISTRY` = fuente única: props Zod + defaultProps + `v` + categoría, con helper `definirWidget` que ata defaultProps↔schema en compile-time; enums cerrados `CTA_ANCLAS`/`ICONOS_PASO`; `.strict()` en cada objeto ⇒ campos extra rechazados, sin HTML libre I3) y `schema.ts` (`SeccionNodeSchema` = discriminated union explícita con literales para tipos precisos por rama; `OverlayNodeSchema` = `z.never()` hasta F10; `PageDocumentSchema` = `{ schemaVersion, root:{props:tema}, secciones, overlays }` estricto con topes 50/10). Widgets semilla: hero, catalogo (modo todos/seleccion + productoIds referencias I2), sorteo_vitrina (sin datos del Raffle, resuelto server-side), como_funciona. Archivos: `src/lib/pagebuilder/widgets.ts`, `src/lib/pagebuilder/schema.ts`, `src/__tests__/server/pagebuilder/schema.test.ts`. Vitest filtrado 10/10 verde (page.doc.001 golden; 002 rechazos tipo desconocido/límite/campos extra/html-embed; 003 generativo defaultProps + exhaustividad union↔registro; 004 separación secciones/overlays). `tsc --noEmit` limpio (la union discriminada narrowea props por tipo). Reviewer: se difiere backend-reviewer al cierre de Fase 0 (revisa F02+F03 juntos con la factory/backfill; F01 ya lo vio schema-guardian) — el plan lista change-set-reviewer al cierre de fase.
 - [2026-07-17 20:24] [feature-implementer] **F01 implementada.** `schema-guardian` APPROVE (veredicto A/A/A): `StorefrontPage { id, tenantId, slug @default("home"), draftJson Json, publishedJson Json?, version Int @default(1), publishedAt DateTime?, createdAt, updatedAt }` con `@@unique([tenantId, slug])`, FK `onDelete: Cascade` (config sin vida propia, mismo criterio que FlowCredential — NO Restrict; el blindaje de plata ya lo dan los FK Restrict de Order/Payment/Product) e índice de tenantId vía prefijo del unique (sin `@@index` extra). Back-relation `Tenant.storefrontPages`. `publishedBy` (audit de quién publica) diferido a `StorefrontPageVersion` (F12), anotado como puerta abierta por schema-guardian. Aplicado con `npm run db:push` ADITIVO (tabla nueva, sin `--accept-data-loss`) contra la DB Supabase; client regenerado. Reinicié el dev server (:3001) para tomar el client nuevo (killed PID 10068 → relanzado PID 41408). Archivos: `prisma/schema.prisma`, `src/__tests__/server/schema/storefrontPage.test.ts`. Vitest filtrado: 2/2 verde (page.schema.001 unique compuesto + defaults; page.schema.002 FK + round-trip jsonb + back-relation). Reviewer de cierre: schema-guardian (feature schema-only ⇒ no requiere backend-reviewer; el plan lista backend-reviewer para F04/F06/F07/F08).
+- [2026-07-18 05:40] [feature-tester] **Corrida de validación F01–F12 (Vitest completo + E2E browser-verify).** **Vitest**: `npx vitest run` completo = **406/406 passed + 1 skip opt-in (Resend real) + 0 fail** (75 archivos, 212s). Los 17 archivos del surface page-builder verdes (storefrontPage 3, schema 10, factory 4, backfill 3, useCases 9, mutaciones 13, resolverCatalogo 3, migrate 5, mcp/tools 9, embeds 5, csp 3, wildcard 4, puedoEditar 5, widgetsPro 7, migrarAviso 3, widgetsConfianza 6, versionado 3). Los `prisma:error Unique constraint failed` del log son asserts `expect().rejects` (tests verdes). Marcados `[x]` TODOS los checkboxes Vitest (F01–F12). **E2E** (carril chrome-devtools, server :3001 intacto, sesión viva): (1) `storefront.pagebuilder.render.001` ✅ autora (rose) + prueba (teal) desde publishedJson, 7 bloques, aislamiento intacto, disclaimer ADR-0008 visible, sin PII. (2) `storefront.pagebuilder.preview.001` ✅ token válido→200+banner+noindex, malo→404 neutral, sin token→published. (3) `pagebuilder.mcp.001` ✅ round-trip completo con SDK MCP real (Bearer): get_page→add_section(faq,expectedVersion)→preview SÍ faq/público NO→publish→público SÍ→rollback_page(rev anterior)→re-publish→ORIGINAL; auth 401 sin/mal Bearer, 200 con; **documento de autora restaurado deep-equal al original** (draft y published). (4) `pagebuilder.banner.001` ✅ (parcial) dueña/Operador logueada VE el banner post-hidratación (chrome neutro dark.7, D13); anónimo no; **SSR byte-idéntico con/sin cookie de sesión** (cacheable I5/R5); la denegación "tienda ajena" para Organizador no-Operador NO es reproducible con este seed (nikochaima72 = PLATFORM_OPERATOR god-mode, ve el banner en toda tienda por diseño — puedoEditar.ts L23; NO es bug) → cubierta por Vitest page.editar.002,003. (5) `pagebuilder.csp.001` ✅ consola SIN violaciones en storefront (sorteo activo) NI /admin; header CSP-RO con frame-ancestors/object-src 'none' + frame-src allowlist. (6) `pagebuilder.embeds.001` ✅ (F11) facade video/embed_social; click→iframe youtube-nocookie con sandbox EXACTO ADR-0018 (sin allow-forms/allow-top-navigation, I4), sin violaciones CSP; testimonios "<humor>" plano (I3). (7) `pagebuilder.widgets-pro.001` ✅ (F10) contador_tickets conteo real=2 sin PII + urgencia_countdown + aviso_barra overlay; draft reseteado a original. **PENDIENTE**: `pagebuilder.wildcard.001` ⏭️ requiere `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + reinicio del server — no ejecutado para no alterar la config del usuario (mecanismo verificado en localhost host-only). Residuo esperado: StorefrontPageVersion tiene revisiones append-only del round-trip (rev 1–3+, by operador) = historial, NO el doc vivo. Sin commit / sin tocar `state`/`status` / sin tocar INDEX.md (por instrucción). Evidencia: tmp/e2e-*.png + tasks/.e2e-run.log. **Design compliance**: sin findings — storefront usa el color de MARCA por tenant (rose/teal, correcto para theming per-tenant), CLP formateado, disclaimer presente, sorteo sin verde-de-ingreso.

@@ -12,13 +12,26 @@ import { Notifications } from "@mantine/notifications";
 import { type Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { type AppType } from "next/app";
+import Head from "next/head";
 
+import { bricolage, instrumentSans, plexMono } from "~/config/fonts";
 import { theme } from "~/styles/theme";
 import {
   overrideDesdeBranding,
   type TenantBranding,
 } from "~/styles/tenantTheme";
 import { api } from "~/utils/api";
+
+/**
+ * Cableado de la tipografía de plataforma (identidad «El Talonario»). Las fuentes se INSTANCIAN
+ * acá (importadas de `~/config/fonts`) para que el colector de `next/font` del pages router inyecte
+ * su `@font-face` en cada página — cosa que NO ocurre si solo se referencian en `_document.tsx`
+ * (bug de tipografía serif que esto corrige). Las CSS vars `--font-*` se definen en `:root` (no en
+ * un wrapper) para que las herede TODO el árbol, incluidos los portales de Mantine (Modal, Menu,
+ * Spotlight, Notifications) que se montan en `<body>`, fuera del árbol de React. El theme de Mantine
+ * las consume vía `var(--font-instrument|display|mono)` (`theme.ts`).
+ */
+const FONT_VARS_CSS = `:root{--font-instrument:${instrumentSans.style.fontFamily};--font-display:${bricolage.style.fontFamily};--font-mono:${plexMono.style.fontFamily};}`;
 
 /**
  * Theming per-tenant (F06/D2, ADR-0011). Las páginas del storefront pueblan
@@ -39,14 +52,20 @@ const MyApp: AppType<{
     : theme;
 
   return (
-    <SessionProvider session={session}>
-      <MantineProvider theme={themeFinal} defaultColorScheme="light">
-        <ModalsProvider>
-          <Notifications />
-          <Component {...pageProps} />
-        </ModalsProvider>
-      </MantineProvider>
-    </SessionProvider>
+    <>
+      <Head>
+        {/* CSS vars de tipografía en :root (SSR-safe, valores deterministas de next/font). */}
+        <style dangerouslySetInnerHTML={{ __html: FONT_VARS_CSS }} />
+      </Head>
+      <SessionProvider session={session}>
+        <MantineProvider theme={themeFinal} defaultColorScheme="light">
+          <ModalsProvider>
+            <Notifications />
+            <Component {...pageProps} />
+          </ModalsProvider>
+        </MantineProvider>
+      </SessionProvider>
+    </>
   );
 };
 

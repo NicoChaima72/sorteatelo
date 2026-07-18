@@ -87,25 +87,53 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
 Checks del plan `tasks/26-07-17-admin-marca.md` (ruta C · violeta). Los de marca en `/login` NO
 requieren OAuth (el login es público); los del panel sí requieren sesión con membresía (mismo bloqueo I9).
 
-- [ ] **marca.paleta.001** (F01) — El chrome usa la paleta violeta (primario) y la tipografía Manrope:
+- [ ] ❌ **marca.paleta.001** (F01) — El chrome usa la paleta violeta (primario) y la tipografía Manrope:
   botones/acentos primarios en **violeta `#7239d5`** (NO el azul default de Mantine) y los headings en
   Manrope. Verificable YA en `/login` sin OAuth (wordmark + CTA violeta + font); en el panel requiere sesión.
-- [ ] **marca.badges.001** (F02) — En `/admin/ventas` y `/admin/operador` los badges de estado se pintan
+  > ❌ [feature-tester 2026-07-18] PALETA OK / TIPOGRAFÍA ROTA. Nota: la paleta ya NO es violeta «En Vivo»
+  > sino **cobalto «El Talonario» `#2b3fbf`** (superseded por `identidad-talonario`). El CTA sale `rgb(43,63,191)`
+  > = cobalto, NO azul default Mantine ✓. PERO las fuentes de marca NO cargan: login + panel renderizan en
+  > **Times New Roman**. HTML server-rendered: 0 `@font-face`, `--font-instrument/display/mono` vacías,
+  > `document.fonts.size=0`; los classNames `__variable_*` sí están en `<html>`. Causa: next/font referenciado
+  > SOLO en `src/pages/_document.tsx:18` (pitfall pages-router — no colecta el `<style>` de font-face). Cascada a
+  > `--mantine-font-family` inválida ⇒ fallback serif. Bug estructural, no auto-retryable. Fix: aplicar en `_app.tsx`.
+- [x] **marca.badges.001** (F02) — En `/admin/ventas` y `/admin/operador` los badges de estado se pintan
   con la semántica nueva (pagado→teal, pendiente→ámbar, fallido/suspendida→rojo ladrillo) y no queda ningún
   hex inline en `src/components/admin/estado-*.tsx` (grep + visual). Requiere sesión.
-- [ ] **marca.chrome.001** (F03) — El navbar corona con el **wordmark Sortéatelo** arriba y la tienda como
+  > ✅ [feature-tester 2026-07-18] ventas: Pagado=teal, Pendiente=ámbar. operador: Publicada=teal, acción
+  > «Suspender»=rojo-ladrillo. Grep `src/components/admin/`: 0 hex inline. (suspendida→rojo cubierto por Vitest,
+  > no exercitado en vivo — no mutar estado de tenant).
+- [x] **marca.chrome.001** (F03) — El navbar corona con el **wordmark Sortéatelo** arriba y la tienda como
   **chip con swatch** de su color; el **menú de avatar** (arriba a la derecha) abre con email/rol y permite
   **cerrar sesión**; **"Ver mi tienda"** abre `<slug>.<host>` en pestaña nueva. Requiere sesión.
-- [ ] **marca.chrome.002** (F03) — Un **Operador sin tienda propia** NO ve el chip ni "Ver mi tienda" y el
+  > ✅ [feature-tester 2026-07-18] Wordmark arriba, chip «Tienda de la Autora (piloto)» con swatch ROSA
+  > (colorPrimario del tenant, D2). Menú de avatar: «Nicolás Chaima / nikochaima72@gmail.com / Operador de
+  > plataforma» + Cerrar sesión. «Ver mi tienda» abrió `http://autora.localhost:3001/` en pestaña nueva.
+- [ ] ⏭️ **marca.chrome.002** (F03) — Un **Operador sin tienda propia** NO ve el chip ni "Ver mi tienda" y el
   resto del chrome no se rompe (avatar + menú siguen funcionando). Requiere sesión (cuenta Operador sin membresía).
-- [ ] **marca.pageheader.001** (F04) — Las **6 páginas** del admin muestran título/descripción/acciones
+  > ⏭️ [feature-tester 2026-07-18] Data-blocked: la cuenta piloto es dueña Y Operador; `/api/dev/login` solo
+  > crea sesión para dueños de tienda. Sin fixture de Operador sin membresía.
+- [x] **marca.pageheader.001** (F04) — Las **6 páginas** del admin muestran título/descripción/acciones
   DENTRO del contenido (no en la barra superior), sin solaparse con el header liviano, en **mobile y desktop**.
   Requiere sesión.
-- [ ] **marca.login.001** (F05) — `/login` muestra el **wordmark** y la marca de plataforma (card centrada +
+  > ✅ [feature-tester 2026-07-18] DESKTOP: las 6 (Resumen/Productos/Ventas/Sorteo/Configuración/Operador) con
+  > PageHeader (h1 + descripción) en el contenido; header liviano (`bannerHasH1=false`). MOBILE no exercitado:
+  > ningún carril MCP (chrome-devtools/Playwright) expone tool de viewport/emulación. Residual sin rotura observada.
+- [x] **marca.login.001** (F05) — `/login` muestra el **wordmark** y la marca de plataforma (card centrada +
   fondo sutil del primario), ya no la página cruda sin marca. Verificable YA sin OAuth.
-- [ ] **marca.empty.001** (F05) — Los estados vacíos (dashboard sin ventas, ventas, participantes del sorteo,
+  > ✅ [feature-tester 2026-07-18] Wordmark «Sort·éa·telo» (éa en plumón amarillo) + split cobalto con arte de
+  > talonario (N°312 «TÚ» en amarillo) + CTA «Continuar con Google» cobalto. Muy por encima de "página cruda".
+- [ ] ⏭️ **marca.empty.001** (F05) — Los estados vacíos (dashboard sin ventas, ventas, participantes del sorteo,
   tiendas del operador) muestran **ícono + mensaje + CTA** cuando corresponde. Requiere sesión.
-- [ ] **marca.meta.001** (F05) — La pestaña del navegador muestra `<página> · Sortéatelo` y el **favicon** de
+  > ⏭️ [feature-tester 2026-07-18] Data-blocked: todas las superficies del tenant piloto tienen datos sembrados;
+  > `prueba` no tiene dueño (dev-login 404). `EmptyState` existe + frontend-reviewer APPROVE, pero no se pudo
+  > surfacear en vivo. Queda para una corrida con un tenant fresco/vacío.
+- [x] **marca.meta.001** (F05) — La pestaña del navegador muestra `<página> · Sortéatelo` y el **favicon** de
   plataforma (la "S" violeta). Login verificable sin OAuth; panel requiere sesión.
-- [ ] **marca.spotlight.001** (F07) — **Cmd+K** abre el Spotlight y navega a cada página del panel; el **toggle
+  > ✅ [feature-tester 2026-07-18] Tab titles «Entrar/Resumen/Productos/Ventas/Sorteo/Configuración/Operador ·
+  > Sortéatelo». Favicon `/favicon.svg` (SVG; la "S" es cobalto, no violeta — supersession).
+- [x] **marca.spotlight.001** (F07) — **Cmd+K** abre el Spotlight y navega a cada página del panel; el **toggle
   de dark mode** conmuta y el chrome (crema→oscuro) sigue legible. Requiere sesión.
+  > ✅ [feature-tester 2026-07-18] Ctrl+K abre el dialog «Buscar en el panel…» con 7 acciones (5 rutas + Operador
+  > + Ver mi tienda); click «Ventas» navegó a `/admin/ventas`. Dark toggle conmuta a `scheme=dark`; navbar/main
+  > oscuros con wordmark/chip/nav/KPIs/badges legibles (rama dark de `light-dark()` RESUELTA). Fondo hundido, no crema.

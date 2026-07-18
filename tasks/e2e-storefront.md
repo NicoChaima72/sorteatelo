@@ -44,7 +44,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
 - [ ] **storefront.apex.001** — El apex muestra el placeholder neutral; las rutas `/dev/checkout` y
   `/dev/checkout/retorno` ya no existen (404). (Plan F06 E2E)
 
-- [ ] **storefront.pagebuilder.render.001** — Tras el switch a `publishedJson` (page builder, F05):
+- [x] **storefront.pagebuilder.render.001** ✅ 2026-07-18 (feature-tester browser-verify) — Tras el switch a `publishedJson` (page builder, F05):
   `autora.localhost:3001` y `prueba.localhost:3001` renderizan las 4 secciones (hero → catálogo →
   vitrina sorteo → cómo funciona) VISUALMENTE EQUIVALENTES al storefront pre-pivote, cada una con la
   marca/color de SU tenant (aislamiento intacto, los dos se ven distintos). El backfill produjo el
@@ -52,12 +52,12 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   200 + hero title del seed ("Historias que enamoran" / "Tienda de Prueba") + "Catálogo" + "Cómo
   funciona"; falta la comparación visual pixel con browser-verify.*
 
-- [ ] **storefront.pagebuilder.preview.001** — `autora.localhost:3001/?preview=<STOREFRONT_PREVIEW_TOKEN>`
+- [x] **storefront.pagebuilder.preview.001** ✅ 2026-07-18 (feature-tester browser-verify) — `autora.localhost:3001/?preview=<STOREFRONT_PREVIEW_TOKEN>`
   abre el Borrador con un banner "Vista previa del borrador" y `robots noindex`; `?preview=<incorrecto>`
   ⇒ 404 neutral; sin `?preview` ⇒ published sin banner. (Plan F05 E2E — page-builder) — *implementer
   smoke-verificó vía curl: token válido→200+banner+noindex, token malo→404, sin token→200 sin banner.*
 
-- [ ] **pagebuilder.embeds.001** — (F11) Con el MCP agregar a autora un `video` (youtube) y un
+- [x] **pagebuilder.embeds.001** ✅ 2026-07-18 (feature-tester browser-verify) — (F11) Con el MCP agregar a autora un `video` (youtube) y un
   `embed_social` (tiktok/instagram) + un `testimonios`/`ganadores`/`faq`, publicar: el subdominio
   muestra el FACADE (póster + play) del video/embed; al hacer CLICK carga el iframe con el sandbox
   EXACTO de ADR-0018 (sin `allow-forms`/`allow-top-navigation`) y SIN violaciones CSP en consola. Los
@@ -65,7 +65,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   *implementer verificó vía preview del draft: video (facade lazy) + faq + testimonios renderizan en
   autora; falta el click-carga-iframe + barrido de consola CSP con browser-verify.*
 
-- [ ] **pagebuilder.widgets-pro.001** — (F10) Con el MCP, agregar a autora un `contador_tickets` +
+- [x] **pagebuilder.widgets-pro.001** ✅ 2026-07-18 (feature-tester browser-verify) — (F10) Con el MCP, agregar a autora un `contador_tickets` +
   `urgencia_countdown` (`add_section`) y publicar: el subdominio con sorteo activo muestra el conteo de
   tickets (sin correos) y la cuenta regresiva al cierre; al vencer el sorteo el countdown desaparece.
   Sin sorteo activo, ambos se auto-ocultan. El `whatsapp_flotante` (FAB) y el `aviso_barra` aparecen si
@@ -74,7 +74,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   en DB real (autora), render muestra el overlay `aviso_barra`; falta el flujo MCP-agregar-widget +
   auto-oculto con browser-verify.*
 
-- [ ] **pagebuilder.banner.001** — (dev lvh.me) Tras `GET lvh.me:3001/api/dev/login?slug=autora`,
+- [x] **pagebuilder.banner.001** ✅ 2026-07-18 (feature-tester browser-verify, parcial — ver task F09) — (dev lvh.me) Tras `GET lvh.me:3001/api/dev/login?slug=autora`,
   abrir `autora.lvh.me:3001`: aparece el banner "Estás viendo tu tienda publicada · Ir a mi panel"
   (chrome oscuro neutro, NO el color del tenant) POST-hidratación. En `prueba.lvh.me:3001` (tienda
   ajena) el banner NO aparece. Un visitante ANÓNIMO (sin cookie) nunca lo ve, y el HTML SSR es idéntico
@@ -82,7 +82,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   SSR anónimo (count 0), `pagebuilder.puedoEditar` anónimo → `{puedeEditar:false}`; falta el flujo
   dueña-logueada-ve-banner con browser-verify.*
 
-- [ ] **pagebuilder.wildcard.001** — (dev con `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + hosts) `GET
+- [ ] ⏭️ **pagebuilder.wildcard.001** — PENDIENTE (feature-tester 2026-07-18: requiere `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + reinicio del server; no ejecutado para no alterar la config del usuario) — (dev con `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + hosts) `GET
   lvh.me:3001/api/dev/login?slug=autora` setea la cookie `next-auth.session-token` con `Domain=.lvh.me`;
   luego `autora.lvh.me:3001` resuelve la sesión (cookie compartida) — se ve el banner "Editar mi tienda"
   (F09). El endpoint `/api/dev/login` responde 404 con `NODE_ENV=production`. El `callbackUrl` a un host
@@ -90,7 +90,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   verificó en localhost: app bootea con la config de cookie nueva, endpoint crea sesión DB + cookie
   (autora → dueño nikochaima72); el Domain wildcard requiere lvh.me (en localhost es host-only por diseño).*
 
-- [ ] **pagebuilder.csp.001** — Navegar el storefront (`autora.localhost:3001`, incluyendo una tienda
+- [x] **pagebuilder.csp.001** ✅ 2026-07-18 (feature-tester browser-verify) — Navegar el storefront (`autora.localhost:3001`, incluyendo una tienda
   con sorteo activo) y el panel `/admin/*` con la consola abierta: NO hay violaciones CSP reportadas
   (fase Report-Only) — ni por los estilos inline de Mantine ni por el HMR de dev. El header
   `Content-Security-Policy-Report-Only` está presente con `frame-ancestors 'none'` + `object-src 'none'`
@@ -98,7 +98,7 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   sale en `/` de autora/prueba/apex con las directivas correctas; falta el barrido de consola con
   browser-verify. NOTA: se corrigió un bug — el middleware NO corría en el root `/` (matcher sin `"/"`).*
 
-- [ ] **pagebuilder.mcp.001** — Con un cliente MCP real (o `curl` JSON-RPC) contra `/api/mcp/mcp` con
+- [x] **pagebuilder.mcp.001** ✅ 2026-07-18 (feature-tester browser-verify) — Con un cliente MCP real (o `curl` JSON-RPC) contra `/api/mcp/mcp` con
   `Authorization: Bearer <MCP_OPERADOR_TOKEN>`: `get_page {storeSlug:"autora"}` devuelve el outline; una
   mutación (`add_section`/`move_section`/`update_section_props` con el `expectedVersion` de get_page)
   cambia el Borrador (NO el publicado); `publish_page {storeSlug:"autora"}` publica; recién ENTONCES el

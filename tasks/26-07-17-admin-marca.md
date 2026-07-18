@@ -88,29 +88,29 @@ Este plan es el **carril B** del pivote page-builder (síntesis en `.scratch/pag
 ### F01 — Identidad en código (config + theme + wordmark)
 
 **Vitest** (integration):
-- [ ] `APP_CONFIG` expone nombre/tagline/dominio y es importable desde cliente (sin dependencias de `~/server`) — `src/__tests__/config/app.test.ts::config.app.001`, `::config.app.002`
-- [ ] El theme define la tupla `sorteatelo` (10 tonos) y `primaryColor` apunta a ella — `src/__tests__/styles/theme.test.ts::styles.theme.001`, `::styles.theme.002`
-- [ ] El mapa semántico de estados cubre TODOS los estados de `EstadoOrden` y `EstadoTienda` (exhaustividad) — `src/__tests__/styles/theme.test.ts::styles.theme.003`, `::styles.theme.004`
+- [x] `APP_CONFIG` expone nombre/tagline/dominio y es importable desde cliente (sin dependencias de `~/server`) — `src/__tests__/config/app.test.ts::config.app.001`, `::config.app.002` ✅ 2026-07-18
+- [x] El theme define la tupla `sorteatelo` (10 tonos) y `primaryColor` apunta a ella — `src/__tests__/styles/theme.test.ts::styles.theme.001`, `::styles.theme.002` ✅ 2026-07-18 (tupla ahora es cobalto «El Talonario» #2b3fbf, no violeta — ver Bitácora)
+- [x] El mapa semántico de estados cubre TODOS los estados de `EstadoOrden` y `EstadoTienda` (exhaustividad) — `src/__tests__/styles/theme.test.ts::styles.theme.003`, `::styles.theme.004` ✅ 2026-07-18
 
 **E2E** (browser):
-- [ ] El panel se ve con la paleta elegida (botones/acentos primarios ya no son el azul default de Mantine) y los headings usan la font de la marca — `tasks/e2e-panel-organizadores.md#marca.paleta.001`
+- [ ] ❌ El panel se ve con la paleta elegida (botones/acentos primarios ya no son el azul default de Mantine) y los headings usan la font de la marca — `tasks/e2e-panel-organizadores.md#marca.paleta.001` — razón: paleta OK (cobalto #2b3fbf, NO azul default), pero la TIPOGRAFÍA de marca NO carga: toda la app renderiza en Times New Roman (next/font no emite `@font-face`). Defecto en `src/pages/_document.tsx`. Ver Bitácora.
 
 ### F02 — Semántica de color de comercio sin hex inline
 
 **Vitest**:
-- [ ] Los badges resuelven cada estado al token semántico esperado (pagado→teal, pendiente→ámbar, fallido→rojo; publicada→teal, suspendida→rojo, etc.) — `src/__tests__/styles/theme.test.ts::styles.estado.001`, `::styles.estado.002`
+- [x] Los badges resuelven cada estado al token semántico esperado (pagado→teal, pendiente→ámbar, fallido→rojo; publicada→teal, suspendida→rojo, etc.) — `src/__tests__/styles/theme.test.ts::styles.estado.001`, `::styles.estado.002` ✅ 2026-07-18
 
 **E2E**:
-- [ ] En `/admin/ventas` y `/admin/operador` los badges de estado se pintan con la semántica nueva y no queda ningún hex inline en `src/components/admin/estado-*.tsx` (verificación por grep + visual) — `tasks/e2e-panel-organizadores.md#marca.badges.001`
+- [x] En `/admin/ventas` y `/admin/operador` los badges de estado se pintan con la semántica nueva y no queda ningún hex inline en `src/components/admin/estado-*.tsx` (verificación por grep + visual) — `tasks/e2e-panel-organizadores.md#marca.badges.001` ✅ 2026-07-18 (ventas: Pagado=teal, Pendiente=ámbar; operador: Publicada=teal, Suspender=rojo-ladrillo; grep 0 hex)
 
 ### F03 — Chrome invertido (wordmark, chip, cuenta, Ver mi tienda)
 
 **Vitest**:
-- [ ] `getAccesoActual` incluye `colorPrimario` (con valor y con `null`) en los tenants devueltos — `src/__tests__/server/panel/getAccesoActual.test.ts::panel.acceso.001`, `::panel.acceso.004`
+- [x] `getAccesoActual` incluye `colorPrimario` (con valor y con `null`) en los tenants devueltos — `src/__tests__/server/panel/getAccesoActual.test.ts::panel.acceso.001`, `::panel.acceso.004` ✅ 2026-07-18
 
 **E2E**:
-- [ ] El navbar muestra el wordmark Sortéatelo arriba y la tienda como chip con swatch; el menú de avatar abre con email/rol y permite cerrar sesión; "Ver mi tienda" abre `<slug>.<host>` en pestaña nueva — `tasks/e2e-panel-organizadores.md#marca.chrome.001`
-- [ ] Un Operador sin tienda propia NO ve el chip ni "Ver mi tienda" y el resto del chrome no se rompe — `tasks/e2e-panel-organizadores.md#marca.chrome.002`
+- [x] El navbar muestra el wordmark Sortéatelo arriba y la tienda como chip con swatch; el menú de avatar abre con email/rol y permite cerrar sesión; "Ver mi tienda" abre `<slug>.<host>` en pestaña nueva — `tasks/e2e-panel-organizadores.md#marca.chrome.001` ✅ 2026-07-18 (chip con swatch rosa del colorPrimario; menú «Operador de plataforma» + Cerrar sesión; «Ver mi tienda» abrió `autora.localhost:3001` en pestaña nueva)
+- [ ] ⏭️ Un Operador sin tienda propia NO ve el chip ni "Ver mi tienda" y el resto del chrome no se rompe — `tasks/e2e-panel-organizadores.md#marca.chrome.002` — data-blocked: la cuenta piloto es dueña Y Operador; `/api/dev/login` solo crea sesión para dueños de tienda. Sin fixture de Operador sin membresía.
 
 ### F04 — PageHeader propio
 
@@ -118,7 +118,7 @@ Este plan es el **carril B** del pivote page-builder (síntesis en `.scratch/pag
 - [ ] (no aplica — componente presentacional; lo cubre E2E)
 
 **E2E**:
-- [ ] Las 6 páginas del admin muestran título/descripción/acciones dentro del contenido (no en la barra superior) sin solaparse con el header liviano, en mobile y desktop — `tasks/e2e-panel-organizadores.md#marca.pageheader.001`
+- [x] Las 6 páginas del admin muestran título/descripción/acciones dentro del contenido (no en la barra superior) sin solaparse con el header liviano, en mobile y desktop — `tasks/e2e-panel-organizadores.md#marca.pageheader.001` ✅ 2026-07-18 (desktop: las 6 con PageHeader h1+desc en el contenido, header liviano `bannerHasH1=false`. MOBILE no exercitado — ningún carril MCP expone tool de viewport/emulación; residual sin evidencia de rotura)
 
 ### F05 — Arreglos de páginas
 
@@ -126,9 +126,9 @@ Este plan es el **carril B** del pivote page-builder (síntesis en `.scratch/pag
 - [ ] (no aplica — cambios presentacionales; lo cubre E2E)
 
 **E2E**:
-- [ ] `/login` muestra el wordmark y la marca de plataforma (ya no la página cruda) — `tasks/e2e-panel-organizadores.md#marca.login.001`
-- [ ] Los estados vacíos (dashboard sin ventas, ventas, participantes, operador) muestran ícono + mensaje + CTA cuando corresponde — `tasks/e2e-panel-organizadores.md#marca.empty.001`
-- [ ] La pestaña del navegador muestra `<página> · Sortéatelo` y el favicon de plataforma — `tasks/e2e-panel-organizadores.md#marca.meta.001`
+- [x] `/login` muestra el wordmark y la marca de plataforma (ya no la página cruda) — `tasks/e2e-panel-organizadores.md#marca.login.001` ✅ 2026-07-18 (wordmark «Sort·éa·telo» + split cobalto con arte de talonario + CTA Google cobalto; muy por encima de "página cruda")
+- [ ] ⏭️ Los estados vacíos (dashboard sin ventas, ventas, participantes, operador) muestran ícono + mensaje + CTA cuando corresponde — `tasks/e2e-panel-organizadores.md#marca.empty.001` — data-blocked: todas las superficies del tenant piloto tienen datos sembrados; `prueba` no tiene dueño. `EmptyState` existe (reviewer APPROVE) pero no se pudo surfacear en vivo.
+- [x] La pestaña del navegador muestra `<página> · Sortéatelo` y el favicon de plataforma — `tasks/e2e-panel-organizadores.md#marca.meta.001` ✅ 2026-07-18 (titles «X · Sortéatelo» en login + 6 páginas; favicon `/favicon.svg`)
 
 ### F06 — design.md actualizado
 
@@ -144,7 +144,7 @@ Este plan es el **carril B** del pivote page-builder (síntesis en `.scratch/pag
 - [ ] (no aplica — presentacional)
 
 **E2E**:
-- [ ] Cmd+K abre el Spotlight y navega a cada página del panel; el toggle de dark mode conmuta y el chrome sigue legible — `tasks/e2e-panel-organizadores.md#marca.spotlight.001`
+- [x] Cmd+K abre el Spotlight y navega a cada página del panel; el toggle de dark mode conmuta y el chrome sigue legible — `tasks/e2e-panel-organizadores.md#marca.spotlight.001` ✅ 2026-07-18 (Ctrl+K abre dialog con 7 acciones, click «Ventas» navegó; dark toggle conmuta a scheme=dark y el chrome queda legible — rama dark de `light-dark()` OK)
 
 ## Invariantes
 
@@ -243,3 +243,16 @@ Este plan es el **carril B** del pivote page-builder (síntesis en `.scratch/pag
   - Verificados por el reviewer: cero hex/clases de color en componentes, seam D13 intacto, I1–I7, exhaustividad semántica vs enums Prisma, docs en sync con el código. Nit único (proceso): los checkboxes Vitest verdes siguen en `[ ]` — correcto, los marca el feature-tester.
 - [2026-07-17 23:30] [feature-implementer] **Implementación completa. F01..F07 escritas, 4 reviewers verdes (backend D7, frontend F01–F04, frontend F05, change-set de cierre). status → testing.** Listo para feature-tester (E2E browser de `tasks/e2e-panel-organizadores.md`: marca.paleta/badges/chrome/pageheader/login/empty/meta/spotlight — el grueso es visual). Riesgos a validar en vivo: (1) `next/font/google` fetchea Manrope/Sora en el primer compile de `next dev` (el gate no lo ejercita); (2) `light-dark()` + dark toggle solo se ejercieron en la rama clara. NO commiteado (pendiente de decisión del usuario + lint de carril A).
 - [2026-07-18 00:05] [feature-implementer] **SUPERSEDED (nota, D13 de `identidad-talonario`)**: la **ruta de marca C · «En Vivo» (violeta `#7239d5`, Manrope/Sora, neutrales cálidos crema)** que este carril instanció en `src/styles/theme.ts` quedó **SUPERSEDED** por la identidad **«El Talonario»** (cobalto `#2b3fbf` + amarillo `#ffc530` + tinta `#191b22`, Bricolage/Instrument/Plex Mono), volcada por `tasks/26-07-17-marca-identidad-talonario.md` (F01). El resto de este carril NO se toca — el chrome invertido del panel (wordmark arriba, chip de tienda con swatch), el `PageHeader`, los empty states, el Spotlight y el toggle de dark siguen vigentes; solo cambian los hex/fuentes que heredan del theme (re-color gratis). No amerita ADR (la ruta violeta nunca fue ADR — fue decisión de task file; el registro visual del repo es `docs/design.md`, ya reescrito).
+- [2026-07-18 02:10] [feature-tester] **Corrida de validación (feature mode, slug=admin-marca).** Server dev :3001 arriba. Sesión de panel vía `/api/dev/login?slug=autora` (cuenta piloto = dueña + Operador).
+  - **Vitest suite completa: 406 passed / 1 skipped (407), exit 0.** Los archivos del carril verdes: `config/app` (2/2), `styles/theme` (theme + estado + tipografía, ahora asertando valores talonario cobalto), `getAccesoActual` (4/4, incl. `colorPrimario` valor+null). Los 8 checkboxes Vitest de F01/F02/F03 marcados `[x]`.
+  - **Nota de supersession confirmada en runtime**: el theme corriendo es «El Talonario» (cobalto `#2b3fbf`, no violeta `#7239d5`; fuentes Instrument/Bricolage/Plex, no Manrope/Sora; fondo celeste `hundido`, no crema). El prompt del orquestador describía la ruta violeta «En Vivo» — quedó desactualizado por `identidad-talonario`. Validé contra lo que EXISTE. La semántica teal/ámbar/ladrillo sí sobrevive.
+  - **E2E `marca.*` (chrome-devtools):** PASS (6) → `badges.001`, `chrome.001`, `login.001`, `meta.001`, `spotlight.001`, `pageheader.001` (desktop; mobile no exercitable — ningún carril MCP expone tool de viewport). Verificado además: chip con swatch rosa del `colorPrimario` (D2), menú de cuenta con rol Operador + Cerrar sesión, «Ver mi tienda» abre `autora.localhost:3001` en pestaña nueva, dark toggle conmuta y el chrome queda legible (rama dark de `light-dark()` RESUELTA), Spotlight navega, Comisión/neto en Decimal ($3.000 → −$96 / $2.904).
+  - **FAIL (1) — `marca.paleta.001`: TIPOGRAFÍA de marca no carga.** La paleta cobalto está bien (CTA `rgb(43,63,191)`, NO azul default Mantine), pero TODA la app (login + panel) renderiza en **Times New Roman**: el HTML server-rendered de `/login` trae **0 `@font-face`**, 0 media woff2 y las CSS vars `--font-instrument/display/mono` VACÍAS (`document.fonts.size=0`), aunque los classNames `__variable_*` de next/font SÍ están en `<html>`. **Causa raíz:** las fuentes se referencian SOLO en `src/pages/_document.tsx` (línea 18) — pitfall del pages-router: `next/font` en `_document` aplica el className pero su `<style>` de `@font-face`/vars nunca se colecta (se colecta del árbol de `_app`/páginas). La cascada: `--font-instrument` vacía ⇒ `--mantine-font-family` inválida (invalid-at-computed-value-time) ⇒ fallback UA serif. **No auto-retryable** (bug estructural, no timing/HMR); un restart no lo arregla. `npm run check` no lo detecta (no renderiza). Fix natural: aplicar las fuentes en `_app.tsx` (no en `_document`). Archivo prohibido para el tester → reportado al orquestador.
+  - **BLOCKED (2) — data:** `marca.empty.001` (todas las superficies del piloto tienen datos sembrados; `prueba` sin dueño ⇒ dev-login 404; `EmptyState` existe + reviewer APPROVE pero no surfaceado en vivo) y `marca.chrome.002` (sin fixture de Operador SIN membresía).
+  - **Design compliance:** el chrome respeta la paleta (cobalto plataforma vs swatch de tenant), semántica teal/ámbar/ladrillo, `red` solo destructivo, montos con `Intl.NumberFormat` CLP. Sin findings de diseño (más allá del bug de fuentes, que es funcional, no de línea gráfica).
+  - **NO** cambié `state`/`status`; **NO** commit; **NO** toqué INDEX. Sesión dev de `autora` queda activa (revisable). AWAITING USER.
+- [2026-07-18 02:25] [feature-implementer] **FIX del bug `marca.paleta.001` (tipografía serif/Times).** Confirmé la causa raíz del feature-tester: `next/font` se instanciaba/aplicaba SOLO en `src/pages/_document.tsx`; en el pages router el colector de estilos de `next/font` recorre el árbol de `_app`/páginas, NUNCA `_document`, así que el `<style>` con `@font-face` + las CSS vars `--font-*` jamás se inyectaban → `--font-instrument/display/mono` vacías → `--mantine-font-family` inválida → serif del UA. **NO revertí nada de «El Talonario»** (solo arreglé el cableado de las fuentes que ya corren: Instrument/Bricolage/Plex).
+  - `_document.tsx`: quité el import de `~/config/fonts` y los classNames `__variable_*` del `<html>`. Queda solo `ColorSchemeScript` + favicon.
+  - `_app.tsx`: importa las fuentes de `~/config/fonts` (así el colector inyecta su `@font-face` en `pages/_app.css`) y define las vars en **`:root`** vía `<style>` en `next/head` usando `.style.fontFamily` — a nivel `:root` (no un wrapper) para que las hereden TAMBIÉN los portales de Mantine (Modal/Menu/Spotlight/Notifications), que se montan en `<body>` fuera del árbol de React. Un wrapper `<div>` en `_app` habría dejado los portales en serif.
+  - **Verificación real** (dev :3001, sin reiniciar): (a) `curl /login` → las 3 CSS vars `:root` pobladas con las familias hasheadas exactas; (b) `curl /_next/static/css/pages/_app.css` → **28 `@font-face`** con `__Instrument_Sans_3d9088` / `__Bricolage_Grotesque_a4bae9` / `__IBM_Plex_Mono_b4c22e` (matchean 1:1 las vars); (c) **navegador (Playwright)** → `document.fonts.size=28`, `document.fonts.check("16px '__Instrument_Sans_3d9088'")=true`, `getComputedStyle(body).fontFamily` empieza en `__Instrument_Sans…` (NO serif), wordmark en Bricolage, eyebrows en Plex Mono, screenshot `tmp/font-verify-login.png` → **cero Times**. `npx tsc --noEmit` limpio, `npx next lint` limpio (0 warnings), vitest styles+config 26/26.
+  - Archivos tocados: `src/pages/_document.tsx`, `src/pages/_app.tsx`. **NO commit, NO push, INDEX intacto.** El feature-tester puede re-correr `marca.paleta.001` (debería pasar) y los BLOCKED (`empty.001`/`chrome.002`) siguen pendientes de fixtures de datos.

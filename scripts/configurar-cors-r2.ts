@@ -21,10 +21,15 @@ import {
  * Uso:  npm run cors:r2
  */
 
-/** Orígenes de DEV que pueden hacer el PUT: apex + subdominios de tenant en :3001. */
+/**
+ * Orígenes que pueden hacer el PUT: apex + subdominios de tenant, en dev (:3001) y en
+ * producción (sorteatelo.cl, ADR-0014/0015). El editor sube imágenes DESDE el subdominio.
+ */
 export const ORIGENES_DEV = [
   "http://localhost:3001",
   "http://*.localhost:3001",
+  "https://sorteatelo.cl",
+  "https://*.sorteatelo.cl",
 ];
 
 /** Reglas CORS puras (para el PUT de subida del PDF). */

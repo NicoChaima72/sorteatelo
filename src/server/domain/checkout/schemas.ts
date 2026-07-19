@@ -59,3 +59,16 @@ export const listarProductosDeCatalogoInput = z.object({
 export type ListarProductosDeCatalogoInput = z.infer<
   typeof listarProductosDeCatalogoInput
 >;
+
+/**
+ * Input del resumen de sorteos CERRADOS (catálogo-v2 F06): `max` acota cuántos ganadores devolver
+ * (el widget `ganadores` automatico pasa su `maxAutomaticos`). El `tenantId` sale del contexto (I1),
+ * jamás del input. Todo opcional ⇒ el use case aplica su cota dura por defecto.
+ */
+export const getSorteoResumenStorefrontInput = z
+  .object({ max: z.number().int().min(1).max(20).optional() })
+  .optional();
+
+export type GetSorteoResumenStorefrontInput = z.infer<
+  typeof getSorteoResumenStorefrontInput
+>;

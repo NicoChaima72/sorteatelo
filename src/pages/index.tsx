@@ -11,6 +11,7 @@ import {
   getPropsHome,
   type PropsHome,
 } from "~/server/storefront/getStorefrontProps";
+import { colorSolidoDeEsquema } from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -56,8 +57,11 @@ function StorefrontHome({
   pagina: PageDocument;
   esPreview: boolean;
 }) {
+  // Fondo de página del TemaPagina (catálogo-v2 F02): `superficie` (default) = body ⇒ sin cambio;
+  // otros esquemas pintan el shell entero. Cero hex inline (token de la escala del tenant, I-A).
+  const fondoPagina = colorSolidoDeEsquema(pagina.root.props.fondoPagina);
   return (
-    <StorefrontLayout branding={branding}>
+    <StorefrontLayout branding={branding} estiloShell={{ background: fondoPagina }}>
       {esPreview && (
         <>
           <Head>

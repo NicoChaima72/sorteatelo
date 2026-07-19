@@ -22,6 +22,8 @@ interface NodoLaxo {
   tipo: string;
   v: number;
   props: Record<string, unknown>;
+  /** Estilo de sección en el envelope (catálogo-v2 F01/D2); ausente ⇒ el nodo no lleva estilo. */
+  estilo?: unknown;
 }
 
 /** `true` sii `tipo` es un widget de SECCIÓN del registro (no overlay, no inexistente). */
@@ -52,12 +54,13 @@ export function aplicarMutacion(
   doc: PageDocument,
   mut: MutacionPagina,
 ): PageDocument {
-  // Copias laxas mutables; el parse final valida.
+  // Copias laxas mutables; el parse final valida. Se preserva `estilo` del envelope (catálogo-v2 F01).
   const secciones: NodoLaxo[] = doc.secciones.map((s) => ({
     id: s.id,
     tipo: s.tipo,
     v: s.v,
     props: { ...s.props },
+    ...(s.estilo !== undefined ? { estilo: s.estilo } : {}),
   }));
   let root: { props: Record<string, unknown> } = { props: { ...doc.root.props } };
 
@@ -114,6 +117,22 @@ export function aplicarMutacion(
     }
     case "set_theme": {
       root = { props: { ...mut.props } };
+      break;
+    }
+    case "set_page_theme": {
+      // Espejo semántico de `set_theme` (catálogo-v2 F01/D3): escribe root.props; el parse final
+      // revalida contra `TemaSchema` ⇒ tema inválido ⇒ INVALID sin mutar.
+      root = { props: { ...mut.tema } };
+      break;
+    }
+    case "set_section_style": {
+      const nodo = secciones.find((s) => s.id === mut.id);
+      if (!nodo) {
+        throw new DomainError("NOT_FOUND", `Sección no encontrada: "${mut.id}".`);
+      }
+      // Reemplaza el estilo COMPLETO del nodo (el panel/MCP mandan el objeto entero). El parse final
+      // revalida contra `EstiloSeccionSchema` ⇒ esquema/enum fuera de rango o hex crudo ⇒ INVALID.
+      nodo.estilo = mut.estilo;
       break;
     }
     case "apply_page": {

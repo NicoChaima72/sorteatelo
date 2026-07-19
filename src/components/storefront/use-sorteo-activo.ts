@@ -11,3 +11,15 @@ export function useSorteoActivo() {
     retry: false,
   });
 }
+
+/**
+ * Query pública del RESUMEN de sorteos CERRADOS (catálogo-v2 F06): ganadores ENMASCARADOS + agregados,
+ * sin PII (ADR-0004, todo server-side). La consume `ganadores` en modo `automatico`. `retry:false`:
+ * sección opcional; sin cerrados ⇒ `[]` ⇒ el widget se auto-oculta.
+ */
+export function useSorteoResumen(max?: number) {
+  return api.checkout.getSorteoResumenStorefront.useQuery(
+    max === undefined ? undefined : { max },
+    { retry: false },
+  );
+}

@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Card,
-  Container,
   Group,
   SimpleGrid,
   Skeleton,
@@ -15,9 +14,10 @@ import { IconBooks, IconGift } from "@tabler/icons-react";
 import Link from "next/link";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
-import { type CatalogoProps } from "~/lib/pagebuilder/widgets";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { gradienteTematico } from "~/styles/tenantTheme";
 import { api, type RouterOutputs } from "~/utils/api";
 
@@ -33,12 +33,15 @@ type ProductoCatalogo =
  * ajenas/inactivas descartadas en silencio, D6). Card sin portada ⇒ placeholder temático (§5.2).
  */
 export function CatalogoStorefront({
-  props,
+  nodo,
   colorPrimario,
+  divisorColor,
 }: {
-  props: CatalogoProps;
+  nodo: Extract<SeccionNode, { tipo: "catalogo" }>;
   colorPrimario: string | null;
+  divisorColor?: string;
 }) {
+  const props = nodo.props;
   const productos = api.checkout.listarProductosDeCatalogo.useQuery({
     modo: props.modo,
     productoIds: props.productoIds,
@@ -46,57 +49,60 @@ export function CatalogoStorefront({
   const cols = { base: 1, sm: 2, md: props.columnas };
 
   return (
-    <Box component="section" id="catalogo" py={{ base: "xl", md: 48 }}>
-      <Container size="lg" px={{ base: "md", lg: "xl" }}>
-        <Stack gap="lg">
-          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
-            {props.titulo}
-          </Title>
+    <SeccionWrapper
+      id={nodo.id}
+      estilo={nodo.estilo}
+      ancla="catalogo"
+      divisorColor={divisorColor}
+    >
+      <Stack gap="lg">
+        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+          {props.titulo}
+        </Title>
 
-          {productos.isLoading ? (
-            <SimpleGrid cols={cols} spacing="lg">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} height={320} radius="md" />
-              ))}
-            </SimpleGrid>
-          ) : productos.isError ? (
-            <Stack align="center" py="xl" gap="sm">
-              <Text size="sm" c="red">
-                No pudimos cargar los productos.
-              </Text>
-              <Button
-                variant="default"
-                size="xs"
-                onClick={() => void productos.refetch()}
-              >
-                Reintentar
-              </Button>
-            </Stack>
-          ) : !productos.data || productos.data.length === 0 ? (
-            <Stack align="center" py="xl" gap="xs">
-              <IconBooks
-                className="size-8"
-                stroke={1.5}
-                color="var(--mantine-color-dimmed)"
+        {productos.isLoading ? (
+          <SimpleGrid cols={cols} spacing="lg">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={320} radius="md" />
+            ))}
+          </SimpleGrid>
+        ) : productos.isError ? (
+          <Stack align="center" py="xl" gap="sm">
+            <Text size="sm" c="red">
+              No pudimos cargar los productos.
+            </Text>
+            <Button
+              variant="default"
+              size="xs"
+              onClick={() => void productos.refetch()}
+            >
+              Reintentar
+            </Button>
+          </Stack>
+        ) : !productos.data || productos.data.length === 0 ? (
+          <Stack align="center" py="xl" gap="xs">
+            <IconBooks
+              className="size-8"
+              stroke={1.5}
+              color="var(--mantine-color-dimmed)"
+            />
+            <Text size="sm" c="dimmed" ta="center">
+              Esta tienda todavía no tiene productos publicados.
+            </Text>
+          </Stack>
+        ) : (
+          <SimpleGrid cols={cols} spacing="lg">
+            {productos.data.map((producto) => (
+              <TarjetaProducto
+                key={producto.id}
+                producto={producto}
+                colorPrimario={colorPrimario}
               />
-              <Text size="sm" c="dimmed" ta="center">
-                Esta tienda todavía no tiene productos publicados.
-              </Text>
-            </Stack>
-          ) : (
-            <SimpleGrid cols={cols} spacing="lg">
-              {productos.data.map((producto) => (
-                <TarjetaProducto
-                  key={producto.id}
-                  producto={producto}
-                  colorPrimario={colorPrimario}
-                />
-              ))}
-            </SimpleGrid>
-          )}
-        </Stack>
-      </Container>
-    </Box>
+            ))}
+          </SimpleGrid>
+        )}
+      </Stack>
+    </SeccionWrapper>
   );
 }
 
@@ -111,7 +117,12 @@ function TarjetaProducto({
   const enCarrito = contiene(producto.id);
 
   return (
-    <Card withBorder radius="md" padding={0} className="h-full">
+    <Card
+      withBorder
+      radius="md"
+      padding={0}
+      className="h-full animar-hover-lift animar-zoom-hover"
+    >
       <Stack gap={0} h="100%">
         <Portada
           url={producto.portadaUrl}

@@ -2,10 +2,12 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import { documentoInicial } from "~/lib/pagebuilder/factory";
+import { ESQUEMAS_FONDO, PARES_TIPOGRAFICOS, PRESETS_ENTRADA } from "~/lib/pagebuilder/widgets";
 import { verificarBearer } from "~/server/mcp/auth";
 import {
   mcpGetPage,
   mcpListProducts,
+  mcpListStyleOptions,
   mcpListVersions,
   mcpMutar,
   mcpPublishPage,
@@ -213,5 +215,78 @@ describe("mcp/tools — direccionan por storeSlug y reusan los use cases de F04"
     expect(res.version).toBe(6); // bump del lock
     expect(res.nota).toContain("Publicá");
     expect(getPublished()).toBeNull(); // NO tocó lo publicado (I6)
+  });
+});
+
+describe("mcp/tools — paridad de estilo (F07): set_section_style / set_page_theme / list_style_options", () => {
+  // mcp.style.001 — set_section_style delega en aplicarMutacionPagina: escribe el borrador (id de nodo),
+  // respeta expectedVersion; estilo inválido ⇒ INVALID sin mutar.
+  it("set_section_style escribe el estilo del nodo y rechaza un estilo inválido sin mutar", async () => {
+    const { db, getVersion } = fakeDb({ slugs: { autora: "t-autora" }, version: 1 });
+    const res = await mcpMutar({
+      db,
+      storeSlug: "autora",
+      expectedVersion: 1,
+      mutacion: { accion: "set_section_style", id: "sec-hero", estilo: { fondo: { tipo: "esquema", esquema: "marca" }, padY: "xl" } },
+    });
+    expect(getVersion()).toBe(2);
+    expect(res.documento.secciones[0]).toMatchObject({ id: "sec-hero", estilo: { fondo: { esquema: "marca" } } });
+
+    // Estilo inválido (esquema fuera del enum) ⇒ INVALID, sin escribir.
+    const { db: db2, getWrites: getWrites2 } = fakeDb({ slugs: { autora: "t-autora" }, version: 1 });
+    await expect(
+      mcpMutar({
+        db: db2,
+        storeSlug: "autora",
+        expectedVersion: 1,
+        mutacion: { accion: "set_section_style", id: "sec-hero", estilo: { fondo: { tipo: "esquema", esquema: "no-existe" } } },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+    expect(getWrites2()).toHaveLength(0);
+  });
+
+  // mcp.style.002 — set_page_theme escribe root.props validado; tema inválido ⇒ INVALID sin mutar
+  it("set_page_theme escribe el tema (root.props) y rechaza un tema inválido sin mutar", async () => {
+    const { db, getVersion } = fakeDb({ slugs: { autora: "t-autora" }, version: 1 });
+    const res = await mcpMutar({
+      db,
+      storeSlug: "autora",
+      expectedVersion: 1,
+      mutacion: { accion: "set_page_theme", tema: { modo: "oscuro", tipografia: "editorial" } },
+    });
+    expect(getVersion()).toBe(2);
+    expect(res.documento.root.props).toMatchObject({ modo: "oscuro", tipografia: "editorial" });
+
+    const { db: db2, getWrites: getWrites2 } = fakeDb({ slugs: { autora: "t-autora" }, version: 1 });
+    await expect(
+      mcpMutar({
+        db: db2,
+        storeSlug: "autora",
+        expectedVersion: 1,
+        mutacion: { accion: "set_page_theme", tema: { modo: "morado" } },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+    expect(getWrites2()).toHaveLength(0);
+  });
+
+  // mcp.style.003 — list_style_options devuelve TODOS los enums (derivados de la fuente única) con
+  // descripción de una línea; no hay lista duplicada a mano.
+  it("list_style_options espeja los enums de la fuente única con descripción por valor", () => {
+    const opts = mcpListStyleOptions();
+    // Los valores salen del enum de widgets.ts (fuente única), no de una lista a mano.
+    expect(opts.estiloSeccion.fondoEsquema.map((o) => o.valor)).toEqual([...ESQUEMAS_FONDO]);
+    expect(opts.estiloSeccion.entrada.map((o) => o.valor)).toEqual([...PRESETS_ENTRADA]);
+    expect(opts.temaPagina.tipografia.map((o) => o.valor)).toEqual([...PARES_TIPOGRAFICOS]);
+    expect(opts.temaPagina.fondoPagina.map((o) => o.valor)).toEqual([...ESQUEMAS_FONDO]);
+    // Cada opción de cada dimensión tiene una descripción NO vacía (una línea).
+    const dimensiones = [
+      ...Object.values(opts.estiloSeccion),
+      ...Object.values(opts.temaPagina),
+    ];
+    for (const dim of dimensiones) {
+      for (const o of dim) {
+        expect(o.descripcion.length, `descripción de "${o.valor}"`).toBeGreaterThan(0);
+      }
+    }
   });
 });

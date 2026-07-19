@@ -16,12 +16,14 @@ const docCompleto = () =>
   documentoInicial({ heroTitulo: "Hola", heroSubtitulo: null, heroImageUrl: null });
 
 describe("pagebuilder/migrate — migrate-on-read + lectura tolerante", () => {
-  // page.render.migrate.001 — un nodo sin `v` se migra a v1 PURO al leer, sin tocar la entrada
-  it("migra un nodo legacy sin `v` a v1 sin mutar la entrada (puro, sin DB)", () => {
+  // page.render.migrate.001 — un nodo sin `v` se normaliza a v1 PURO al leer, sin tocar la entrada.
+  // Se usa `catalogo` (que sigue en v1) como ejemplo del paso genérico "missing v ⇒ v1"; el paso
+  // específico de `hero` v1→v2 se prueba aparte (widgetsSocial.test.ts::page.soc.hero.001, F05).
+  it("normaliza un nodo legacy sin `v` a v1 sin mutar la entrada (puro, sin DB)", () => {
     const raw = {
       schemaVersion: 1,
       root: { props: {} },
-      secciones: [{ id: "sec-hero", tipo: "hero", props: { titulo: "Hola" } }], // sin `v`
+      secciones: [{ id: "sec-catalogo", tipo: "catalogo", props: { titulo: "Catálogo" } }], // sin `v`
       overlays: [],
     };
     const rawCopia = structuredClone(raw);

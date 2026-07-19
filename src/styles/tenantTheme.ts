@@ -3,6 +3,8 @@ import {
   type MantineThemeOverride,
 } from "@mantine/core";
 
+import { type Tema } from "~/lib/pagebuilder/schema";
+
 /**
  * Theming per-tenant del storefront (F06/D2, ADR-0011). El branding de la Tienda es **dato,
  * no código**: estas funciones PURAS derivan un `MantineThemeOverride` de los datos del
@@ -135,6 +137,26 @@ export function overrideDesdeBranding(
     colors: { [COLOR_MARCA]: generarEscalaColor(branding.colorPrimario) },
     primaryColor: COLOR_MARCA,
   };
+}
+
+/** Radio global del TemaPagina (enum) → `defaultRadius` de Mantine. `nulo` = sin radio. */
+const RADIO_A_MANTINE: Record<string, string | number> = {
+  nulo: 0,
+  s: "sm",
+  m: "md", // = el defaultRadius base de plataforma
+  l: "lg",
+  completo: "xl",
+};
+
+/**
+ * Override de theme derivado del `TemaPagina` del documento (catálogo-v2 F02/D3). Aplica el `radio`
+ * global (override de `defaultRadius`). El `modo` (claro/oscuro) NO va acá — lo aplica
+ * `MantineProvider` vía `forceColorScheme` en `_app`. La `tipografia` tampoco — se swapean las CSS
+ * vars `--font-*` en `_app` (el theme ya las consume por var). `vibe` queda reservado (v1: sin efecto
+ * visual propio más allá del radio; ampliable sin romper el schema). Puro y determinista.
+ */
+export function overrideDesdeTema(tema: Tema): MantineThemeOverride {
+  return { defaultRadius: RADIO_A_MANTINE[tema.radio] ?? "md" };
 }
 
 /**

@@ -21,16 +21,35 @@ export function migrarDocumento(raw: unknown): unknown {
   const doc = raw as Record<string, unknown>;
   if (!Array.isArray(doc.secciones)) return raw;
   const secciones = doc.secciones as unknown[];
+  return { ...doc, secciones: secciones.map(migrarNodo) };
+}
 
-  // Único paso hoy: un nodo legacy SIN `v` se normaliza a `v:1` (migrate-on-read PURO — spread, no
-  // muta la entrada, no escribe a DB). Cuando un widget suba a v2, su paso vN→vN+1 se agrega acá.
-  const migradas = secciones.map((s): unknown => {
-    if (s && typeof s === "object" && (s as Record<string, unknown>).v === undefined) {
-      return { ...(s as Record<string, unknown>), v: 1 };
-    }
-    return s;
-  });
-  return { ...doc, secciones: migradas };
+/**
+ * Migra UN nodo de sección de su `v` viejo a la actual (PURO — spread, no muta la entrada). Pasos:
+ *  1. Un nodo legacy SIN `v` se normaliza a `v:1` (pre-versionado ⇒ shape v1).
+ *  2. `hero` v<2 → v2 (catálogo-v2 F05/D4): aditivo (variante/ctaSecundario/overlayOscuridad, default
+ *     `variante:"split"` conserva el look v1) ⇒ la migración solo sube el marcador `v`.
+ *  3. `ganadores` v<2 → v2 (catálogo-v2 F06/D4): aditivo (fuente/maxAutomaticos, default
+ *     `fuente:"manual"` conserva los `items` y el look v1) ⇒ solo sube el marcador `v`.
+ * El parse rellena los campos nuevos (I-H). Los futuros vN→vN+1 se encadenan acá.
+ */
+function migrarNodo(s: unknown): unknown {
+  if (!s || typeof s !== "object") return s;
+  const nodo = s as Record<string, unknown>;
+  let out = nodo;
+  let v = typeof nodo.v === "number" ? nodo.v : 1;
+  if (nodo.v === undefined) out = { ...out, v };
+  // hero v1 → v2 (aditivo: default `variante:"split"` conserva el look actual).
+  if (out.tipo === "hero" && v < 2) {
+    out = { ...out, v: 2 };
+    v = 2;
+  }
+  // ganadores v1 → v2 (aditivo: default `fuente:"manual"` conserva los items y el look actual).
+  if (out.tipo === "ganadores" && v < 2) {
+    out = { ...out, v: 2 };
+    v = 2;
+  }
+  return out;
 }
 
 /**
@@ -76,7 +95,13 @@ export function leerDocumentoParaRender(raw: unknown): PageDocument {
     secciones,
     overlays,
   });
+  // Fallback: documento vacío VÁLIDO (parse rellena los defaults del TemaSchema, catálogo-v2 F01).
   return doc.success
     ? doc.data
-    : { schemaVersion: 1, root: { props: {} }, secciones: [], overlays: [] };
+    : PageDocumentSchema.parse({
+        schemaVersion: 1,
+        root: { props: {} },
+        secciones: [],
+        overlays: [],
+      });
 }

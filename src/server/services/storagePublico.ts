@@ -1,8 +1,16 @@
 import {
+  CONTENT_TYPES_IMAGEN,
+  esContentTypeImagen,
+  type ContentTypeImagen,
+} from "~/lib/imagenes";
+import {
   crearStorageService,
   type StorageConfig,
   type StorageService,
 } from "~/server/services/storage";
+
+// Re-export para no romper los consumidores server que importaban la allowlist desde acá.
+export { CONTENT_TYPES_IMAGEN, esContentTypeImagen, type ContentTypeImagen };
 
 /**
  * Service Storage PÚBLICO — adapter S3-compatible al bucket PÚBLICO de assets de marca
@@ -23,18 +31,8 @@ import {
  * Los secretos (claves R2) viven solo en el closure del service, jamás en logs ni respuestas (I5).
  */
 
-/** Allowlist de Content-Type de imagen (D6). La URL prefirmada solo vale para el tipo declarado. */
-export const CONTENT_TYPES_IMAGEN = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-] as const;
-export type ContentTypeImagen = (typeof CONTENT_TYPES_IMAGEN)[number];
-
-/** `true` sii `v` es un Content-Type de imagen de la allowlist (narrowing). */
-export function esContentTypeImagen(v: string): v is ContentTypeImagen {
-  return (CONTENT_TYPES_IMAGEN as readonly string[]).includes(v);
-}
+// La allowlist `CONTENT_TYPES_IMAGEN` + `esContentTypeImagen` viven en `~/lib/imagenes` (client-safe)
+// y se re-exportan arriba — el picker del editor (cliente) no puede importar este módulo (S3Client).
 
 // ── Keys per-tenant computadas SIEMPRE server-side (D3/I6) ─────────────────────────────────
 // Organización, no seguridad (el bucket es público entero). El cliente NUNCA elige la key.
@@ -56,6 +54,14 @@ export function keyPortadaProducto(tenantId: string, productId: string): string 
 /** `<tenantId>/sorteo/<raffleId>/premio`. */
 export function keyPremioSorteo(tenantId: string, raffleId: string): string {
   return `${tenantId}/sorteo/${raffleId}/premio`;
+}
+/**
+ * `<tenantId>/pagina/<assetId>` (catálogo-v2 F08): imágenes LIBRES del editor de la Página (modelo
+ * `PageAsset`). Namespace por tenant; el `assetId` (cuid del `PageAsset`) discrimina cada imagen. La
+ * key NO se persiste (se recomputa de `id+tenantId`) — el cliente jamás la elige (I6).
+ */
+export function keyPaginaAsset(tenantId: string, assetId: string): string {
+  return `${tenantId}/pagina/${assetId}`;
 }
 
 /**

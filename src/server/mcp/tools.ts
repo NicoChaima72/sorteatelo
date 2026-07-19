@@ -1,7 +1,25 @@
 import { type PrismaClient } from "@prisma/client";
 
 import { type PageDocument } from "~/lib/pagebuilder/schema";
-import { TIPOS_SECCION, WIDGET_REGISTRY } from "~/lib/pagebuilder/widgets";
+import {
+  ALTURA_DIVISOR,
+  ANCHO_CONTENIDO,
+  ANCHO_SECCION,
+  ESPACIADO_V,
+  ESQUEMAS_FONDO,
+  FORMAS_DIVISOR,
+  GRADIENTES,
+  MODO_COLOR,
+  OVERLAY_IMAGEN,
+  PARES_TIPOGRAFICOS,
+  PATRONES,
+  POSICION_IMAGEN,
+  PRESETS_ENTRADA,
+  RADIO_GLOBAL,
+  TIPOS_SECCION,
+  VIBE,
+  WIDGET_REGISTRY,
+} from "~/lib/pagebuilder/widgets";
 import { DomainError } from "~/server/domain/errors";
 import { aplicarMutacionPagina } from "~/server/domain/pagebuilder/aplicarMutacionPagina";
 import { getPagina } from "~/server/domain/pagebuilder/getPagina";
@@ -85,6 +103,140 @@ export function mcpListWidgetTypes() {
     v: WIDGET_REGISTRY[tipo].v,
     defaultProps: WIDGET_REGISTRY[tipo].defaultProps,
   }));
+}
+
+/**
+ * Empareja cada VALOR de un enum (fuente única, `widgets.ts`) con su descripción semántica de una
+ * línea. Los valores salen del enum (nunca lista a mano); el `Record<T,string>` OBLIGA en compile-time
+ * a describir todos (si se agrega un valor al enum sin descripción, no compila). Espejo de
+ * `list_widget_types`: el LLM del MCP elige por INTENCIÓN NOMBRADA, no por hex.
+ */
+function describir<T extends string>(
+  valores: readonly T[],
+  desc: Record<T, string>,
+): { valor: T; descripcion: string }[] {
+  return valores.map((valor) => ({ valor, descripcion: desc[valor] }));
+}
+
+/**
+ * `list_style_options`: TODOS los enums de estilo (por sección) y de tema (por página) con su
+ * descripción de una línea, derivados de la fuente única (`widgets.ts`). El LLM del MCP los usa para
+ * `set_section_style` (fondo/spacing/ancho/divisor/entrada) y `set_page_theme` (modo/radio/vibe/
+ * tipografía/ancho/fondo de página) — jamás hex ni CSS libre (I-A). Sin efectos, no toca tenant.
+ */
+export function mcpListStyleOptions() {
+  return {
+    estiloSeccion: {
+      fondoEsquema: describir(ESQUEMAS_FONDO, {
+        tema: "Transparente: hereda el fondo de la página (por defecto).",
+        superficie: "Blanco (o tinta en modo oscuro), texto tinta.",
+        superficie_alt: "Banda gris suave para separar del fondo.",
+        marca_suave: "Tinte claro del color de la tienda, texto tinta.",
+        marca: "Color de la tienda a fondo lleno, texto claro legible.",
+        marca_profundo: "Versión oscura del color de la tienda, texto claro.",
+        tinta: "Fondo casi negro, texto claro (alto contraste).",
+      }),
+      fondoGradiente: describir(GRADIENTES, {
+        marca_suave: "Degradado suave entre tonos claros de la marca.",
+        marca_vivo: "Degradado vivo de la marca (el del hero).",
+        tinta: "Degradado oscuro tinta.",
+        papel: "Degradado gris muy claro tipo papel.",
+      }),
+      fondoImagenOverlay: describir(OVERLAY_IMAGEN, {
+        ninguno: "Sin capa sobre la imagen.",
+        tinta: "Capa oscura para que el texto claro se lea.",
+        marca: "Capa del color de la tienda sobre la imagen.",
+        claro: "Capa clara para texto oscuro.",
+      }),
+      fondoImagenPosicion: describir(POSICION_IMAGEN, {
+        centro: "Centrada.",
+        arriba: "Anclada arriba.",
+        abajo: "Anclada abajo.",
+        izq: "Anclada a la izquierda.",
+        der: "Anclada a la derecha.",
+      }),
+      fondoPatron: describir(PATRONES, {
+        ninguno: "Sin patrón.",
+        puntos: "Puntos sutiles.",
+        grilla: "Grilla fina.",
+        diagonales: "Líneas diagonales.",
+        perforacion: "Motivo de troquel de ticket.",
+      }),
+      espaciadoVertical: describir(ESPACIADO_V, {
+        ninguno: "Sin aire arriba/abajo.",
+        s: "Poco aire.",
+        m: "Aire medio.",
+        l: "Aire amplio (por defecto).",
+        xl: "Aire muy amplio.",
+      }),
+      ancho: describir(ANCHO_SECCION, {
+        contenido: "Ancho de lectura (por defecto).",
+        ancho: "Más ancho.",
+        completo: "De borde a borde (full-bleed).",
+      }),
+      divisorForma: describir(FORMAS_DIVISOR, {
+        ninguno: "Sin divisor.",
+        onda: "Onda suave hacia la sección siguiente.",
+        diagonal: "Corte diagonal.",
+        curva: "Curva.",
+        triangulo: "Triángulo (aún no dibujado).",
+        perforacion: "Troquel de ticket (aún no dibujado).",
+      }),
+      divisorAltura: describir(ALTURA_DIVISOR, {
+        s: "Bajo.",
+        m: "Medio.",
+        l: "Alto.",
+      }),
+      entrada: describir(PRESETS_ENTRADA, {
+        heredar: "Usa el default del tema de la página.",
+        ninguna: "Sin animación de entrada.",
+        aparecer: "Aparece con un fundido.",
+        subir: "Sube y aparece (por defecto).",
+        escala: "Crece levemente y aparece.",
+        desenfoque: "Se enfoca desde un desenfoque.",
+      }),
+    },
+    temaPagina: {
+      modo: describir(MODO_COLOR, {
+        claro: "Tienda en modo claro.",
+        oscuro: "Tienda en modo oscuro.",
+      }),
+      radio: describir(RADIO_GLOBAL, {
+        nulo: "Esquinas rectas.",
+        s: "Esquinas apenas redondeadas.",
+        m: "Redondeo medio (por defecto).",
+        l: "Redondeo amplio.",
+        completo: "Muy redondeado / pastilla.",
+      }),
+      vibe: describir(VIBE, {
+        nitido: "Nítido y sobrio.",
+        suave: "Suave y amable (por defecto).",
+        editorial: "Editorial / boutique.",
+      }),
+      tipografia: describir(PARES_TIPOGRAFICOS, {
+        plataforma: "Par por defecto (Bricolage + Instrument).",
+        editorial: "Elegante boutique (Fraunces + Inter).",
+        energia: "Techy/fandom moderno (Space Grotesk + Inter).",
+        dulce: "Redondeado merch/kpop (Poppins + Nunito).",
+        impacto: "Póster/urgencia (Anton + Roboto).",
+        clasica: "Refinada (Playfair + Source Sans).",
+        tecnica: "Limpia/mono (IBM Plex Sans + Mono).",
+      }),
+      anchoContenido: describir(ANCHO_CONTENIDO, {
+        contenido: "Ancho de lectura por defecto de las secciones.",
+        ancho: "Secciones más anchas por defecto.",
+      }),
+      fondoPagina: describir(ESQUEMAS_FONDO, {
+        tema: "Transparente (usa el fondo del shell).",
+        superficie: "Blanco/tinta (por defecto).",
+        superficie_alt: "Gris suave de fondo.",
+        marca_suave: "Tinte claro de la marca de fondo.",
+        marca: "Color de la marca a fondo lleno.",
+        marca_profundo: "Marca oscura de fondo.",
+        tinta: "Fondo casi negro.",
+      }),
+    },
+  };
 }
 
 /** `list_products`: los productos de la tienda (para referenciar en un catálogo `modo:'seleccion'`). */

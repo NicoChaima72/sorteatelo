@@ -1,7 +1,8 @@
-import { Box, Center, Container, Stack, Text } from "@mantine/core";
+import { Box, Center, Stack, Text } from "@mantine/core";
 
 import { EmbedFacade } from "~/components/storefront/embed-facade";
-import { type EmbedSocialProps } from "~/lib/pagebuilder/widgets";
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
 /**
  * `embed_social` (sección, F11): post social embebido iframe-only sobre F07 (`<EmbedFacade>` →
@@ -9,10 +10,17 @@ import { type EmbedSocialProps } from "~/lib/pagebuilder/widgets";
  * regex — NUNCA el `blockquote`+`<script>` de la plataforma ni HTML crudo (I3/I4). Ratio vertical
  * (9:16) por defecto para el formato de post social. Ref inválida ⇒ no renderiza.
  */
-export function EmbedSocial({ props }: { props: EmbedSocialProps }) {
+export function EmbedSocial({
+  nodo,
+  divisorColor,
+}: {
+  nodo: Extract<SeccionNode, { tipo: "embed_social" }>;
+  divisorColor?: string;
+}) {
+  const props = nodo.props;
   return (
-    <Box component="section" py={{ base: "xl", md: 48 }}>
-      <Container size="sm" px={{ base: "md", lg: "xl" }}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+      <Box maw={540} mx="auto" w="100%">
         <Stack gap="md" align="center">
           <Center>
             <EmbedFacade
@@ -28,7 +36,7 @@ export function EmbedSocial({ props }: { props: EmbedSocialProps }) {
             </Text>
           )}
         </Stack>
-      </Container>
-    </Box>
+      </Box>
+    </SeccionWrapper>
   );
 }

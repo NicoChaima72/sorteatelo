@@ -3,7 +3,6 @@ import {
   Anchor,
   Badge,
   Box,
-  Container,
   Group,
   SimpleGrid,
   Stack,
@@ -17,9 +16,11 @@ import {
   formatoCompacto,
   useCountdown,
 } from "~/components/storefront/use-countdown";
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
 import { fecha, num } from "~/lib/formato";
-import { type SorteoVitrinaProps } from "~/lib/pagebuilder/widgets";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
+import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 import { gradienteTematico } from "~/styles/tenantTheme";
 
 /**
@@ -37,13 +38,26 @@ const DISCLAIMER_SORTEO =
   "responsable de sus bases, premios y resultado. La plataforma solo provee la tecnología: no " +
   "organiza el sorteo ni responde por su ejecución. Revisa las bases antes de participar.";
 
+/**
+ * Estilo por defecto de la vitrina (catálogo-v2 F02): la sección deja de HARDCODEAR su fondo y usa
+ * un esquema `superficie_alt` (banda gris tokenizada) — equivalente visual al `default-hover` previo,
+ * ahora sobreescribible desde el documento (`estilo`). Sin bump: un documento sin `estilo` conserva
+ * la banda distintiva del sorteo (no-op perceptual, I-H).
+ */
+const ESTILO_SORTEO_DEFAULT = EstiloSeccionSchema.parse({
+  fondo: { tipo: "esquema", esquema: "superficie_alt" },
+});
+
 export function SorteoStorefront({
-  props,
+  nodo,
   colorPrimario,
+  divisorColor,
 }: {
-  props: SorteoVitrinaProps;
+  nodo: Extract<SeccionNode, { tipo: "sorteo_vitrina" }>;
   colorPrimario: string | null;
+  divisorColor?: string;
 }) {
+  const props = nodo.props;
   const sorteo = useSorteoActivo();
 
   // Sección opcional/decorativa: si falla o no hay sorteo, no se renderiza (no rompe la home, §5.2).
@@ -51,22 +65,17 @@ export function SorteoStorefront({
   const s = sorteo.data;
 
   return (
-    <Box
-      component="section"
-      id="sorteo"
-      py={{ base: "xl", md: 48 }}
-      style={{
-        borderTop: "1px solid var(--mantine-color-default-border)",
-        borderBottom: "1px solid var(--mantine-color-default-border)",
-        background: "var(--mantine-color-default-hover)",
-      }}
+    <SeccionWrapper
+      id={nodo.id}
+      estilo={nodo.estilo ?? ESTILO_SORTEO_DEFAULT}
+      ancla="sorteo"
+      divisorColor={divisorColor}
     >
-      <Container size="lg" px={{ base: "md", lg: "xl" }}>
-        <SimpleGrid
-          cols={{ base: 1, md: 2 }}
-          spacing={{ base: "lg", md: 48 }}
-          style={{ alignItems: "center" }}
-        >
+      <SimpleGrid
+        cols={{ base: 1, md: 2 }}
+        spacing={{ base: "lg", md: 48 }}
+        style={{ alignItems: "center" }}
+      >
           <PremioVisual url={s.premioImageUrl} colorPrimario={colorPrimario} />
 
           <Stack gap="md">
@@ -145,8 +154,7 @@ export function SorteoStorefront({
             </Alert>
           </Stack>
         </SimpleGrid>
-      </Container>
-    </Box>
+    </SeccionWrapper>
   );
 }
 

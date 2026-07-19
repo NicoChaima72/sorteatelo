@@ -1,7 +1,5 @@
 import {
-  Box,
   Card,
-  Container,
   Group,
   SimpleGrid,
   Stack,
@@ -22,7 +20,8 @@ import {
 } from "@tabler/icons-react";
 import { type ComponentType } from "react";
 
-import { type ComoFuncionaProps } from "~/lib/pagebuilder/widgets";
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
 /**
  * Sección "Cómo funciona" (widget `como_funciona`, F05/ADR-0016; plantilla-rica F04, design.md §5.1
@@ -62,46 +61,56 @@ const PASOS_FIJOS = [
   },
 ];
 
-export function ComoFunciona({ props }: { props: ComoFuncionaProps }) {
+export function ComoFunciona({
+  nodo,
+  divisorColor,
+}: {
+  nodo: Extract<SeccionNode, { tipo: "como_funciona" }>;
+  divisorColor?: string;
+}) {
+  const props = nodo.props;
   const pasos =
     props.pasos && props.pasos.length > 0 ? props.pasos : PASOS_FIJOS;
 
   return (
-    <Box component="section" id="como-funciona" py={{ base: "xl", md: 48 }}>
-      <Container size="lg" px={{ base: "md", lg: "xl" }}>
-        <Stack gap="lg">
-          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
-            {props.titulo}
-          </Title>
+    <SeccionWrapper
+      id={nodo.id}
+      estilo={nodo.estilo}
+      ancla="como-funciona"
+      divisorColor={divisorColor}
+    >
+      <Stack gap="lg">
+        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+          {props.titulo}
+        </Title>
 
-          <SimpleGrid
-            cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
-            spacing="lg"
-          >
-            {pasos.map((paso, i) => {
-              const Icono = ICONOS[paso.icono] ?? IconSparkles;
-              return (
-                <Card key={`${paso.titulo}-${i}`} withBorder radius="md" padding="lg">
-                  <Stack gap="sm">
-                    <Group gap="sm" wrap="nowrap">
-                      <ThemeIcon variant="light" size="xl" radius="md">
-                        <Icono className="size-6" stroke={1.75} />
-                      </ThemeIcon>
-                      <Text fz={28} fw={800} c="dimmed" className="tabular-nums">
-                        {i + 1}
-                      </Text>
-                    </Group>
-                    <Text fw={600}>{paso.titulo}</Text>
-                    <Text size="sm" c="dimmed">
-                      {paso.desc}
+        <SimpleGrid
+          cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
+          spacing="lg"
+        >
+          {pasos.map((paso, i) => {
+            const Icono = ICONOS[paso.icono] ?? IconSparkles;
+            return (
+              <Card key={`${paso.titulo}-${i}`} withBorder radius="md" padding="lg">
+                <Stack gap="sm">
+                  <Group gap="sm" wrap="nowrap">
+                    <ThemeIcon variant="light" size="xl" radius="md">
+                      <Icono className="size-6" stroke={1.75} />
+                    </ThemeIcon>
+                    <Text fz={28} fw={800} c="dimmed" className="tabular-nums">
+                      {i + 1}
                     </Text>
-                  </Stack>
-                </Card>
-              );
-            })}
-          </SimpleGrid>
-        </Stack>
-      </Container>
-    </Box>
+                  </Group>
+                  <Text fw={600}>{paso.titulo}</Text>
+                  <Text size="sm" c="dimmed">
+                    {paso.desc}
+                  </Text>
+                </Stack>
+              </Card>
+            );
+          })}
+        </SimpleGrid>
+      </Stack>
+    </SeccionWrapper>
   );
 }

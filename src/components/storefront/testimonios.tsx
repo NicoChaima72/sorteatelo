@@ -2,7 +2,6 @@ import {
   Avatar,
   Box,
   Card,
-  Container,
   Group,
   Rating,
   ScrollArea,
@@ -12,48 +11,55 @@ import {
   Title,
 } from "@mantine/core";
 
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { type TestimoniosProps } from "~/lib/pagebuilder/widgets";
 
 /**
  * `testimonios` (sección, F11): reseñas de clientes. TEXTO PLANO con límites (I3, nunca HTML). Layout
  * grid o carrusel (scroll horizontal sin dependencia externa). Avatar con inicial de fallback.
  */
-export function Testimonios({ props }: { props: TestimoniosProps }) {
+export function Testimonios({
+  nodo,
+  divisorColor,
+}: {
+  nodo: Extract<SeccionNode, { tipo: "testimonios" }>;
+  divisorColor?: string;
+}) {
+  const props = nodo.props;
   return (
-    <Box component="section" py={{ base: "xl", md: 48 }}>
-      <Container size="lg" px={{ base: "md", lg: "xl" }}>
-        <Stack gap="lg">
-          {props.titulo && (
-            <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
-              {props.titulo}
-            </Title>
-          )}
-          {props.layout === "carrusel" ? (
-            <ScrollArea offsetScrollbars scrollbarSize={8}>
-              <Group gap="lg" wrap="nowrap" align="stretch">
-                {props.items.map((item, i) => (
-                  <Box key={`${item.nombre}-${i}`} miw={280} maw={320}>
-                    <Tarjeta item={item} />
-                  </Box>
-                ))}
-              </Group>
-            </ScrollArea>
-          ) : (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+      <Stack gap="lg">
+        {props.titulo && (
+          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+            {props.titulo}
+          </Title>
+        )}
+        {props.layout === "carrusel" ? (
+          <ScrollArea offsetScrollbars scrollbarSize={8}>
+            <Group gap="lg" wrap="nowrap" align="stretch">
               {props.items.map((item, i) => (
-                <Tarjeta key={`${item.nombre}-${i}`} item={item} />
+                <Box key={`${item.nombre}-${i}`} miw={280} maw={320}>
+                  <Tarjeta item={item} />
+                </Box>
               ))}
-            </SimpleGrid>
-          )}
-        </Stack>
-      </Container>
-    </Box>
+            </Group>
+          </ScrollArea>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+            {props.items.map((item, i) => (
+              <Tarjeta key={`${item.nombre}-${i}`} item={item} />
+            ))}
+          </SimpleGrid>
+        )}
+      </Stack>
+    </SeccionWrapper>
   );
 }
 
 function Tarjeta({ item }: { item: TestimoniosProps["items"][number] }) {
   return (
-    <Card withBorder radius="md" padding="lg" h="100%">
+    <Card withBorder radius="md" padding="lg" h="100%" className="animar-hover-lift">
       <Stack gap="sm" h="100%">
         {item.estrellas !== undefined && (
           <Rating value={item.estrellas} readOnly size="sm" />

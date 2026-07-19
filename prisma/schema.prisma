@@ -168,6 +168,7 @@ model Tenant {
   memberships    TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
   storefrontPages StorefrontPage[] // Página(s) de tienda del page builder (ADR-0016)
   storefrontPageVersions StorefrontPageVersion[] // Snapshots de publicación (F12, ADR-0016)
+  pageAssets      PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
 }
 
 // Credenciales Flow propias del Organizador (BYO-Flow, ADR-0006). 1-1 con Tenant.
@@ -422,4 +423,24 @@ model StorefrontPageVersion {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, slug, revision]) // garantiza la monotonía del ordinal + lista/ordena el historial; el prefijo cubre lookups por página/tenant y sirve ORDER BY revision DESC por index scan
+}
+
+// Imagen libre subida por el Organizador vía el editor de la Página (catálogo-v2 F08, ADR-0016).
+// Metadata de un objeto del bucket R2 PÚBLICO (ADR-0013), namespace <tenantId>/pagina/<id> — la key
+// la deriva SIEMPRE server-side (`keyPaginaAsset`, storagePublico.ts); el cliente jamás la elige (I6),
+// por eso NO se persiste (evita 2ª fuente de verdad — se recomputa de id+tenantId). onDelete: Cascade:
+// config del storefront sin vida propia (mismo criterio que StorefrontPage/StorefrontPageVersion), NO
+// registro de plata ⇒ NO aplica el Restrict del dominio comercial. Inmutable ⇒ sin updatedAt. Borrar la
+// fila NO borra el objeto R2 (GC de huérfanos fuera de alcance, D11) ni invalida documentos (URL rota ⇒
+// degradación elegante vía <ImagenConFallback>).
+model PageAsset {
+  id          String   @id @default(cuid())
+  tenantId    String
+  contentType String // de la allowlist CONTENT_TYPES_IMAGEN (png/jpeg/webp)
+  bytes       Int // tamaño del objeto, para el límite de peso + la cuota por tenant (Int, NO dinero)
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId]) // listar + contar (cuota) por tenant; ambos WHERE tenantId = ?
 }

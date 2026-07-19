@@ -1,17 +1,25 @@
-import { Box, Center, Container, Stack, Title } from "@mantine/core";
+import { Box, Center, Stack, Title } from "@mantine/core";
 
 import { EmbedFacade } from "~/components/storefront/embed-facade";
-import { type VideoProps } from "~/lib/pagebuilder/widgets";
+import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
 /**
  * `video` (sección, F11): video embebido iframe-only sobre el contrato de F07 (`<EmbedFacade>` →
  * `<EmbedFrame>`, sandbox de ADR-0018). La `src` la construye `construirEmbedSrc(plataforma, videoId)`
  * — NUNCA HTML crudo (I3/I4). Facade lazy: el iframe carga al click. Ref inválida ⇒ no renderiza.
  */
-export function Video({ props }: { props: VideoProps }) {
+export function Video({
+  nodo,
+  divisorColor,
+}: {
+  nodo: Extract<SeccionNode, { tipo: "video" }>;
+  divisorColor?: string;
+}) {
+  const props = nodo.props;
   return (
-    <Box component="section" py={{ base: "xl", md: 48 }}>
-      <Container size="sm" px={{ base: "md", lg: "xl" }}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+      <Box maw={640} mx="auto" w="100%">
         <Stack gap="lg">
           {props.titulo && (
             <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} ta="center">
@@ -27,7 +35,7 @@ export function Video({ props }: { props: VideoProps }) {
             />
           </Center>
         </Stack>
-      </Container>
-    </Box>
+      </Box>
+    </SeccionWrapper>
   );
 }

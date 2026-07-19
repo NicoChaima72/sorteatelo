@@ -42,10 +42,14 @@ export function middleware(req: NextRequest) {
     request: { headers: aplicarHeaderDeTenant(req.headers, zona) },
   });
 
-  // CSP en Report-Only (F07/ADR-0018): reporta violaciones sin bloquear.
+  // CSP en Report-Only (F07/ADR-0018): reporta violaciones sin bloquear. Las respuestas de preview
+  // (`?preview=`) relajan `frame-ancestors` a `'self'` para el iframe del editor same-origin (F09/D7).
   res.headers.set(
     CSP_HEADER,
-    construirCSP({ esDev: process.env.NODE_ENV !== "production" }),
+    construirCSP({
+      esDev: process.env.NODE_ENV !== "production",
+      esPreview: req.nextUrl.searchParams.has("preview"),
+    }),
   );
 
   return res;

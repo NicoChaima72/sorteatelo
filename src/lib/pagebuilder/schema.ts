@@ -1,17 +1,38 @@
 import { z } from "zod";
 
 import {
+  ANCHO_CONTENIDO,
   avisoBarraProps,
+  bannerCtaProps,
+  beneficiosGridProps,
+  bloqueTicketPromoProps,
+  botonesSocialesProps,
   catalogoProps,
   comoFuncionaProps,
+  compartirSorteoProps,
   contadorTicketsProps,
   embedSocialProps,
+  espaciadorProps,
+  ESQUEMAS_FONDO,
+  estadisticasProps,
+  EstiloSeccionSchema,
   faqProps,
+  galeriaProps,
   ganadoresProps,
+  garantiasSorteoProps,
   heroProps,
+  imagenDestacadaProps,
+  logosConfianzaProps,
+  metaProgresoSorteoProps,
+  MODO_COLOR,
+  PARES_TIPOGRAFICOS,
+  RADIO_GLOBAL,
+  separadorProps,
   sorteoVitrinaProps,
   testimoniosProps,
+  textoRicoProps,
   urgenciaCountdownProps,
+  VIBE,
   videoProps,
   whatsappFlotanteProps,
 } from "~/lib/pagebuilder/widgets";
@@ -55,22 +76,55 @@ function nodo<T extends string, P extends z.ZodTypeAny>(tipo: T, props: P) {
 }
 
 /**
+ * Como `nodo()`, pero el envelope admite un `estilo` OPCIONAL (catálogo-v2 F01/D2): el
+ * `EstiloSeccionSchema` (fondo/spacing/ancho/divisor/entrada) vive JUNTO a `id/tipo/v/props`, no
+ * dentro de `props` (que está discriminado por tipo). `estilo` ausente ⇒ el render usa los defaults
+ * actuales (migración no-op, I-H). Los OVERLAYS siguen con `nodo()` pelado (no llevan estilo de
+ * sección). `.strict()` en el envelope ⇒ un campo extra hermano de `estilo` no parsea (I-A).
+ */
+function nodoSeccion<T extends string, P extends z.ZodTypeAny>(tipo: T, props: P) {
+  return z
+    .object({
+      id: z.string().min(1).max(64),
+      tipo: z.literal(tipo),
+      v: z.number().int().positive(),
+      props,
+      estilo: EstiloSeccionSchema.optional(),
+    })
+    .strict();
+}
+
+/**
  * Union discriminada de SECCIONES (widgets del flujo vertical). Enumerada explícitamente con
  * literales para que `z.infer` narrowe `props` por `tipo` (tipos precisos en el render). Debe
  * cubrir EXACTAMENTE los `TIPOS_SECCION` del registro — la exhaustividad se testea (F02).
  */
 export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
-  nodo("hero", heroProps),
-  nodo("catalogo", catalogoProps),
-  nodo("sorteo_vitrina", sorteoVitrinaProps),
-  nodo("como_funciona", comoFuncionaProps),
-  nodo("contador_tickets", contadorTicketsProps), // F10
-  nodo("urgencia_countdown", urgenciaCountdownProps), // F10
-  nodo("testimonios", testimoniosProps), // F11
-  nodo("ganadores", ganadoresProps), // F11
-  nodo("faq", faqProps), // F11
-  nodo("video", videoProps), // F11
-  nodo("embed_social", embedSocialProps), // F11
+  nodoSeccion("hero", heroProps),
+  nodoSeccion("catalogo", catalogoProps),
+  nodoSeccion("sorteo_vitrina", sorteoVitrinaProps),
+  nodoSeccion("como_funciona", comoFuncionaProps),
+  nodoSeccion("contador_tickets", contadorTicketsProps), // F10
+  nodoSeccion("urgencia_countdown", urgenciaCountdownProps), // F10
+  nodoSeccion("testimonios", testimoniosProps), // F11
+  nodoSeccion("ganadores", ganadoresProps), // F11
+  nodoSeccion("faq", faqProps), // F11
+  nodoSeccion("video", videoProps), // F11
+  nodoSeccion("embed_social", embedSocialProps), // F11
+  nodoSeccion("beneficios_grid", beneficiosGridProps), // catálogo-v2 F04
+  nodoSeccion("texto_rico", textoRicoProps), // catálogo-v2 F04
+  nodoSeccion("imagen_destacada", imagenDestacadaProps), // catálogo-v2 F04
+  nodoSeccion("separador", separadorProps), // catálogo-v2 F04
+  nodoSeccion("espaciador", espaciadorProps), // catálogo-v2 F04
+  nodoSeccion("banner_cta", bannerCtaProps), // catálogo-v2 F04
+  nodoSeccion("estadisticas", estadisticasProps), // catálogo-v2 F05
+  nodoSeccion("botones_sociales", botonesSocialesProps), // catálogo-v2 F05
+  nodoSeccion("logos_confianza", logosConfianzaProps), // catálogo-v2 F05
+  nodoSeccion("bloque_ticket_promo", bloqueTicketPromoProps), // catálogo-v2 F06
+  nodoSeccion("meta_progreso_sorteo", metaProgresoSorteoProps), // catálogo-v2 F06
+  nodoSeccion("garantias_sorteo", garantiasSorteoProps), // catálogo-v2 F06
+  nodoSeccion("compartir_sorteo", compartirSorteoProps), // catálogo-v2 F06
+  nodoSeccion("galeria", galeriaProps), // catálogo-v2 F08
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 
@@ -86,11 +140,22 @@ export const OverlayNodeSchema = z.discriminatedUnion("tipo", [
 export type OverlayNode = z.infer<typeof OverlayNodeSchema>;
 
 /**
- * Tema del documento (`root.props`). MÍNIMO en esta fase: la fuente de verdad del theme sigue en las
- * columnas de `Tenant` (colorPrimario) — moverla al documento es out-of-scope (transición posterior).
- * Objeto estricto vacío por ahora; F10+ lo extiende con `v`-bump.
+ * Tema del documento (`root.props`, catálogo-v2 F01/D3, síntesis §3.2). ADITIVO-OPCIONAL: todos los
+ * campos con `.default()` ⇒ un `root.props:{}` viejo parsea y Zod rellena los defaults (migración
+ * no-op, sin bump de `schemaVersion`, I-H). `colorPrimario` NO se duplica acá — sigue como columna
+ * de `Tenant` (fuente única, I2 del plan padre): el tema solo aporta lo que hoy no existe (modo
+ * claro/oscuro, radio, vibe, par tipográfico, ancho por defecto, fondo de página).
  */
-export const TemaSchema = z.object({}).strict();
+export const TemaSchema = z
+  .object({
+    modo: z.enum(MODO_COLOR).default("claro"), // aplica vía colorScheme Mantine
+    radio: z.enum(RADIO_GLOBAL).default("m"), // override defaultRadius storefront
+    vibe: z.enum(VIBE).default("suave"),
+    tipografia: z.enum(PARES_TIPOGRAFICOS).default("plataforma"),
+    anchoContenido: z.enum(ANCHO_CONTENIDO).default("contenido"), // default heredado por secciones
+    fondoPagina: z.enum(ESQUEMAS_FONDO).default("superficie"), // pinta el <body>/shell
+  })
+  .strict();
 export type Tema = z.infer<typeof TemaSchema>;
 
 /** El Documento de Página completo. `.strict()` en cada nivel (sin campos extra, ADR-0018). */

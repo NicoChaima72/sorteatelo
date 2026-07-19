@@ -14,10 +14,12 @@ import { SessionProvider } from "next-auth/react";
 import { type AppType } from "next/app";
 import Head from "next/head";
 
-import { bricolage, instrumentSans, plexMono } from "~/config/fonts";
+import { bricolage, instrumentSans, PARES_FONT, plexMono } from "~/config/fonts";
+import { type Tema } from "~/lib/pagebuilder/schema";
 import { theme } from "~/styles/theme";
 import {
   overrideDesdeBranding,
+  overrideDesdeTema,
   type TenantBranding,
 } from "~/styles/tenantTheme";
 import { api } from "~/utils/api";
@@ -43,22 +45,45 @@ const FONT_VARS_CSS = `:root{--font-instrument:${instrumentSans.style.fontFamily
 const MyApp: AppType<{
   session: Session | null;
   tenantBranding?: TenantBranding | null;
+  temaPagina?: Tema | null;
 }> = ({ Component, pageProps: { session, ...pageProps } }) => {
   const tenantBranding =
     (pageProps as { tenantBranding?: TenantBranding | null }).tenantBranding ??
     null;
-  const themeFinal = tenantBranding
-    ? mergeThemeOverrides(theme, overrideDesdeBranding(tenantBranding))
-    : theme;
+  // TemaPagina del documento (solo la home storefront lo puebla, catálogo-v2 F02): radio + tipografía
+  // + modo claro/oscuro de la TIENDA. El apex/panel no lo setean ⇒ theme de plataforma intacto.
+  const temaPagina =
+    (pageProps as { temaPagina?: Tema | null }).temaPagina ?? null;
+
+  let themeFinal = theme;
+  if (tenantBranding)
+    themeFinal = mergeThemeOverrides(themeFinal, overrideDesdeBranding(tenantBranding));
+  if (temaPagina)
+    themeFinal = mergeThemeOverrides(themeFinal, overrideDesdeTema(temaPagina));
+
+  // Swap de las CSS vars de tipografía al par elegido (el theme las consume por var). El par
+  // "plataforma" NO overridea (usa el default ya en `FONT_VARS_CSS`). El mono se mantiene siempre.
+  const par = temaPagina ? PARES_FONT[temaPagina.tipografia] : null;
+  const fontOverrideCss =
+    par && temaPagina && temaPagina.tipografia !== "plataforma"
+      ? `:root{--font-display:${par.display};--font-instrument:${par.texto};}`
+      : "";
 
   return (
     <>
       <Head>
         {/* CSS vars de tipografía en :root (SSR-safe, valores deterministas de next/font). */}
         <style dangerouslySetInnerHTML={{ __html: FONT_VARS_CSS }} />
+        {fontOverrideCss && (
+          <style dangerouslySetInnerHTML={{ __html: fontOverrideCss }} />
+        )}
       </Head>
       <SessionProvider session={session}>
-        <MantineProvider theme={themeFinal} defaultColorScheme="light">
+        <MantineProvider
+          theme={themeFinal}
+          defaultColorScheme="light"
+          forceColorScheme={temaPagina?.modo === "oscuro" ? "dark" : undefined}
+        >
           <ModalsProvider>
             <Notifications />
             <Component {...pageProps} />

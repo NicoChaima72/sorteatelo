@@ -9,6 +9,7 @@ import { verificarBearer } from "~/server/mcp/auth";
 import {
   mcpGetPage,
   mcpListProducts,
+  mcpListStyleOptions,
   mcpListVersions,
   mcpListWidgetTypes,
   mcpMutar,
@@ -73,6 +74,13 @@ const mcpHandler = createMcpHandler(
       "Lista los productos de la tienda (id/titulo/precio/activo) para referenciarlos en un catálogo modo 'seleccion'.",
       { storeSlug: z.string() },
       (a) => responder(() => mcpListProducts({ db, storeSlug: a.storeSlug })),
+    );
+
+    server.tool(
+      "list_style_options",
+      "Lista TODAS las opciones de estilo (fondo/spacing/ancho/divisor/entrada por sección) y de tema (modo/radio/vibe/tipografía/ancho/fondo por página) con su descripción — elegí por intención nombrada, NUNCA hex ni CSS. Usalas en set_section_style y set_page_theme.",
+      {},
+      () => responder(() => mcpListStyleOptions()),
     );
 
     // ── Mutaciones del borrador (direccionadas por id) ────────────────────
@@ -163,6 +171,46 @@ const mcpHandler = createMcpHandler(
             storeSlug: a.storeSlug,
             expectedVersion: a.expectedVersion,
             mutacion: { accion: "set_theme", props: a.props },
+          }),
+        ),
+    );
+
+    // ── Estilo por sección + tema por página (catálogo-v2 F07; ver list_style_options) ────
+    server.tool(
+      "set_section_style",
+      "Setea el ESTILO de una sección (por `id`): fondo/spacing/ancho/divisor/entrada. Usá SOLO valores de list_style_options (nunca hex ni CSS). Objeto completo (reemplaza el estilo del nodo).",
+      {
+        storeSlug: z.string(),
+        id: z.string(),
+        estilo: z.record(z.string(), z.unknown()),
+        expectedVersion: z.number().int(),
+      },
+      (a) =>
+        responder(() =>
+          mcpMutar({
+            db,
+            storeSlug: a.storeSlug,
+            expectedVersion: a.expectedVersion,
+            mutacion: { accion: "set_section_style", id: a.id, estilo: a.estilo },
+          }),
+        ),
+    );
+
+    server.tool(
+      "set_page_theme",
+      "Setea el TEMA de la página (root.props): modo/radio/vibe/tipografía/ancho/fondo. Usá SOLO valores de list_style_options. Objeto `tema` COMPLETO (reemplaza el tema; los campos ausentes vuelven a su default).",
+      {
+        storeSlug: z.string(),
+        tema: z.record(z.string(), z.unknown()),
+        expectedVersion: z.number().int(),
+      },
+      (a) =>
+        responder(() =>
+          mcpMutar({
+            db,
+            storeSlug: a.storeSlug,
+            expectedVersion: a.expectedVersion,
+            mutacion: { accion: "set_page_theme", tema: a.tema },
           }),
         ),
     );

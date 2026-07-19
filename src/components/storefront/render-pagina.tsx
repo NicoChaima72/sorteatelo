@@ -1,13 +1,27 @@
 import { AvisoBarra } from "~/components/storefront/aviso-barra";
+import { BannerCta } from "~/components/storefront/banner-cta";
+import { BeneficiosGrid } from "~/components/storefront/beneficios-grid";
+import { BloqueTicketPromo } from "~/components/storefront/bloque-ticket-promo";
+import { BotonesSociales } from "~/components/storefront/botones-sociales";
 import { CatalogoStorefront } from "~/components/storefront/catalogo";
+import { CompartirSorteo } from "~/components/storefront/compartir-sorteo";
 import { ComoFunciona } from "~/components/storefront/como-funciona";
 import { ContadorTickets } from "~/components/storefront/contador-tickets";
 import { EmbedSocial } from "~/components/storefront/embed-social";
+import { Espaciador } from "~/components/storefront/espaciador";
+import { Estadisticas } from "~/components/storefront/estadisticas";
 import { Faq } from "~/components/storefront/faq";
+import { Galeria } from "~/components/storefront/galeria";
 import { Ganadores } from "~/components/storefront/ganadores";
+import { GarantiasSorteo } from "~/components/storefront/garantias-sorteo";
+import { ImagenDestacada } from "~/components/storefront/imagen-destacada";
+import { LogosConfianza } from "~/components/storefront/logos-confianza";
+import { MetaProgresoSorteo } from "~/components/storefront/meta-progreso-sorteo";
+import { Separador } from "~/components/storefront/separador";
 import { SorteoStorefront } from "~/components/storefront/sorteo";
 import { StorefrontHero } from "~/components/storefront/storefront-hero";
 import { Testimonios } from "~/components/storefront/testimonios";
+import { TextoRico } from "~/components/storefront/texto-rico";
 import { UrgenciaCountdown } from "~/components/storefront/urgencia-countdown";
 import { Video } from "~/components/storefront/video";
 import { WhatsappFlotante } from "~/components/storefront/whatsapp-flotante";
@@ -16,14 +30,17 @@ import {
   type PageDocument,
   type SeccionNode,
 } from "~/lib/pagebuilder/schema";
+import { colorFondoSolido } from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
- * Render del Documento de Página (F05/F10, ADR-0016). Recorre las secciones en el ORDEN del array y
- * despacha cada una a su componente por un switch EXHAUSTIVO sobre `tipo` (props narrowed por rama).
- * Los OVERLAYS (F10) se separan por posición: `aviso_barra` va ARRIBA del contenido, `whatsapp_flotante`
- * flota como FAB (position:fixed, su lugar en el DOM da igual). Un `tipo` desconocido NO renderiza (I9).
- * El `branding` aporta los fallbacks server-side (nombre/color) que el documento NO copia (I2/I11).
+ * Render del Documento de Página (F05/F10/catálogo-v2 F02, ADR-0016). Recorre las secciones en el
+ * ORDEN del array y despacha cada una a su componente por un switch EXHAUSTIVO sobre `tipo` (props
+ * narrowed por rama). Cada sección recibe su NODO completo (con `estilo`, catálogo-v2 F02) — el
+ * `<SeccionWrapper>` que cada componente monta aplica fondo/spacing/ancho/divisor + el id DOM del
+ * nodo. El divisor de cada sección se pinta con el color de la sección SIGUIENTE (transición, D2).
+ * Los OVERLAYS (F10) van por posición: `aviso_barra` ARRIBA, `whatsapp_flotante` como FAB. Un `tipo`
+ * desconocido NO renderiza (I9). El `branding` aporta los fallbacks server-side (I2/I11).
  */
 export function RenderPagina({
   secciones,
@@ -43,8 +60,14 @@ export function RenderPagina({
           <RenderOverlay key={o.id} overlay={o} />
         ))}
 
-      {secciones.map((seccion) => (
-        <RenderSeccion key={seccion.id} seccion={seccion} branding={branding} />
+      {secciones.map((seccion, i) => (
+        <RenderSeccion
+          key={seccion.id}
+          seccion={seccion}
+          branding={branding}
+          // Color de la sección SIGUIENTE ⇒ fill del divisor inferior de ESTA (lee como transición).
+          divisorColor={colorFondoSolido(secciones[i + 1]?.estilo)}
+        />
       ))}
 
       {/* Overlays flotantes (FAB): position:fixed, su posición en el DOM no importa. */}
@@ -60,43 +83,93 @@ export function RenderPagina({
 function RenderSeccion({
   seccion,
   branding,
+  divisorColor,
 }: {
   seccion: SeccionNode;
   branding: TenantBranding;
+  divisorColor: string;
 }) {
   switch (seccion.tipo) {
     case "hero":
-      return <StorefrontHero props={seccion.props} branding={branding} />;
+      return <StorefrontHero nodo={seccion} branding={branding} divisorColor={divisorColor} />;
     case "catalogo":
       return (
         <CatalogoStorefront
-          props={seccion.props}
+          nodo={seccion}
           colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
         />
       );
     case "sorteo_vitrina":
       return (
         <SorteoStorefront
-          props={seccion.props}
+          nodo={seccion}
           colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
         />
       );
     case "como_funciona":
-      return <ComoFunciona props={seccion.props} />;
+      return <ComoFunciona nodo={seccion} divisorColor={divisorColor} />;
     case "contador_tickets":
-      return <ContadorTickets props={seccion.props} />;
+      return <ContadorTickets nodo={seccion} divisorColor={divisorColor} />;
     case "urgencia_countdown":
-      return <UrgenciaCountdown props={seccion.props} />;
+      return <UrgenciaCountdown nodo={seccion} divisorColor={divisorColor} />;
     case "testimonios":
-      return <Testimonios props={seccion.props} />;
+      return <Testimonios nodo={seccion} divisorColor={divisorColor} />;
     case "ganadores":
-      return <Ganadores props={seccion.props} />;
+      return <Ganadores nodo={seccion} divisorColor={divisorColor} />;
     case "faq":
-      return <Faq props={seccion.props} />;
+      return <Faq nodo={seccion} divisorColor={divisorColor} />;
     case "video":
-      return <Video props={seccion.props} />;
+      return <Video nodo={seccion} divisorColor={divisorColor} />;
     case "embed_social":
-      return <EmbedSocial props={seccion.props} />;
+      return <EmbedSocial nodo={seccion} divisorColor={divisorColor} />;
+    case "beneficios_grid":
+      return <BeneficiosGrid nodo={seccion} divisorColor={divisorColor} />;
+    case "texto_rico":
+      return <TextoRico nodo={seccion} divisorColor={divisorColor} />;
+    case "imagen_destacada":
+      return (
+        <ImagenDestacada
+          nodo={seccion}
+          colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
+        />
+      );
+    case "separador":
+      return <Separador nodo={seccion} divisorColor={divisorColor} />;
+    case "espaciador":
+      return <Espaciador nodo={seccion} divisorColor={divisorColor} />;
+    case "banner_cta":
+      return <BannerCta nodo={seccion} divisorColor={divisorColor} />;
+    case "estadisticas":
+      return <Estadisticas nodo={seccion} divisorColor={divisorColor} />;
+    case "botones_sociales":
+      return <BotonesSociales nodo={seccion} divisorColor={divisorColor} />;
+    case "logos_confianza":
+      return (
+        <LogosConfianza
+          nodo={seccion}
+          colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
+        />
+      );
+    case "bloque_ticket_promo":
+      return <BloqueTicketPromo nodo={seccion} divisorColor={divisorColor} />;
+    case "meta_progreso_sorteo":
+      return <MetaProgresoSorteo nodo={seccion} divisorColor={divisorColor} />;
+    case "garantias_sorteo":
+      return <GarantiasSorteo nodo={seccion} divisorColor={divisorColor} />;
+    case "compartir_sorteo":
+      return <CompartirSorteo nodo={seccion} divisorColor={divisorColor} />;
+    case "galeria":
+      return (
+        <Galeria
+          nodo={seccion}
+          colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
+        />
+      );
     default: {
       // Candado de exhaustividad EN COMPILACIÓN (F10/F11 no pueden olvidar una rama) + tolerancia I9
       // en runtime (un `tipo` desconocido de un documento publicado viejo renderiza `null`, no crashea).

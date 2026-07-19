@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => ({
       "~": path.resolve(__dirname, "./src"),
     },
   },
+  // JSX automático (React 17+ runtime): la app entera usa el automatic runtime (sin `import React`).
+  // Necesario para que los tests que renderizan componentes .tsx (p.ej. SSR de `animar.tsx`, F03) no
+  // fallen con "React is not defined" bajo el transform de esbuild de vitest.
+  esbuild: { jsx: "automatic" },
   test: {
     include: ["src/__tests__/**/*.test.ts", "src/__tests__/**/*.test.tsx"],
     environment: "node",

@@ -28,6 +28,16 @@ describe("security/csp — construirCSP", () => {
     expect(CSP_HEADER).toBe("Content-Security-Policy-Report-Only");
   });
 
+  // page.csp.004 (catálogo-v2 F09/D7) — la preview emite frame-ancestors 'self'; el resto 'none'
+  it("las respuestas de preview relajan frame-ancestors a 'self'; el resto conserva 'none'", () => {
+    const preview = construirCSP({ esDev: false, esPreview: true });
+    const normal = construirCSP({ esDev: false });
+    expect(preview).toContain("frame-ancestors 'self'");
+    expect(preview).not.toContain("frame-ancestors 'none'");
+    expect(normal).toContain("frame-ancestors 'none'");
+    expect(normal).not.toContain("frame-ancestors 'self'");
+  });
+
   // page.csp.003 — en dev afloja script-src (unsafe-eval) y connect-src (ws) para HMR; en prod no
   it("en dev permite unsafe-eval + ws (HMR); en prod no", () => {
     const dev = construirCSP({ esDev: true });

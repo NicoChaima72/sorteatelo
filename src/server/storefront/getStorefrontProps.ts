@@ -2,7 +2,7 @@ import { type GetServerSidePropsContext } from "next";
 
 import { documentoInicial } from "~/lib/pagebuilder/factory";
 import { leerDocumentoParaRender } from "~/lib/pagebuilder/migrate";
-import { type PageDocument } from "~/lib/pagebuilder/schema";
+import { type PageDocument, type Tema } from "~/lib/pagebuilder/schema";
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { crearRepoBranding } from "~/server/storefront/repoBranding";
@@ -59,6 +59,11 @@ export interface PropsHome {
   tenantBranding: TenantBranding | null;
   /** El Documento de Página a renderizar (publicado, o borrador en preview). `null` solo en apex. */
   pagina: PageDocument | null;
+  /**
+   * TemaPagina resuelto (`pagina.root.props`, catálogo-v2 F02/D3) — lo consume `_app` para el
+   * theme (radio/tipografía/modo) y la home para el fondo de página. `null` en apex.
+   */
+  temaPagina: Tema | null;
   /** `true` si se está sirviendo el Borrador (preview con token) ⇒ el render marca `robots noindex`. */
   esPreview: boolean;
 }
@@ -103,7 +108,9 @@ export async function getPropsHome(
 ): Promise<{ props: PropsHome } | { notFound: true }> {
   const res = await resolverBrandingSSR(ctx);
   if (res.zona === "plataforma") {
-    return { props: { tenantBranding: null, pagina: null, esPreview: false } };
+    return {
+      props: { tenantBranding: null, pagina: null, temaPagina: null, esPreview: false },
+    };
   }
   if (res.zona !== "storefront") {
     return { notFound: true };
@@ -125,6 +132,7 @@ export async function getPropsHome(
     props: {
       tenantBranding: res.branding,
       pagina,
+      temaPagina: pagina.root.props, // TemaPagina resuelto (con defaults, catálogo-v2 F02)
       esPreview: modo === "borrador",
     },
   };

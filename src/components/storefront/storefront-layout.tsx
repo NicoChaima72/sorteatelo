@@ -8,7 +8,7 @@ import {
 } from "@tabler/icons-react";
 import Head from "next/head";
 import Link from "next/link";
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 
 import { AccesoPlataforma } from "~/components/storefront/acceso-plataforma";
 import { BannerEditarTienda } from "~/components/storefront/banner-editar-tienda";
@@ -34,9 +34,12 @@ import { type TenantBranding } from "~/styles/tenantTheme";
  */
 export function StorefrontLayout({
   branding,
+  estiloShell,
   children,
 }: {
   branding: TenantBranding;
+  /** Fondo del shell derivado del TemaPagina (catálogo-v2 F02); ausente ⇒ fondo por defecto. */
+  estiloShell?: CSSProperties;
   children: ReactNode;
 }) {
   const [drawerAbierto, drawer] = useDisclosure(false);
@@ -51,7 +54,7 @@ export function StorefrontLayout({
         />
       </Head>
 
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col" style={estiloShell}>
         {/* Banner "Editar mi tienda" (F09): chrome de plataforma, monta post-hidratación (no toca el SSR). */}
         <BannerEditarTienda />
         <Header branding={branding} onAbrirCarrito={drawer.open} />

@@ -2,11 +2,13 @@ import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
 import { getProductoStorefront } from "~/server/domain/checkout/getProductoStorefront";
 import { getSorteoActivoStorefront } from "~/server/domain/checkout/getSorteoActivoStorefront";
+import { getSorteoResumenStorefront } from "~/server/domain/checkout/getSorteoResumenStorefront";
 import { iniciarCheckout } from "~/server/domain/checkout/iniciarCheckout";
 import { listarProductos } from "~/server/domain/checkout/listarProductos";
 import { resolverCatalogo } from "~/server/domain/checkout/resolverCatalogo";
 import {
   getProductoStorefrontInput,
+  getSorteoResumenStorefrontInput,
   iniciarCheckoutInput,
   listarProductosDeCatalogoInput,
 } from "~/server/domain/checkout/schemas";
@@ -58,6 +60,17 @@ export const checkoutRouter = createTRPCRouter({
       getSorteoActivoStorefront({ db: ctx.db, tenantId: ctx.tenant.id }),
     ),
   ),
+
+  // Resultado de los Raffle CERRADOS de la Tienda (catálogo-v2 F06): ganador ENMASCARADO + agregados,
+  // JAMÁS el correo completo ni PII (ADR-0004). Tenant-scoped por el contexto (I1). Alimenta el widget
+  // `ganadores` en modo `automatico`. `max` acota cuántos cerrados devolver (cota dura en el use case).
+  getSorteoResumenStorefront: tenantProcedure
+    .input(getSorteoResumenStorefrontInput)
+    .query(({ ctx, input }) =>
+      runDomain(() =>
+        getSorteoResumenStorefront({ db: ctx.db, tenantId: ctx.tenant.id, max: input?.max }),
+      ),
+    ),
 
   iniciarCheckout: tenantProcedure
     .input(iniciarCheckoutInput)

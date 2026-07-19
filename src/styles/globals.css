@@ -9,3 +9,79 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+  Microinteracciones del STOREFRONT (catálogo-v2 F03/D5) — CSS PURO, incorporadas por tipo de widget
+  (no configurables desde el documento, I-E). `motion` NO se usa acá (solo en `animar.tsx`). TODAS
+  gateadas por `prefers-reduced-motion: no-preference` (I-B): con movimiento reducido no animan. Solo
+  se animan transform/opacity/box-shadow (CLS=0, I-C). Cero hex: los colores salen de tokens Mantine.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  /* Hover-lift de tarjetas (catálogo/testimonios/ganadores/galería): sube 4px + sombra. */
+  .animar-hover-lift {
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease;
+    will-change: transform;
+  }
+  .animar-hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--mantine-shadow-md);
+  }
+
+  /* Zoom sutil de una imagen al hacer hover en su tarjeta contenedora (overflow:hidden en el slot). */
+  .animar-zoom-hover img {
+    transition: transform 250ms ease;
+    will-change: transform;
+  }
+  .animar-zoom-hover:hover img {
+    transform: scale(1.03);
+  }
+
+  /* Pulso/respiración del CTA principal (hero, banner_cta): box-shadow ~4s. Uno por vista. */
+  .animar-pulso-cta {
+    animation: animar-pulso-cta 4s ease-in-out infinite;
+  }
+  @keyframes animar-pulso-cta {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--mantine-primary-color-filled) 45%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 8px color-mix(in srgb, var(--mantine-primary-color-filled) 0%, transparent);
+    }
+  }
+
+  /* Pulso de los segundos del countdown (solo intensidad "fuerte"). */
+  .animar-pulso {
+    animation: animar-pulso 1s ease-in-out infinite;
+  }
+  @keyframes animar-pulso {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  /* Marquee infinito (logos_confianza/cinta_texto, F05): contenido duplicado seamless, pausa en hover. */
+  .animar-marquee {
+    display: flex;
+    width: max-content;
+    animation: animar-marquee 24s linear infinite;
+    will-change: transform;
+  }
+  .animar-marquee-pausa:hover .animar-marquee {
+    animation-play-state: paused;
+  }
+  @keyframes animar-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}

@@ -14,8 +14,9 @@ import { APP_CONFIG } from "~/config/app";
 
 /**
  * Login del panel — split cobalto de «El Talonario» (F04/D8). Mitad de marca AZUL (wordmark +
- * talonario vivo + testimonio en blanco) + mitad blanca con el acceso. Conserva el comportamiento:
- * `signIn("google", { callbackUrl: "/admin" })`, mensaje ante `?error`, `Head`/OG desde
+ * talonario vivo + testimonio en blanco) + mitad blanca con el acceso. Comportamiento:
+ * `signIn("google", { callbackUrl })` — el callback sale del query (`?callbackUrl=`, F09c: vuelve a la
+ * tienda de origen; fallback `/admin`), mensaje ante `?error`, `Head`/OG desde
  * `APP_CONFIG`, y el carácter de página PÚBLICA (no exporta guard — backend-conventions § Guard).
  * En móvil la mitad de marca colapsa y el talonario se oculta (`hidden lg:block`).
  */
@@ -26,6 +27,15 @@ export default function LoginPage() {
     : router.query.error;
 
   const mensajeError = error ? LOGIN.errorMsg : null;
+
+  // Post-login vuelve al ORIGEN (F09c): el enlace "Iniciar sesión" del storefront trae `?callbackUrl=
+  // <tienda actual>`; se propaga a `signIn` para volver a esa tienda (con la cookie wildcard, la sesión
+  // ya se ve ahí ⇒ aparece "Editar mi página"). El callback lo valida el `redirect` de auth.ts contra
+  // `*.<apex>` (F08): una URL fuera del wildcard se descarta. Sin `callbackUrl` ⇒ el panel (`/admin`).
+  const callbackUrl =
+    typeof router.query.callbackUrl === "string"
+      ? router.query.callbackUrl
+      : "/admin";
 
   return (
     <>
@@ -45,7 +55,7 @@ export default function LoginPage() {
           contenedor={false}
           className="flex flex-col justify-between gap-10 p-8 lg:w-1/2 lg:p-12"
         >
-          <Wordmark size={24} c="white" />
+          <Wordmark size={24} invertido />
           <div className="hidden max-w-sm self-center lg:block">
             <TalonarioVivo />
           </div>
@@ -59,7 +69,9 @@ export default function LoginPage() {
             }}
           >
             {LOGIN.testimonio}
-            <Etiqueta className="mt-2.5 block" style={{ opacity: 0.75 }}>
+            {/* display block inline: el `.etiqueta` del module (inline-block) le gana a la
+                clase `block` de Tailwind por orden de carga de estilos. */}
+            <Etiqueta style={{ display: "block", marginTop: 10, opacity: 0.75 }}>
               {LOGIN.testimonioAtribucion}
             </Etiqueta>
           </Text>
@@ -94,7 +106,7 @@ export default function LoginPage() {
               color="sorteatelo"
               radius="md"
               leftSection={<IconBrandGoogle className="size-[18px]" stroke={2} />}
-              onClick={() => void signIn("google", { callbackUrl: "/admin" })}
+              onClick={() => void signIn("google", { callbackUrl })}
             >
               {LOGIN.cta}
             </Button>

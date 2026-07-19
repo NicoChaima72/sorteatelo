@@ -141,18 +141,18 @@ export const FORMAS_DIVISOR = [
 ] as const;
 
 /**
- * Subconjunto de `FORMAS_DIVISOR` que el render REALMENTE dibuja hoy (catálogo-v2 F02: onda/diagonal/
- * curva; `triangulo`/`perforacion` son [pro] y degradan a nada). El SELECTOR del editor (F10) ofrece
- * SOLO estas para no mostrar opciones mudas que se guardan pero nunca aparecen. Debe seguir a
- * `PATHS_DIVISOR` en `src/components/storefront/seccion-wrapper.tsx` — si se agrega un path allá, sumar
- * la forma acá. El schema (`FORMAS_DIVISOR`) conserva las [pro] para forward-compat (un doc con
- * triangulo valida y degrada, I-H).
+ * Subconjunto de `FORMAS_DIVISOR` que el render REALMENTE dibuja (desde F09c: TODAS — triangulo y
+ * perforacion ganaron su path a pedido del usuario). El SELECTOR del editor (F10) ofrece solo estas
+ * para no mostrar opciones mudas. Debe seguir a `PATHS_DIVISOR` en
+ * `src/components/storefront/seccion-wrapper.tsx` — si se agrega un path allá, sumar la forma acá.
  */
 export const FORMAS_DIVISOR_DIBUJADAS = [
   "ninguno",
   "onda",
   "diagonal",
   "curva",
+  "triangulo",
+  "perforacion",
 ] as const;
 
 /** Altura del divisor. */

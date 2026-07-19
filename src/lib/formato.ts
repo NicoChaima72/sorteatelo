@@ -46,3 +46,13 @@ const NF_DIA = new Intl.DateTimeFormat("es-CL", {
 export function fecha(d: Date): string {
   return NF_DIA.format(d);
 }
+
+const NF_DIA_MES = new Intl.DateTimeFormat("es-CL", {
+  day: "2-digit",
+  month: "short",
+});
+
+/** Día + mes corto es-CL SIN año (ej. "18 jul"). Para ejes de series cortas (gráfico 14d). */
+export function diaMes(d: Date): string {
+  return NF_DIA_MES.format(d);
+}

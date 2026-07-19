@@ -81,6 +81,10 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   con/sin cookie (cacheable). (Plan F09 E2E — page-builder) — *implementer verificó: banner ausente del
   SSR anónimo (count 0), `pagebuilder.puedoEditar` anónimo → `{puedeEditar:false}`; falta el flujo
   dueña-logueada-ve-banner con browser-verify.*
+  > ⚠️ **ACTUALIZADO por F09c** (2026-07-19): el banner ya NO tiene un único link "· Ir a mi panel".
+  > Ahora la acción PRIMARIA es "**Editar mi página**" → `/editor` (relativo, misma tienda) y "Mi panel"
+  > (→ apex `/admin`) es SECUNDARIA. Re-verificar con `configSession` activo (dueña ve ambas CTAs). El
+  > `[x]` histórico describe la UI vieja — el feature-tester lo refresca.
 
 - [x] **pagebuilder.login-entry.001** ✅ 2026-07-19 (feature-tester browser-verify Playwright) — (F09b) En `autora.localhost:3001` y `prueba.localhost:3001`, el
   FOOTER muestra POST-HIDRATACIÓN un enlace discreto "Iniciar sesión" (chrome neutro, no el color del
@@ -94,6 +98,25 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   encodeado de la tienda actual); LOGUEADO (dev-login) en `autora.localhost:3001` ⇒ footer "Mi panel" →
   `http://localhost:3001/admin` (apex, NO el subdominio). SSR anónimo de ambos tenants: 0 "Iniciar
   sesión"/0 "Mi panel" (curl, I5 cacheable ✓). El banner de dueño "Ir a mi panel" es feature aparte (F09).*
+  > ⚠️ **SUPERSEDED por F09c** (2026-07-19): el usuario VETÓ el footer-only. La puerta de sesión ya NO
+  > vive en el footer sino en el HEADER (`acceso-sesion.tsx`), ahora con TRES estados. Este ítem describe
+  > una UI removida — reemplazado por `pagebuilder.session-header.001` (abajo). El feature-tester decide
+  > si lo marca como obsoleto.
+
+- [ ] **pagebuilder.session-header.001** — (F09c, reemplaza a `login-entry.001`) En `autora.localhost:3001`
+  con `configSession` (`src/configSession.ts` `enabled: true`), el HEADER del storefront (junto al carrito)
+  muestra POST-HIDRATACIÓN la acción de sesión con chrome NEUTRO (no el color del tenant), en 3 estados:
+  (a) **anónimo** (con `enabled: false`, sin cookie) ⇒ "Iniciar sesión" → apex `/login?callbackUrl=<URL
+  actual de la tienda, encodeada>`; (b) **dueña/Operador de ESTA tienda** ⇒ "Editar mi página" → `/editor`
+  (relativo); (c) **logueada NO dueña** ⇒ "Mi panel" → apex `/admin`. En móvil (<sm) es ícono-only con
+  `aria-label`. El HTML SSR anónimo NO contiene "Editar mi página"/"Iniciar sesión"/"Mi panel" (idéntico
+  con/sin sesión ⇒ cacheable, I5). El banner de dueña muestra "Editar mi página" (primaria) + "Mi panel"
+  (secundaria). Con `configSession` activo TODO esto aparece sin login ni cookies. (Plan F09c E2E —
+  page-builder) — *implementer verificó por curl (:3001, configSession enabled): `/api/auth/session` en
+  `autora.localhost` devuelve la sesión fake (id REAL del User); `/editor` responde 200 sin cookie; con
+  `enabled:false` ⇒ session `{}` + `/editor` 404; SSR de la home = 0 ocurrencias de los 3 labels (I5 ✓).
+  Falta la verificación VISUAL en el DOM post-hidratación con browser-verify (los 3 estados + ícono-only
+  mobile + banner de 2 CTAs).*
 
 - [ ] ⏭️ **pagebuilder.wildcard.001** — PENDIENTE (feature-tester 2026-07-18: requiere `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + reinicio del server; no ejecutado para no alterar la config del usuario) — (dev con `NEXT_PUBLIC_PLATFORM_DOMAIN=lvh.me` + hosts) `GET
   lvh.me:3001/api/dev/login?slug=autora` setea la cookie `next-auth.session-token` con `Domain=.lvh.me`;

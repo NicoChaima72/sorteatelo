@@ -4,10 +4,12 @@ import {
   getServerSession,
   type DefaultSession,
   type NextAuthOptions,
+  type Session,
 } from "next-auth";
 import { type Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 
+import { sessionFake, sesionFakeAplica } from "~/configSession";
 import { env } from "~/env";
 import { resolverGuard } from "~/server/authPolicy";
 import { db } from "~/server/db";
@@ -116,6 +118,64 @@ export const getServerAuthSession = (ctx: {
 };
 
 /**
+ * ¿Está activa la impersonación de dev (configSession, F09c)? Delega en el guard PURO
+ * `sesionFakeAplica`: SOLO `NODE_ENV=development` + `sessionFake.enabled`. En prod SIEMPRE `false`
+ * (inerte) — la autenticación real manda. Es el interruptor que consultan `getFinalSession` (server)
+ * y el interceptor de `/api/auth/session` (cliente).
+ */
+export const fakeSessionActiva = (): boolean =>
+  sesionFakeAplica({ enabled: sessionFake.enabled, nodeEnv: env.NODE_ENV });
+
+/**
+ * Cache del `User` REAL resuelto por email (una sola query por proceso de dev). El fake falsea la
+ * AUTENTICACIÓN, no la AUTORIZACIÓN: se usa el `id` real del User ⇒ `TenantMembership`/Operador siguen
+ * decidiendo permisos de verdad (I1/I7). Solo se puebla cuando el fake está activo (dev).
+ */
+let fakeUserCache: Session["user"] | null = null;
+
+/**
+ * Construye la `Session` fake resolviendo el `User` real por `sessionFake.email` (cacheado). Si el
+ * email no existe en la DB ⇒ `null` (anónimo) — no se inventa un id. Mismo shape que emite NextAuth,
+ * así sirve idéntico para el contexto tRPC, los `getServerSideProps` y el interceptor del cliente.
+ */
+export const resolverSesionFake = async (): Promise<Session | null> => {
+  if (!fakeUserCache) {
+    const user = await db.user.findUnique({
+      where: { email: sessionFake.email },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    if (!user) {
+      console.warn(
+        `[configSession] No hay User con email "${sessionFake.email}" en la DB — la sesión fake queda ` +
+          `anónima. Iniciá sesión con Google una vez (o apagá sessionFake.enabled).`,
+      );
+      return null;
+    }
+    fakeUserCache = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+    };
+  }
+  return { user: fakeUserCache, expires: sessionFake.expires };
+};
+
+/**
+ * Wrapper de sesión del servidor (configSession, F09c). Con la impersonación de dev ACTIVA resuelve la
+ * sesión fake (User real por email, sin cookies); si no, delega en `getServerAuthSession` EXACTAMENTE
+ * como antes. Es el borde que reemplaza a `getServerAuthSession` en los call-sites que quieren respetar
+ * el switch de dev (contexto tRPC, `getPropsEditor`, `requireSession`). Producción ⇒ siempre el real.
+ */
+export const getFinalSession = async (ctx: {
+  req: GetServerSidePropsContext["req"];
+  res: GetServerSidePropsContext["res"];
+}): Promise<Session | null> => {
+  if (fakeSessionActiva()) return resolverSesionFake();
+  return getServerAuthSession(ctx);
+};
+
+/**
  * Guard imperativo de páginas admin (pages router). Cada `getServerSideProps`
  * de una página protegida lo llama y hace early-return del `redirect`, con lo que
  * TS estrecha `session` a no-null en la rama de props. Cablea `getServerAuthSession`
@@ -125,6 +185,8 @@ export const requireSession = async (ctx: {
   req: GetServerSidePropsContext["req"];
   res: GetServerSidePropsContext["res"];
 }) => {
-  const session = await getServerAuthSession(ctx);
+  // `getFinalSession` (no `getServerAuthSession`): respeta la impersonación de dev (configSession) ⇒ el
+  // panel también ve la sesión fake sin login. En prod es idéntico a antes (el fake es inerte).
+  const session = await getFinalSession(ctx);
   return resolverGuard(session);
 };

@@ -4,6 +4,7 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import { env } from "~/env";
 import { db } from "~/server/db";
 import { resolverDominioCookieSesion } from "~/server/sesion/dominioCookie";
+import { esRutaRelativaSegura } from "~/server/sesion/rutaRelativa";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 
 /**
@@ -18,6 +19,12 @@ import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
  * creando una `Session` de DB directamente (el mismo modelo que usa el `PrismaAdapter`) y seteando la
  * cookie con el mismo nombre/dominio que `authOptions.cookies.sessionToken`. El flujo Google real se
  * sigue probando con túnel cloudflared al apex (memoria del proyecto).
+ *
+ * F09c: acepta un `?callbackUrl=<ruta relativa>` (p.ej. `/editor` o `/`) y, tras crear la sesión,
+ * REDIRIGE ahí — así el botón "Entrar como dueña (dev)" del header lleva de vuelta a la tienda con la
+ * sesión puesta (aparece "Editar mi página") en un solo click, sin pegar la URL a mano. Solo rutas
+ * RELATIVAS al mismo host (`esRutaRelativaSegura`); una URL absoluta ⇒ 400 (no open-redirect, ni en
+ * dev). Sin `callbackUrl` ⇒ conserva la respuesta JSON de antes (compat).
  */
 const DIAS_30_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -38,6 +45,17 @@ export default async function handler(
   const slug = typeof req.query.slug === "string" ? req.query.slug : null;
   if (!slug) {
     res.status(400).json({ error: "Falta ?slug=<tienda>" });
+    return;
+  }
+
+  // `callbackUrl` opcional: SOLO ruta relativa al mismo host (rechaza absolutas/protocol-relative para
+  // no ser un open-redirect ni en dev). Se valida ANTES de crear la sesión (fail-fast, sin side-effect).
+  const callbackUrl =
+    typeof req.query.callbackUrl === "string" ? req.query.callbackUrl : null;
+  if (callbackUrl !== null && !esRutaRelativaSegura(callbackUrl)) {
+    res.status(400).json({
+      error: "callbackUrl debe ser una ruta relativa del mismo host (p.ej. /editor), no una URL absoluta.",
+    });
     return;
   }
 

@@ -10,7 +10,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { type CSSProperties, type ReactNode } from "react";
 
-import { AccesoPlataforma } from "~/components/storefront/acceso-plataforma";
+import { AccesoSesion } from "~/components/storefront/acceso-sesion";
 import { BannerEditarTienda } from "~/components/storefront/banner-editar-tienda";
 import { CarritoProvider } from "~/components/storefront/carrito";
 import {
@@ -56,7 +56,7 @@ export function StorefrontLayout({
 
       <div className="flex min-h-screen flex-col" style={estiloShell}>
         {/* Banner "Editar mi tienda" (F09): chrome de plataforma, monta post-hidratación (no toca el SSR). */}
-        <BannerEditarTienda />
+        <BannerEditarTienda slug={branding.slug} />
         <Header branding={branding} onAbrirCarrito={drawer.open} />
 
         <Box component="main" className="flex-1">
@@ -127,6 +127,8 @@ function Header({
 
           <Group gap="sm" wrap="nowrap">
             <CountdownChip />
+            {/* Acción de sesión (F09c): junto al carrito, chrome neutro, post-hidratación (I5). */}
+            <AccesoSesion slug={branding.slug} />
             <BotonCarrito onOpen={onAbrirCarrito} />
           </Group>
         </Group>
@@ -226,8 +228,8 @@ function Footer({ branding }: { branding: TenantBranding }) {
               Esta tienda es operada de forma independiente por su responsable, que
               responde por los productos y las promociones que ofrece.
             </Text>
-            {/* Puerta de entrada al login/panel de plataforma (F09b): chrome neutro, post-hidratación. */}
-            <AccesoPlataforma slug={branding.slug} />
+            {/* La puerta de entrada a login/panel/editor vive AHORA en el header (F09c): el usuario vetó
+                el footer-only de F09b. El footer conserva solo la atribución neutral de plataforma. */}
           </Group>
         </Stack>
       </Container>

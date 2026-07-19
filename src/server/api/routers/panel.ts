@@ -13,6 +13,7 @@ import { getAccesoActual } from "~/server/domain/panel/getAccesoActual";
 import { getConfiguracionTienda } from "~/server/domain/panel/getConfiguracionTienda";
 import { getEstadoCredencialFlow } from "~/server/domain/panel/getEstadoCredencialFlow";
 import { getResumenTienda } from "~/server/domain/panel/getResumenTienda";
+import { getSerieVentasDiaria } from "~/server/domain/panel/getSerieVentasDiaria";
 import { getSorteoDelPanel } from "~/server/domain/panel/getSorteoDelPanel";
 import { guardarConfiguracionTienda } from "~/server/domain/panel/guardarConfiguracionTienda";
 import { guardarCredencialFlow } from "~/server/domain/panel/guardarCredencialFlow";
@@ -183,6 +184,11 @@ export const panelRouter = createTRPCRouter({
 
   getResumenTienda: panelProcedure.query(({ ctx }) =>
     runDomain(() => getResumenTienda({ db: ctx.db, acceso: ctx.acceso })),
+  ),
+
+  // Serie diaria de ventas (14 días) para el gráfico del dashboard (F03).
+  getSerieVentasDiaria: panelProcedure.query(({ ctx }) =>
+    runDomain(() => getSerieVentasDiaria({ db: ctx.db, acceso: ctx.acceso })),
   ),
 
   // ── Reenvío del correo de descarga de una orden PAGADA (F04/D9) ────────────

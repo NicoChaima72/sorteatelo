@@ -13,11 +13,13 @@ vi.mock("~/env", () => ({
   env: { STOREFRONT_PREVIEW_TOKEN: "tok-preview", PLATFORM_OPERATOR_EMAILS: "" },
 }));
 vi.mock("~/server/db", () => ({ db: { tenant: { findUnique: vi.fn() } } }));
-vi.mock("~/server/auth", () => ({ getServerAuthSession: vi.fn() }));
+// `getFinalSession` (F09c): el gate del editor pasó a este wrapper (respeta configSession). El mock lo
+// controla igual que antes — el shape resuelto (sesión o null) es lo que decide el fail-closed.
+vi.mock("~/server/auth", () => ({ getFinalSession: vi.fn() }));
 vi.mock("~/server/storefront/getStorefrontProps", () => ({ resolverBrandingSSR: vi.fn() }));
 vi.mock("~/server/domain/pagebuilder/puedoEditar", () => ({ puedoEditar: vi.fn() }));
 
-import { getServerAuthSession } from "~/server/auth";
+import { getFinalSession } from "~/server/auth";
 import { db } from "~/server/db";
 import { puedoEditar } from "~/server/domain/pagebuilder/puedoEditar";
 import { getPropsEditor } from "~/server/storefront/getEditorProps";
@@ -25,7 +27,7 @@ import { resolverBrandingSSR } from "~/server/storefront/getStorefrontProps";
 
 // Mocks capturados en consts (evita `unbound-method` al referenciar métodos en `expect`).
 const mockBranding = vi.mocked(resolverBrandingSSR);
-const mockAuth = vi.mocked(getServerAuthSession);
+const mockAuth = vi.mocked(getFinalSession);
 const mockPuede = vi.mocked(puedoEditar);
 // eslint-disable-next-line @typescript-eslint/unbound-method -- es un vi.fn() del mock, no un método real
 const mockTenant = vi.mocked(db.tenant.findUnique);

@@ -76,14 +76,28 @@ export function SeccionWrapper({
 }
 
 // ── Divisores de forma (SVG generado por NOSOTROS, nunca markup del tenant) ────────────────────
-// F02: onda/diagonal/curva. triangulo/perforacion [pro] ⇒ no dibujan (degradación). viewBox fijo
+// Las 5 formas del enum dibujan (F09c cerró triangulo/perforacion). viewBox fijo
 // 0 0 1200 120; `preserveAspectRatio="none"` estira a lo ancho. El fill = color de la sección
 // SIGUIENTE (transición). Solo `transform` en `invertir` (CLS=0, I-C).
+
+/** Borde de ticket: 10 muescas semicirculares (perforación) sobre la línea y=84. */
+const PATH_PERFORACION = (() => {
+  const r = 26;
+  const y = 84;
+  let d = `M0,${y}`;
+  for (let k = 0; k < 10; k++) {
+    const c = 60 + 120 * k;
+    d += ` L${c - r},${y} A${r},${r} 0 0 1 ${c + r},${y}`;
+  }
+  return d + ` L1200,${y} L1200,120 L0,120 Z`;
+})();
 
 const PATHS_DIVISOR: Record<string, string | undefined> = {
   onda: "M0,60 C200,110 400,10 600,60 C800,110 1000,10 1200,60 L1200,120 L0,120 Z",
   diagonal: "M0,120 L1200,20 L1200,120 Z",
   curva: "M0,120 Q600,0 1200,120 Z",
+  triangulo: "M0,120 L600,10 L1200,120 Z",
+  perforacion: PATH_PERFORACION,
 };
 
 const ALTURA_DIVISOR_PX: Record<string, number> = { s: 40, m: 70, l: 100 };

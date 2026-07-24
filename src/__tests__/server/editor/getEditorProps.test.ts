@@ -34,7 +34,16 @@ const mockTenant = vi.mocked(db.tenant.findUnique);
 
 const ctx = {} as GetServerSidePropsContext;
 
-const brandingStorefront = { zona: "storefront", branding: { slug: "autora" } } as never;
+// El branding del storefront incluye el subconjunto público que F11 pasa a las previews de la galería.
+const brandingStorefront = {
+  zona: "storefront",
+  branding: {
+    slug: "autora",
+    colorPrimario: "#e11d48",
+    nombre: "Tienda Autora",
+    descripcion: "Libros y sorteos",
+  },
+} as never;
 const brandingApex = { zona: "plataforma" } as never;
 const sesion = { user: { id: "u1", email: "org@x.com" }, expires: "2099-01-01" } as never;
 
@@ -80,14 +89,20 @@ describe("editor/getPropsEditor — gate SSR fail-closed (F09/D6)", () => {
     expect(mockPuede).not.toHaveBeenCalled();
   });
 
-  // page.editor.ssr.005 — autorizado (membresía) ⇒ props con slug + previewToken (recién acá viaja el token)
-  it("autorizado ⇒ props con slug del host + previewToken", async () => {
+  // page.editor.ssr.005 — autorizado (membresía) ⇒ props con slug + previewToken + branding (F11)
+  it("autorizado ⇒ props con slug del host + previewToken + branding de preview", async () => {
     mockBranding.mockResolvedValue(brandingStorefront);
     mockAuth.mockResolvedValue(sesion);
     mockTenant.mockResolvedValue({ id: "t-A" } as never);
     mockPuede.mockResolvedValue({ puedeEditar: true } as never);
     const res = await getPropsEditor(ctx);
-    expect(res).toEqual({ props: { slug: "autora", previewToken: "tok-preview" } });
+    expect(res).toEqual({
+      props: {
+        slug: "autora",
+        previewToken: "tok-preview",
+        branding: { colorPrimario: "#e11d48", nombre: "Tienda Autora", descripcion: "Libros y sorteos" },
+      },
+    });
     // El tenantId se resolvió por SLUG del host (I1), no de ningún input.
     expect(mockTenant).toHaveBeenCalledWith({ where: { slug: "autora" }, select: { id: true } });
   });

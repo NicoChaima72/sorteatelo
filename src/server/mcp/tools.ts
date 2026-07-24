@@ -219,6 +219,7 @@ export function mcpListStyleOptions() {
         energia: "Techy/fandom moderno (Space Grotesk + Inter).",
         dulce: "Redondeado merch/kpop (Poppins + Nunito).",
         impacto: "Póster/urgencia (Anton + Roboto).",
+        cartel: "Póster condensado (Bebas Neue + Space Grotesk).",
         clasica: "Refinada (Playfair + Source Sans).",
         tecnica: "Limpia/mono (IBM Plex Sans + Mono).",
       }),

@@ -4,6 +4,7 @@ import { BeneficiosGrid } from "~/components/storefront/beneficios-grid";
 import { BloqueTicketPromo } from "~/components/storefront/bloque-ticket-promo";
 import { BotonesSociales } from "~/components/storefront/botones-sociales";
 import { CatalogoStorefront } from "~/components/storefront/catalogo";
+import { CintaTexto } from "~/components/storefront/cinta-texto";
 import { CompartirSorteo } from "~/components/storefront/compartir-sorteo";
 import { ComoFunciona } from "~/components/storefront/como-funciona";
 import { ContadorTickets } from "~/components/storefront/contador-tickets";
@@ -17,6 +18,7 @@ import { GarantiasSorteo } from "~/components/storefront/garantias-sorteo";
 import { ImagenDestacada } from "~/components/storefront/imagen-destacada";
 import { LogosConfianza } from "~/components/storefront/logos-confianza";
 import { MetaProgresoSorteo } from "~/components/storefront/meta-progreso-sorteo";
+import { PerfilAutora } from "~/components/storefront/perfil-autora";
 import { Separador } from "~/components/storefront/separador";
 import { SorteoStorefront } from "~/components/storefront/sorteo";
 import { StorefrontHero } from "~/components/storefront/storefront-hero";
@@ -80,7 +82,12 @@ export function RenderPagina({
   );
 }
 
-function RenderSeccion({
+/**
+ * Renderiza UNA sección por el mismo switch exhaustivo que el documento completo. Exportada para que la
+ * WidgetGallery del editor (catálogo-v2 F11) monte el componente REAL de cada widget en miniatura —
+ * misma fuente de verdad que el render público (cero duplicación del dispatch por tipo).
+ */
+export function RenderSeccion({
   seccion,
   branding,
   divisorColor,
@@ -170,6 +177,10 @@ function RenderSeccion({
           divisorColor={divisorColor}
         />
       );
+    case "cinta_texto":
+      return <CintaTexto nodo={seccion} divisorColor={divisorColor} />;
+    case "perfil_autora":
+      return <PerfilAutora nodo={seccion} divisorColor={divisorColor} />;
     default: {
       // Candado de exhaustividad EN COMPILACIÓN (F10/F11 no pueden olvidar una rama) + tolerancia I9
       // en runtime (un `tipo` desconocido de un documento publicado viejo renderiza `null`, no crashea).

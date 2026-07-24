@@ -84,4 +84,20 @@
       transform: translateX(-50%);
     }
   }
+
+  /* Marco holográfico (imagen_destacada holo, F12): la POSICIÓN del gradiente se desplaza ~7s. El
+     gradiente en sí (colores de la escala del tenant) se pinta inline en el componente y queda VISIBLE
+     con reduced-motion; solo la animación de posición vive acá (gateada por la media query, I-B). */
+  .animar-holo {
+    animation: animar-holo-shift 7s ease infinite;
+  }
+  @keyframes animar-holo-shift {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
 }

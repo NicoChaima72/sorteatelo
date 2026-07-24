@@ -88,6 +88,7 @@ export const PARES_TIPOGRAFICOS = [
   "impacto", // Anton + Roboto — poster/urgencia
   "clasica", // Playfair Display + Source Sans 3 — refinada
   "tecnica", // IBM Plex Sans + IBM Plex Mono — limpia/mono
+  "cartel", // Bebas Neue + Space Grotesk — poster/fandom condensado (catálogo-v2 F12)
 ] as const;
 export type ParTipografico = (typeof PARES_TIPOGRAFICOS)[number];
 
@@ -591,6 +592,9 @@ export const imagenDestacadaProps = z
     ancho: z.enum(["contenido", "completo"]).default("contenido"),
     ratio: z.enum(RATIOS_IMAGEN).default("natural"),
     enlaceUrl: z.string().url().max(2048).optional(),
+    // Variante holográfica (F12): borde de gradiente animado (tokens de marca) + tilt 3D al mouse
+    // (transform-only, reduced-motion/SSR-safe). Aditivo/opcional ⇒ un doc v1 sin `holo` es idéntico.
+    holo: z.boolean().default(false),
   })
   .strict();
 export type ImagenDestacadaProps = z.infer<typeof imagenDestacadaProps>;
@@ -858,6 +862,57 @@ export const galeriaProps = z
   .strict();
 export type GaleriaProps = z.infer<typeof galeriaProps>;
 
+// ── Widgets v2b · gap vs mockups del cliente (catálogo-v2 F12) ────────────────────────────────
+
+/** Separador visual entre los mensajes de una `cinta_texto` (enum cerrado → glifo · / ★ / —). */
+export const SEPARADORES_CINTA = ["punto", "estrella", "guion"] as const;
+/** Velocidad del marquee de la cinta (mapea a `animation-duration` fijo en el render, no CSS libre). */
+export const VELOCIDADES_CINTA = ["lenta", "media", "rapida"] as const;
+
+/**
+ * `cinta_texto` (sección, F12): marquee infinito tipo ticker ("SORTEO ABIERTO · ENVÍO INSTANTÁNEO").
+ * `mensajes` (1–10, ≤40 chars c/u) se intercalan con `separador` y corren en cinta CSS (patrón del
+ * marquee de `logos_confianza`, pausa en hover, reduced-motion ⇒ estático). `esquema` pinta la banda
+ * (fondo + texto legible por construcción, mismo sistema que `estiloSeccion`); el `nodo.estilo`
+ * explícito gana. Texto plano con límite (nunca HTML, I3); `.strict()`.
+ */
+export const cintaTextoProps = z
+  .object({
+    mensajes: z.array(z.string().min(1).max(40)).min(1).max(10),
+    separador: z.enum(SEPARADORES_CINTA).default("punto"),
+    velocidad: z.enum(VELOCIDADES_CINTA).default("media"),
+    esquema: z.enum(ESQUEMAS_FONDO).default("marca"),
+  })
+  .strict();
+export type CintaTextoProps = z.infer<typeof cintaTextoProps>;
+
+/**
+ * `perfil_autora` (sección, F12): bloque editorial "sobre mí" centrado — avatar (imagen del picker o
+ * iniciales del `nombre` si no hay), `nombre` (≤60), `bio` (≤400) y `redes` (≤6, reusa el shape de
+ * `botones_sociales`: `{ red ∈ REDES_SOCIALES, url }`). Sin SDKs de terceros (solo enlaces). Texto
+ * plano con límite (nunca HTML, I3); imagen = `urlPublica` (degrada elegante ante URL rota, I-G);
+ * `.strict()`.
+ */
+export const perfilAutoraProps = z
+  .object({
+    nombre: z.string().min(1).max(60),
+    bio: z.string().min(1).max(400).optional(),
+    avatarUrl: urlPublica.optional(),
+    redes: z
+      .array(
+        z
+          .object({
+            red: z.enum(REDES_SOCIALES),
+            url: z.string().url().max(2048),
+          })
+          .strict(),
+      )
+      .max(6)
+      .optional(),
+  })
+  .strict();
+export type PerfilAutoraProps = z.infer<typeof perfilAutoraProps>;
+
 // ── Registro ─────────────────────────────────────────────────────────────────
 
 /** Categoría de un widget: en el flujo vertical de `secciones[]` o en el slot `overlays[]`. */
@@ -1106,45 +1161,95 @@ export const WIDGET_REGISTRY = {
       ],
     },
   }),
+  // ── v2b · gap vs mockups del cliente (F12) ──
+  cinta_texto: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: cintaTextoProps,
+    defaultProps: {
+      mensajes: ["SORTEO ABIERTO", "ENVÍO AL INSTANTE", "COMPRA Y PARTICIPA"],
+      separador: "estrella",
+      velocidad: "media",
+      esquema: "marca",
+    },
+  }),
+  perfil_autora: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: perfilAutoraProps,
+    defaultProps: {
+      nombre: "Tu nombre",
+      bio: "Cuenta quién eres en una o dos frases: qué vendes, por qué, y qué hace especial a tu tienda.",
+    },
+  }),
 } as const;
 
 export type WidgetTipo = keyof typeof WIDGET_REGISTRY;
 
 /**
- * Metadata de DISPLAY del catálogo (catálogo-v2 F09/F10/D8): título + descripción de una línea por
- * widget, para el picker y la lista de secciones del editor visual. Client-safe (puro, sin React). El
- * `Record<WidgetTipo, …>` OBLIGA en compile-time a describir cada widget del registro (un widget nuevo
- * sin metadata no compila). Es la fuente única de los nombres legibles (el editor NUNCA muestra el
- * `tipo` snake_case crudo).
+ * Categorías de UI del catálogo de widgets (catálogo-v2 F11, WidgetGallery): agrupan los widgets en
+ * tabs del picker. `todos` NO vive acá (es la meta-tab que no filtra); solo estas 5 son valores
+ * almacenados en `WIDGET_META.categoria`. Enum cerrado ⇒ un widget nuevo debe elegir una (compila).
  */
-export const WIDGET_META: Record<WidgetTipo, { titulo: string; descripcion: string }> = {
-  hero: { titulo: "Encabezado (hero)", descripcion: "El titular grande de arriba con imagen y botón." },
-  catalogo: { titulo: "Catálogo", descripcion: "La grilla de tus productos a la venta." },
-  sorteo_vitrina: { titulo: "Vitrina del sorteo", descripcion: "Muestra el premio y las bases del sorteo activo." },
-  como_funciona: { titulo: "Cómo funciona", descripcion: "Los pasos: comprar, recibir, participar." },
-  contador_tickets: { titulo: "Contador de tickets", descripcion: "El total de tickets vendidos del sorteo." },
-  urgencia_countdown: { titulo: "Cuenta regresiva", descripcion: "El tiempo que queda para el cierre del sorteo." },
-  testimonios: { titulo: "Testimonios", descripcion: "Reseñas de tus compradores." },
-  ganadores: { titulo: "Ganadores", descripcion: "Los ganadores de sorteos anteriores (a mano o automático)." },
-  faq: { titulo: "Preguntas frecuentes", descripcion: "Un acordeón de dudas comunes." },
-  video: { titulo: "Video", descripcion: "Un video de YouTube, TikTok o Instagram." },
-  embed_social: { titulo: "Post social", descripcion: "Un post o perfil de TikTok/Instagram embebido." },
-  beneficios_grid: { titulo: "Beneficios", descripcion: "Una grilla de ventajas con íconos." },
-  texto_rico: { titulo: "Texto", descripcion: "Un bloque de texto con subtítulos, párrafos, citas y listas." },
-  imagen_destacada: { titulo: "Imagen", descripcion: "Una imagen grande con pie de foto opcional." },
-  separador: { titulo: "Separador", descripcion: "Una línea o motivo decorativo entre secciones." },
-  espaciador: { titulo: "Espacio", descripcion: "Un espacio vacío para dar aire." },
-  banner_cta: { titulo: "Banda de acción", descripcion: "Una banda ancha con un botón destacado." },
-  estadisticas: { titulo: "Estadísticas", descripcion: "Cifras grandes con animación de conteo." },
-  botones_sociales: { titulo: "Redes sociales", descripcion: "Botones para seguirte en tus redes." },
-  logos_confianza: { titulo: "Logos / aliados", descripcion: "Una banda de logos de aliados o medios." },
-  bloque_ticket_promo: { titulo: "Compra = participas", descripcion: "Explica que cada compra suma tickets al sorteo." },
-  meta_progreso_sorteo: { titulo: "Meta del sorteo", descripcion: "Una barra de progreso hacia tu meta de tickets." },
-  garantias_sorteo: { titulo: "Transparencia del sorteo", descripcion: "Cómo eliges al ganador (genera confianza)." },
-  compartir_sorteo: { titulo: "Compartir", descripcion: "Botones para difundir tu tienda por WhatsApp, etc." },
-  galeria: { titulo: "Galería", descripcion: "Varias imágenes en grilla, mosaico o carrusel." },
-  whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay)." },
-  aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay)." },
+export const CATEGORIAS_WIDGET = [
+  "contenido",
+  "sorteo",
+  "social",
+  "medios",
+  "estructura",
+] as const;
+export type CategoriaWidgetUI = (typeof CATEGORIAS_WIDGET)[number];
+
+/** Etiquetas humanas de las categorías + la meta-tab "todos" (para los tabs de la galería, F11). */
+export const CATEGORIAS_WIDGET_LABEL: Record<CategoriaWidgetUI | "todos", string> = {
+  todos: "Todos",
+  contenido: "Contenido",
+  sorteo: "Sorteo",
+  social: "Social",
+  medios: "Medios",
+  estructura: "Estructura",
+};
+
+/**
+ * Metadata de DISPLAY del catálogo (catálogo-v2 F09/F10/D8; +`categoria` en F11): título + descripción
+ * de una línea + categoría de UI por widget, para el picker (WidgetGallery), sus tabs y la lista de
+ * secciones del editor visual. Client-safe (puro, sin React). El `Record<WidgetTipo, …>` OBLIGA en
+ * compile-time a describir cada widget del registro (un widget nuevo sin metadata/categoria no compila).
+ * Es la fuente única de los nombres legibles (el editor NUNCA muestra el `tipo` snake_case crudo).
+ */
+export const WIDGET_META: Record<
+  WidgetTipo,
+  { titulo: string; descripcion: string; categoria: CategoriaWidgetUI }
+> = {
+  hero: { titulo: "Encabezado (hero)", descripcion: "El titular grande de arriba con imagen y botón.", categoria: "contenido" },
+  catalogo: { titulo: "Catálogo", descripcion: "La grilla de tus productos a la venta.", categoria: "contenido" },
+  sorteo_vitrina: { titulo: "Vitrina del sorteo", descripcion: "Muestra el premio y las bases del sorteo activo.", categoria: "sorteo" },
+  como_funciona: { titulo: "Cómo funciona", descripcion: "Los pasos: comprar, recibir, participar.", categoria: "contenido" },
+  contador_tickets: { titulo: "Contador de tickets", descripcion: "El total de tickets vendidos del sorteo.", categoria: "sorteo" },
+  urgencia_countdown: { titulo: "Cuenta regresiva", descripcion: "El tiempo que queda para el cierre del sorteo.", categoria: "sorteo" },
+  testimonios: { titulo: "Testimonios", descripcion: "Reseñas de tus compradores.", categoria: "social" },
+  ganadores: { titulo: "Ganadores", descripcion: "Los ganadores de sorteos anteriores (a mano o automático).", categoria: "sorteo" },
+  faq: { titulo: "Preguntas frecuentes", descripcion: "Un acordeón de dudas comunes.", categoria: "contenido" },
+  video: { titulo: "Video", descripcion: "Un video de YouTube, TikTok o Instagram.", categoria: "medios" },
+  embed_social: { titulo: "Post social", descripcion: "Un post o perfil de TikTok/Instagram embebido.", categoria: "medios" },
+  beneficios_grid: { titulo: "Beneficios", descripcion: "Una grilla de ventajas con íconos.", categoria: "contenido" },
+  texto_rico: { titulo: "Texto", descripcion: "Un bloque de texto con subtítulos, párrafos, citas y listas.", categoria: "contenido" },
+  imagen_destacada: { titulo: "Imagen", descripcion: "Una imagen grande con pie de foto opcional.", categoria: "medios" },
+  separador: { titulo: "Separador", descripcion: "Una línea o motivo decorativo entre secciones.", categoria: "estructura" },
+  espaciador: { titulo: "Espacio", descripcion: "Un espacio vacío para dar aire.", categoria: "estructura" },
+  banner_cta: { titulo: "Banda de acción", descripcion: "Una banda ancha con un botón destacado.", categoria: "contenido" },
+  estadisticas: { titulo: "Estadísticas", descripcion: "Cifras grandes con animación de conteo.", categoria: "social" },
+  botones_sociales: { titulo: "Redes sociales", descripcion: "Botones para seguirte en tus redes.", categoria: "social" },
+  logos_confianza: { titulo: "Logos / aliados", descripcion: "Una banda de logos de aliados o medios.", categoria: "social" },
+  bloque_ticket_promo: { titulo: "Compra = participas", descripcion: "Explica que cada compra suma tickets al sorteo.", categoria: "sorteo" },
+  meta_progreso_sorteo: { titulo: "Meta del sorteo", descripcion: "Una barra de progreso hacia tu meta de tickets.", categoria: "sorteo" },
+  garantias_sorteo: { titulo: "Transparencia del sorteo", descripcion: "Cómo eliges al ganador (genera confianza).", categoria: "sorteo" },
+  compartir_sorteo: { titulo: "Compartir", descripcion: "Botones para difundir tu tienda por WhatsApp, etc.", categoria: "sorteo" },
+  galeria: { titulo: "Galería", descripcion: "Varias imágenes en grilla, mosaico o carrusel.", categoria: "medios" },
+  cinta_texto: { titulo: "Cinta de texto", descripcion: "Una cinta con frases que se desplazan (tipo ticker).", categoria: "estructura" },
+  perfil_autora: { titulo: "Perfil / sobre mí", descripcion: "Tu foto, nombre, bio y redes — un bloque editorial.", categoria: "contenido" },
+  whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay).", categoria: "social" },
+  aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };
 
 /** Todos los tipos de sección del registro (categoria === 'seccion'). */

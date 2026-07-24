@@ -1,5 +1,6 @@
 import {
   Anton,
+  Bebas_Neue,
   Bricolage_Grotesque,
   Fraunces,
   IBM_Plex_Mono,
@@ -79,6 +80,7 @@ const plexSans = IBM_Plex_Sans({
   display: "swap",
   preload: false,
 });
+const bebasNeue = Bebas_Neue({ subsets: ["latin"], weight: ["400"], display: "swap", preload: false });
 
 /** `family` CSS de un par (display para headings/wordmark, texto para el cuerpo). */
 export interface ParFont {
@@ -98,4 +100,5 @@ export const PARES_FONT: Record<ParTipografico, ParFont> = {
   impacto: { display: anton.style.fontFamily, texto: roboto.style.fontFamily },
   clasica: { display: playfair.style.fontFamily, texto: sourceSans.style.fontFamily },
   tecnica: { display: plexSans.style.fontFamily, texto: sourceSans.style.fontFamily },
+  cartel: { display: bebasNeue.style.fontFamily, texto: spaceGrotesk.style.fontFamily },
 };

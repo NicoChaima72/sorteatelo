@@ -17,7 +17,11 @@ export default function EditorPage(props: PropsEditor) {
         <title>Editar mi tienda · Sortéatelo</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <EditorPageBuilder slug={props.slug} previewToken={props.previewToken} />
+      <EditorPageBuilder
+        slug={props.slug}
+        previewToken={props.previewToken}
+        branding={props.branding}
+      />
     </>
   );
 }

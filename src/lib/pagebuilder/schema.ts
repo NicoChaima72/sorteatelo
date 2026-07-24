@@ -8,6 +8,7 @@ import {
   bloqueTicketPromoProps,
   botonesSocialesProps,
   catalogoProps,
+  cintaTextoProps,
   comoFuncionaProps,
   compartirSorteoProps,
   contadorTicketsProps,
@@ -26,6 +27,7 @@ import {
   metaProgresoSorteoProps,
   MODO_COLOR,
   PARES_TIPOGRAFICOS,
+  perfilAutoraProps,
   RADIO_GLOBAL,
   separadorProps,
   sorteoVitrinaProps,
@@ -125,6 +127,8 @@ export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
   nodoSeccion("garantias_sorteo", garantiasSorteoProps), // catálogo-v2 F06
   nodoSeccion("compartir_sorteo", compartirSorteoProps), // catálogo-v2 F06
   nodoSeccion("galeria", galeriaProps), // catálogo-v2 F08
+  nodoSeccion("cinta_texto", cintaTextoProps), // catálogo-v2 F12
+  nodoSeccion("perfil_autora", perfilAutoraProps), // catálogo-v2 F12
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 

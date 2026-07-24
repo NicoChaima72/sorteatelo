@@ -33,6 +33,10 @@ const OVERRIDES_CONOCIDOS = new Set<string>([
   // `compartir_sorteo.canales`: array de ENUM (multiselect). D8 declara "array de objetos→repeater", no
   // array-de-enum. Tiene default sensato (whatsapp/copiar/x); afinarlo va por el asistente por ahora.
   "compartir_sorteo.canales",
+  // `cinta_texto.mensajes` (F12): array de STRINGS (no de objetos) — la introspección declarada (D8)
+  // cubre array-de-objetos→repeater, no array-de-string. Tiene default sensato; se afina por el
+  // asistente hasta que el form tenga un editor de lista-de-strings dedicado (REVISABLE).
+  "cinta_texto.mensajes",
 ]);
 
 describe("editor/formGenerator — F10-1: generador de forms cubre el registro (generativo)", () => {

@@ -20,6 +20,16 @@ export interface PropsEditor {
   slug: string;
   /** Token de preview (env) — solo llega al cliente tras autorizar la membresía (D7). `null` ⇒ sin preview. */
   previewToken: string | null;
+  /**
+   * Branding mínimo del tenant para las PREVIEWS del catálogo de widgets (F11): el `colorPrimario`
+   * alimenta la degradación tematizada (`gradienteTematico`) y `nombre`/`descripcion` los fallbacks del
+   * hero. NO es sensible (subconjunto público del branding que ya resuelve `getStorefrontProps`).
+   */
+  branding: {
+    colorPrimario: string | null;
+    nombre: string;
+    descripcion: string | null;
+  };
 }
 
 export async function getPropsEditor(
@@ -54,6 +64,11 @@ export async function getPropsEditor(
     props: {
       slug: branding.branding.slug,
       previewToken: env.STOREFRONT_PREVIEW_TOKEN ?? null,
+      branding: {
+        colorPrimario: branding.branding.colorPrimario,
+        nombre: branding.branding.nombre,
+        descripcion: branding.branding.descripcion,
+      },
     },
   };
 }

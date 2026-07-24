@@ -2,6 +2,7 @@ import { Anchor, AspectRatio, Box, Stack, Text } from "@mantine/core";
 import { type ReactNode } from "react";
 
 import { ImagenConFallback } from "~/components/storefront/imagen-tenant";
+import { MarcoHolo } from "~/components/storefront/marco-holo";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
@@ -68,11 +69,19 @@ export function ImagenDestacada({
     imagen
   );
 
+  // Variante holográfica (F12): el marco anima su borde de gradiente + tilt 3D (transform-only,
+  // reduced-motion/SSR-safe). El marco ya recorta con su propio radio, así que envuelve la imagen tal cual.
+  const contenidoImagen: ReactNode = props.holo ? (
+    <MarcoHolo radius={radius}>{conEnlace}</MarcoHolo>
+  ) : (
+    conEnlace
+  );
+
   return (
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
       <Box maw={maw} mx={maw ? "auto" : undefined}>
         <Stack gap="xs">
-          {conEnlace}
+          {contenidoImagen}
           {props.caption && (
             <Text size="sm" c="dimmed" ta="center">
               {props.caption}

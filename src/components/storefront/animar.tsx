@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useEnPreview } from "~/components/storefront/preview-muestra";
 import { type PresetEntrada } from "~/lib/pagebuilder/widgets";
 
 /**
@@ -86,7 +87,10 @@ export function Animar({
   className?: string;
 }) {
   const reduce = useReducedMotion();
-  const activo = !reduce && animable(preset);
+  // En preview del catálogo (F11) los thumbnails NO animan su entrada (estáticos, sin parpadeo bajo el
+  // fold de la galería): se renderiza el div plano visible.
+  const enPreview = useEnPreview();
+  const activo = !reduce && !enPreview && animable(preset);
   const { ref, armar } = useArmarAlScroll(activo);
 
   if (!armar) {
@@ -132,7 +136,8 @@ export function AnimarItem({
   className?: string;
 }) {
   const reduce = useReducedMotion();
-  const activo = !reduce && animable(preset);
+  const enPreview = useEnPreview();
+  const activo = !reduce && !enPreview && animable(preset);
   const { ref, armar } = useArmarAlScroll(activo);
 
   if (!armar) {
@@ -184,11 +189,12 @@ export function useCountUp<T extends HTMLElement = HTMLElement>(
   duracionMs = 1200,
 ) {
   const reduce = useReducedMotion();
+  const enPreview = useEnPreview();
   const ref = useRef<T>(null);
   const [progreso, setProgreso] = useState(1); // reposo = valor final (SSR/default, I-D)
 
   useEffect(() => {
-    if (reduce) return; // reduced-motion ⇒ progreso queda en 1 (valor final, I-B)
+    if (reduce || enPreview) return; // reduced-motion / preview ⇒ progreso queda en 1 (valor final)
     // objetivo aún no resuelto (query async): no armar el count-up; el efecto re-corre al llegar.
     if (objetivo <= 0) return;
     const el = ref.current;
@@ -219,7 +225,7 @@ export function useCountUp<T extends HTMLElement = HTMLElement>(
       observer.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [objetivo, duracionMs, reduce]);
+  }, [objetivo, duracionMs, reduce, enPreview]);
 
   return { valor: valorCountUp(objetivo, progreso), ref };
 }

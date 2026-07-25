@@ -1,0 +1,29 @@
+# Higiene de la fábrica de videos (D9/I8): al repo van SOLO las FUENTES
+# (scripts .mjs, _lib/, _template-tour/, _brand/tokens.local.json + brand.tokens.css,
+# el folder de cada video, videos.json, README, MOCKS). Nada regenerable ni binario.
+
+# ── Salidas de render ────────────────────────────────────────────────────────
+# El destino final de los MP4 es R2 (fase 2 del plan), no git.
+out/
+*.mp4
+out_dbg/
+
+# ── Assets EFÍMEROS del folder de cada video ─────────────────────────────────
+# `_lib/materializar.mjs` los copia desde la fuente única (_lib/ + _brand/) al
+# scaffoldear / chequear / renderizar. Al repo va SOLO la fuente propia del video
+# (index.html + app.js): un fix del kit o un cambio de paleta llega a TODOS los
+# videos al re-renderizar, sin N copias en git.
+*/assets/
+*/index.embed.html
+
+# ── Fuentes de marca: binarios OFL, reproducibles con `node fetch-fonts.mjs` ──
+_brand/fonts/
+
+# ── Efímeros de los scripts ──────────────────────────────────────────────────
+_brand/.extraer-theme.mts
+
+# ── Verificación visual: los frames se extraen del MP4 y se miran, no se versionan ──
+snapshots/
+*/snapshots/
+frames/
+*/frames/

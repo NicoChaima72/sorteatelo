@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { SeccionNodeSchema } from "~/lib/pagebuilder/schema";
 import {
+  estadisticasProps,
   heroProps,
   imagenDestacadaProps,
+  momentoTicketProps,
+  packsPrecioProps,
   vitrinaProximamenteProps,
   WIDGET_META,
   WIDGET_REGISTRY,
@@ -102,6 +105,21 @@ describe("pagebuilder/tanda2 (F02) — hero split visual configurable", () => {
     // campo extra en la rama ⇒ rechazo (.strict)
     expect(heroProps.safeParse({ ...base, visual: { tipo: "imagen", url: "https://x.co", css: "x" } }).success).toBe(false);
   });
+
+  // page.tanda2.herovisual.002 (F12) — la tarjeta gana `estilo` (plano/suave); default plano (no-op v1)
+  it("visual tarjeta acepta estilo plano|suave, default plano (no-op)", () => {
+    const base = { titulo: "Hola" };
+    // sin estilo ⇒ default plano (look actual)
+    const parsed = heroProps.parse({ ...base, visual: { tipo: "tarjeta", titulo: "T" } });
+    expect(parsed.visual).toMatchObject({ tipo: "tarjeta", estilo: "plano" });
+    for (const est of ["plano", "suave"] as const) {
+      expect(heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", estilo: est } }).success).toBe(true);
+    }
+    // estilo fuera del enum ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", estilo: "glass" } }).success).toBe(false);
+    // `estilo` NO existe en la rama imagen (.strict) ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "imagen", url: "https://x.co", estilo: "suave" } }).success).toBe(false);
+  });
 });
 
 describe("pagebuilder/tanda2 (F03) — ancho card en imagen_destacada", () => {
@@ -115,6 +133,101 @@ describe("pagebuilder/tanda2 (F03) — ancho card en imagen_destacada", () => {
     }
     // valor fuera del enum ⇒ rechazo
     expect(imagenDestacadaProps.safeParse({ ...base, ancho: "gigante" }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F12) — packs_precio (tarjetas de precio)", () => {
+  // page.tanda2.packs.001 — valida items 1–4, precio int, destacado/badge/cta opcionales, límites y .strict()
+  it("packs_precio valida items 1–4, precio entero y campos opcionales, rechaza extras", () => {
+    const ok = {
+      titulo: "Más libros, más chances",
+      items: [
+        { titulo: "1 libro", precio: 3000, detalle: "1 participación", ctaTexto: "Comprar" },
+        { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "MÁS ELEGIDO", ctaTexto: "Comprar" },
+      ],
+    };
+    expect(packsPrecioProps.safeParse(ok).success).toBe(true);
+    // item mínimo (titulo + precio); destacado default false; ctaAncla default catalogo
+    const min = packsPrecioProps.parse({ items: [{ titulo: "Uno", precio: 1000 }] });
+    expect(min.items[0]!.destacado).toBe(false);
+    expect(min.items[0]!.ctaAncla).toBe("catalogo");
+    // 0 items / más de 4 ⇒ rechazo
+    expect(packsPrecioProps.safeParse({ items: [] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: Array(5).fill({ titulo: "x", precio: 1 }) }).success).toBe(false);
+    // precio no-entero / negativo ⇒ rechazo (dominio con dinero: entero limpio)
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 10.5 }] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: -1 }] }).success).toBe(false);
+    // titulo >40 / detalle >80 / badge >20 / ctaTexto >30 ⇒ rechazo
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x".repeat(41), precio: 1 }] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1, detalle: "y".repeat(81) }] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1, badge: "y".repeat(21) }] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1, ctaTexto: "y".repeat(31) }] }).success).toBe(false);
+    // ctaAncla fuera del enum ⇒ rechazo
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1, ctaAncla: "otro" }] }).success).toBe(false);
+    // HTML/campo extra ⇒ rechazo (.strict, en item y en el widget)
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1, html: "<b>x</b>" }] }).success).toBe(false);
+    expect(packsPrecioProps.safeParse({ items: [{ titulo: "x", precio: 1 }], html: "<b>x</b>" }).success).toBe(false);
+  });
+
+  // page.tanda2.packs.002 — el nodo parsea contra la union; está en el registro + WIDGET_META; defaultProps parsea
+  it("el nodo packs_precio parsea contra la union y está en el registro/meta", () => {
+    const nodo = { id: "pp", tipo: "packs_precio", v: 1, props: { items: [{ titulo: "Uno", precio: 1000 }] } };
+    expect(SeccionNodeSchema.safeParse(nodo).success).toBe(true);
+    const def = WIDGET_REGISTRY.packs_precio;
+    expect(def.categoria).toBe("seccion");
+    expect(def.propsSchema.safeParse(def.defaultProps).success).toBe(true);
+    expect(WIDGET_META.packs_precio.titulo).not.toBe("packs_precio");
+  });
+});
+
+describe("pagebuilder/tanda2 (F12) — momento_ticket (¡estás dentro!)", () => {
+  // page.tanda2.momento.001 — valida titulo/codigoEjemplo requeridos, etiqueta/cta/nota opcionales, límites, .strict()
+  it("momento_ticket valida los campos con límite y rechaza extras", () => {
+    const ok = {
+      titulo: "¡Estás dentro! 💜",
+      etiqueta: "Tu número de sorteo:",
+      codigoEjemplo: "ARMY-04821",
+      ctaTexto: "Compartir y sumar más chances",
+      nota: "Número de ejemplo.",
+    };
+    expect(momentoTicketProps.safeParse(ok).success).toBe(true);
+    // mínimo: titulo + codigoEjemplo; ctaAncla default catalogo
+    const min = momentoTicketProps.parse({ titulo: "Dentro", codigoEjemplo: "X-1" });
+    expect(min.ctaAncla).toBe("catalogo");
+    // faltan requeridos ⇒ rechazo
+    expect(momentoTicketProps.safeParse({ titulo: "solo" }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ codigoEjemplo: "solo" }).success).toBe(false);
+    // titulo >60 / etiqueta >40 / codigoEjemplo >20 / ctaTexto >30 / nota >120 ⇒ rechazo
+    expect(momentoTicketProps.safeParse({ titulo: "x".repeat(61), codigoEjemplo: "X" }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "X", etiqueta: "y".repeat(41) }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "y".repeat(21) }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "X", ctaTexto: "y".repeat(31) }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "X", nota: "y".repeat(121) }).success).toBe(false);
+    // ctaAncla fuera del enum / campo extra ⇒ rechazo
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "X", ctaAncla: "otro" }).success).toBe(false);
+    expect(momentoTicketProps.safeParse({ titulo: "x", codigoEjemplo: "X", html: "<b>x</b>" }).success).toBe(false);
+  });
+
+  // page.tanda2.momento.002 — el nodo parsea contra la union; registro + WIDGET_META; defaultProps parsea
+  it("el nodo momento_ticket parsea contra la union y está en el registro/meta", () => {
+    const nodo = { id: "mt", tipo: "momento_ticket", v: 1, props: { titulo: "Dentro", codigoEjemplo: "X-1" } };
+    expect(SeccionNodeSchema.safeParse(nodo).success).toBe(true);
+    const def = WIDGET_REGISTRY.momento_ticket;
+    expect(def.categoria).toBe("seccion");
+    expect(def.propsSchema.safeParse(def.defaultProps).success).toBe(true);
+    expect(WIDGET_META.momento_ticket.titulo).not.toBe("momento_ticket");
+  });
+});
+
+describe("pagebuilder/tanda2 (F12) — estadisticas tarjetas_suaves", () => {
+  // page.tanda2.stats.001 — el enum estiloVisual gana `tarjetas_suaves`; default sigue `cards` (no-op)
+  it("estadisticas.estiloVisual acepta tarjetas_suaves; default cards (no-op)", () => {
+    const base = { items: [{ valor: 1, etiqueta: "a" }, { valor: 2, etiqueta: "b" }] };
+    expect(estadisticasProps.parse(base).estiloVisual).toBe("cards"); // no-op v1
+    for (const est of ["cards", "simple", "tarjetas_suaves"] as const) {
+      expect(estadisticasProps.safeParse({ ...base, estiloVisual: est }).success).toBe(true);
+    }
+    expect(estadisticasProps.safeParse({ ...base, estiloVisual: "neon" }).success).toBe(false);
   });
 });
 

@@ -1,0 +1,24 @@
+{
+  "_doc": "Registro ligero de las cápsulas de la fábrica. Lo appendea new-tour.mjs. Es el futuro seed del consumo in-app (fase 2 post-F07: tabla Tutorial + MP4s en R2 + página de cápsulas en el panel). Los MP4 NO están en git: se regeneran con `node render.mjs <slug>`.",
+  "videos": [],
+  "backlog": [
+    {
+      "id": "conecta-flow",
+      "module": "pagos",
+      "title": "Conecta Flow",
+      "description": "Cómo pegar las claves de Flow en Configuración y qué pasa cuando quedan conectadas (BYO-Flow, ADR-0006)."
+    },
+    {
+      "id": "sube-productos",
+      "module": "productos",
+      "title": "Sube productos",
+      "description": "Crear un producto, subir el PDF y ponerle precio. Incluye el switch «Participa en el sorteo»."
+    },
+    {
+      "id": "monta-el-sorteo",
+      "module": "sorteo",
+      "title": "Monta el sorteo",
+      "description": "Crear el sorteo, escribir las bases y ver cómo se acumulan los tickets de cada compra."
+    }
+  ]
+}

@@ -1,0 +1,326 @@
+/* ============================================================================
+   tour-kit.css — estilos GENÉRICOS compartidos por todos los tours de Sortéatelo.
+   Port reskineado del kit de terranova-videos (2026-07-24), con la identidad
+   «El Talonario» (docs/design.md): cobalto + amarillo + tinta, Fraunces /
+   Bricolage 800 / Instrument Sans / IBM Plex Mono, gramática SUAVE (sin bordes
+   duros, radios 18/16/12, elevación por sombra difusa).
+
+   Contiene SOLO lo idéntico entre tours:
+     · escena  — reset, beats, tipografía de video, plumón, sellos, perforación
+     · chrome  — browser frame + panel de Organizador «Oscuro + calmo» (§4):
+                 rail tinta colapsable + topbar sin borde + canvas gray-0
+     · panel   — PanelCard sin borde, PageHeader, campos de formulario, botones
+     · overlays— tooltip del tour, spotlight, cursor, crossfade stack
+
+   Las clases de CADA video (`.cfg-*`, `.pr-*`, …) viven en el <style> por-video
+   de su index.html, NO acá.
+
+   CERO HEX (I7): todo color sale de `assets/brand.tokens.css` (`--st-*`), que
+   `build-tokens.mjs` deriva de `src/styles/theme.ts`.
+
+   NOTA: `#root` (background/font-family de la escena) NO va acá — queda en el
+   <style> por-video del index.html, junto al @font-face embebido en base64.
+
+   Regla del motor (gotcha 9 del README): el DOM que inyecta app.js sólo honra
+   CLASES para tipografía/gap/colores; por eso TODO el estilo visual vive en
+   estas clases y no inline.
+   ============================================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.beat { position: absolute; inset: 0; }
+.center-col { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.row { display: flex; align-items: center; }
+
+/* ─────────────────────────────────────────── tipografía de escena (§3) ───── */
+
+/* Overline: IBM Plex Mono en mayúsculas espaciadas — el registro «etiqueta de
+   talonario». Cobalto sobre claro. */
+.eyebrow {
+  font-family: var(--st-font-mono); font-weight: 500; font-size: 19px;
+  letter-spacing: 3px; text-transform: uppercase; color: var(--st-acento);
+}
+.eyebrow-premio { color: var(--st-premio); }
+
+/* Titular: Fraunces (serif cálida de los headings de plataforma). */
+.headline {
+  font-family: var(--st-font-heading); font-weight: 700; line-height: 1.08;
+  letter-spacing: -0.015em; color: var(--st-texto);
+}
+/* Bajada del concepto: Instrument Sans. */
+.lead {
+  font-family: var(--st-font-texto); font-size: 29px; line-height: 1.45;
+  color: var(--st-texto-suave); text-align: center; max-width: 1180px;
+}
+/* Wordmark de plataforma: Bricolage Grotesque 800 (design.md §3). */
+.wordmark {
+  font-family: var(--st-font-display); font-weight: 800; letter-spacing: -0.02em;
+  color: var(--st-texto); line-height: 1;
+}
+.wordmark-inv { color: var(--st-texto-invertido); }
+/* Números / montos / códigos: mono tabular (§3, §8). */
+.mono { font-family: var(--st-font-mono); font-variant-numeric: tabular-nums; }
+
+/* Plumón amarillo sobre los verbos (§4). El trazo va como background-image DEL
+   PROPIO span — nunca como capa aparte con z-index. */
+.plumon {
+  background-image: linear-gradient(var(--st-premio), var(--st-premio));
+  background-repeat: no-repeat;
+  background-size: 100% 0.34em;
+  background-position: 0 82%;
+  padding: 0 0.06em;
+}
+
+/* Perforación dashed entre secciones (motivo del talonario). */
+.perfo { border-top: 3px dashed var(--st-borde); }
+
+/* Sello de goma: etiqueta rotada con borde grueso (estado del talonario). */
+.sello {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--st-font-mono); font-weight: 600; font-size: 17px;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 8px 16px; border-radius: 6px; border: 3px solid var(--st-exito);
+  color: var(--st-exito); transform: rotate(-7deg);
+}
+
+/* Chip de ticket con muescas, sin borde (§4). */
+.ticket {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 20px; border-radius: 999px;
+  background: var(--st-amarillo-1); color: var(--st-texto);
+  font-family: var(--st-font-mono); font-weight: 600; font-size: 20px;
+}
+
+/* Cierre claro: superficie blanca + filo cobalto superior. */
+.paper-bg { position: absolute; inset: 0; background: var(--st-superficie); }
+.paper-edge { position: absolute; top: 0; left: 0; right: 0; height: 8px; background: var(--st-acento); }
+
+/* Stage del mock (lo inyecta app.js). */
+.wt-stage { position: absolute; inset: 0; }
+
+/* ─────────────────────────────────────── tooltip del tour (tarjeta tinta) ── */
+.tip { position: absolute; z-index: 70; opacity: 0; }
+.tip-box {
+  position: relative; background: var(--st-tinta); border-radius: var(--st-radio-card);
+  padding: 18px 22px; box-shadow: var(--st-sombra-tooltip);
+  border-left: 5px solid var(--st-premio);
+}
+.tip-beak { position: absolute; width: 16px; height: 16px; background: var(--st-tinta); transform: rotate(45deg); }
+.tip-numrow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tip-num {
+  width: 28px; height: 28px; border-radius: 8px; background: var(--st-premio); color: var(--st-tinta);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--st-font-mono); font-weight: 600; font-size: 14px; flex-shrink: 0;
+}
+.tip-eyebrow {
+  font-family: var(--st-font-mono); font-weight: 500; font-size: 13px;
+  letter-spacing: 2.4px; text-transform: uppercase; color: var(--st-amarillo-3);
+}
+.tip-title {
+  font-family: var(--st-font-heading); font-weight: 700; font-size: 27px;
+  color: var(--st-texto-invertido); line-height: 1.14;
+}
+.tip-body {
+  font-family: var(--st-font-texto); font-size: 18px; line-height: 1.45;
+  color: var(--st-gris-3); margin-top: 8px;
+}
+
+/* ────────────────────────────────────────────────── browser chrome ──────── */
+.app-browser {
+  position: absolute; border-radius: var(--st-radio-frame); background: var(--st-superficie);
+  box-shadow: var(--st-sombra-frame); overflow: hidden; display: flex; flex-direction: column;
+}
+.app-chrome {
+  height: var(--st-navegador-alto); flex-shrink: 0; background: var(--st-navegador-bg);
+  display: flex; align-items: center; padding: 0 22px; gap: 12px;
+}
+.app-dot { width: 13px; height: 13px; border-radius: 999px; background: var(--st-gris-3); }
+.app-url {
+  flex: 1; max-width: 780px; margin: 0 auto; height: 36px; border-radius: 999px;
+  background: var(--st-superficie); display: flex; align-items: center; justify-content: center;
+  font-family: var(--st-font-mono); font-size: 18px; color: var(--st-texto-suave); white-space: nowrap;
+}
+.app-chrome-spacer { width: 90px; }
+.app-body { flex: 1; display: flex; min-height: 0; }
+.app-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+/* Canvas del panel: gris muy claro (gray-0), full-width, sin borde (§4). */
+.app-content { flex: 1; min-height: 0; position: relative; overflow: hidden; background: var(--st-canvas); }
+
+/* ──────────────────────── rail tinta del panel «Oscuro + calmo» (§4) ────── */
+.app-rail {
+  width: var(--st-rail-ancho); flex-shrink: 0; background: var(--st-rail-bg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.app-rail-colapsado { width: var(--st-rail-colapsado); }
+.app-rail-brand { display: flex; align-items: center; gap: 10px; padding: 16px 16px 12px; }
+.app-rail-brand-solo { justify-content: center; padding: 16px 0 12px; }
+.app-rail-name {
+  font-family: var(--st-font-display); font-weight: 800; font-size: 18px;
+  letter-spacing: -0.02em; color: var(--st-texto-invertido); white-space: nowrap; line-height: 1;
+}
+.app-rail-div { height: 1px; background: var(--st-rail-divisor); }
+.app-navlist { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 8px; min-height: 0; }
+.app-railfoot { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.app-railfoot-div { height: 1px; background: var(--st-rail-divisor); margin-bottom: 6px; }
+
+/* Item esbelto (NO pill sólido): activo = tinte cobalto + barra de acento de 3px. */
+.app-nav-item {
+  position: relative; display: flex; align-items: center; gap: 10px; height: 34px;
+  padding: 0 10px; border-radius: var(--st-radio-control); color: var(--st-rail-texto);
+  font-family: var(--st-font-texto); font-weight: 400; font-size: 13px; white-space: nowrap;
+}
+.app-nav-item svg { flex-shrink: 0; }
+.app-nav-item.active {
+  background: var(--st-rail-activo-bg); color: var(--st-rail-activo-texto); font-weight: 600;
+}
+.app-nav-item.solo { justify-content: center; padding: 0; }
+/* Barra de acento al borde del rail (posicionada por geometría inline). */
+.app-nav-bar { position: absolute; width: 3px; height: 16px; border-radius: 0 3px 3px 0; background: var(--st-rail-activo-barra); }
+
+/* ──────────────────────────── topbar liviano, SIN borde inferior (§4) ───── */
+.app-topbar {
+  height: var(--st-topbar-alto); flex-shrink: 0; background: var(--st-superficie);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+}
+.app-topbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+/* Chip de tienda: swatch del colorPrimario (el ÚNICO color-desde-dato del admin).
+   `Paper radius="sm"` en el producto ⇒ radio de chip, no el de las cards de marca. */
+.app-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px;
+  border-radius: var(--st-radio-chip); background: var(--st-gris-1);
+  font-family: var(--st-font-texto); font-weight: 500; font-size: 14px; color: var(--st-texto);
+  white-space: nowrap;
+}
+.app-swatch { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
+.app-kbd {
+  display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 0 6px;
+  border-radius: var(--st-radio-badge); background: var(--st-gris-1); color: var(--st-texto-suave);
+  font-family: var(--st-font-mono); font-size: 12px;
+}
+/* Avatar de la sesión: `<Avatar color="sorteatelo">` sin `variant` ⇒ Mantine resuelve `light`
+   (tinte pálido + texto cobalto), NO una moneda sólida. */
+.app-avatar {
+  width: 34px; height: 34px; border-radius: 999px; background: var(--st-cobalto-0);
+  color: var(--st-cobalto-7); display: flex; align-items: center; justify-content: center;
+  font-family: var(--st-font-texto); font-weight: 600; font-size: 13px; flex-shrink: 0;
+}
+
+/* ──────────────────────────────────── superficies del panel ─────────────── */
+/* PanelCard: SIN borde, radius lg, elevación por sombra difusa (§4, I4). */
+.pnl-card { position: absolute; background: var(--st-superficie); border-radius: var(--st-radio-panel); box-shadow: var(--st-sombra-panel); }
+.pnl-head { display: flex; align-items: center; gap: 8px; }
+.pnl-title { font-family: var(--st-font-texto); font-weight: 600; font-size: 19px; color: var(--st-texto); }
+.pnl-desc { font-family: var(--st-font-texto); font-size: 15px; color: var(--st-texto-suave); line-height: 1.4; }
+/* Bloque inset borderless dentro de una PanelCard (estado, resumen). */
+.pnl-inset { background: var(--st-gris-0); border-radius: var(--st-radio-control); }
+
+/* PageHeader (h1 Fraunces + bajada). */
+.pg-title { font-family: var(--st-font-heading); font-weight: 700; font-size: 34px; color: var(--st-texto); line-height: 1.2; }
+.pg-desc { font-family: var(--st-font-texto); font-size: 16px; color: var(--st-texto-suave); }
+
+/* ──────────────────────────────────── formularios del panel ─────────────── */
+.fld-label { font-family: var(--st-font-texto); font-weight: 500; font-size: 15px; color: var(--st-texto); }
+.fld-desc { font-family: var(--st-font-texto); font-size: 13px; color: var(--st-texto-suave); line-height: 1.35; }
+.fld-input {
+  display: flex; align-items: center; padding: 0 14px; border-radius: var(--st-radio-control);
+  background: var(--st-superficie); border: 1px solid var(--st-borde);
+  font-family: var(--st-font-texto); font-size: 16px; color: var(--st-texto); white-space: nowrap;
+}
+.fld-input.vacio { color: var(--st-texto-tenue); }
+.fld-input.foco { border: 2px solid var(--st-acento); }
+.fld-area {
+  padding: 12px 14px; border-radius: var(--st-radio-control); background: var(--st-superficie);
+  border: 1px solid var(--st-borde); font-family: var(--st-font-texto); font-size: 16px;
+  color: var(--st-texto); line-height: 1.5;
+}
+.fld-area.vacio { color: var(--st-texto-tenue); }
+
+/* Botón del PANEL: escala de Mantine del producto (radio `md`=8, sin sombra de color).
+   El CTA de MARCA (radio 12 + sombra difusa cobalto, §4) es `.btn-marca` y sólo va en las
+   superficies de marca del video (poster/outro) — nunca dentro de un mock del panel. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 18px; border-radius: var(--st-radio-control);
+  font-family: var(--st-font-texto); font-weight: 600; font-size: 15px; white-space: nowrap;
+}
+.btn-primario { background: var(--st-acento); color: var(--st-texto-invertido); }
+.btn-premio { background: var(--st-premio); color: var(--st-tinta); }
+.btn-suave { background: var(--st-acento-tenue); color: var(--st-acento-fuerte); }
+.btn-default { background: var(--st-superficie); border: 1px solid var(--st-borde); color: var(--st-texto); font-weight: 500; }
+.btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn-marca {
+  background: var(--st-acento); color: var(--st-texto-invertido);
+  border-radius: var(--st-radio-boton); box-shadow: var(--st-sombra-marca);
+  height: 52px; padding: 0 26px; font-size: 18px;
+}
+
+/* Switch (publicar / participa en el sorteo). */
+.sw { width: 44px; height: 24px; border-radius: 999px; background: var(--st-gris-3); position: relative; flex-shrink: 0; }
+.sw.on { background: var(--st-acento); }
+.sw-knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: var(--st-blanco); }
+.sw.on .sw-knob { left: 23px; }
+
+/* ───────────────── primitivas: badge (.lb), avatar (.ava), segmented (.seg) ─ */
+.ic { flex-shrink: 0; display: block; }
+.lb {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  border-radius: var(--st-radio-badge); font-family: var(--st-font-texto); font-weight: 600;
+  font-size: 13px; white-space: nowrap; box-sizing: border-box;
+}
+.lb-cobalto { background: var(--st-cobalto-0); color: var(--st-cobalto-7); }
+.lb-amarillo { background: var(--st-amarillo-1); color: var(--st-amarillo-9); }
+.lb-exito { background: var(--st-exito-0); color: var(--st-exito-7); }
+.lb-pendiente { background: var(--st-pendiente-0); color: var(--st-pendiente-7); }
+.lb-ladrillo { background: var(--st-ladrillo-0); color: var(--st-ladrillo-7); }
+.lb-gris { background: var(--st-gris-1); color: var(--st-gris-7); }
+/* Badge `outline` del panel (estado "No conectada"). */
+.lb-borde { background: transparent; border: 1px solid var(--st-borde); color: var(--st-texto-suave); font-weight: 400; }
+
+.ava {
+  width: 26px; height: 26px; border-radius: 999px; color: var(--st-texto-invertido);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--st-font-texto); font-weight: 600; font-size: 11px;
+  border: 2px solid var(--st-superficie); box-sizing: border-box;
+}
+.ava-sm { width: 22px; height: 22px; font-size: 9px; }
+/* Contenedor del stack de avatares (TourKit.avaStack). Sin este display:flex los
+   avatares se apilan en vertical — el margin-left negativo de los hijos no alcanza. */
+.ava-stack { display: flex; }
+
+.seg { display: inline-flex; align-items: center; padding: 3px; border-radius: 9px; background: var(--st-gris-1); gap: 3px; }
+.seg-opt {
+  height: 28px; padding: 0 14px; display: flex; align-items: center; border-radius: 7px;
+  color: var(--st-texto-suave); font-family: var(--st-font-texto); font-weight: 500; font-size: 14px; white-space: nowrap;
+}
+.seg-opt.active { background: var(--st-superficie); box-shadow: var(--st-sombra-panel); color: var(--st-texto); font-weight: 600; }
+
+/* ─── crossfade stack (toggle de estado: A ↔ B en el MISMO lugar) ───────────
+   Patrón obligatorio para todo elemento que cambia de estado durante el tour.
+   Lo emite TourKit.stackEl(). El width/height del stack (geometría inline)
+   RESERVA la caja del elemento en su fila; sin eso el elemento se cae de la
+   línea de base. */
+.tour-stack { position: relative; display: inline-flex; }
+.tour-abs { position: absolute; left: 0; top: 0; }
+
+/* ───────────────── overlays del tour: spotlight + cursor + estado oculto ─── */
+.spot {
+  position: absolute; box-shadow: 0 0 0 9999px var(--st-velo);
+  border: 3px solid var(--st-acento); opacity: 0; pointer-events: none; z-index: 50;
+}
+.wt-cursor { position: absolute; pointer-events: none; z-index: 60; opacity: 0; }
+.wt-cursor-ring {
+  position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; border-radius: 999px;
+  border: 3px solid var(--st-acento); opacity: 0;
+}
+.wt-cursor-svg { filter: drop-shadow(0 2px 4px var(--st-velo)); }
+.tour-hidden { opacity: 0; }
+
+/* Isotipo inline (TourKit.isotipo): la letra va por CLASE — un <img src="*.svg">
+   externo NO hereda las @font-face embebidas del documento y caería a fuente de
+   sistema (mismo síntoma del gotcha 12). */
+.iso-letra {
+  font-family: var(--st-font-display); font-weight: 800;
+  fill: var(--st-blanco); dominant-baseline: central; text-anchor: middle;
+}
+.iso-caja { fill: var(--st-acento); }
+.iso-barra { fill: var(--st-premio); }

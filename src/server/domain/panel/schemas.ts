@@ -93,6 +93,37 @@ export const ejecutarSorteoInput = z.object({
 });
 export type EjecutarSorteoInput = z.infer<typeof ejecutarSorteoInput>;
 
+/**
+ * Alta de un sorteo desde el panel (F01/D3/D4/D13). NO lleva `tenantId` (sale del acceso, I1).
+ * `fechaFin` como `z.coerce.date()` (superjson envía Date; el use case valida "futura" con mensaje
+ * humano). `basesUrl` es un enlace INFORMATIVO opcional del sorteo (distinto del `Tenant.basesSorteo`
+ * legal del gate, D7). `premioImageUrl` y `fechaInicio` NO van acá: la imagen se sube tras crear con
+ * el `AssetUploader` (D5) y `fechaInicio = ahora` server-side (D3). `importarDesdeRaffleId` opcional
+ * arrastra los participantes de un sorteo pasado del MISMO tenant (D13).
+ */
+export const crearSorteoInput = z.object({
+  nombre: z.string().trim().min(1, "El nombre del sorteo es obligatorio").max(200),
+  premio: z.string().trim().min(1, "El premio es obligatorio").max(200),
+  fechaFin: z.coerce.date(),
+  basesUrl: z.string().trim().url("Ingresa un enlace válido").optional().or(z.literal("")),
+  importarDesdeRaffleId: z.string().cuid().optional(),
+});
+export type CrearSorteoInput = z.infer<typeof crearSorteoInput>;
+
+/**
+ * Edición del sorteo ACTIVO y NO ejecutado (F02/D6). Solo `nombre`/`premio`/`fechaFin`/`basesUrl`
+ * (NO `estado`, NO `premioImageUrl` que va por el AssetUploader, NO campos de ejecución). El
+ * `raffleId` del input se valida SIEMPRE contra el tenant resuelto server-side (I1/I4).
+ */
+export const editarSorteoInput = z.object({
+  raffleId: z.string().cuid(),
+  nombre: z.string().trim().min(1, "El nombre del sorteo es obligatorio").max(200),
+  premio: z.string().trim().min(1, "El premio es obligatorio").max(200),
+  fechaFin: z.coerce.date(),
+  basesUrl: z.string().trim().url("Ingresa un enlace válido").optional().or(z.literal("")),
+});
+export type EditarSorteoInput = z.infer<typeof editarSorteoInput>;
+
 export const guardarConfiguracionTiendaInput = z.object({
   descripcion: z.string().trim().max(2000).optional().or(z.literal("")),
   // `logoUrl` MURIÓ como input de texto (plantilla-rica D4/I6): el logo se SUBE como asset (bucket

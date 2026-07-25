@@ -18,7 +18,7 @@ import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
-import { gradienteTematico } from "~/styles/tenantTheme";
+import { gradienteTematico, hueCoverDeterminista } from "~/styles/tenantTheme";
 import { api, type RouterOutputs } from "~/utils/api";
 
 /** Tipo derivado del backend (no redeclarar el shape a mano). */
@@ -195,6 +195,10 @@ function Portada({
   participaEnSorteo: boolean;
 }) {
   const inicial = titulo.trim().charAt(0).toUpperCase() || "?";
+  // Covers VARIADOS (Tanda 2 F12): sin portada, el placeholder rota el matiz del gradiente por hash del
+  // título (determinista, SSR-safe) ⇒ cada producto degrada a un color distinto (no todos al mismo lila).
+  // `hue-rotate` deja intacto el texto blanco (achromático); cero hex (I-A): un grado sobre un token.
+  const hue = hueCoverDeterminista(titulo);
 
   return (
     <Box pos="relative" style={{ aspectRatio: "4 / 3", overflow: "hidden" }}>
@@ -218,6 +222,7 @@ function Portada({
             width: "100%",
             height: "100%",
             background: gradienteTematico(colorPrimario),
+            ...(hue ? { filter: `hue-rotate(${hue}deg)` } : {}),
           }}
         >
           <Text fz={44} fw={800} c="white" style={{ opacity: 0.9 }}>

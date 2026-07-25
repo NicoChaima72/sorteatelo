@@ -18,6 +18,8 @@ import { GarantiasSorteo } from "~/components/storefront/garantias-sorteo";
 import { ImagenDestacada } from "~/components/storefront/imagen-destacada";
 import { LogosConfianza } from "~/components/storefront/logos-confianza";
 import { MetaProgresoSorteo } from "~/components/storefront/meta-progreso-sorteo";
+import { MomentoTicket } from "~/components/storefront/momento-ticket";
+import { PacksPrecio } from "~/components/storefront/packs-precio";
 import { PerfilAutora } from "~/components/storefront/perfil-autora";
 import { Separador } from "~/components/storefront/separador";
 import { SorteoStorefront } from "~/components/storefront/sorteo";
@@ -206,6 +208,10 @@ export function RenderSeccion({
           divisorColor={divisorColor}
         />
       );
+    case "packs_precio":
+      return <PacksPrecio nodo={seccion} divisorColor={divisorColor} />;
+    case "momento_ticket":
+      return <MomentoTicket nodo={seccion} divisorColor={divisorColor} />;
     default: {
       // Candado de exhaustividad EN COMPILACIÓN (F10/F11 no pueden olvidar una rama) + tolerancia I9
       // en runtime (un `tipo` desconocido de un documento publicado viejo renderiza `null`, no crashea).

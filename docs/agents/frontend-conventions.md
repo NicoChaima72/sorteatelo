@@ -112,3 +112,10 @@ Paquetes instalados: `@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@manti
 
 - Toda imagen del storefront es opcional; su ausencia cae a un **gradiente temático** (`gradienteTematico` de `~/styles/tenantTheme`, derivado de la escala del `colorPrimario` vía CSS vars `--mantine-color-marca-*` / `--mantine-primary-color-*`) — **nunca un `<img>` roto** (design.md §5.2). Cero hex inline.
 - Texto/ícono de contraste SOBRE un gradiente: `c="white"` en componentes Mantine (token), pero `color="var(--mantine-color-white)"` en íconos Tabler (no pasan por el resolver de tokens de Mantine).
+
+## Crear/editar y listar en el panel (sorteo)
+
+- **Fieldset compartido crear/editar**: cuando un form de creación y uno de edición comparten campos, extraer un componente que reciba `form: UseFormReturnType<T>` (de `@mantine/form`) y renderice los inputs cableados con `form.getInputProps`. Cada form (crear/editar) mantiene su propio `useForm`; el fieldset es presentación pura. Ej.: `CamposSorteo` en `admin/sorteo.tsx`.
+- **Modal de selección desde una lista pasada** (arrastre/import): `Modal` de `@mantine/core` con `Radio.Group` para elegir UN registro anterior, más un botón de escape ("Empezar de cero"). La selección vive en `useState`; se aplica al confirmar, no al elegir el radio. Ej.: importar participantes de un sorteo anterior en `admin/sorteo.tsx`.
+- **Sección "Historial"**: bajo el panel de gestión del recurso ACTIVO, una `PanelCard` con tabla de los registros cerrados/pasados (aquí, sorteos ejecutados con su ganador). Se alimenta de una query "listar todos" scoped por tenant, separada de la query del recurso activo.
+- **Fecha+hora sin `@mantine/dates`**: para capturar un `DateTime` sin sumar dependencia, usar `TextInput type="datetime-local"`; el valor viaja como string en el form y se convierte a `Date` al enviar (superjson lo serializa). Helper `aInputDateTime(d)` para hidratar el input al editar.

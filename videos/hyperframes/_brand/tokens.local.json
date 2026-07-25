@@ -1,0 +1,119 @@
+{
+  "_doc": [
+    "Tokens EXCLUSIVOS de la fábrica de videos. Lo que NO existe en src/styles/theme.ts porque",
+    "es propio del medio video (canvas 1920x1080, chrome mockeado, gramática de marca en px).",
+    "Los COLORES no viven acá: se derivan de theme.ts (D4). Si un color aparece en este archivo,",
+    "es un bug — refiere al token derivado por nombre (`tinta`, `cobalto-6`, …) y build-tokens.mjs",
+    "lo resuelve.",
+    "Regenerar el CSS: node videos/hyperframes/build-tokens.mjs"
+  ],
+
+  "fuentes": {
+    "_doc": [
+      "Las 4 familias de design.md §3. theme.ts las referencia por CSS var (--font-heading, …) que",
+      "sólo existe en la app; acá se necesita el NOMBRE real de la familia para el @font-face y para",
+      "las clases del kit. `google` es la query de la API css2 (fetch-fonts.mjs) y `archivo` el nombre",
+      "con el que aterriza en _brand/fonts/ (embed-fonts.mjs matchea por ese nombre)."
+    ],
+    "heading": {
+      "familia": "Fraunces",
+      "fallback": "Georgia, \"Times New Roman\", serif",
+      "varApp": "--font-heading",
+      "google": "Fraunces:opsz,wght@9..144,400..900",
+      "faces": [{ "archivo": "Fraunces-Variable.woff2", "peso": "400 900" }]
+    },
+    "display": {
+      "familia": "Bricolage Grotesque",
+      "fallback": "ui-sans-serif, system-ui, sans-serif",
+      "varApp": "--font-display",
+      "google": "Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800",
+      "faces": [{ "archivo": "BricolageGrotesque-Variable.woff2", "peso": "200 800" }]
+    },
+    "texto": {
+      "familia": "Instrument Sans",
+      "fallback": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+      "varApp": "--font-instrument",
+      "google": "Instrument+Sans:wght@400..700",
+      "faces": [{ "archivo": "InstrumentSans-Variable.woff2", "peso": "400 700" }]
+    },
+    "mono": {
+      "familia": "IBM Plex Mono",
+      "fallback": "ui-monospace, \"SFMono-Regular\", Menlo, Consolas, monospace",
+      "varApp": "--font-mono",
+      "google": "IBM+Plex+Mono:wght@400;500;600",
+      "faces": [
+        { "archivo": "IBMPlexMono-Regular.woff2", "peso": "400" },
+        { "archivo": "IBMPlexMono-Medium.woff2", "peso": "500" },
+        { "archivo": "IBMPlexMono-SemiBold.woff2", "peso": "600" }
+      ]
+    }
+  },
+
+  "video": {
+    "_doc": "Formato de salida. I6: 1920x1080 @30fps, mudo, 6 beats.",
+    "ancho": 1920,
+    "alto": 1080,
+    "fps": 30
+  },
+
+  "chrome": {
+    "_doc": [
+      "Medidas del panel de Organizador mockeado (§4 «Oscuro + calmo» + src/components/admin/",
+      "admin-layout.tsx). ESPEJO EXACTO de las constantes CHROME de _lib/tour-kit.js:",
+      "build-tokens.mjs falla si divergen (gate de drift)."
+    ],
+    "railAncho": 232,
+    "railColapsado": 68,
+    "topbarAlto": 64,
+    "navegadorAlto": 56
+  },
+
+  "gramatica": {
+    "_doc": [
+      "Gramática SUAVE de design.md §4 en px: sin bordes duros, radios 18/12, elevación por sombra",
+      "difusa. Las sombras se declaran por CAPAS con color por NOMBRE de token derivado + alpha,",
+      "para no duplicar ningún hex de marca en este archivo (F01: cero hex hardcodeado)."
+    ],
+    "_radios": [
+      "DOS familias, no mezclar (design.md §4): las superficies de MARCA (landing/login, poster y",
+      "outro del video) van suaves — card 18 / boton 12 + sombra difusa de color; el CHROME DEL",
+      "PANEL sigue la escala de Mantine del producto — PanelCard `lg`=16, controles `md`=8,",
+      "chip y badges `sm`=4. Un botón del panel con radio 12 + glow cobalto NO existe en el",
+      "producto real (hallazgo del frontend-reviewer, F02)."
+    ],
+    "radios": {
+      "card": 18,
+      "boton": 12,
+      "panel": 16,
+      "control": 8,
+      "chip": 4,
+      "badge": 4,
+      "frame": 18
+    },
+    "plumonAlto": 14,
+    "sombras": {
+      "marca": [{ "x": 0, "y": 3, "blur": 10, "color": "cobalto-6", "alpha": 0.22 }],
+      "panel": [
+        { "x": 0, "y": 1, "blur": 2, "color": "tinta", "alpha": 0.04 },
+        { "x": 0, "y": 6, "blur": 20, "color": "tinta", "alpha": 0.06 }
+      ],
+      "frame": [
+        { "x": 0, "y": 24, "blur": 60, "color": "tinta", "alpha": 0.18 },
+        { "x": 0, "y": 4, "blur": 12, "color": "tinta", "alpha": 0.08 }
+      ],
+      "tooltip": [{ "x": 0, "y": 20, "blur": 50, "color": "tinta", "alpha": 0.42 }]
+    },
+    "velo": { "color": "tinta", "alpha": 0.45 }
+  },
+
+  "tintes": {
+    "_doc": [
+      "Tintes translúcidos que en la app resuelve Mantine (`--mantine-color-*-light`) y que acá",
+      "hay que materializar. Mismo contrato que las sombras: color por NOMBRE de token + alpha.",
+      "`railActivo` = el ítem activo del rail: tinte SUAVE del cobalto sobre tinta, NO pill sólido",
+      "(design.md §4 + admin-layout.tsx: «item esbelto, no bloque pesado»)."
+    ],
+    "railActivo": { "color": "cobalto-6", "alpha": 0.22 },
+    "railHover": { "color": "cobalto-6", "alpha": 0.1 }
+  }
+}

@@ -1,0 +1,162 @@
+/* ============================================================================
+   brand.tokens.css — GENERADO por videos/hyperframes/build-tokens.mjs. NO editar a mano.
+
+   Colores  → derivados de `src/styles/theme.ts` (fuente única de la paleta «El Talonario»).
+   Lo demás → `_brand/tokens.local.json` (exclusivo del medio video).
+   Regenerar: node videos/hyperframes/build-tokens.mjs
+   ============================================================================ */
+:root {
+  /* ── Paleta derivada de theme.ts (tuplas de 10 tonos de Mantine) ────────────────── */
+  /* sorteatelo → cobalto */
+  --st-cobalto-0: #eaecf9;
+  --st-cobalto-1: #d0d5f1;
+  --st-cobalto-2: #aeb5e7;
+  --st-cobalto-3: #8893db;
+  --st-cobalto-4: #6675d1;
+  --st-cobalto-5: #495ac8;
+  --st-cobalto-6: #2b3fbf;
+  --st-cobalto-7: #2333a0;
+  --st-cobalto-8: #1c2a7e;
+  --st-cobalto-9: #151e5c;
+  /* amarillo → amarillo */
+  --st-amarillo-0: #fff9ea;
+  --st-amarillo-1: #fff2d1;
+  --st-amarillo-2: #ffe9b0;
+  --st-amarillo-3: #ffdf8b;
+  --st-amarillo-4: #ffd56a;
+  --st-amarillo-5: #ffcd4d;
+  --st-amarillo-6: #ffc530;
+  --st-amarillo-7: #f5b814;
+  --st-amarillo-8: #a88220;
+  --st-amarillo-9: #7a5f17;
+  /* exito → exito */
+  --st-exito-0: #e8f2f1;
+  --st-exito-1: #cde2e0;
+  --st-exito-2: #a9ccc9;
+  --st-exito-3: #80b5af;
+  --st-exito-4: #5c9f98;
+  --st-exito-5: #3d8d84;
+  --st-exito-6: #1d7a70;
+  --st-exito-7: #18665e;
+  --st-exito-8: #13514a;
+  --st-exito-9: #0e3b36;
+  /* premio → premio */
+  --st-premio-0: #fff9ea;
+  --st-premio-1: #fff2d1;
+  --st-premio-2: #ffe9b0;
+  --st-premio-3: #ffdf8b;
+  --st-premio-4: #ffd56a;
+  --st-premio-5: #ffcd4d;
+  --st-premio-6: #ffc530;
+  --st-premio-7: #f5b814;
+  --st-premio-8: #a88220;
+  --st-premio-9: #7a5f17;
+  /* pendiente → pendiente */
+  --st-pendiente-0: #f6f0e6;
+  --st-pendiente-1: #eadec9;
+  --st-pendiente-2: #dbc7a1;
+  --st-pendiente-3: #caac75;
+  --st-pendiente-4: #bb944d;
+  --st-pendiente-5: #ad802b;
+  --st-pendiente-6: #a06b08;
+  --st-pendiente-7: #865a07;
+  --st-pendiente-8: #6a4705;
+  --st-pendiente-9: #4d3304;
+  /* red → ladrillo */
+  --st-ladrillo-0: #f9ecea;
+  --st-ladrillo-1: #f1d5d1;
+  --st-ladrillo-2: #e7b6b0;
+  --st-ladrillo-3: #dc938a;
+  --st-ladrillo-4: #d27469;
+  --st-ladrillo-5: #c9594b;
+  --st-ladrillo-6: #c03e2e;
+  --st-ladrillo-7: #a13427;
+  --st-ladrillo-8: #7f291e;
+  --st-ladrillo-9: #5c1e16;
+  /* gray → gris */
+  --st-gris-0: #f4f6f9;
+  --st-gris-1: #eef0f5;
+  --st-gris-2: #dfe2ea;
+  --st-gris-3: #c7ccd7;
+  --st-gris-4: #9aa0ad;
+  --st-gris-5: #757b88;
+  --st-gris-6: #565b68;
+  --st-gris-7: #40444f;
+  --st-gris-8: #2b2e37;
+  --st-gris-9: #191b22;
+  /* hundido → hundido */
+  --st-hundido-0: #f7f9fd;
+  --st-hundido-1: #eef2fb;
+  --st-hundido-2: #dde4f4;
+  --st-hundido-3: #c4d0ea;
+  --st-hundido-4: #a6b6dc;
+  --st-hundido-5: #8298cb;
+  --st-hundido-6: #5f78b8;
+  --st-hundido-7: #4a5f96;
+  --st-hundido-8: #3a4a75;
+  --st-hundido-9: #2b3757;
+
+  --st-tinta: #191b22;
+  --st-blanco: #ffffff;
+
+  /* ── Roles semánticos (design.md §2). El acento del kit es el COBALTO de plataforma, */
+  /*    anclado en el índice 6 = primaryShade del theme. */
+  --st-acento: var(--st-cobalto-6);
+  --st-acento-fuerte: var(--st-cobalto-7);
+  --st-acento-claro: var(--st-cobalto-4);
+  --st-acento-tenue: var(--st-cobalto-0);
+  --st-premio: var(--st-premio-6);
+  --st-exito: var(--st-exito-6);
+  --st-pendiente: var(--st-pendiente-6);
+  --st-ladrillo: var(--st-ladrillo-6);
+
+  --st-texto: var(--st-tinta);
+  --st-texto-suave: var(--st-gris-6);
+  --st-texto-tenue: var(--st-gris-4);
+  --st-texto-invertido: var(--st-blanco);
+  --st-borde: var(--st-gris-2);
+  --st-superficie: var(--st-blanco);
+  --st-canvas: var(--st-gris-0);       /* fondo del área de contenido del panel (§4) */
+  --st-banda: var(--st-gris-1);        /* gris banda de las secciones claras */
+  --st-hundido: var(--st-hundido-1);   /* celeste del chrome de marca (landing/login) */
+  --st-stage: var(--st-gris-1);        /* fondo del escenario del video */
+
+  /* ── Rail tinta del panel «Oscuro + calmo» (§4) ─────────────────────────────────── */
+  --st-rail-bg: var(--st-tinta);
+  --st-rail-texto: var(--st-gris-4);
+  --st-rail-activo-bg: rgba(43, 63, 191, 0.22);
+  --st-rail-hover-bg: rgba(43, 63, 191, 0.1);
+  --st-rail-activo-texto: var(--st-blanco);
+  --st-rail-activo-barra: var(--st-cobalto-4);
+  --st-rail-divisor: var(--st-gris-8);
+  --st-navegador-bg: var(--st-gris-2);  /* barra del browser chrome */
+
+  /* ── Tipografía (design.md §3 — familias reales; la app las cablea por next/font) ── */
+  --st-font-heading: "Fraunces", Georgia, "Times New Roman", serif;
+  --st-font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --st-font-texto: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --st-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* ── Geometría del medio video (tokens.local.json) ──────────────────────────────── */
+  --st-video-ancho: 1920px;
+  --st-video-alto: 1080px;
+  --st-rail-ancho: 232px;
+  --st-rail-colapsado: 68px;
+  --st-topbar-alto: 64px;
+  --st-navegador-alto: 56px;
+
+  /* ── Gramática suave de marca (§4): radios, sombras difusas, plumón ─────────────── */
+  --st-radio-card: 18px;
+  --st-radio-boton: 12px;
+  --st-radio-panel: 16px;
+  --st-radio-control: 8px;
+  --st-radio-chip: 4px;
+  --st-radio-badge: 4px;
+  --st-radio-frame: 18px;
+  --st-plumon-alto: 14px;
+  --st-sombra-marca: 0px 3px 10px rgba(43, 63, 191, 0.22);
+  --st-sombra-panel: 0px 1px 2px rgba(25, 27, 34, 0.04), 0px 6px 20px rgba(25, 27, 34, 0.06);
+  --st-sombra-frame: 0px 24px 60px rgba(25, 27, 34, 0.18), 0px 4px 12px rgba(25, 27, 34, 0.08);
+  --st-sombra-tooltip: 0px 20px 50px rgba(25, 27, 34, 0.42);
+  --st-velo: rgba(25, 27, 34, 0.45);
+}

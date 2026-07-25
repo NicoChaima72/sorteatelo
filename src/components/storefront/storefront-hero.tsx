@@ -287,6 +287,10 @@ function HeroVisual({
  * Tarjeta-placeholder del hero (Tanda 2 F02/D2): la HOLOCARD del mockup `tienda-libro` SIN imagen —
  * ícono (Tabler, enum, cero emoji libre — D2) + título + subtítulo dentro de un fondo tematizado. Ratio
  * 3:4 (tipo portada). Cero hex (I-A): el fondo es `gradienteTematico`, el texto blanco emparejado.
+ *
+ * `estilo:"suave"` (Tanda 2 F12): look "glassy" del prototipo dreamy — mismo gradiente + 2-3 blur-blobs
+ * decorativos de tokens (círculos difusos de blanco/marca a baja opacidad), CSS puro sin motion. `plano`
+ * (default) = el fondo sólido de siempre (no-op, I-H).
  */
 function TarjetaVisual({
   visual,
@@ -296,10 +300,13 @@ function TarjetaVisual({
   colorPrimario: string | null;
 }) {
   const Icono = visual.icono ? iconoBeneficio(visual.icono) : null;
+  const suave = visual.estilo === "suave";
   return (
     <AspectRatio ratio={3 / 4}>
       <Box
         style={{
+          position: "relative",
+          overflow: "hidden",
           background: gradienteTematico(colorPrimario),
           borderRadius: "var(--mantine-radius-lg)",
           padding: "var(--mantine-spacing-xl)",
@@ -312,19 +319,29 @@ function TarjetaVisual({
           color: "var(--mantine-color-white)",
         }}
       >
-        {Icono && (
-          <ThemeIcon variant="white" size={64} radius="xl">
-            <Icono className="size-8" stroke={1.5} />
-          </ThemeIcon>
+        {/* Blur-blobs decorativos (glassy) — solo en `suave`. CSS estático, cero hex, no anima (I-C). */}
+        {suave && (
+          <Box aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            <Box style={{ position: "absolute", top: "8%", left: "10%", width: 96, height: 96, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-color-white) 42%, transparent)", filter: "blur(22px)" }} />
+            <Box style={{ position: "absolute", top: "16%", right: "14%", width: 56, height: 56, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-color-white) 55%, transparent)", filter: "blur(14px)" }} />
+            <Box style={{ position: "absolute", bottom: "14%", right: "12%", width: 84, height: 84, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-primary-color-2) 45%, transparent)", filter: "blur(24px)" }} />
+          </Box>
         )}
-        <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
-          {visual.titulo}
-        </Text>
-        {visual.subtitulo && (
-          <Text fz="sm" c="white" opacity={0.85}>
-            {visual.subtitulo}
+        <Box style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--mantine-spacing-md)" }}>
+          {Icono && (
+            <ThemeIcon variant="white" size={64} radius="xl">
+              <Icono className="size-8" stroke={1.5} />
+            </ThemeIcon>
+          )}
+          <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
+            {visual.titulo}
           </Text>
-        )}
+          {visual.subtitulo && (
+            <Text fz="sm" c="white" opacity={0.85}>
+              {visual.subtitulo}
+            </Text>
+          )}
+        </Box>
       </Box>
     </AspectRatio>
   );

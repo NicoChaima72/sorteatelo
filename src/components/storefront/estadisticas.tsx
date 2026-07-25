@@ -1,4 +1,4 @@
-import { Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from "@mantine/core";
+import { Box, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 
 import { useCountUp } from "~/components/storefront/animar";
 import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
@@ -42,7 +42,8 @@ export function Estadisticas({
 /**
  * Una cifra con count-up. Sub-componente porque `useCountUp` es un hook (uno por ítem). `estiloVisual`
  * `cards` (default) = render actual con `ThemeIcon`; `simple` (F06/D10) = sin icono ni contenedor, solo
- * la cifra grande + etiqueta (las stats limpias del mockup).
+ * la cifra grande + etiqueta (las stats limpias del mockup); `tarjetas_suaves` (F12) = cada cifra en una
+ * TARJETA blanca con sombra suave (las stats del prototipo dreamy — cero hex, tokens del tenant).
  */
 function StatItem({
   item,
@@ -53,7 +54,7 @@ function StatItem({
 }) {
   const { valor, ref } = useCountUp<HTMLSpanElement>(item.valor);
   const Icono = estiloVisual === "simple" ? null : item.icono ? iconoBeneficio(item.icono) : null;
-  return (
+  const contenido = (
     <Stack gap={4} align="center" ta="center">
       {Icono && (
         <ThemeIcon variant="light" size="lg" radius="md">
@@ -80,4 +81,22 @@ function StatItem({
       </Text>
     </Stack>
   );
+
+  // `tarjetas_suaves` (F12): envuelve la cifra en una tarjeta blanca con sombra suave (cero hex, tokens).
+  if (estiloVisual === "tarjetas_suaves") {
+    return (
+      <Box
+        p="md"
+        style={{
+          background: "var(--mantine-color-body)",
+          borderRadius: "var(--mantine-radius-lg)",
+          boxShadow: "var(--mantine-shadow-sm)",
+          border: "1px solid var(--mantine-color-default-border)",
+        }}
+      >
+        {contenido}
+      </Box>
+    );
+  }
+  return contenido;
 }

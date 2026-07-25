@@ -4,6 +4,7 @@ import {
   esHex,
   generarEscalaColor,
   gradienteTematico,
+  hueCoverDeterminista,
   overrideDesdeBranding,
   type TenantBranding,
 } from "~/styles/tenantTheme";
@@ -36,6 +37,34 @@ const branding = (
 });
 
 const ES_HEX = /^#[0-9a-f]{6}$/;
+
+describe("styles/tenantTheme — hueCoverDeterminista (covers variados, Tanda 2 F12)", () => {
+  // covers.hue.001 — determinista (mismo título ⇒ misma rotación) + varía entre títulos distintos
+  it("es determinista por semilla y reparte rotaciones distintas entre títulos", () => {
+    // determinista: mismo string ⇒ mismo grado (SSR = cliente, sin hydration mismatch)
+    expect(hueCoverDeterminista("Cartas a los 7")).toBe(hueCoverDeterminista("Cartas a los 7"));
+    // reparte variedad: un catálogo de 5 títulos NO cae todo en el mismo grado
+    const titulos = [
+      "Cómo enriquecer a tu idol favorito",
+      "Cartas a los 7",
+      "Mi era favorita",
+      "Diario de una ARMY",
+      "Borahae: ensayos de fandom",
+    ];
+    const grados = new Set(titulos.map(hueCoverDeterminista));
+    expect(grados.size).toBeGreaterThan(1);
+  });
+
+  // covers.hue.002 — el grado es un entero acotado (0–359), apto para `hue-rotate(Ndeg)`; cadena vacía OK
+  it("devuelve un entero 0–359 (grado de hue-rotate), robusto ante semilla vacía", () => {
+    for (const s of ["", "x", "un título largo con acentos áéí", "42"]) {
+      const g = hueCoverDeterminista(s);
+      expect(Number.isInteger(g)).toBe(true);
+      expect(g).toBeGreaterThanOrEqual(0);
+      expect(g).toBeLessThan(360);
+    }
+  });
+});
 
 describe("styles/tenantTheme — generarEscalaColor", () => {
   // storefront.theming.escala.001 — 10 tonos hex válidos, base en el índice 6

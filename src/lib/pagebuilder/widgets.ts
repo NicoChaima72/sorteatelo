@@ -410,6 +410,10 @@ export const HeroVisualSchema = z.discriminatedUnion("tipo", [
       subtitulo: z.string().min(1).max(80).optional(),
       icono: z.enum(ICONOS_BENEFICIO).optional(),
       holo: z.boolean().default(false),
+      // Estilo de la holocard-placeholder (Tanda 2 F12): `plano` = el fondo tematizado sólido (DEFAULT =
+      // look actual, no-op I-H). `suave` = "glassy" — mismo gradiente + 2-3 blur-blobs decorativos de
+      // tokens (el heroviz soft del prototipo dreamy). CSS puro, sin motion, cero hex (I-A). NO usa `holo`.
+      estilo: z.enum(["plano", "suave"]).default("plano"),
     })
     .strict(),
 ]);
@@ -877,8 +881,13 @@ export type BannerCtaProps = z.infer<typeof bannerCtaProps>;
 
 // ── Widgets [mvp-v2] · lote social/prueba (catálogo-v2 F05, síntesis §2) ───────────────────────
 
-/** Estilo visual de `estadisticas` (builder-tanda-1 F06/D10): `cards` = render actual; `simple` = limpio. */
-export const ESTILOS_ESTADISTICA = ["cards", "simple"] as const;
+/**
+ * Estilo visual de `estadisticas` (builder-tanda-1 F06/D10): `cards` = render actual (ThemeIcon, sin
+ * contenedor); `simple` = limpio; `tarjetas_suaves` (Tanda 2 F12) = cada cifra en una TARJETA blanca con
+ * sombra suave (las stats del prototipo dreamy — el `cards` histórico NO envolvía en tarjeta). Aditivo:
+ * `cards` sigue de default (no-op, I-H).
+ */
+export const ESTILOS_ESTADISTICA = ["cards", "simple", "tarjetas_suaves"] as const;
 
 /**
  * `estadisticas` (sección, F05): fila 2–4 de cifras grandes con count-up. `valor` es ENTERO (no
@@ -1181,6 +1190,59 @@ export const vitrinaProximamenteProps = z
   .strict();
 export type VitrinaProximamenteProps = z.infer<typeof vitrinaProximamenteProps>;
 
+/**
+ * `packs_precio` (sección, Tanda 2 F12): tarjetas de PRECIO/pack — la sección "Más libros, más chances"
+ * del prototipo dreamy. Cada ítem es un pack con `precio` (ENTERO, COPY de marketing — NO es un cobro: el
+ * checkout cobra el `Decimal` real del producto, ADR-0006/regla de oro; es editorial como el `valor` de
+ * `estadisticas`, narrado por el Organizador). `destacado` pinta el pack como la opción principal (fondo
+ * filled del primario + `badge` de acento, como la card violeta "MÁS ELEGIDO"); el resto son tarjetas
+ * claras con sombra suave. El CTA ancla al catálogo (enum cerrado, `CTA_ANCLAS`). El precio se formatea
+ * con `Intl.NumberFormat` (CLP) en el render. Texto plano con límite (nunca HTML, I3); `.strict()`.
+ */
+export const packsPrecioProps = z
+  .object({
+    titulo: z.string().min(1).max(80).optional(),
+    items: z
+      .array(
+        z
+          .object({
+            titulo: z.string().min(1).max(40),
+            // Precio DE EXHIBICIÓN (copy). Entero limpio (CLP no tiene decimales); NO se usa para cobrar.
+            precio: z.number().int().min(0).max(1_000_000_000),
+            detalle: z.string().min(1).max(80).optional(),
+            destacado: z.boolean().default(false),
+            badge: z.string().min(1).max(20).optional(),
+            ctaTexto: z.string().min(1).max(30).optional(),
+            ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(4),
+  })
+  .strict();
+export type PacksPrecioProps = z.infer<typeof packsPrecioProps>;
+
+/**
+ * `momento_ticket` (sección, Tanda 2 F12): la tarjeta aspiracional "¡Estás dentro!" del prototipo dreamy
+ * — la visualización del número de sorteo que recibes al comprar. Borde punteado del acento, ícono
+ * confetti FIJO (Tabler, hardcodeado en el render — parte de la identidad del widget, cero emoji libre
+ * I-A), `titulo` (el titular), `etiqueta` (la línea "Tu número de sorteo:"), `codigoEjemplo` (el número
+ * de EJEMPLO en chip mono, p.ej. "ARMY-04821"), `ctaTexto`/`nota` opcionales. Es contenido editorial
+ * (no depende del sorteo real). El CTA ancla por enum cerrado. Texto plano con límite (I3); `.strict()`.
+ */
+export const momentoTicketProps = z
+  .object({
+    titulo: z.string().min(1).max(60),
+    etiqueta: z.string().min(1).max(40).optional(),
+    codigoEjemplo: z.string().min(1).max(20),
+    ctaTexto: z.string().min(1).max(30).optional(),
+    nota: z.string().min(1).max(120).optional(),
+    ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
+  })
+  .strict();
+export type MomentoTicketProps = z.infer<typeof momentoTicketProps>;
+
 // ── Registro ─────────────────────────────────────────────────────────────────
 
 /** Categoría de un widget: en el flujo vertical de `secciones[]` o en el slot `overlays[]`. */
@@ -1464,6 +1526,31 @@ export const WIDGET_REGISTRY = {
       ],
     },
   }),
+  // ── Tanda 2 · fidelidad demo-dreamy (F12) ──
+  packs_precio: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: packsPrecioProps,
+    defaultProps: {
+      titulo: "Elige tu pack",
+      items: [
+        { titulo: "1 libro", precio: 3000, detalle: "1 participación", ctaTexto: "Comprar", ctaAncla: "catalogo" },
+        { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "Más elegido", ctaTexto: "Comprar", ctaAncla: "catalogo" },
+      ],
+    },
+  }),
+  momento_ticket: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: momentoTicketProps,
+    defaultProps: {
+      titulo: "¡Estás dentro!",
+      etiqueta: "Tu número de sorteo:",
+      codigoEjemplo: "ARMY-04821",
+      ctaTexto: "Compartir y sumar más chances",
+      ctaAncla: "catalogo",
+    },
+  }),
 } as const;
 
 export type WidgetTipo = keyof typeof WIDGET_REGISTRY;
@@ -1531,6 +1618,8 @@ export const WIDGET_META: Record<
   cinta_texto: { titulo: "Cinta de texto", descripcion: "Una cinta con frases que se desplazan (tipo ticker).", categoria: "estructura" },
   perfil_autora: { titulo: "Perfil / sobre mí", descripcion: "Tu foto, nombre, bio y redes — un bloque editorial.", categoria: "contenido" },
   vitrina_proximamente: { titulo: "Próximamente", descripcion: "Una grilla de lanzamientos futuros bloqueados, con candado y estado.", categoria: "contenido" },
+  packs_precio: { titulo: "Packs de precio", descripcion: "Tarjetas de precio con una opción destacada (más elegido).", categoria: "sorteo" },
+  momento_ticket: { titulo: "Tu número de sorteo", descripcion: "La tarjeta aspiracional '¡Estás dentro!' con un número de ejemplo.", categoria: "sorteo" },
   whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay).", categoria: "social" },
   aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };

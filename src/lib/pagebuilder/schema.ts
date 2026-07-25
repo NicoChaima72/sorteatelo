@@ -27,6 +27,8 @@ import {
   logosConfianzaProps,
   metaProgresoSorteoProps,
   MODO_COLOR,
+  momentoTicketProps,
+  packsPrecioProps,
   PARES_TIPOGRAFICOS,
   perfilAutoraProps,
   RADIO_GLOBAL,
@@ -143,6 +145,8 @@ export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
   nodoSeccion("cinta_texto", cintaTextoProps), // catálogo-v2 F12
   nodoSeccion("perfil_autora", perfilAutoraProps), // catálogo-v2 F12
   nodoSeccion("vitrina_proximamente", vitrinaProximamenteProps), // Tanda 2 F01
+  nodoSeccion("packs_precio", packsPrecioProps), // Tanda 2 F12
+  nodoSeccion("momento_ticket", momentoTicketProps), // Tanda 2 F12
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 

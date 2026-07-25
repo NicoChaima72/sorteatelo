@@ -204,3 +204,24 @@ export function gradienteTematico(colorPrimario: string | null): string {
   }
   return "linear-gradient(135deg, var(--mantine-primary-color-filled), var(--mantine-primary-color-filled-hover))";
 }
+
+/**
+ * Rotaciones de matiz CURADAS para variar los covers-placeholder del catálogo (Tanda 2 F12). El
+ * `gradienteTematico` es un color FIJO (la escala de marca) ⇒ todos los productos sin portada degradan al
+ * MISMO gradiente. Para recuperar la variedad del prototipo (covers de colores distintos) se rota el
+ * matiz del placeholder con `filter: hue-rotate(Ndeg)` — donde N sale de este set por hash del título:
+ * DETERMINISTA (SSR = cliente, sin hydration mismatch) y CERO CONFIG. `hue-rotate` deja intacto el texto
+ * blanco/ícono del placeholder (achromático) ⇒ solo el gradiente cambia de tono. Cero hex (I-A): es un
+ * grado sobre un token, no un color nuevo.
+ */
+const HUE_COVERS = [0, 42, 88, 132, 186, 232, 288, 324] as const;
+
+/** Grado de `hue-rotate` (0–359) estable por `semilla` (p.ej. el título del producto). Determinista. */
+export function hueCoverDeterminista(semilla: string): number {
+  let h = 2166136261; // FNV-1a base (hash estable, sin dependencias)
+  for (let i = 0; i < semilla.length; i++) {
+    h ^= semilla.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return HUE_COVERS[(h >>> 0) % HUE_COVERS.length]!;
+}

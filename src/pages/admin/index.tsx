@@ -250,7 +250,7 @@ function CardSorteo({
               size="xs"
               rightSection={<IconArrowRight className="size-3.5" />}
             >
-              Ir al sorteo
+              Crear sorteo
             </Button>
           }
         />

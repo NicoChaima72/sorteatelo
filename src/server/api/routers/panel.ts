@@ -6,8 +6,10 @@ import { actualizarProducto } from "~/server/domain/panel/actualizarProducto";
 import { confirmarImagenSubida } from "~/server/domain/panel/confirmarImagenSubida";
 import { confirmarPdfProducto } from "~/server/domain/panel/confirmarPdfProducto";
 import { crearProducto } from "~/server/domain/panel/crearProducto";
+import { crearSorteo } from "~/server/domain/panel/crearSorteo";
 import { crearUrlSubidaImagen } from "~/server/domain/panel/crearUrlSubidaImagen";
 import { crearUrlSubidaPdf } from "~/server/domain/panel/crearUrlSubidaPdf";
+import { editarSorteo } from "~/server/domain/panel/editarSorteo";
 import { ejecutarSorteo } from "~/server/domain/panel/ejecutarSorteo";
 import { getAccesoActual } from "~/server/domain/panel/getAccesoActual";
 import { getConfiguracionTienda } from "~/server/domain/panel/getConfiguracionTienda";
@@ -18,6 +20,7 @@ import { getSorteoDelPanel } from "~/server/domain/panel/getSorteoDelPanel";
 import { guardarConfiguracionTienda } from "~/server/domain/panel/guardarConfiguracionTienda";
 import { guardarCredencialFlow } from "~/server/domain/panel/guardarCredencialFlow";
 import { listarProductosDelPanel } from "~/server/domain/panel/listarProductosDelPanel";
+import { listarSorteosDelTenant } from "~/server/domain/panel/listarSorteosDelTenant";
 import { listarVentas } from "~/server/domain/panel/listarVentas";
 import { aceptarTos } from "~/server/domain/tenants/aceptarTos";
 import { crearTienda } from "~/server/domain/tenants/crearTienda";
@@ -31,8 +34,10 @@ import {
   confirmarImagenSubidaInput,
   confirmarPdfProductoInput,
   crearProductoInput,
+  crearSorteoInput,
   crearUrlSubidaImagenInput,
   crearUrlSubidaPdfInput,
+  editarSorteoInput,
   ejecutarSorteoInput,
   guardarConfiguracionTiendaInput,
   guardarCredencialFlowInput,
@@ -248,6 +253,28 @@ export const panelRouter = createTRPCRouter({
   getSorteo: panelProcedure.query(({ ctx }) =>
     runDomain(() => getSorteoDelPanel({ db: ctx.db, acceso: ctx.acceso })),
   ),
+
+  // Historial + fuente del modal de arrastre + valores iniciales del form de edición (F01/D12).
+  listarSorteos: panelProcedure.query(({ ctx }) =>
+    runDomain(() =>
+      listarSorteosDelTenant({ db: ctx.db, acceso: ctx.acceso }),
+    ),
+  ),
+
+  // Crear un sorteo ACTIVO (F01): SECUENCIAL (1-ACTIVO por Tienda, guard atómico en $tx) + arrastre
+  // opcional de participantes de un sorteo pasado del mismo tenant.
+  crearSorteo: panelProcedure
+    .input(crearSorteoInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() => crearSorteo({ db: ctx.db, acceso: ctx.acceso, input })),
+    ),
+
+  // Editar el sorteo ACTIVO y NO ejecutado (F02).
+  editarSorteo: panelProcedure
+    .input(editarSorteoInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() => editarSorteo({ db: ctx.db, acceso: ctx.acceso, input })),
+    ),
 
   ejecutarSorteo: panelProcedure
     .input(ejecutarSorteoInput)

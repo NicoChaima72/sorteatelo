@@ -5,9 +5,11 @@ import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 import {
   colorFondoSolido,
   colorSolidoDeEsquema,
+  esFondoOscuro,
   estiloSeccionACss,
   fondoSeccionACss,
   fondoShellConAmbiente,
+  TEXTO_TENUE_SOBRE_OSCURO,
 } from "~/styles/estiloSeccion";
 
 /**
@@ -345,6 +347,42 @@ describe("estiloSeccion — divisor y transición de color", () => {
       colorFondoSolido(parse({ fondo: { tipo: "gradiente", preset: "marca_vivo" } })),
     ).toBe("var(--mantine-color-body)");
     expect(colorSolidoDeEsquema("tinta")).toBe("var(--mantine-color-gray-9)");
+  });
+});
+
+describe("estiloSeccion — contraste sobre esquema oscuro (Tanda 2 F12, bug sorteo_vitrina)", () => {
+  // contraste.001 — esFondoOscuro clasifica cada tipo de fondo por su color de texto emparejado: los
+  // esquemas/tonos oscuros (marca/marca_profundo/tinta/acento_profundo) ⇒ true; los claros ⇒ false. El
+  // bicolor hereda la oscuridad de colorA (donde se asienta el texto). Ausente/tema ⇒ false (hereda shell).
+  it("esFondoOscuro detecta los esquemas oscuros por su texto emparejado", () => {
+    expect(esFondoOscuro(undefined)).toBe(false); // transparente ⇒ hereda el shell (trato como claro, no-op)
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "tema" })).toBe(false);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "marca_suave" })).toBe(false);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "superficie" })).toBe(false);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "marca" })).toBe(true);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "marca_profundo" })).toBe(true);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "tinta" })).toBe(true);
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "acento_profundo" })).toBe(true);
+    // bicolor: la oscuridad la manda colorA (tono dominante donde cae el contenido)
+    expect(
+      esFondoOscuro({ tipo: "bicolor", colorA: "marca_profundo", colorB: "marca", direccion: "diagonal", mezcla: "suave" }),
+    ).toBe(true);
+    expect(
+      esFondoOscuro({ tipo: "bicolor", colorA: "marca_suave", colorB: "marca", direccion: "vertical", mezcla: "dura" }),
+    ).toBe(false);
+    // patrón hereda el esquema base; gradiente marca_vivo/tinta ⇒ oscuro; imagen overlay tinta/marca ⇒ oscuro
+    expect(esFondoOscuro({ tipo: "patron", patron: "arcos", esquema: "tinta" })).toBe(true);
+    expect(esFondoOscuro({ tipo: "gradiente", preset: "marca_vivo" })).toBe(true);
+    expect(esFondoOscuro({ tipo: "gradiente", preset: "papel" })).toBe(false);
+  });
+
+  // contraste.002 — el color de texto TENUE sobre oscuro deriva de currentColor (el emparejado que el
+  // wrapper ya fijó), NUNCA un gris fijo (`dimmed`/gray-6 ⇒ ilegible sobre morado). Cero hex (I-A).
+  it("TEXTO_TENUE_SOBRE_OSCURO deriva de currentColor (no de un gris fijo) y no tiene hex", () => {
+    expect(TEXTO_TENUE_SOBRE_OSCURO).toContain("currentColor");
+    expect(TEXTO_TENUE_SOBRE_OSCURO).not.toContain("gray");
+    expect(TEXTO_TENUE_SOBRE_OSCURO).not.toContain("dimmed");
+    expect(tieneHex(TEXTO_TENUE_SOBRE_OSCURO)).toBe(false);
   });
 });
 

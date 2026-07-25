@@ -1,6 +1,6 @@
 ---
 slug: launch-crear-sorteo-y-hardening
-status: planning              # planning | implementing | testing | done
+status: implementing          # planning | implementing | testing | done
 owner: nicolas
 created: 2026-07-24
 related_adrs: [ADR-0001, ADR-0005, ADR-0006, ADR-0008, ADR-0018, ADR-0019]
@@ -8,20 +8,20 @@ related_context: [Sorteo, Raffle, RaffleEntry, Orden, Payment, Tenant]
 
 features:
   - id: F01
-    behavior: "El Organizador crea un Raffle ACTIVO desde admin/sorteo (nombre, premio, fechaFin, bases opcional); el use case rechaza si ya hay uno ACTIVO en su Tienda"
-    state: not_started
+    behavior: "El Organizador crea un Raffle ACTIVO desde admin/sorteo (nombre, premio, fechaFin, basesUrl opcional; imagen del premio vía AssetUploader tras crear); SECUENCIAL: rechaza si ya hay uno ACTIVO. Puede arrastrar los participantes de un sorteo pasado. La página lista el historial de sorteos con su ganador."
+    state: active
 
   - id: F02
     behavior: "El Organizador edita el Raffle ACTIVO (nombre, premio, fechaFin, bases) antes de ejecutarlo; una vez CERRADO ya no se edita"
-    state: not_started
+    state: active
 
   - id: F03
     behavior: "El webhook de Flow compara el amount de getStatus contra el monto esperado del Payment antes de marcar PAGADO; si difiere, no transiciona (log + ack 200)"
-    state: not_started
+    state: active
 
   - id: F04
     behavior: "Se elimina la superficie muerta/insegura: /api/dev/login, /api/dev/echo-tenant y el router post boilerplate + su registro en el root router"
-    state: not_started
+    state: active
 
   - id: F05
     behavior: "E2E automatizado del flujo de pago (Playwright + Flow sandbox) — feature de menor prioridad, puede diferirse"
@@ -142,6 +142,33 @@ constraint de DB (comentario S5 del schema).
   `crearRepoRuteoFlow` solo cablean `montoEsperado` desde `Payment.monto`. Razón: mantener la
   testabilidad ya existente del webhook.
 
+- **D12 (REFINAMIENTO F01, post-plan): HISTORIAL + query `listarSorteosDelTenant`.** Se agrega
+  un use case de LECTURA `listarSorteosDelTenant` (`src/server/domain/panel/listarSorteosDelTenant.ts`)
+  scoped por tenant (I2) que devuelve TODOS los raffles de la Tienda (orderBy `createdAt` desc) con
+  `_count.entries` (nº de tickets), `basesUrl`, `ganadorEmail`/`ejecutadoAt`/`ejecutadoPor` y estado.
+  Sirve tres cosas: (a) la sección **Historial** de `admin/sorteo.tsx` (sorteos CERRADOS con su
+  ganador), (b) la fuente del **modal de arrastre** (D13), y (c) los valores iniciales del **form de
+  edición** (F02) — así NO se toca `getSorteoDelPanel` (out of scope). Registro `listarSorteos` como
+  `panelProcedure.query`. Razón: una sola query cubre historial + arrastre + edición sin re-tocar la
+  lectura existente del sorteo activo.
+
+- **D13 (REFINAMIENTO F01, post-plan): ARRASTRE de participantes.** `crearSorteoInput` acepta un
+  `importarDesdeRaffleId?` (cuid) opcional. Si viene, DENTRO de la $tx de creación: (1) verifica que
+  el raffle origen pertenezca al tenant (`findFirst` por `id`+`tenantId`; ajeno/inexistente ⇒
+  NOT_FOUND, fail-closed); (2) lee sus `RaffleEntry` (`orderId`,`email`); (3) las replica en el raffle
+  NUEVO reagrupando por `orderId` y re-ordinalando `0..K-1` por orden (preserva el conteo de tickets
+  por comprador; el `@@unique([raffleId,orderId,ordinal])` es per-raffle ⇒ copiar los mismos `orderId`
+  al raffle nuevo es válido) vía `createMany`. La UI ofrece el arrastre solo si hay sorteos pasados: un
+  **modal** que lista los pasados (nombre, fecha, nº participantes) para elegir uno, o "Empezar de
+  cero". Las compras nuevas siguen sumando al ACTIVO por `aplicarEfectosPostPago` (NO se toca). Razón:
+  reanudar un sorteo recurrente sin perder la base de participantes.
+
+- **D14 (REFINAMIENTO F01, post-plan): la imagen del premio y `basesUrl` en el form.** La imagen NO va
+  en el form (se sube tras crear con el `AssetUploader` existente, D5 sin cambios). `basesUrl` SÍ es un
+  campo del form de creación/edición (enlace informativo, distinto del `Tenant.basesSorteo` legal del
+  gate, D7). `fechaFin` se captura con un `TextInput type="datetime-local"` nativo (NO se instala
+  `@mantine/dates` — sería una dependencia nueva, decisión bloqueante que se evita con el input nativo).
+
 - **D11: F06 (CSP enforcing) se DIFIERE.** La CSP está en Report-Only A PROPÓSITO para no
   romper los estilos inline de Mantine ni el HMR; pasar a enforcing con nonce en `script-src`
   puede ROMPER el storefront y los embeds sandbox que el agente paralelo de catálogo-v2
@@ -198,24 +225,29 @@ constraint de DB (comentario S5 del schema).
 ### F01 — Crear sorteo desde el panel
 
 **Vitest** (integration):
-- [ ] `crearSorteo` crea un Raffle ACTIVO del tenant resuelto server-side con nombre/premio/fechaFin correctos y `fechaInicio = ahora`
-- [ ] `crearSorteo` RECHAZA (CONFLICT) si el tenant ya tiene un Raffle ACTIVO, sin crear un segundo
-- [ ] `crearSorteo` RECHAZA (INVALID) si `fechaFin` no es futura respecto a `ahora`
-- [ ] `crearSorteo` permite crear un nuevo ACTIVO si el único raffle previo del tenant está CERRADO
-- [ ] `crearSorteo` sin membresía / tenant ajeno → FORBIDDEN (nunca usa `tenantId` del input)
-- [ ] `basesUrl` opcional: vacío persiste como null/ausente; una URL válida se persiste en `Raffle.basesUrl`
+- [ ] `crearSorteo` crea un Raffle ACTIVO del tenant resuelto server-side con nombre/premio/fechaFin correctos y `fechaInicio = ahora` — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.001`
+- [ ] `crearSorteo` RECHAZA (CONFLICT) si el tenant ya tiene un Raffle ACTIVO, sin crear un segundo — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.002`
+- [ ] `crearSorteo` RECHAZA (INVALID) si `fechaFin` no es futura respecto a `ahora` — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.003`
+- [ ] `crearSorteo` permite crear un nuevo ACTIVO si el único raffle previo del tenant está CERRADO — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.004`
+- [ ] `crearSorteo` sin membresía / tenant ajeno → FORBIDDEN (nunca usa `tenantId` del input) — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.005`
+- [ ] `basesUrl` opcional: vacío persiste como null/ausente; una URL válida se persiste en `Raffle.basesUrl` — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.006`
+- [ ] `crearSorteo` con `importarDesdeRaffleId` replica los tickets del raffle origen en el nuevo (conteo por comprador preservado, re-ordinalado por orden) — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.007`
+- [ ] `crearSorteo` con `importarDesdeRaffleId` de otro tenant / inexistente → NOT_FOUND (no crea el sorteo) — `src/__tests__/server/panel/crearSorteo.test.ts::panel.sorteo.crear.008`
+- [ ] `listarSorteosDelTenant` devuelve los raffles del tenant resuelto server-side con su conteo de tickets y datos de ganador; tenant ajeno nunca aparece — `src/__tests__/server/panel/listarSorteosDelTenant.test.ts::panel.sorteo.listar.001` / `panel.sorteo.listar.002` / `panel.sorteo.listar.003`
 
 **E2E** (browser):
-- [ ] Desde `admin/sorteo` sin sorteo, el Organizador completa el form y crea un sorteo ACTIVO que aparece en la vista y en la card del dashboard
+- [ ] Desde `admin/sorteo` sin sorteo activo, el Organizador completa el form y crea un sorteo ACTIVO que aparece en la vista y en la card del dashboard
 - [ ] Tras crear, el `AssetUploader` de imagen del premio queda disponible y sube una imagen (reuso existente)
+- [ ] Con un sorteo pasado, el modal de arrastre lista los sorteos previos y crear importando copia sus participantes
+- [ ] La sección Historial lista los sorteos cerrados con su ganador
 
 ### F02 — Editar el sorteo ACTIVO
 
 **Vitest** (integration):
-- [ ] `editarSorteo` actualiza nombre/premio/fechaFin/basesUrl del Raffle ACTIVO del tenant
-- [ ] `editarSorteo` RECHAZA (CONFLICT) si el Raffle ya fue ejecutado (`ejecutadoAt != null`)
-- [ ] `editarSorteo` con `raffleId` de otro tenant → NOT_FOUND/FORBIDDEN
-- [ ] `editarSorteo` no permite mutar `estado`, `premioImageUrl` ni campos de ejecución
+- [ ] `editarSorteo` actualiza nombre/premio/fechaFin/basesUrl del Raffle ACTIVO del tenant — `src/__tests__/server/panel/editarSorteo.test.ts::panel.sorteo.editar.001`
+- [ ] `editarSorteo` RECHAZA (CONFLICT) si el Raffle ya fue ejecutado (`ejecutadoAt != null`) — `src/__tests__/server/panel/editarSorteo.test.ts::panel.sorteo.editar.002`
+- [ ] `editarSorteo` con `raffleId` de otro tenant → NOT_FOUND/FORBIDDEN — `src/__tests__/server/panel/editarSorteo.test.ts::panel.sorteo.editar.003`
+- [ ] `editarSorteo` no permite mutar `estado`, `premioImageUrl` ni campos de ejecución — `src/__tests__/server/panel/editarSorteo.test.ts::panel.sorteo.editar.004`
 
 **E2E** (browser):
 - [ ] El Organizador edita el sorteo activo desde el panel y ve los cambios reflejados
@@ -224,10 +256,10 @@ constraint de DB (comentario S5 del schema).
 ### F03 — Chequeo de monto en el webhook
 
 **Vitest** (integration):
-- [ ] Con `flowPago.amount` == `montoEsperado`, el webhook transiciona a PAGADO normalmente
-- [ ] Con `flowPago.amount` != `montoEsperado`, el webhook NO transiciona (no llama `confirmarPago`), loguea y responde 200 con `ignorado: "amount_mismatch"`
-- [ ] Con `flowPago.amount` undefined, el webhook procede (log de warning) — no bloquea pagos legítimos
-- [ ] El enrutador expone `montoEsperado` derivado de `Payment.monto` para el token ruteado
+- [ ] Con `flowPago.amount` == `montoEsperado`, el webhook transiciona a PAGADO normalmente — `src/__tests__/server/pago/webhookFlow.test.ts::webhook.amount.match`
+- [ ] Con `flowPago.amount` != `montoEsperado`, el webhook NO transiciona (no llama `confirmarPago`), loguea y responde 200 con `ignorado: "amount_mismatch"` — `src/__tests__/server/pago/webhookFlow.test.ts::webhook.amount.mismatch`
+- [ ] Con `flowPago.amount` undefined, el webhook procede (log de warning) — no bloquea pagos legítimos — `src/__tests__/server/pago/webhookFlow.test.ts::webhook.amount.undefined`
+- [ ] El enrutador expone `montoEsperado` derivado de `Payment.monto` para el token ruteado — `src/__tests__/server/pago/enrutarPagoFlow.test.ts::ruteo.001`
 
 **E2E** (browser):
 - [ ] (no aplica — backend-only; cubierto por Vitest del núcleo + verificación de la corrida real de Flow sandbox si se hace F05)
@@ -305,3 +337,10 @@ constraint de DB (comentario S5 del schema).
 - [2026-07-24 00:00] [planner-grill] Plan escrito en UNA pasada por instrucción del usuario (no grill interactivo). Contexto reconstruido leyendo: `panel.ts`, `getSorteoDelPanel.ts`, `ejecutarSorteo.ts`, `admin/sorteo.tsx`, `admin/index.tsx`, `publicarTienda.ts`, `_publicacion` (vía publicarTienda), `asset-uploader.tsx`, `use-subir-imagen.ts`, `schemas.ts` del panel, `webhookFlow.ts`, `enrutarPagoFlow.ts`, `confirmarPagoDeOrden.ts`, `flow.ts` (FlowGetStatusResponse), y el schema (`Raffle`, `RaffleEntry`, `Order`, `Payment`) SIN editarlo.
 - [2026-07-24 00:00] [planner-grill] Hallazgos que moldearon el plan: (1) el `AssetUploader` de premio YA está cableado en `admin/sorteo.tsx` y exige `raffleId` ⇒ la imagen se sube tras crear, no en el form (D5). (2) El gate de publicación ya exige `Tenant.basesSorteo` cuando `hayRaffleActivo` ⇒ crear un ACTIVO activa el requisito sin código nuevo (D7). (3) `Payment.monto` (= Order.total) ya existe ⇒ el chequeo de monto del webhook compara contra él sin join a Order (D9). (4) `ejecutarSorteo`/`crearTienda` establecen el patrón de guard atómico en $tx que `crearSorteo` reusa (D2).
 - [2026-07-24 00:00] [planner-grill] Única decisión bloqueante dejada AWAITING: el timing de F06 (CSP enforcing) — recomendación DIFERIR hasta que catálogo-v2/embeds estén estables (D11/I8).
+- [2026-07-24 10:00] [feature-implementer] Arranca implementación. Features pendientes: F01, F02, F03, F04. F05 (E2E) y F06 (CSP) DIFERIDOS por instrucción — no se tocan. Orden: F01 → F02 → F03 → F04, con PARADA para review visual del usuario al cerrar F04.
+- [2026-07-24 10:00] [feature-implementer] REFINAMIENTO del modelo de F01 confirmado con el usuario DESPUÉS de escribir el plan (registro D12/D13/D14): (a) SECUENCIAL 1-ACTIVO ya estaba en D2; (b) NUEVO: query `listarSorteosDelTenant` + sección Historial con ganador; (c) NUEVO: arrastre de participantes de un sorteo pasado (modal que lista pasados → copia RaffleEntry re-ordinaladas dentro de la $tx de creación); (d) `basesUrl` es campo del form (ya en D4), imagen del premio sigue vía AssetUploader tras crear (D5). Decisión táctica: `fechaFin` con `TextInput type="datetime-local"` nativo — NO instalo `@mantine/dates` (dependencia nueva = decisión bloqueante que evito con el input nativo). superjson es el transformer ⇒ los `Date` viajan bien. NO toco `getSorteoDelPanel` (out of scope): los valores del form de edición y el historial salen de `listarSorteos`.
+- [2026-07-24 11:30] [feature-implementer] F01+F02 implementadas (backend + UI juntas: comparten `admin/sorteo.tsx` y `schemas.ts`; F02 edición es parte de la gestión del sorteo activo). Backend: `src/server/domain/panel/crearSorteo.ts` (guard atómico 1-ACTIVO + arrastre en $tx), `editarSorteo.ts` (gate atómico `!ejecutado`, solo 4 campos), `listarSorteosDelTenant.ts` (historial/arrastre/edición), schemas `crearSorteoInput`/`editarSorteoInput`, registro en `panel.ts` (`crearSorteo`/`editarSorteo` mutations + `listarSorteos` query). UI: reescrito `admin/sorteo.tsx` — sin ACTIVO → form de creación + modal de arrastre; con ACTIVO → gestión (stats, edición inline, AssetUploader del premio, hint de bases del gate D7, ejecutar) + participantes; siempre → Historial de cerrados con ganador. Copy del dashboard `admin/index.tsx`: CTA "Ir al sorteo" → "Crear sorteo" (D8, solo copy). Tests: crearSorteo (8), editarSorteo (4), listarSorteosDelTenant (3) — 15/15 verdes (vitest filtrado). Auto-chequeo de diseño (contra `frontend-conventions`, distilación estable de `docs/design.md` que NO toco porque el agente paralelo lo edita en vivo): color solo por tokens/CSS vars (cero hex), Tailwind solo layout, conteos con `num()` + `tabular-nums`, sin `motion`, destructivo con `openConfirmModal`+`confirmProps.color="red"`, tuteo, íconos Tabler. Sin dinero en la feature. PASA.
+- [2026-07-24 11:45] [feature-implementer] F03 implementada. `enrutarPagoFlow.ts`: `PagoConCredencial`/`FlowRuteado` ganan `montoEsperado: number` (CLP entero); repo `crearRepoRuteoFlow` selecciona `Payment.monto` y lo expone con `.toNumber()` (Decimal(15,2) de pesos enteros ⇒ exacto). `webhookFlow.ts` (núcleo puro I7/D10): Gate 5 antes de PAGADO — si `flowPago.amount !== montoEsperado` ⇒ NO transiciona, `console.warn` estructurado (sin secretos) + ack 200 `{ ignorado: "amount_mismatch" }` (irreintentable); si `amount` undefined ⇒ warning y procede (no bloquea pagos legítimos). Tests: 3 nuevos en webhookFlow.test.ts (match/mismatch/undefined) + `ruteo.001` asserta `montoEsperado`; actualizados los fakes (`montoEsperado` en fixtures/mocks). webhookFlow 12/12 + enrutarPagoFlow 4/4 verdes (filtrado). Idempotencia y patrón núcleo+wrapper intactos.
+- [2026-07-24 11:55] [feature-implementer] F04 implementada. Borrados `src/pages/api/dev/login.ts`, `src/pages/api/dev/echo-tenant.ts`, `src/server/api/routers/post.ts` (dir `dev/` quedó vacío ⇒ removido). `root.ts`: quitados `import { postRouter }` + `post: postRouter` + comentario `@example` stale de `trpc.post.all()` → `trpc.panel.getAccesoActual()`. Grep de verificación previo: cero referencias de producción a `api.post.*`/`postRouter`/`dev/login`/`dev/echo-tenant` (solo docs y comentarios). Post-borrado: cero imports de los módulos borrados (solo comentarios doc en `rutaRelativa.ts` + su test). NO toco `prisma/schema.prisma` (el modelo `Post` queda como huérfano inocuo, I1). FOLLOW-UP sugerido (NO aplicado, fuera de scope F04): `src/server/sesion/rutaRelativa.ts` + su test quedan como único consumidor de `esRutaRelativaSegura` tras morir `dev/login` — candidato a limpieza en otra sesión.
+- [2026-07-24 12:20] [feature-implementer] REVIEWERS al cierre. `backend-reviewer`: APPROVE (tenancy server-side fail-closed en los 3 use cases, guards atómicos en $tx, dinero del webhook OK con `.toNumber()` para CLP entero + núcleo/wrapper intacto, F04 verificado; 2 nits: (a) faltaba test del branch de carrera `count===0` de `editarSorteo`, (b) `editarSorteo` diverge de `actualizarProducto` como verbo — decisión de plan D6, no se cambia). `frontend-reviewer`: REQUEST_CHANGES por 1 BLOCKER (import muerto `Paper` en `sorteo.tsx` ⇒ fallaría `check:lint`) + nits. FIXES aplicados: (1) removido import `Paper` [blocker]; (2) `AssetUploader onSubido` ahora invalida `getSorteo` + `listarSorteos` (nit: invalidar todas las queries afectadas — `listarSorteos` proyecta `premioImageUrl`); (3) botón "Editar" con `disabled={!enLista}` (nit: cierra el riesgo teórico de hidratar `basesUrl` vacío si las 2 queries se desincronizan); (4) agregado test `panel.sorteo.editar.005` (carrera `updateMany count 0` ⇒ CONFLICT) cerrando el gap de cobertura del backend-reviewer. Re-run filtrado: 32/32 verdes (crearSorteo 8, editarSorteo 5, listarSorteos 3, webhookFlow 12, enrutarPagoFlow 4). Nits NO accionados (registrados para el user): `StatCard` reusado para valores no numéricos ("Activo"/fecha) — era el patrón del `sorteo.tsx` original, queda para la revisión visual; 4ª rama "no autorizado" ausente — gap preexistente en todo el panel del Organizador, no de esta feature.
+- [2026-07-24 12:25] [feature-implementer] PARADA para revisión visual del usuario (instrucción explícita: parar al cerrar F04). F01–F04 implementadas + reviewers verdes tras fixes. F05 (E2E) y F06 (CSP) DIFERIDOS — NO tocados. `status` se deja en `implementing` (NO flip a `testing`): el user pidió revisión visual ANTES del feature-tester, y F05/F06 siguen pendientes. Drift de `docs/agents/frontend-conventions.md` PROPUESTO (no aplicado — requiere OK del user, Step 4.5): 3 patrones nuevos que consolidó esta feature (modal de arrastre con `Radio.Group`, sección Historial, `CamposSorteo` como fieldset compartido crear/editar vía `UseFormReturnType<T>`).

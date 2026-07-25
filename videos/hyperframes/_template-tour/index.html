@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>__TITULO__</title>
+<!-- Tokens de marca «El Talonario» (GENERADO por build-tokens.mjs desde src/styles/theme.ts —
+     no editar los hex a mano; los copia frescos new-tour.mjs desde _brand/). -->
+<link rel="stylesheet" href="assets/brand.tokens.css">
+<!-- Kit compartido de tours (fuente: hyperframes/_lib/tour-kit.css). No editar acá:
+     los fixes van a _lib/ y llegan a los videos nuevos vía new-tour.mjs. -->
+<link rel="stylesheet" href="assets/tour-kit.css">
+<style>
+  /* ==== Fuentes de marca (design.md §3): Fraunces · Bricolage 800 · Instrument Sans · IBM Plex Mono ====
+     PELADO: el `src` es `assets/fonts/<Familia>.woff2` — token root-relative que el lint acepta
+     (NO `../` fuera del root → invalid_parent_traversal). Ese path NO existe en disco: no hay
+     base64 en git ni `assets/fonts/` per-video. En render-time `render.mjs` reemplaza cada url()
+     por data:base64 en una copia efímera (index.embed.html), con los bytes de la fuente ÚNICA
+     `_brand/fonts/` (el motor de captura no resuelve url() a woff2 externo → gotcha 12).
+     Se dejan INLINE para que el lint vea las familias declaradas. */
+  @font-face { font-family: "Fraunces"; src: url("assets/fonts/Fraunces-Variable.woff2") format("woff2"); font-weight: 400 900; font-display: block; }
+  @font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2"); font-weight: 200 800; font-display: block; }
+  @font-face { font-family: "Instrument Sans"; src: url("assets/fonts/InstrumentSans-Variable.woff2") format("woff2"); font-weight: 400 700; font-display: block; }
+  @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: block; }
+  @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-Medium.woff2") format("woff2"); font-weight: 500; font-display: block; }
+  @font-face { font-family: "IBM Plex Mono"; src: url("assets/fonts/IBMPlexMono-SemiBold.woff2") format("woff2"); font-weight: 600; font-display: block; }
+
+  /* Escenario: gris banda del talonario, texto tinta, acento cobalto. */
+  #root {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background: var(--st-stage); font-family: var(--st-font-texto);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     CLASES ESPECÍFICAS DE ESTE VIDEO — el mock de la pantalla va acá.
+     (Lo genérico —browser frame, rail tinta, topbar, PanelCard, campos, botones,
+      tooltip, spotlight, cursor, .lb, .ava, .seg, .tour-stack— ya viene de
+      assets/tour-kit.css. No lo redefinas.)
+
+     RECORDATORIO (gotcha 9): app.js NO puede poner tipografía/gap/flex inline —
+     el renderer los descarta. Todo el estilo visual del mock se declara acá como
+     clases; app.js sólo asigna clases + geometría (left/top/width/height).
+
+     CERO HEX (I7): todo color por token var(--st-*).
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* .xx-card { ... } */
+
+</style>
+</head>
+<body>
+<!-- Duración total = data-duration del root. Clips: data-start/data-duration en
+     SEGUNDOS, sin overlap en el mismo track (el lint lo bloquea). Los calculó
+     new-tour.mjs borde a borde a partir de --beats. -->
+<div id="root" data-composition-id="__SLUG__" data-width="1920" data-height="1080" data-fps="30" data-start="0" data-duration="__DURATION__">
+
+  <!-- 1. POSTER — frame 0 legible (sin animación de entrada; el thumbnail sale de acá). -->
+  <section id="b-intro" class="clip beat center-col" data-start="__ST0__" data-duration="__DU0__" data-track-index="0" style="gap:22px;">
+    <svg width="112" height="112" viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="15" class="iso-caja"/>
+      <rect x="17" y="45" width="30" height="6" rx="3" class="iso-barra"/>
+      <text x="32" y="30" font-size="40" class="iso-letra">S</text>
+    </svg>
+    <div class="eyebrow" style="margin-top:6px;">Cápsula · __MODULO__</div>
+    <div class="headline" style="font-size:72px; text-align:center; max-width:1340px;">__TITULO__</div>
+    <div class="lead" style="font-size:30px;">__SUBTITULO__</div>
+  </section>
+
+  <!-- 2. CONCEPTO — qué es / qué resuelve (una idea, sin hype). -->
+  <section id="b-concept" class="clip beat center-col" data-start="__ST1__" data-duration="__DU1__" data-track-index="0" style="gap:26px; padding:0 8%; opacity:0;">
+    <div class="eyebrow">Cómo funciona</div>
+    <div class="headline" style="font-size:62px; text-align:center; max-width:1320px;">__CONCEPTO_TITULO__</div>
+    <div class="lead">__CONCEPTO_BAJADA__</div>
+  </section>
+
+  <!-- 3-5. PASOS del tour — navegador + mock + overlays (los llena app.js). -->
+  <section id="step-0" class="clip beat" data-start="__ST2__" data-duration="__DU2__" data-track-index="0" style="opacity:0;">
+    <div id="step-0-stage" class="wt-stage"></div>
+  </section>
+  <section id="step-1" class="clip beat" data-start="__ST3__" data-duration="__DU3__" data-track-index="0" style="opacity:0;">
+    <div id="step-1-stage" class="wt-stage"></div>
+  </section>
+  <section id="step-2" class="clip beat" data-start="__ST4__" data-duration="__DU4__" data-track-index="0" style="opacity:0;">
+    <div id="step-2-stage" class="wt-stage"></div>
+  </section>
+
+  <!-- 6. OUTRO claro (sube con wipe): superficie blanca + filo cobalto. -->
+  <section id="b-outro" class="clip beat" data-start="__ST5__" data-duration="__DU5__" data-track-index="0" style="transform:translateY(1080px);">
+    <div class="paper-bg"></div>
+    <div class="paper-edge"></div>
+    <div class="beat center-col" style="gap:34px; padding:0 8%;">
+      <div id="outro-head" class="center-col" style="gap:16px; opacity:0; transform:translateY(16px);">
+        <div class="eyebrow">__OUTRO_EYEBROW__</div>
+        <div class="headline" style="font-size:66px; text-align:center; max-width:1360px;">__OUTRO_TITULO__</div>
+      </div>
+      <div id="outro-lockup" class="center-col" style="gap:14px; opacity:0; margin-top:30px;">
+        <svg width="76" height="76" viewBox="0 0 64 64">
+          <rect width="64" height="64" rx="15" class="iso-caja"/>
+          <rect x="17" y="45" width="30" height="6" rx="3" class="iso-barra"/>
+          <text x="32" y="30" font-size="40" class="iso-letra">S</text>
+        </svg>
+        <div class="wordmark" style="font-size:38px;">Sortéatelo</div>
+        <div class="pg-desc" style="font-size:18px;">sorteatelo.cl</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script src="assets/gsap.min.js"></script>
+<script src="assets/tour-kit.js"></script>
+<script src="app.js"></script>
+<!-- El timeline DEBE quedar INLINE acá (el guard estático no ve .js externos → si lo
+     sacás, el render se bloquea con missing_timeline_registry). Corre después de
+     app.js: los IDs (#cursor-N, #spot-N, #tip-N, toggles) y window.TOUR ya existen. -->
+<script>
+(() => {
+  const f = (n) => n / 30;            // frames @30fps → segundos
+  const N = { ease: "none" };         // interpolación lineal
+  const OUT = { ease: "power2.out" }; // movimiento de cursor
+  const tl = gsap.timeline({ paused: true });
+
+  // Puntos de geometría: los define app.js (misma fuente que el mock) → cursor,
+  // spotlight y tooltip quedan alineados POR CONSTRUCCIÓN, nunca a ojo.
+  const P = window.TOUR.P;
+
+  // ==== 1. POSTER: frame 0 legible; sólo anima la SALIDA ====
+  tl.to("#b-intro", { opacity: 0, duration: f(16), ...N }, f(__F_INTRO_OUT__));
+
+  // ==== 2. CONCEPTO: fade in + subida; fade out al final ====
+  tl.fromTo("#b-concept", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: f(18), ...N }, f(__F_CONCEPT__));
+  tl.to("#b-concept", { opacity: 0, duration: f(16), ...N }, f(__F_CONCEPT_OUT__));
+
+  // ==== 3. PASO 1 ====
+  const S0 = __F_S0__;
+  tl.fromTo("#step-0", { opacity: 0 }, { opacity: 1, duration: f(16), ...N }, f(S0));
+  tl.set("#step-0", { opacity: 0 }, f(S0 + __D_S0__));
+  // cursor: entra y viaja al target del paso 1
+  tl.set("#cursor-0", { x: P.start.x, y: P.start.y }, f(S0));
+  tl.fromTo("#cursor-0", { opacity: 0 }, { opacity: 1, duration: f(14), ...N }, f(S0 + 10));
+  tl.to("#cursor-0", { x: P.p0.x, y: P.p0.y, duration: f(40), ...OUT }, f(S0 + 8));
+  // click (ring) @92 → efecto del click @98 (toggle/aparición) — ajustar al guion
+  tl.fromTo("#cursor-0-ring", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 0.95, duration: f(7), ease: "power1.out" }, f(S0 + 92));
+  tl.to("#cursor-0-ring", { opacity: 0, scale: 1.4, duration: f(7), ...N }, f(S0 + 99));
+  // spotlight + tooltip
+  tl.fromTo("#spot-0", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S0 + 100));
+  tl.fromTo("#tip-0", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S0 + 108));
+  tl.to("#tip-0", { opacity: 0, duration: f(16), ...N }, f(S0 + __D_S0__ - 16));
+
+  // ==== 4. PASO 2 (el cursor ARRANCA donde terminó el paso 1: continuidad) ====
+  const S1 = __F_S1__;
+  tl.set("#step-1", { opacity: 1 }, f(S1));
+  tl.set("#step-1", { opacity: 0 }, f(S1 + __D_S1__));
+  tl.set("#cursor-1", { x: P.p0.x, y: P.p0.y, opacity: 1 }, f(S1));
+  tl.to("#cursor-1", { x: P.p1.x, y: P.p1.y, duration: f(40), ...OUT }, f(S1 + 4));
+  tl.fromTo("#cursor-1-ring", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 0.9, duration: f(7), ease: "power1.out" }, f(S1 + 50));
+  tl.to("#cursor-1-ring", { opacity: 0, scale: 1.4, duration: f(7), ...N }, f(S1 + 57));
+  tl.fromTo("#spot-1", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S1 + 20));
+  tl.fromTo("#tip-1", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S1 + 60));
+  tl.to("#tip-1", { opacity: 0, duration: f(16), ...N }, f(S1 + __D_S1__ - 16));
+
+  // ==== 5. PASO 3 ====
+  const S2 = __F_S2__;
+  tl.set("#step-2", { opacity: 1 }, f(S2));
+  tl.set("#step-2", { opacity: 0 }, f(S2 + __D_S2__));
+  tl.set("#cursor-2", { x: P.p1.x, y: P.p1.y, opacity: 1 }, f(S2));
+  tl.to("#cursor-2", { x: P.p2.x, y: P.p2.y, duration: f(44), ...OUT }, f(S2 + 10));
+  tl.fromTo("#cursor-2-ring", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 0.9, duration: f(7), ease: "power1.out" }, f(S2 + 60));
+  tl.to("#cursor-2-ring", { opacity: 0, scale: 1.4, duration: f(7), ...N }, f(S2 + 67));
+  tl.fromTo("#spot-2", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S2 + 16));
+  tl.fromTo("#tip-2", { opacity: 0 }, { opacity: 1, duration: f(18), ...N }, f(S2 + 40));
+  tl.to("#tip-2", { opacity: 0, duration: f(16), ...N }, f(S2 + __D_S2__ - 16));
+
+  // Toggle de estado (patrón TourKit.stackEl → #<id>-a visible, #<id>-b oculto):
+  //   tl.fromTo("#chip-a", { opacity: 1 }, { opacity: 0, duration: f(2), ...N }, f(S2 + 66));
+  //   tl.fromTo("#chip-b", { opacity: 0 }, { opacity: 1, duration: f(2), ...N }, f(S2 + 66));
+
+  // ==== 6. OUTRO: wipe vertical + head + lockup ====
+  const OS = __F_OUTRO__;
+  tl.fromTo("#b-outro", { y: 1080 }, { y: 0, duration: f(28), ease: "power2.inOut" }, f(OS));
+  tl.fromTo("#outro-head", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: f(20), ...N }, f(OS + 26));
+  tl.fromTo("#outro-lockup", { opacity: 0 }, { opacity: 1, duration: f(22), ...N }, f(OS + 64));
+
+  window.__timelines = window.__timelines || {};
+  window.__timelines["__SLUG__"] = tl; // key = data-composition-id del root
+})();
+</script>
+</body>
+</html>

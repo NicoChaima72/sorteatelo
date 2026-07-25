@@ -372,6 +372,46 @@ export function estiloSeccionACss(
   };
 }
 
+// ── Contraste sobre esquema oscuro (Tanda 2 F12, bug de la sorteo_vitrina) ─────────────────────
+//
+// Una sección con fondo OSCURO (bicolor `marca_profundo`, esquema `marca`/`tinta`…) recibe del wrapper
+// un `color` de texto EMPAREJADO claro (blanco/contraste). Los sub-textos que en fondo claro usan un
+// gris fijo (`c="dimmed"` = gray-6) quedan ILEGIBLES sobre morado. En vez de saltar a un gris, el texto
+// tenue debe DERIVAR del color emparejado que ya fluye por `currentColor`: `color-mix(currentColor,
+// transparent)` = un tenue legible sobre CUALQUIER esquema (blanco translúcido sobre oscuro, tinta
+// translúcida sobre claro). Scheme-agnóstico, cero hex (I-A), SSR-safe. Solo se aplica sobre esquema
+// OSCURO (sobre claro se conserva `dimmed` byte-idéntico ⇒ no-op I-H para las tiendas claras existentes).
+
+/** Texto tenue (muted) derivado del color emparejado (currentColor). Reemplaza `dimmed` sobre oscuro. */
+export const TEXTO_TENUE_SOBRE_OSCURO = "color-mix(in srgb, currentColor 72%, transparent)";
+/** Borde sutil derivado del color emparejado (chips/badges outline sobre oscuro). */
+export const BORDE_TENUE_SOBRE_OSCURO = "color-mix(in srgb, currentColor 35%, transparent)";
+/** Fondo sutil derivado del color emparejado (chips/badges light sobre oscuro). */
+export const FONDO_TENUE_SOBRE_OSCURO = "color-mix(in srgb, currentColor 14%, transparent)";
+
+/**
+ * `true` sii el fondo de la sección es OSCURO (su texto emparejado es claro) ⇒ los sub-textos deben
+ * derivar su tenue de `currentColor` en vez de un gris fijo. Espeja `esquemaACss(...).color === white`:
+ * bicolor hereda de `colorA`, patrón de su esquema base, gradiente marca_vivo/tinta e imagen con overlay
+ * oscurecedor cuentan como oscuros. Ausente/`tema` ⇒ false (hereda el shell, oscuridad desconocida ⇒
+ * trato como claro para no tocar el look actual). PURO.
+ */
+export function esFondoOscuro(fondo: FondoSeccion | undefined): boolean {
+  if (!fondo) return false;
+  switch (fondo.tipo) {
+    case "esquema":
+      return ESQUEMAS_OSCUROS.has(fondo.esquema);
+    case "patron":
+      return ESQUEMAS_OSCUROS.has(fondo.esquema);
+    case "bicolor":
+      return ESQUEMAS_OSCUROS.has(fondo.colorA);
+    case "gradiente":
+      return fondo.preset === "marca_vivo" || fondo.preset === "tinta";
+    case "imagen":
+      return fondo.overlay === "tinta" || fondo.overlay === "marca";
+  }
+}
+
 /**
  * Token de color sólido del fondo de una sección (para pintar el divisor de la sección ANTERIOR con
  * el color de ESTA — lee como transición). Gradiente/imagen ⇒ cae al fondo de página (`body`).

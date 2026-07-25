@@ -4,7 +4,7 @@
 
 **SaaS multi-tenant de tiendas con sorteo** (pivote 2026-07-16, ADR-0005): Organizadores crean su cuenta, configuran su Tienda sobre una plantilla (logo/colores/textos — NO builder visual), suben productos digitales (MVP: PDF), montan su sorteo promocional y venden — cada tienda en su **subdominio**, cobrando con **su propia cuenta de Flow** (BYO-Flow). La autora ARMY original del encargo es el **tenant #1 / piloto**, y su tienda operativa es un hito con fecha propia (F07 del roadmap). Lo desarrolla y opera un freelancer (el **Operador de plataforma**).
 
-T3 stack: Next.js 14 (pages router) + tRPC 11 + NextAuth 4 (Google OAuth para Organizadores) + Prisma 5 + PostgreSQL + shadcn/ui + Tailwind.
+T3 stack: Next.js 14 (pages router) + tRPC 11 + NextAuth 4 (Google OAuth para Organizadores) + Prisma 5 + PostgreSQL + **Mantine 7** (ADR-0011 — reemplazó a shadcn/ui) + Tailwind acotado a utilities de layout.
 
 ## Propósito y alcance
 
@@ -68,6 +68,6 @@ Single-context: un `CONTEXT.md` + `docs/adr/` en la raíz. See `docs/agents/doma
 
 ## Diseño
 
-- UI con shadcn/ui (new-york, CSS variables, lucide). Convenciones en `docs/agents/frontend-conventions.md`.
+- UI con **Mantine 7** (`@mantine/core` + form/modals/notifications/hooks; íconos `@tabler/icons-react`) — ADR-0011. Convenciones en `docs/agents/frontend-conventions.md`.
 - **Línea gráfica completa en `docs/design.md`** — fuente de verdad de todo artefacto visual. Leerlo antes de generar cualquier cosa visual.
-- **La paleta de marca y el nombre están PENDIENTES** (decisiones abiertas + identidad fandom/ARMY a definir). Resolver en una sesión de `frontend-design` / `domain-planner` antes de construir UI de marca — no inventar dirección visual propia.
+- **Identidad de marca de la plataforma: RESUELTA — dirección «El Talonario»** (nombre **Sortéatelo**, blanco + azul cobalto `#2b3fbf` + amarillo lotería `#ffc530` + tinta `#191b22`; Fraunces headings + Bricolage wordmark + Instrument Sans texto + IBM Plex Mono números). Instanciada en `src/styles/theme.ts` y en la landing (`src/components/landing/`) con la gramática talonario (bandas, plumón, perforaciones, sellos, ticket con muescas). **La landing del apex es la referencia de estilo** para cualquier artefacto de marca de plataforma (incl. videos/cápsulas). Detalle completo en `docs/design.md`. Pendiente solo el logo/isotipo dibujado (hoy wordmark tipográfico + `IconTicket` provisional). El theming per-tenant sigue siendo dato del `Tenant`, no código (seam ADR-0011).

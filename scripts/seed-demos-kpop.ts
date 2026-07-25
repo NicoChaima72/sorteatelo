@@ -96,8 +96,8 @@ const docDreamy = {
       vibe: "suave",
       tipografia: "dulce", // Poppins + Nunito Sans — redondeado merch/kpop
       anchoContenido: "contenido",
-      fondoPagina: "marca_suave", // lila palísimo (primary-0) ≈ el #f4f1fa del prototipo
-      ambiente: "aurora", // nubes pastel violeta+rosa (los glows suaves del heroviz)
+      fondoPagina: "marca_suave", // lila palísimo (primary-0) ≈ el #f6f4fb del prototipo (NO saturado)
+      ambiente: "ninguno", // F12: el original NO tiene aurora; sobre fondo claro daba el lila saturado del bug
     },
   },
   secciones: [
@@ -128,6 +128,7 @@ const docDreamy = {
           subtitulo: "Estadio Nacional · Octubre 2026",
           icono: "corazon",
           holo: false, // dreamy = suave, sin holo neón
+          estilo: "suave", // F12: glassy — gradiente + blur-blobs del heroviz del prototipo
         },
       },
       estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
@@ -138,7 +139,7 @@ const docDreamy = {
       tipo: "estadisticas",
       v: 1,
       props: {
-        estiloVisual: "cards", // stats en tarjetas blancas redondeadas del prototipo
+        estiloVisual: "tarjetas_suaves", // F12: tarjetas blancas con sombra suave (el `cards` NO envolvía en tarjeta)
         items: [
           { valor: 2480, prefijo: "+", etiqueta: "participando", icono: "ticket" },
           { valor: 12, etiqueta: "días para el cierre", icono: "reloj" },
@@ -156,17 +157,16 @@ const docDreamy = {
       estilo: { padY: "xl", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "Libros" },
     },
-    // ── PACKS (1 libro / pack 4 libros) — aproximación con estadisticas cards ──
+    // ── PACKS (F12): tarjetas de precio reales del prototipo (1 libro / pack 4 libros destacado) ──
     {
       id: nid(),
-      tipo: "estadisticas",
+      tipo: "packs_precio",
       v: 1,
       props: {
         titulo: "Más libros, más chances",
-        estiloVisual: "cards",
         items: [
-          { valor: 3000, prefijo: "$", etiqueta: "1 libro · 1 participación", icono: "ticket" },
-          { valor: 10000, prefijo: "$", etiqueta: "Pack 4 libros · 4 participaciones", icono: "regalo" },
+          { titulo: "1 libro", precio: 3000, detalle: "1 participación", ctaTexto: "Comprar", ctaAncla: "catalogo" },
+          { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "Más elegido", ctaTexto: "Comprar", ctaAncla: "catalogo" },
         ],
       },
       estilo: { padY: "l", entrada: "subir" },
@@ -180,7 +180,7 @@ const docDreamy = {
       estilo: { padY: "xl", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "Cómo funciona" },
     },
-    // ── EL PREMIO (sorteo activo) sobre banda violeta profunda del prototipo ──
+    // ── EL PREMIO (sorteo activo) — banner COMPACTO (F12: anchoFondo contenido + contraste legible) ──
     {
       id: nid(),
       tipo: "sorteo_vitrina",
@@ -188,10 +188,26 @@ const docDreamy = {
       props: { mostrarBases: true, estiloConteo: "destacado" },
       estilo: {
         fondo: { tipo: "bicolor", colorA: "marca_profundo", colorB: "marca", direccion: "diagonal", mezcla: "suave" },
-        padY: "xl",
+        anchoFondo: "contenido", // F12: card contenida (no full-bleed) = el banner compacto del prototipo
+        padY: "l",
         entrada: "aparecer",
       },
       nav: { incluir: true, etiqueta: "El sorteo" },
+    },
+    // ── ¡ESTÁS DENTRO! (F12): la tarjeta aspiracional del número de sorteo (ARMY-04821) ──
+    {
+      id: nid(),
+      tipo: "momento_ticket",
+      v: 1,
+      props: {
+        titulo: "¡Estás dentro! 💜",
+        etiqueta: "Tu número de sorteo:",
+        codigoEjemplo: "ARMY-04821",
+        ctaTexto: "Compartir y sumar más chances",
+        ctaAncla: "catalogo",
+        nota: "Número de ejemplo — recibes el tuyo al comprar.",
+      },
+      estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
     },
     // ── CONFIANZA (sorteo 100% transparente) ──
     {
@@ -238,24 +254,8 @@ const docDreamy = {
       estilo: { padY: "l", entrada: "aparecer" },
     },
   ],
-  overlays: [
-    {
-      id: nid(),
-      tipo: "aviso_barra",
-      v: 2,
-      props: {
-        mensajes: [
-          "Sorteo abierto — 2 entradas para BTS 💜",
-          "Cada libro suma un número",
-          "Estadio Nacional · Octubre 2026",
-        ],
-        modo: "marquee",
-        esquema: "acento_suave", // cinta rosa suave
-        posicion: "bajo_nav",
-        mostrarCountdown: true,
-      },
-    },
-  ],
+  // F12: el prototipo dreamy NO tiene ticker/cinta bajo el nav (solo el chip del topbar) ⇒ sin overlay.
+  overlays: [],
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

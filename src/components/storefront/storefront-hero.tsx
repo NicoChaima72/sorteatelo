@@ -417,6 +417,10 @@ function TarjetaVisual({
 }) {
   const Icono = visual.icono ? iconoBeneficio(visual.icono) : null;
   const suave = visual.estilo === "suave";
+  // Contenido de la tarjeta (Tanda 2 F16): `emblema` = holocard DECORATIVA (ícono grande arriba + glow
+  // inferior + motivo, SIN texto) = el heroviz del prototipo dreamy; `texto` (default) = ícono-círculo +
+  // título + subtítulo (no-op I-H). En `emblema` el marco pasa a landscape (4:3, el ancho del heroviz).
+  const emblema = visual.contenido === "emblema";
   // Fondo de la holocard (Tanda 2 F15/fidelidad concert): en `suave` es DARK-AWARE por `light-dark` — modo
   // claro = el gradiente pastel de marca (byte-idéntico al de siempre para dreamy, no-op I-H); modo oscuro
   // = un "stage" oscuro (marca-9 → negro) con los blur-blobs blancos como haces de luz (el escenario del
@@ -426,7 +430,7 @@ function TarjetaVisual({
     ? "linear-gradient(135deg, light-dark(var(--mantine-primary-color-5), var(--mantine-primary-color-9)), light-dark(var(--mantine-primary-color-8), var(--mantine-color-black)))"
     : gradienteTematico(colorPrimario);
   return (
-    <AspectRatio ratio={3 / 4}>
+    <AspectRatio ratio={emblema ? 4 / 3 : 3 / 4}>
       <Box
         style={{
           position: "relative",
@@ -437,12 +441,27 @@ function TarjetaVisual({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: emblema ? "flex-start" : "center",
           textAlign: "center",
           gap: "var(--mantine-spacing-md)",
           color: "var(--mantine-color-white)",
         }}
       >
+        {/* Glow radial inferior (Tanda 2 F16, `emblema`): el brillo blanco que corona los tickets del
+            heroviz del prototipo dreamy (radial bottom-center). VA PRIMERO ⇒ los tickets del motivo pintan
+            ENCIMA. CSS estático, cero hex, aria-hidden, no anima (I-C). */}
+        {emblema && (
+          <Box
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background:
+                "radial-gradient(80% 120% at 50% 118%, color-mix(in srgb, var(--mantine-color-white) 55%, transparent), transparent 60%)",
+            }}
+          />
+        )}
         {/* Blur-blobs decorativos (glassy) — solo en `suave`. CSS estático, cero hex, no anima (I-C). El
             `motivo` (F13) suma 1–2 chips flotantes (tickets/estrellas) sobre los blobs. */}
         {suave && (
@@ -453,21 +472,43 @@ function TarjetaVisual({
             <DecoracionMotivo motivo={visual.motivo} />
           </Box>
         )}
-        <Box style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--mantine-spacing-md)" }}>
-          {Icono && (
-            <ThemeIcon variant="white" size={64} radius="xl">
-              <Icono className="size-8" stroke={1.5} />
-            </ThemeIcon>
-          )}
-          <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
-            {visual.titulo}
-          </Text>
-          {visual.subtitulo && (
-            <Text fz="sm" c="white" opacity={0.85}>
-              {visual.subtitulo}
+        {emblema ? (
+          // Emblema (F16): SOLO el ícono GRANDE arriba (sin círculo, sin texto) — el corazón grande que
+          // corona el heroviz del prototipo dreamy. Relleno + trazo blanco + drop-shadow = emblema sólido.
+          // Cero hex (I-A); aria-hidden (el nombre accesible ya vive en el hero). El motivo (tickets) y el
+          // glow inferior aportan el resto de la composición.
+          Icono && (
+            <Box aria-hidden style={{ position: "relative", marginTop: "10%" }}>
+              <Icono
+                stroke={1.5}
+                style={{
+                  width: 108,
+                  height: 108,
+                  color: "var(--mantine-color-white)",
+                  fill: "var(--mantine-color-white)",
+                  filter:
+                    "drop-shadow(0 10px 26px color-mix(in srgb, var(--mantine-color-black) 32%, transparent))",
+                }}
+              />
+            </Box>
+          )
+        ) : (
+          <Box style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--mantine-spacing-md)" }}>
+            {Icono && (
+              <ThemeIcon variant="white" size={64} radius="xl">
+                <Icono className="size-8" stroke={1.5} />
+              </ThemeIcon>
+            )}
+            <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
+              {visual.titulo}
             </Text>
-          )}
-        </Box>
+            {visual.subtitulo && (
+              <Text fz="sm" c="white" opacity={0.85}>
+                {visual.subtitulo}
+              </Text>
+            )}
+          </Box>
+        )}
       </Box>
     </AspectRatio>
   );

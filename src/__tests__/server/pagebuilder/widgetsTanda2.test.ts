@@ -347,3 +347,37 @@ describe("pagebuilder/tanda2 (F15) — producto_spotlight (el objeto del deseo)"
     expect(WIDGET_META.producto_spotlight.titulo).not.toBe("producto_spotlight");
   });
 });
+
+describe("pagebuilder/tanda2 (F16) — hero visual tarjeta contenido (holocard decorativa)", () => {
+  // page.tanda2.herovisual.004 — la tarjeta gana `contenido` (texto/emblema); default texto (no-op)
+  it("visual tarjeta acepta contenido texto|emblema, default texto (no-op), rechaza extras", () => {
+    const base = { titulo: { children: [{ t: "Hola" }] } };
+    // sin contenido ⇒ default texto (el look con título/subtítulo actual, no-op I-H)
+    const parsed = heroProps.parse({ ...base, visual: { tipo: "tarjeta", titulo: "T" } });
+    expect(parsed.visual).toMatchObject({ tipo: "tarjeta", contenido: "texto" });
+    for (const contenido of ["texto", "emblema"] as const) {
+      expect(
+        heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", contenido } }).success,
+      ).toBe(true);
+    }
+    // contenido fuera del enum ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", contenido: "solo_icono" } }).success).toBe(false);
+    // `contenido` NO existe en la rama imagen (.strict) ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "imagen", url: "https://x.co", contenido: "emblema" } }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F16) — catalogo densidad completa|compacta (BookCard compacto)", () => {
+  // page.tanda2.catalogo.002 — el enum densidad gana completa|compacta; default completa (no-op v1)
+  it("catalogo.densidad acepta completa|compacta, default completa (no-op)", () => {
+    // v1 sin densidad ⇒ default completa (título + descripción bajo la portada, no-op I-H)
+    expect(catalogoProps.parse({}).densidad).toBe("completa");
+    for (const densidad of ["completa", "compacta"] as const) {
+      expect(catalogoProps.safeParse({ densidad }).success).toBe(true);
+    }
+    // valor fuera del enum ⇒ rechazo
+    expect(catalogoProps.safeParse({ densidad: "minima" }).success).toBe(false);
+    // campo extra ⇒ rechazo (.strict)
+    expect(catalogoProps.safeParse({ densidad: "compacta", html: "<b>x</b>" }).success).toBe(false);
+  });
+});

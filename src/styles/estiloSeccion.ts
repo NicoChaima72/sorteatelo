@@ -39,8 +39,8 @@ export interface EstiloSeccionResuelto {
   divisor: { forma: string; altura: string; invertir: boolean } | null;
   /** Preset de entrada (F03). `heredar` ⇒ el wrapper toma el default del TemaPagina. */
   entrada: string;
-  /** Kicker de sección (F15): encabezado pequeño + numeral romano opcional, o `null` (sin kicker). */
-  kicker: { texto: string; numeral: string } | null;
+  /** Kicker de sección (F15): encabezado pequeño + numeral romano opcional + color (F16), o `null`. */
+  kicker: { texto: string; numeral: string; estilo: string } | null;
   /** Ancho del FONDO (F02/D4): `completo` = full-bleed (default, comportamiento actual); `contenido` = acotado. */
   anchoFondo: "completo" | "contenido";
   /** Min-height CSS resuelto (F06/D9): `undefined` = auto (sin min-height, comportamiento actual). */
@@ -404,7 +404,11 @@ export function estiloSeccionACss(
     entrada: estilo?.entrada ?? "heredar",
     // Kicker (F15): presente ⇒ el wrapper pinta el encabezado + numeral; ausente ⇒ null (no-op, I-H).
     kicker: estilo?.kicker
-      ? { texto: estilo.kicker.texto, numeral: estilo.kicker.numeral ?? "ninguno" }
+      ? {
+          texto: estilo.kicker.texto,
+          numeral: estilo.kicker.numeral ?? "ninguno",
+          estilo: estilo.kicker.estilo ?? "dimmed", // F16: color del kicker (default dimmed = no-op I-H)
+        }
       : null,
     anchoFondo: estilo?.anchoFondo ?? "completo", // default full-bleed = comportamiento actual (I-H)
     altoMin: ALTO_MIN_CSS[estilo?.altoMin ?? "auto"], // undefined con "auto" (no-op, I-H)

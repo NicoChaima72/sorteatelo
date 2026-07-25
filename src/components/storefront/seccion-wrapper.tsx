@@ -80,7 +80,7 @@ export function SeccionWrapper({
   // LIBRO" del prototipo editorial). Ausente ⇒ null (no-op, I-H). El contenido efectivo es kicker+children.
   const cuerpo = r.kicker ? (
     <>
-      <KickerSeccion texto={r.kicker.texto} numeral={r.kicker.numeral} />
+      <KickerSeccion texto={r.kicker.texto} numeral={r.kicker.numeral} estilo={r.kicker.estilo} />
       {children}
     </>
   ) : (
@@ -167,12 +167,32 @@ export function SeccionWrapper({
 }
 
 /**
- * Kicker de sección (Tanda 2 F15/fidelidad editorial): numeral romano opcional (serif itálico, color de
- * marca) + texto en MAYÚSCULAS con tracking (dimmed) — el "I EL LIBRO / II ELIGE TU PACK" del prototipo
- * editorial. Texto plano (schema, nunca HTML del tenant, I3); el numeral usa la display font del tema
- * (Playfair en editorial) por `--mantine-font-family-headings`. Cero hex (tokens de marca, I-A).
+ * Color del texto del kicker por `estilo` (Tanda 2 F16). `dimmed` (default) = sin color explícito (el
+ * `c="dimmed"` de siempre — editorial intacto, no-op I-H). `marca` = token del primario. `acento` = token
+ * de la escala acento con FALLBACK a marca (I-T2). Espeja `colorEyebrow` del hero. Cero hex (I-A).
  */
-function KickerSeccion({ texto, numeral }: { texto: string; numeral: string }) {
+function colorKicker(estilo: string): string | undefined {
+  switch (estilo) {
+    case "acento":
+      return "var(--mantine-color-acento-filled, var(--mantine-primary-color-filled))";
+    case "marca":
+      return "var(--mantine-primary-color-filled)";
+    case "dimmed":
+    default:
+      return undefined; // hereda el dimmed del <Text c="dimmed">
+  }
+}
+
+/**
+ * Kicker de sección (Tanda 2 F15/fidelidad editorial): numeral romano opcional (serif itálico, color de
+ * marca) + texto en MAYÚSCULAS con tracking — el "I EL LIBRO / II ELIGE TU PACK" del prototipo editorial.
+ * El color del texto sale de `estilo` (dimmed/marca/acento, Tanda 2 F16): default `dimmed` = gris de
+ * siempre; `acento` = los kickers ROSA por sección del prototipo dreamy. Texto plano (schema, nunca HTML
+ * del tenant, I3); el numeral usa la display font del tema (Playfair) por `--mantine-font-family-headings`.
+ * Cero hex (tokens de marca, I-A).
+ */
+function KickerSeccion({ texto, numeral, estilo }: { texto: string; numeral: string; estilo: string }) {
+  const color = colorKicker(estilo);
   return (
     <Group gap="sm" align="baseline" mb="xs" wrap="nowrap">
       {numeral !== "ninguno" && (
@@ -188,7 +208,14 @@ function KickerSeccion({ texto, numeral }: { texto: string; numeral: string }) {
           {numeral}
         </Text>
       )}
-      <Text span fw={600} size="sm" c="dimmed" tt="uppercase" style={{ letterSpacing: "0.18em" }}>
+      <Text
+        span
+        fw={600}
+        size="sm"
+        c={color ? undefined : "dimmed"}
+        tt="uppercase"
+        style={{ letterSpacing: "0.18em", ...(color ? { color } : {}) }}
+      >
         {texto}
       </Text>
     </Group>

@@ -38,6 +38,7 @@
     "@mantine/modals": "^7.17.8",
     "@mantine/notifications": "^7.17.8",
     "@mantine/spotlight": "^7.17.8",
+    "@opentelemetry/api": "^1.9.1",
     "@prisma/client": "^5.14.0",
     "@t3-oss/env-nextjs": "^0.10.1",
     "@tabler/icons-react": "^3.44.0",

@@ -17,6 +17,7 @@ import { useCarrito } from "~/components/storefront/carrito";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
+import { type DensidadCatalogo } from "~/lib/pagebuilder/widgets";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { gradientePortadaDeterminista } from "~/styles/tenantTheme";
 import { api, type RouterOutputs } from "~/utils/api";
@@ -91,7 +92,7 @@ export function CatalogoStorefront({
             </Text>
           </Stack>
         ) : esCarrusel ? (
-          <CarruselCatalogo productos={productos.data} colorPrimario={colorPrimario} />
+          <CarruselCatalogo productos={productos.data} colorPrimario={colorPrimario} densidad={props.densidad} />
         ) : (
           <SimpleGrid cols={cols} spacing="lg">
             {productos.data.map((producto) => (
@@ -99,6 +100,7 @@ export function CatalogoStorefront({
                 key={producto.id}
                 producto={producto}
                 colorPrimario={colorPrimario}
+                densidad={props.densidad}
               />
             ))}
           </SimpleGrid>
@@ -118,9 +120,11 @@ export function CatalogoStorefront({
 function CarruselCatalogo({
   productos,
   colorPrimario,
+  densidad,
 }: {
   productos: ProductoCatalogo[];
   colorPrimario: string | null;
+  densidad: DensidadCatalogo;
 }) {
   const item = (producto: ProductoCatalogo, dup: boolean) => (
     <Box
@@ -129,7 +133,7 @@ function CarruselCatalogo({
       className={dup ? "carrusel-marquee-dup" : undefined}
       style={{ flex: "0 0 220px", marginInlineEnd: "var(--mantine-spacing-md)" }}
     >
-      <TarjetaProducto producto={producto} colorPrimario={colorPrimario} retrato />
+      <TarjetaProducto producto={producto} colorPrimario={colorPrimario} densidad={densidad} retrato />
     </Box>
   );
   return (
@@ -145,15 +149,20 @@ function CarruselCatalogo({
 function TarjetaProducto({
   producto,
   colorPrimario,
+  densidad = "completa",
   retrato,
 }: {
   producto: ProductoCatalogo;
   colorPrimario: string | null;
+  /** Densidad (Tanda 2 F16): `compacta` OMITE título/descripción bajo la portada (BookCard del prototipo
+   * dreamy — el título ya vive EN la tapa). Default `completa` = título + desc (no-op I-H). */
+  densidad?: DensidadCatalogo;
   /** Carrusel (F13): cover en retrato (3:4) tipo el prototipo, en vez del 4:3 de la grilla. */
   retrato?: boolean;
 }) {
   const { contiene, agregar, quitar } = useCarrito();
   const enCarrito = contiene(producto.id);
+  const compacta = densidad === "compacta";
 
   return (
     <Card
@@ -173,19 +182,27 @@ function TarjetaProducto({
         />
 
         <Stack gap="sm" p="md" className="flex-1">
-          <Stack gap={4} className="flex-1">
-            <Text
-              component={Link}
-              href={`/producto/${producto.id}`}
-              fw={600}
-              lineClamp={2}
-            >
+          {compacta ? (
+            // Compacta (F16): título/descripción OMITIDOS visualmente (el título vive EN la tapa). Se
+            // conserva un enlace `sr-only` al detalle ⇒ el nombre del producto sigue accesible (a11y).
+            <Text component={Link} href={`/producto/${producto.id}`} className="sr-only">
               {producto.titulo}
             </Text>
-            <Text size="sm" c="dimmed" lineClamp={2}>
-              {producto.descripcion}
-            </Text>
-          </Stack>
+          ) : (
+            <Stack gap={4} className="flex-1">
+              <Text
+                component={Link}
+                href={`/producto/${producto.id}`}
+                fw={600}
+                lineClamp={2}
+              >
+                {producto.titulo}
+              </Text>
+              <Text size="sm" c="dimmed" lineClamp={2}>
+                {producto.descripcion}
+              </Text>
+            </Stack>
+          )}
 
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <Text fw={700} className="tabular-nums">

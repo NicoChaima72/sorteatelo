@@ -204,6 +204,16 @@ export const KICKER_NUMERALES = [
 ] as const;
 export type KickerNumeral = (typeof KICKER_NUMERALES)[number];
 
+/**
+ * Color del kicker de sección (Tanda 2 F16/fidelidad dreamy): `dimmed` (DEFAULT) = gris tenue (look
+ * actual, editorial intacto — no-op I-H). `marca` = token del primario del tenant. `acento` = token de la
+ * escala acento con FALLBACK a marca (I-T2, degrada sin acento) — los kickers ROSA por sección del
+ * prototipo dreamy ("EL CATÁLOGO"/"ELIGE TU PACK"/…). Espeja `eyebrowEstilo`/`colorEyebrow` del hero.
+ * Cero hex (I-A).
+ */
+export const KICKER_ESTILOS = ["dimmed", "marca", "acento"] as const;
+export type KickerEstilo = (typeof KICKER_ESTILOS)[number];
+
 /** Ancho del contenido de la sección (Container lg / xl / full-bleed). */
 export const ANCHO_SECCION = ["contenido", "ancho", "completo"] as const;
 
@@ -343,6 +353,9 @@ export const EstiloSeccionSchema = z
       .object({
         texto: z.string().min(1).max(40),
         numeral: z.enum(KICKER_NUMERALES).default("ninguno"),
+        // Color del kicker (Tanda 2 F16): `dimmed` (default = gris de siempre, no-op I-H) / `marca` /
+        // `acento` (con fallback a marca, I-T2). Cero hex (I-A). Los kickers rosa del prototipo dreamy.
+        estilo: z.enum(KICKER_ESTILOS).default("dimmed"),
       })
       .strict()
       .optional(),
@@ -472,12 +485,32 @@ export const MOTIVOS_TARJETA = ["corazon", "tickets", "estrella"] as const;
 export type MotivoTarjeta = (typeof MOTIVOS_TARJETA)[number];
 
 /**
+ * Contenido de la holocard-tarjeta del hero (Tanda 2 F16/fidelidad dreamy): `texto` (DEFAULT) = ícono +
+ * título + subtítulo dentro del marco (look actual, no-op I-H). `emblema` = holocard DECORATIVA — el
+ * ícono GRANDE arriba (sin círculo) + glow radial inferior + el motivo flotante, SIN texto: el heroviz
+ * del prototipo dreamy (corazón grande arriba + 2 tickets abajo, sin título ni subtítulo). El `titulo`
+ * sigue siendo requerido en el schema (accesibilidad/alt) aunque `emblema` no lo pinte. Enum cerrado.
+ */
+export const CONTENIDOS_TARJETA = ["texto", "emblema"] as const;
+export type ContenidoTarjeta = (typeof CONTENIDOS_TARJETA)[number];
+
+/**
  * Layout del widget `catalogo` (Tanda 2 F13): `grilla` (DEFAULT) = la grilla de tarjetas de siempre
  * (no-op, I-H). `carrusel` = fila horizontal con auto-scroll CSS continuo (marquee, pausa en hover;
  * reduced-motion ⇒ scroll manual con overflow-x), covers compactos tipo el carrusel del prototipo.
  */
 export const LAYOUTS_CATALOGO = ["grilla", "carrusel"] as const;
 export type LayoutCatalogo = (typeof LAYOUTS_CATALOGO)[number];
+
+/**
+ * Densidad de la tarjeta del `catalogo` (Tanda 2 F16/fidelidad dreamy): `completa` (DEFAULT) = portada +
+ * título + descripción + precio + botón bajo la portada (look actual, no-op I-H). `compacta` = solo
+ * precio + botón bajo la portada (el título/descripción se OMITEN visualmente — el título ya vive EN la
+ * tapa del libro, `TapaLibro`), el BookCard compacto del prototipo dreamy. El título queda accesible por
+ * un enlace `sr-only` (a11y, nunca se pierde el nombre del producto). Enum cerrado.
+ */
+export const DENSIDADES_CATALOGO = ["completa", "compacta"] as const;
+export type DensidadCatalogo = (typeof DENSIDADES_CATALOGO)[number];
 
 /**
  * Visual configurable del hero `split` (Tanda 2 F02/D2): la columna derecha del hero. Discriminado por
@@ -512,6 +545,10 @@ export const HeroVisualSchema = z.discriminatedUnion("tipo", [
       // mini-tickets flotantes. `estrella` = chips-estrella. CSS estático de tokens, aria-hidden, no anima
       // (I-C). Solo aplica en `suave` (en `plano` se ignora). Cero hex (I-A).
       motivo: z.enum(MOTIVOS_TARJETA).default("corazon"),
+      // Contenido de la tarjeta (Tanda 2 F16): `texto` (DEFAULT = ícono-círculo + título + subtítulo, no-op
+      // I-H) o `emblema` (holocard DECORATIVA — ícono grande arriba + glow inferior + motivo, SIN texto: el
+      // heroviz del prototipo dreamy). Enum cerrado. Cero hex (I-A).
+      contenido: z.enum(CONTENIDOS_TARJETA).default("texto"),
     })
     .strict(),
 ]);
@@ -800,6 +837,9 @@ export const catalogoProps = z
     columnas: z.union([z.literal(2), z.literal(3)]).default(3),
     // Layout de la sección (Tanda 2 F13): `grilla` (default = no-op, I-H) o `carrusel` (marquee horizontal).
     layout: z.enum(LAYOUTS_CATALOGO).default("grilla"),
+    // Densidad de tarjeta (Tanda 2 F16): `completa` (default = título+desc bajo la portada, no-op I-H) o
+    // `compacta` (solo precio + botón; el título vive EN la tapa; nombre accesible por enlace sr-only).
+    densidad: z.enum(DENSIDADES_CATALOGO).default("completa"),
   })
   .strict();
 export type CatalogoProps = z.infer<typeof catalogoProps>;

@@ -133,12 +133,13 @@ const docDreamy = {
         efectoTitulo: "ninguno",
         visual: {
           tipo: "tarjeta",
-          titulo: "2 entradas para BTS 💜",
+          titulo: "2 entradas para BTS 💜", // requerido por schema (a11y/alt); emblema NO lo pinta
           subtitulo: "Estadio Nacional · Octubre 2026",
           icono: "corazon",
           holo: false, // dreamy = suave, sin holo neón
           estilo: "suave", // F12: glassy — gradiente + blur-blobs del heroviz del prototipo
           motivo: "tickets", // F13: 2 mini-tickets flotantes (el heroviz del prototipo tenía corazón + 2 tickets)
+          contenido: "emblema", // F16: holocard DECORATIVA — corazón grande arriba + glow inferior, SIN texto (el heroviz exacto del prototipo, no una tarjeta de contenido)
         },
       },
       estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
@@ -216,8 +217,14 @@ const docDreamy = {
       id: nid(),
       tipo: "catalogo",
       v: 1,
-      props: { titulo: "Elige tu libro (y tu chance)", modo: "todos", columnas: 3, layout: "carrusel" }, // F13: carrusel horizontal como el prototipo
-      estilo: { padY: "xl", entrada: "aparecer" },
+      props: {
+        titulo: "Elige tu libro (y tu chance)",
+        modo: "todos",
+        columnas: 3,
+        layout: "carrusel", // F13: carrusel horizontal como el prototipo
+        densidad: "compacta", // F16: BookCard compacto del prototipo (portada + precio + botón, sin título/desc debajo)
+      },
+      estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "El catálogo", estilo: "acento" } }, // F16: kicker rosa
       nav: { incluir: true, etiqueta: "Libros" },
     },
     // ── PACKS (F12): tarjetas de precio reales del prototipo (1 libro / pack 4 libros destacado) ──
@@ -232,7 +239,7 @@ const docDreamy = {
           { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "Más elegido", ctaTexto: "Comprar", ctaAncla: "catalogo" },
         ],
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { padY: "l", entrada: "subir", kicker: { texto: "Elige tu pack", estilo: "acento" } }, // F16: kicker rosa
     },
     // ── CÓMO FUNCIONA (los 3 PASOS del mock) ──
     {
@@ -240,20 +247,28 @@ const docDreamy = {
       tipo: "como_funciona",
       v: 1,
       props: { titulo: "Comprar es participar", pasos: PASOS },
-      estilo: { padY: "xl", entrada: "aparecer" },
+      estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "En 3 pasos", estilo: "acento" } }, // F16: kicker rosa
       nav: { incluir: true, etiqueta: "Cómo funciona" },
     },
-    // ── EL PREMIO (sorteo activo) — banner COMPACTO (F12: anchoFondo contenido + contraste legible) ──
+    // ── EL PREMIO — banner COMPACTO (F16: el original es un promo banner, NO la vitrina full con
+    //    participaciones/countdown/disclaimer; se usa `banner_cta` + kicker "El premio" rosa). El sorteo
+    //    activo sigue en DB (countdown del header); acá solo la banda promocional del prototipo. ──
     {
       id: nid(),
-      tipo: "sorteo_vitrina",
+      tipo: "banner_cta",
       v: 1,
-      props: { mostrarBases: true, estiloConteo: "destacado" },
+      props: {
+        titulo: "2 entradas para BTS 💜",
+        subtitulo: "Estadio Nacional · Santiago · Octubre 2026",
+        ctaTexto: "Participar ahora",
+        ctaAncla: "catalogo",
+      },
       estilo: {
         fondo: { tipo: "bicolor", colorA: "marca_profundo", colorB: "marca", direccion: "diagonal", mezcla: "suave" },
-        anchoFondo: "contenido", // F12: card contenida (no full-bleed) = el banner compacto del prototipo
+        anchoFondo: "contenido", // card contenida (no full-bleed) = el banner compacto del prototipo
         padY: "l",
         entrada: "aparecer",
+        kicker: { texto: "El premio", estilo: "acento" }, // F16: eyebrow "EL PREMIO" rosa (visible sobre el fondo oscuro)
       },
       nav: { incluir: true, etiqueta: "El sorteo" },
     },
@@ -270,7 +285,7 @@ const docDreamy = {
         ctaAncla: "catalogo",
         nota: "Número de ejemplo — recibes el tuyo al comprar.",
       },
-      estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
+      estilo: { padTop: "s", padBottom: "l", entrada: "subir", kicker: { texto: "Apenas compras", estilo: "acento" } }, // F16: kicker rosa
     },
     // ── CONFIANZA (sorteo 100% transparente) ──
     {
@@ -285,7 +300,7 @@ const docDreamy = {
           { icono: "escudo", titulo: "Cada ganadora con su número", desc: "Mostramos el ticket ganador. Nada de cajas negras." },
         ],
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { padY: "l", entrada: "subir", kicker: { texto: "Confianza", estilo: "acento" } }, // F16: kicker rosa
     },
     // ── GANADORA anterior (Camila R.) ──
     {
@@ -305,7 +320,7 @@ const docDreamy = {
       tipo: "faq",
       v: 1,
       props: { titulo: "Preguntas frecuentes", items: FAQS },
-      estilo: { padY: "xl", entrada: "aparecer" },
+      estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "Dudas", estilo: "acento" } }, // F16: kicker rosa
       nav: { incluir: true, etiqueta: "Preguntas" },
     },
     // ── FOOTER social (Instagram / TikTok / WhatsApp del prototipo) ──

@@ -549,11 +549,13 @@ describe("estiloSeccion — kicker de sección (Tanda 2 F15, numerales romanos e
     expect(estiloSeccionACss(undefined).kicker).toBeNull();
     expect(estiloSeccionACss(parse({})).kicker).toBeNull();
     const r = estiloSeccionACss(parse({ kicker: { texto: "El libro", numeral: "I" } }));
-    expect(r.kicker).toEqual({ texto: "El libro", numeral: "I" });
+    // F16: `estilo` default `dimmed` se resuelve junto al texto/numeral (no-op I-H).
+    expect(r.kicker).toEqual({ texto: "El libro", numeral: "I", estilo: "dimmed" });
     // numeral opcional ⇒ default ninguno
     expect(estiloSeccionACss(parse({ kicker: { texto: "Dudas" } })).kicker).toEqual({
       texto: "Dudas",
       numeral: "ninguno",
+      estilo: "dimmed",
     });
   });
 
@@ -564,6 +566,18 @@ describe("estiloSeccion — kicker de sección (Tanda 2 F15, numerales romanos e
     expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "x".repeat(41) } }).success).toBe(false);
     expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", numeral: "IX" } }).success).toBe(false);
     expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", html: "<b>x</b>" } }).success).toBe(false);
+  });
+
+  // kicker.003 (F16) — el kicker gana `estilo` (dimmed|marca|acento); default dimmed (no-op); propagado
+  it("kicker.estilo default dimmed (no-op), acepta marca|acento, se propaga por estiloSeccionACss", () => {
+    // sin estilo ⇒ default dimmed (el gris de siempre, editorial intacto)
+    expect(estiloSeccionACss(parse({ kicker: { texto: "El catálogo" } })).kicker?.estilo).toBe("dimmed");
+    for (const estilo of ["dimmed", "marca", "acento"] as const) {
+      expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", estilo } }).success).toBe(true);
+      expect(estiloSeccionACss(parse({ kicker: { texto: "ok", estilo } })).kicker?.estilo).toBe(estilo);
+    }
+    // estilo fuera del enum ⇒ rechazo
+    expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", estilo: "rosa" } }).success).toBe(false);
   });
 });
 

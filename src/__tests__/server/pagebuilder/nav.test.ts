@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { anclasSemanticas, derivarNav } from "~/lib/pagebuilder/nav";
+import { anclasSemanticas, derivarNav, humanizarSlug } from "~/lib/pagebuilder/nav";
 import {
   OverlayNodeSchema,
   SeccionNodeSchema,
@@ -145,5 +145,14 @@ describe("nav — CTA_ANCLAS ampliado (F05/D8, aditivo)", () => {
     expect(heroProps.safeParse({ ctaAncla: "bases" }).success).toBe(true);
     expect(heroProps.safeParse({ ctaAncla: "catalogo" }).success).toBe(true);
     expect(heroProps.safeParse({ ctaAncla: "inexistente" }).success).toBe(false);
+  });
+});
+
+describe("nav — humanizarSlug (multi-página F04/D9)", () => {
+  // nav.humanizar.001 — slug kebab → etiqueta humana (guiones a espacios, capitaliza)
+  it("convierte un slug de página a una etiqueta de menú legible", () => {
+    expect(humanizarSlug("sobre-mi")).toBe("Sobre mi");
+    expect(humanizarSlug("preguntas-frecuentes")).toBe("Preguntas frecuentes");
+    expect(humanizarSlug("bases")).toBe("Bases");
   });
 });

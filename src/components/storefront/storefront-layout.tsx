@@ -19,8 +19,33 @@ import {
 } from "~/components/storefront/carrito-ui";
 import { CountdownChip } from "~/components/storefront/countdown-chip";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
+import { hrefMenuItem, type Chrome, type FondoHeader } from "~/lib/pagebuilder/chrome";
 import { type NavItem } from "~/lib/pagebuilder/nav";
 import { type TenantBranding } from "~/styles/tenantTheme";
+
+/**
+ * CSS del fondo del header según el chrome (Tanda 3 F06/D10). `vidrio` (default/null) = el blur
+ * translúcido ACTUAL (byte-idéntico, I-U8); `superficie` = sólido del body; `transparente` = sin fondo
+ * (overlay sobre hero). Cero hex (I-A). `transparenteSobreHero` fuerza transparente sin borde.
+ */
+function estiloFondoHeader(fondo: FondoHeader, transparenteSobreHero: boolean): CSSProperties {
+  if (transparenteSobreHero || fondo === "transparente") {
+    return { background: "transparent" };
+  }
+  if (fondo === "superficie") {
+    return {
+      background: "var(--mantine-color-body)",
+      borderBottom: "1px solid var(--mantine-color-default-border)",
+    };
+  }
+  // vidrio (default) = el header actual.
+  return {
+    background: "color-mix(in srgb, var(--mantine-color-body) 82%, transparent)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    borderBottom: "1px solid var(--mantine-color-default-border)",
+  };
+}
 
 /**
  * Shell del storefront del Comprador (plantilla-rica F04), mobile-first REAL — el público es
@@ -40,11 +65,14 @@ export function StorefrontLayout({
   columnaMaxWidth,
   navItems,
   avisoSobreNav,
+  chrome,
   children,
 }: {
   branding: TenantBranding;
   /** Fondo del shell derivado del TemaPagina (catálogo-v2 F02); ausente ⇒ fondo por defecto. */
   estiloShell?: CSSProperties;
+  /** Chrome GLOBAL del tenant (Tanda 3 F06/D10); `null`/ausente ⇒ header/footer actuales (byte-idéntico). */
+  chrome?: Chrome | null;
   /** Fondo del LIENZO EXTERIOR (Tanda 2 F15): el área fuera de la columna estrecha (un pelo más oscura que
    * la columna). Solo se usa con `columnaMaxWidth` presente (anchoContenido:"estrecho"). */
   estiloLienzo?: CSSProperties;
@@ -68,13 +96,13 @@ export function StorefrontLayout({
       {/* Cinta SOBRE el nav (F13): en el tope absoluto, antes del header sticky. Al hacer scroll la cinta
           se va y el header queda pegado a top:0 (el ticker "sobre el nav" del mockup). */}
       {avisoSobreNav}
-      <Header branding={branding} navItems={navItems} onAbrirCarrito={drawer.open} />
+      <Header branding={branding} navItems={navItems} chrome={chrome} onAbrirCarrito={drawer.open} />
 
       <Box component="main" className="flex-1">
         {children}
       </Box>
 
-      <Footer branding={branding} />
+      <Footer branding={branding} chrome={chrome} />
     </>
   );
 
@@ -120,10 +148,12 @@ export function StorefrontLayout({
 function Header({
   branding,
   navItems,
+  chrome,
   onAbrirCarrito,
 }: {
   branding: TenantBranding;
   navItems?: NavItem[];
+  chrome?: Chrome | null;
   onAbrirCarrito: () => void;
 }) {
   const sorteo = useSorteoActivo();
@@ -131,19 +161,21 @@ function Header({
   // Nav derivado del documento (F05/D8) si alguna sección se marcó `nav.incluir`; si NO (array vacío o
   // ausente), el nav cae al hardcodeado actual — byte-idéntico al de antes de F05 (I-H).
   const derivado = navItems && navItems.length > 0;
+  // Chrome (Tanda 3 F06/D10): fondo + sticky. Ausente/null ⇒ defaults = header actual (byte-idéntico I-U8).
+  // NOTA (REVISABLE): `layout:"centro"` aún no cambia el DOM (centrarlo desalinea los pinned carrito/sesión;
+  // pide una grilla de 3 columnas) ⇒ por ahora renderiza como `izquierda`. El schema ya lo soporta.
+  const h = chrome?.header;
+  const estiloFondo = estiloFondoHeader(h?.fondo ?? "vidrio", h?.transparenteSobreHero ?? false);
+  const esFijo = (h?.sticky ?? "fijo") === "fijo";
 
   return (
     <Box
       component="header"
-      pos="sticky"
-      top={0}
+      pos={esFijo ? "sticky" : "relative"}
+      top={esFijo ? 0 : undefined}
       style={{
         zIndex: 100,
-        borderBottom: "1px solid var(--mantine-color-default-border)",
-        background:
-          "color-mix(in srgb, var(--mantine-color-body) 82%, transparent)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+        ...estiloFondo,
       }}
     >
       <Container size="lg" py="sm" px={{ base: "md", lg: "xl" }}>
@@ -207,9 +239,13 @@ function NavAncla({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-function Footer({ branding }: { branding: TenantBranding }) {
+function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrome | null }) {
   const sorteo = useSorteoActivo();
   const basesUrl = sorteo.data?.basesUrl ?? null;
+  // Chrome footer (Tanda 3 F06/D10): `texto` editorial + `links` de menú. La atribución neutral y el
+  // enlace a Bases (abajo) son PINNED (I-U2/ADR-0008): se renderizan SIEMPRE, no salen del chrome.
+  const chromeLinks = chrome?.footer.links ?? [];
+  const chromeTexto = chrome?.footer.texto;
 
   const redes = [
     { url: branding.instagramUrl, icon: IconBrandInstagram, label: "Instagram" },
@@ -278,6 +314,26 @@ function Footer({ branding }: { branding: TenantBranding }) {
             )}
           </Group>
 
+          {/* Links de menú del chrome (Tanda 3 F06/D10): fila de enlaces configurables. NO son pinned. */}
+          {chromeLinks.length > 0 && (
+            <Group gap="lg" wrap="wrap">
+              {chromeLinks.map((item, i) => (
+                <Anchor
+                  key={i}
+                  href={hrefMenuItem(item.destino)}
+                  {...(item.destino.tipo === "url"
+                    ? { target: "_blank", rel: "noreferrer" }
+                    : {})}
+                  c="dimmed"
+                  size="sm"
+                  underline="hover"
+                >
+                  {item.etiqueta}
+                </Anchor>
+              ))}
+            </Group>
+          )}
+
           <Group
             justify="space-between"
             align="center"
@@ -286,10 +342,25 @@ function Footer({ branding }: { branding: TenantBranding }) {
             pt="md"
             style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
           >
-            <Text size="xs" c="dimmed" maw={520}>
-              Esta tienda es operada de forma independiente por su responsable, que
-              responde por los productos y las promociones que ofrece.
-            </Text>
+            {/* `texto` del chrome (opcional) + la atribución neutral PINNED (I-U2/ADR-0008): la atribución
+                se muestra SIEMPRE (el `texto` es un extra ANTES de ella, no la reemplaza). Sin `texto`
+                (chrome null) ⇒ la atribución sola, byte-idéntica al footer actual (I-U8). */}
+            {chromeTexto ? (
+              <div style={{ maxWidth: 520 }}>
+                <Text size="sm" mb={4}>
+                  {chromeTexto}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Esta tienda es operada de forma independiente por su responsable, que
+                  responde por los productos y las promociones que ofrece.
+                </Text>
+              </div>
+            ) : (
+              <Text size="xs" c="dimmed" maw={520}>
+                Esta tienda es operada de forma independiente por su responsable, que
+                responde por los productos y las promociones que ofrece.
+              </Text>
+            )}
             {/* La puerta de entrada a login/panel/editor vive AHORA en el header (F09c): el usuario vetó
                 el footer-only de F09b. El footer conserva solo la atribución neutral de plataforma. */}
           </Group>

@@ -1,5 +1,7 @@
 import { type z } from "zod";
 
+import { RichTextoSchema } from "~/lib/pagebuilder/widgets";
+
 /**
  * Introspección PURA del registro Zod para el generador de formularios del editor (catálogo-v2 F10/D8).
  * Cliente+server safe (sin React): clasifica cada campo de un `propsSchema` en un CONTROL de UI, y el
@@ -75,6 +77,7 @@ export type ControlCampo =
   | { control: "texto"; max: number | null }
   | { control: "textoLargo"; max: number }
   | { control: "imagen" }
+  | { control: "runs" } // Tanda 3 F03/D6: campo RichTexto ⇒ EditorRuns (contenteditable + toolbar)
   | { control: "opciones"; opciones: string[] }
   | { control: "opcionesLiteral"; opciones: string[]; numerico: boolean }
   | { control: "booleano" }
@@ -93,6 +96,10 @@ export type ControlCampo =
 export function clasificarCampo(schema: z.ZodTypeAny): ControlCampo {
   const { base } = pelar(schema);
   const tipo = nombreTipo(base);
+
+  // Campo RichTexto (Tanda 3 F03/D6): se detecta por IDENTIDAD (`base === RichTextoSchema` — `pelar`
+  // desenvuelve el `.optional()` de hero.titulo/perfil_autora.bio y deja el ZodEffects exacto) ⇒ EditorRuns.
+  if (base === (RichTextoSchema as unknown as z.ZodTypeAny)) return { control: "runs" };
 
   if (tipo === "ZodString") {
     const { max, esUrl } = maxDeString(base);

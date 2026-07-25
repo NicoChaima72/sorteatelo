@@ -88,24 +88,39 @@ export type CualDocumento = z.infer<typeof cualDocumento>;
 // `tenantId` sale del gate de membresía (I1), jamás del input. El `expectedVersion` (lock optimista,
 // I10) viaja hermano de la mutación.
 
-/** Aplicar una mutación al Borrador con el lock optimista. */
+/** Slug de página (kebab ≤64), OPCIONAL en los procedures del editor (default `home`, Tanda 3 F04). */
+const slugEditor = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .optional();
+
+/** Aplicar una mutación al Borrador con el lock optimista. `slug` elige la página (default home, F04). */
 export const editarBorradorInput = z.object({
   mutacion: mutacionPaginaSchema,
   expectedVersion: z.number().int(),
+  slug: slugEditor,
 });
 export type EditarBorradorInput = z.infer<typeof editarBorradorInput>;
 
-/** Publicar el Borrador (acción humana explícita, I6); `expectedVersion` opcional. */
+/** Publicar el Borrador (acción humana explícita, I6); `expectedVersion` opcional; `slug` opcional (F04). */
 export const publicarBorradorInput = z.object({
   expectedVersion: z.number().int().optional(),
+  slug: slugEditor,
 });
 export type PublicarBorradorInput = z.infer<typeof publicarBorradorInput>;
 
-/** Revertir el Borrador a una revisión publicada vieja (rollback, D4). */
+/** Revertir el Borrador a una revisión publicada vieja (rollback, D4); `slug` opcional (F04). */
 export const revertirBorradorInput = z.object({
   revision: z.number().int().positive(),
+  slug: slugEditor,
 });
 export type RevertirBorradorInput = z.infer<typeof revertirBorradorInput>;
+
+/** Leer el Borrador / historial de una página (`slug` opcional, default home, F04). */
+export const leerBorradorInput = z.object({ slug: slugEditor });
+export type LeerBorradorInput = z.infer<typeof leerBorradorInput>;
 
 /**
  * Setear el segundo color de marca del tenant (builder-tanda-1 F01/D2). `colorAcento` vive en la

@@ -30,8 +30,9 @@ describe("pagebuilder/factory — documentoInicial", () => {
     const hero = doc.secciones[0]!;
     expect(hero.tipo).toBe("hero");
     if (hero.tipo === "hero") {
-      expect(hero.props.titulo).toBe("Historias que enamoran");
-      expect(hero.props.subtitulo).toBe("Guías digitales listas para descargar.");
+      // Tanda 3 F02/D4: titulo/subtitulo son RichTexto (el override de branding se envuelve en un run plano).
+      expect(hero.props.titulo?.children.map((r) => r.t).join("")).toBe("Historias que enamoran");
+      expect(hero.props.subtitulo?.children.map((r) => r.t).join("")).toBe("Guías digitales listas para descargar.");
       expect(hero.props.imagenUrl).toBe("https://pub.r2.dev/autora/hero?v=2");
     }
     expect(doc.overlays).toEqual([]);
@@ -76,8 +77,9 @@ describe("pagebuilder/factory — documentoInicial", () => {
     expect(PageDocumentSchema.safeParse(doc).success).toBe(true);
     const hero = doc.secciones[0]!;
     if (hero.tipo === "hero") {
-      expect(hero.props.titulo?.length).toBe(120); // recortado al límite
-      expect(hero.props.subtitulo?.length).toBe(300);
+      // Recortado al límite ANTES de envolver en runs (el run plano lleva el string recortado).
+      expect(hero.props.titulo?.children[0]?.t.length).toBe(120);
+      expect(hero.props.subtitulo?.children[0]?.t.length).toBe(300);
       expect(hero.props.imagenUrl).toBeUndefined(); // url corrupta descartada
     }
   });

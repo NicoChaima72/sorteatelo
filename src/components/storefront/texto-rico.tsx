@@ -1,5 +1,6 @@
 import { Blockquote, Box, List, Stack, Text, Title } from "@mantine/core";
 
+import { RunsTexto } from "~/components/storefront/runs-texto";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { type BloqueTexto } from "~/lib/pagebuilder/widgets";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
@@ -31,21 +32,27 @@ export function TextoRico({
   );
 }
 
-/** Despacho de un bloque por `tipo` (discriminated-union cerrada; exhaustivo con candado `never`). */
+/** Despacho de un bloque por `tipo` (discriminated-union cerrada; exhaustivo con candado `never`). El
+ *  texto de subtitulo/parrafo/cita es un `RichTexto` (runs) ⇒ lo renderiza `<RunsTexto>` (Tanda 3 F01/D2:
+ *  marcas por token, links seguros, jamás HTML). `lista.items` sigue siendo string plano. */
 function BloqueRender({ bloque }: { bloque: BloqueTexto }) {
   switch (bloque.tipo) {
     case "subtitulo":
       return (
         <Title order={3} fz={{ base: 20, sm: 24 }} fw={700}>
-          {bloque.texto}
+          <RunsTexto rico={bloque.rico} />
         </Title>
       );
     case "parrafo":
-      return <Text style={{ whiteSpace: "pre-wrap" }}>{bloque.texto}</Text>;
+      return (
+        <Text style={{ whiteSpace: "pre-wrap" }}>
+          <RunsTexto rico={bloque.rico} />
+        </Text>
+      );
     case "cita":
       return (
         <Blockquote cite={bloque.autor ? `— ${bloque.autor}` : undefined} radius="md">
-          {bloque.texto}
+          <RunsTexto rico={bloque.rico} />
         </Blockquote>
       );
     case "lista":

@@ -68,3 +68,34 @@ export function esSlugReservado(slug: string): boolean {
 export function esSlugDisponible(slug: string): boolean {
   return esSlugValido(slug) && !esSlugReservado(slug);
 }
+
+/**
+ * Slugs de PÁGINA reservados (Tanda 3 F04/D7): a diferencia de `SLUGS_RESERVADOS` (subdominios de
+ * tenant), estos son las RUTAS ESTÁTICAS de `src/pages/` que en el pages router ganan precedencia sobre
+ * `[slug].tsx` — una página con estos slugs nunca se serviría (la ruta estática la tapa) ⇒ se rechazan al
+ * CREAR (F04) y el SSR de `[slug]` da 404 si alguna existiera. `home` es la raíz (`index.tsx`), no una
+ * página `[slug]`. Vive JUNTO a los reservados de subdominio a propósito (misma fuente de "qué no se puede
+ * tomar"). Ampliar acá si se agrega una ruta estática nueva en `src/pages/`.
+ */
+export const SLUGS_PAGINA_RESERVADOS: ReadonlySet<string> = new Set([
+  "home",
+  "api",
+  "admin",
+  "editor",
+  "login",
+  "checkout",
+  "producto",
+  "dev",
+  "dev-ref",
+  "prototipo",
+  "www",
+  "favicon.ico",
+  "_next",
+  "_app",
+  "_document",
+]);
+
+/** `true` sii `slug` (normalizado) es una ruta de página reservada por la plataforma. */
+export function esSlugPaginaReservado(slug: string): boolean {
+  return SLUGS_PAGINA_RESERVADOS.has(slug.trim().toLowerCase());
+}

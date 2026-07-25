@@ -11,13 +11,16 @@ import { api } from "~/utils/api";
  * al borrador y hay que Publicar de nuevo. Tras restaurar, el editor recarga el borrador y la preview.
  */
 export function PanelHistorial({
+  slug,
   onVolver,
   onRevertido,
 }: {
+  /** Página cuyo historial se muestra (Tanda 3 F05); default lo pone el use case (home). */
+  slug: string;
   onVolver: () => void;
   onRevertido: () => void;
 }) {
-  const versiones = api.pagebuilder.listarVersiones.useQuery(undefined, { retry: false });
+  const versiones = api.pagebuilder.listarVersiones.useQuery({ slug }, { retry: false });
   const revertir = api.pagebuilder.revertir.useMutation({
     onSuccess: () => {
       notifications.show({
@@ -60,7 +63,7 @@ export function PanelHistorial({
                   variant="light"
                   leftSection={<IconRestore className="size-3.5" />}
                   loading={revertir.isPending && revertir.variables?.revision === v.revision}
-                  onClick={() => revertir.mutate({ revision: v.revision })}
+                  onClick={() => revertir.mutate({ revision: v.revision, slug })}
                 >
                   Restaurar
                 </Button>

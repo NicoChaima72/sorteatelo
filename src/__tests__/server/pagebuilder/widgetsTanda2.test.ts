@@ -79,7 +79,7 @@ describe("pagebuilder/tanda2 (F01) — vitrina_proximamente (lanzamientos bloque
 describe("pagebuilder/tanda2 (F02) — hero split visual configurable", () => {
   // page.tanda2.herovisual.001 — visual imagen/tarjeta parsea; sin visual (no-op) parsea; ramas inválidas rechazan
   it("heroProps.visual valida imagen/tarjeta, es opcional (no-op) y rechaza ramas inválidas", () => {
-    const base = { titulo: "Hola" };
+    const base = { titulo: { children: [{ t: "Hola" }] } };
     // sin visual: un hero previo parsea igual (no-op)
     expect(heroProps.safeParse(base).success).toBe(true);
     // visual imagen
@@ -111,7 +111,7 @@ describe("pagebuilder/tanda2 (F02) — hero split visual configurable", () => {
 
   // page.tanda2.herovisual.002 (F12) — la tarjeta gana `estilo` (plano/suave); default plano (no-op v1)
   it("visual tarjeta acepta estilo plano|suave, default plano (no-op)", () => {
-    const base = { titulo: "Hola" };
+    const base = { titulo: { children: [{ t: "Hola" }] } };
     // sin estilo ⇒ default plano (look actual)
     const parsed = heroProps.parse({ ...base, visual: { tipo: "tarjeta", titulo: "T" } });
     expect(parsed.visual).toMatchObject({ tipo: "tarjeta", estilo: "plano" });
@@ -252,7 +252,7 @@ describe("pagebuilder/tanda2 (F13) — catalogo layout grilla|carrusel", () => {
 describe("pagebuilder/tanda2 (F13) — hero visual tarjeta motivo (decoración flotante)", () => {
   // page.tanda2.herovisual.003 — la tarjeta gana `motivo` (corazon/tickets/estrella); default corazon (no-op)
   it("visual tarjeta acepta motivo corazon|tickets|estrella, default corazon (no-op)", () => {
-    const base = { titulo: "Hola" };
+    const base = { titulo: { children: [{ t: "Hola" }] } };
     // sin motivo ⇒ default corazon (el look suave actual, sin chips flotantes extra)
     const parsed = heroProps.parse({ ...base, visual: { tipo: "tarjeta", titulo: "T", estilo: "suave" } });
     expect(parsed.visual).toMatchObject({ tipo: "tarjeta", motivo: "corazon" });
@@ -271,7 +271,7 @@ describe("pagebuilder/tanda2 (F13) — hero visual tarjeta motivo (decoración f
 describe("pagebuilder/tanda2 (F04) — eyebrowEstilo del hero", () => {
   // page.tanda2.eyebrow.001 — eyebrowEstilo default marca; acepta acento/texto; no-op v1
   it("heroProps.eyebrowEstilo default marca, acepta acento/texto, rechaza fuera del enum", () => {
-    const base = { titulo: "Hola" };
+    const base = { titulo: { children: [{ t: "Hola" }] } };
     // sin el campo ⇒ default marca (no-op)
     expect(heroProps.parse(base).eyebrowEstilo).toBe("marca");
     for (const est of ["marca", "acento", "texto"] as const) {
@@ -285,7 +285,7 @@ describe("pagebuilder/tanda2 (F15) — hero tituloTamano + tituloMayusculas (imp
   // page.tanda2.titulo.001 — el hero gana tituloTamano (normal|grande|enorme) + tituloMayusculas (bool);
   // ambos con default no-op (normal/false). Un hero previo sin ellos parsea idéntico (I-H).
   it("heroProps.tituloTamano default normal + tituloMayusculas default false (no-op); enums cerrados", () => {
-    const base = { titulo: "Compra el libro. Anda a ver a BTS." };
+    const base = { titulo: { children: [{ t: "Compra el libro. Anda a ver a BTS." }] } };
     const def = heroProps.parse(base);
     expect(def.tituloTamano).toBe("normal");
     expect(def.tituloMayusculas).toBe(false);

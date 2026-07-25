@@ -23,15 +23,18 @@ import {
 import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
 import { ImagenConFallback } from "~/components/storefront/imagen-tenant";
 import { MarcoHolo } from "~/components/storefront/marco-holo";
+import { RunsTexto } from "~/components/storefront/runs-texto";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { TituloHero } from "~/components/storefront/titulo-hero";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import {
   EstiloSeccionSchema,
+  runsDeTexto,
   type HeroProps,
   type HeroVisual,
   type MotivoTarjeta,
+  type RichTexto,
 } from "~/lib/pagebuilder/widgets";
 import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 
@@ -80,6 +83,20 @@ function fzTituloHero(
     default:
       return null; // normal ⇒ el fz por-variante de siempre
   }
+}
+
+/**
+ * Título del hero como `RichTexto` (Tanda 3 F02/D4): el override `props.titulo` (runs) gana; sin él el
+ * render cae al `branding.nombre` envuelto en un run plano (fallback server-side, NO copiado al doc I2).
+ */
+function tituloHeroRico(props: HeroProps, branding: TenantBranding): RichTexto {
+  return props.titulo ?? runsDeTexto(branding.nombre);
+}
+
+/** Subtítulo del hero como `RichTexto` o `null` (sin override ni descripción de branding). */
+function subtituloHeroRico(props: HeroProps, branding: TenantBranding): RichTexto | null {
+  if (props.subtitulo) return props.subtitulo;
+  return branding.descripcion ? runsDeTexto(branding.descripcion) : null;
 }
 
 export function StorefrontHero({
@@ -505,8 +522,8 @@ function HeroSplit({
   divisorColor?: string;
 }) {
   const props = nodo.props;
-  const titulo = props.titulo ?? branding.nombre;
-  const subtitulo = props.subtitulo ?? branding.descripcion;
+  const titulo = tituloHeroRico(props, branding);
+  const subtitulo = subtituloHeroRico(props, branding);
   return (
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "xl", md: 48 }} style={{ alignItems: "center" }}>
@@ -519,11 +536,11 @@ function HeroSplit({
             fw={800}
             tt={props.tituloMayusculas ? "uppercase" : undefined}
           >
-            <TituloHero titulo={titulo} acento={props.tituloAcento} efecto={props.efectoTitulo} />
+            <TituloHero titulo={titulo} efecto={props.efectoTitulo} />
           </Title>
           {subtitulo && (
             <Text size="lg" c="dimmed" maw={520}>
-              {subtitulo}
+              <RunsTexto rico={subtitulo} />
             </Text>
           )}
           {props.destacado && <Destacado destacado={props.destacado} />}
@@ -559,8 +576,8 @@ function HeroCentrado({
   minimal: boolean;
 }) {
   const props = nodo.props;
-  const titulo = props.titulo ?? branding.nombre;
-  const subtitulo = props.subtitulo ?? branding.descripcion;
+  const titulo = tituloHeroRico(props, branding);
+  const subtitulo = subtituloHeroRico(props, branding);
   return (
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
       <Stack gap="lg" align="center" ta="center" maw={720} mx="auto">
@@ -572,11 +589,11 @@ function HeroCentrado({
           fw={800}
           tt={props.tituloMayusculas ? "uppercase" : undefined}
         >
-          <TituloHero titulo={titulo} acento={props.tituloAcento} efecto={props.efectoTitulo} />
+          <TituloHero titulo={titulo} efecto={props.efectoTitulo} />
         </Title>
         {subtitulo && (
           <Text size="lg" c="dimmed" maw={560}>
-            {subtitulo}
+            <RunsTexto rico={subtitulo} />
           </Text>
         )}
         {props.destacado && <Destacado destacado={props.destacado} />}
@@ -598,8 +615,8 @@ function HeroImagenFondo({
   divisorColor?: string;
 }) {
   const props = nodo.props;
-  const titulo = props.titulo ?? branding.nombre;
-  const subtitulo = props.subtitulo ?? branding.descripcion;
+  const titulo = tituloHeroRico(props, branding);
+  const subtitulo = subtituloHeroRico(props, branding);
   // El fondo lo maneja el widget: imagen con overlay (contraste garantizado, texto claro emparejado) o
   // gradiente de marca sin imagen (degradación, I-G). `nodo.estilo` explícito gana.
   const estilo =
@@ -615,11 +632,11 @@ function HeroImagenFondo({
       <Stack gap="lg" align="center" ta="center" maw={760} mx="auto" style={{ paddingBlock: 24 }}>
         <HeroEyebrow props={props} />
         <Title order={1} fz={{ base: 34, sm: 52 }} lh={1.1} fw={800} c="inherit">
-          <TituloHero titulo={titulo} acento={props.tituloAcento} efecto={props.efectoTitulo} />
+          <TituloHero titulo={titulo} efecto={props.efectoTitulo} />
         </Title>
         {subtitulo && (
           <Text fz={{ base: "md", sm: "lg" }} c="inherit" opacity={0.92} maw={620}>
-            {subtitulo}
+            <RunsTexto rico={subtitulo} />
           </Text>
         )}
         {props.destacado && <Destacado destacado={props.destacado} oscuro />}

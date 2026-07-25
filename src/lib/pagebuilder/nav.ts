@@ -15,6 +15,16 @@ import { type SeccionNode } from "~/lib/pagebuilder/schema";
 export type NavItem = { label: string; href: string };
 
 /**
+ * Etiqueta humana de un slug de página (Tanda 3 F04/D9): `sobre-mi` → "Sobre mi". Reemplaza guiones por
+ * espacios y capitaliza la 1ª letra. Es un default (no hay columna `nombre` de página en el MVP) —
+ * REVISABLE agregar un nombre editable. PURO.
+ */
+export function humanizarSlug(slug: string): string {
+  const texto = slug.replace(/-/g, " ").trim();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
  * Ancla semántica por TIPO de sección (slug DOM estable). La PRIMERA sección de cada tipo emite su
  * ancla (`render-pagina`); varias del mismo tipo comparten el ancla de la primera. Curado: solo los
  * tipos "navegables" tienen entrada; el resto no aporta ancla semántica (cae al `id` del nodo).

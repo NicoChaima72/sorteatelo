@@ -3,7 +3,7 @@ import {
   SCHEMA_VERSION,
   type PageDocument,
 } from "~/lib/pagebuilder/schema";
-import { urlPublica, WIDGET_REGISTRY } from "~/lib/pagebuilder/widgets";
+import { runsDeTexto, urlPublica, WIDGET_REGISTRY } from "~/lib/pagebuilder/widgets";
 
 /**
  * Factory PURA del Documento de Página inicial (ADR-0016, F03). Reproduce la plantilla actual del
@@ -60,12 +60,16 @@ function sinVacios<T extends Record<string, unknown>>(obj: T): T {
  */
 export function documentoInicial(branding: BrandingSemilla): PageDocument {
   // Las props salen del REGISTRO (fuente única, NIT-1): solo el hero mezcla los overrides de branding
-  // encima de sus defaults. Un cambio a `WIDGET_REGISTRY.<tipo>.defaultProps` se propaga solo.
+  // encima de sus defaults. Un cambio a `WIDGET_REGISTRY.<tipo>.defaultProps` se propaga solo. El hero
+  // v3 (Tanda 3 F02/D4) usa `titulo`/`subtitulo` como RichTexto ⇒ el override de branding (string) se
+  // envuelve en un run plano (`runsDeTexto`); ausente ⇒ el render cae al `nombre`/`descripcion` del Tenant.
+  const heroTitulo = recortar(branding.heroTitulo, 120);
+  const heroSubtitulo = recortar(branding.heroSubtitulo, 300);
   const heroProps = {
     ...WIDGET_REGISTRY.hero.defaultProps,
     ...sinVacios({
-      titulo: recortar(branding.heroTitulo, 120),
-      subtitulo: recortar(branding.heroSubtitulo, 300),
+      titulo: heroTitulo ? runsDeTexto(heroTitulo) : undefined,
+      subtitulo: heroSubtitulo ? runsDeTexto(heroSubtitulo) : undefined,
       imagenUrl: urlODescartar(branding.heroImageUrl),
     }),
   };
@@ -99,6 +103,40 @@ export function documentoInicial(branding: BrandingSemilla): PageDocument {
 
   // El `avisoTexto` del Tenant se emite como overlay `aviso_barra` (F10, migra el chrome R1).
   return conAvisoBarra(PageDocumentSchema.parse(raw), branding.avisoTexto ?? null);
+}
+
+/**
+ * Documento inicial de una PÁGINA NUEVA multi-página (Tanda 3 F04/D8): un starter mínimo VÁLIDO — un hero
+ * con el nombre de la página como título (RichTexto) + un bloque de texto placeholder. El Organizador lo
+ * edita/expande. Ids fijos (únicos dentro del doc; cada página es su propia fila). PURA, determinista.
+ */
+export function documentoNuevaPagina(titulo: string): PageDocument {
+  const nombre = recortar(titulo, 120) ?? "Nueva página";
+  const raw = {
+    schemaVersion: SCHEMA_VERSION,
+    root: { props: {} },
+    secciones: [
+      {
+        id: "sec-hero",
+        tipo: "hero",
+        v: WIDGET_REGISTRY.hero.v,
+        props: {
+          ...WIDGET_REGISTRY.hero.defaultProps,
+          titulo: runsDeTexto(nombre),
+          mostrarBadgeSorteo: false,
+          mostrarConfianza: false,
+        },
+      },
+      {
+        id: "sec-texto",
+        tipo: "texto_rico",
+        v: WIDGET_REGISTRY.texto_rico.v,
+        props: { ...WIDGET_REGISTRY.texto_rico.defaultProps },
+      },
+    ],
+    overlays: [],
+  };
+  return PageDocumentSchema.parse(raw);
 }
 
 /** Id determinista del overlay de aviso de la semilla (idempotencia del backfill/migración). */

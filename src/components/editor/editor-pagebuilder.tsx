@@ -18,11 +18,14 @@ import {
   IconRefresh,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
+import { useRouter } from "next/router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { PanelChrome } from "~/components/editor/panel-chrome";
 import { PanelDock, type DockPanel } from "~/components/editor/panel-dock";
 import { PanelEdicion } from "~/components/editor/panel-edicion";
 import { PanelHistorial } from "~/components/editor/panel-historial";
+import { PanelPaginas } from "~/components/editor/panel-paginas";
 import { PanelSecciones } from "~/components/editor/panel-secciones";
 import { PanelTema } from "~/components/editor/panel-tema";
 import { WidgetGallery } from "~/components/editor/widget-gallery";
@@ -55,21 +58,25 @@ const MUTACIONES_QUE_RECARGAN = new Set<MutacionPagina["accion"]>([
  * colapso a rail. El estado del dock (cuáles abiertos + ancho) vive acá.
  */
 
-type DockKey = "secciones" | "agregar" | "editar" | "tema" | "historial";
+type DockKey = "paginas" | "secciones" | "agregar" | "editar" | "tema" | "chrome" | "historial";
 
 const RAIL: Record<DockKey, string> = {
+  paginas: "Páginas",
   secciones: "Secciones",
   agregar: "Agregar",
   editar: "Editar",
   tema: "Tema",
+  chrome: "Chrome",
   historial: "Historial",
 };
 
 const ANCHO_INICIAL: Record<DockKey, number> = {
+  paginas: 300,
   secciones: 320,
   agregar: 380,
   editar: 400,
   tema: 340,
+  chrome: 360,
   historial: 340,
 };
 
@@ -87,6 +94,13 @@ export function EditorPageBuilder({
     descripcion: string | null;
   };
 }) {
+  const router = useRouter();
+  // Página en edición (Tanda 3 F05): sale de `?pagina=<slug>` (fuente única, deep-linkeable). Sin query ⇒
+  // `home`. El switcher hace `router.replace` shallow ⇒ cambia el slug sin reload de la página del editor.
+  const paginaSlug =
+    typeof router.query.pagina === "string" && router.query.pagina.length > 0
+      ? router.query.pagina
+      : "home";
   const [version, setVersion] = useState<number | null>(null);
   const [previewKey, setPreviewKey] = useState(0); // fuerza el reload del iframe
   const [seleccion, setSeleccion] = useState<string | null>(null); // id de la sección seleccionada
@@ -99,17 +113,19 @@ export function EditorPageBuilder({
 
   // ── Estado del dock (F11) ────────────────────────────────────────────
   const [abiertos, setAbiertos] = useState<Record<DockKey, boolean>>({
+    paginas: false,
     secciones: true,
     agregar: false,
     editar: false,
     tema: false,
+    chrome: false,
     historial: false,
   });
   const [anchos, setAnchos] = useState<Record<DockKey, number>>(ANCHO_INICIAL);
   const abrir = useCallback((k: DockKey) => setAbiertos((s) => ({ ...s, [k]: true })), []);
   const colapsar = useCallback((k: DockKey) => setAbiertos((s) => ({ ...s, [k]: false })), []);
 
-  const borrador = api.pagebuilder.getBorrador.useQuery(undefined, { retry: false });
+  const borrador = api.pagebuilder.getBorrador.useQuery({ slug: paginaSlug }, { retry: false });
   const utils = api.useUtils();
 
   useEffect(() => {
@@ -117,6 +133,26 @@ export function EditorPageBuilder({
   }, [borrador.data]);
 
   const recargarPreview = useCallback(() => setPreviewKey((k) => k + 1), []);
+
+  // Al cambiar de página (F05): resetea el lock (el version del nuevo borrador llega con su refetch) y
+  // recarga la preview sobre la página nueva. El getBorrador ya refetchea solo (su input incluye el slug).
+  useEffect(() => {
+    setVersion(null);
+    setSeleccion(null);
+    recargarPreview();
+  }, [paginaSlug, recargarPreview]);
+
+  /** Cambia la página en edición (switcher del panel Páginas): actualiza `?pagina=` shallow. */
+  const cambiarPagina = useCallback(
+    (slug: string) => {
+      void router.replace(
+        { pathname: "/editor", query: slug === "home" ? {} : { pagina: slug } },
+        undefined,
+        { shallow: true },
+      );
+    },
+    [router],
+  );
 
   /** Patch en vivo del preview (F09/D13): envía el documento nuevo al iframe (same-origin), que lo
    *  re-valida con Zod y re-renderiza sin reload. Si el iframe aún no cargó, el patch se pierde y la
@@ -158,9 +194,9 @@ export function EditorPageBuilder({
   const aplicar = useCallback(
     (mutacion: MutacionPagina) => {
       if (version === null) return;
-      mutar.mutate({ mutacion, expectedVersion: version });
+      mutar.mutate({ mutacion, expectedVersion: version, slug: paginaSlug });
     },
-    [version, mutar],
+    [version, mutar, paginaSlug],
   );
 
   /** Agregar una sección desde la galería (add_section con los defaultProps del registro). */
@@ -210,7 +246,11 @@ export function EditorPageBuilder({
 
   const documento = borrador.data?.documento ?? null;
   const publicado = borrador.data?.publicado ?? false;
-  const previewSrc = previewToken ? `/?preview=${encodeURIComponent(previewToken)}` : "/";
+  // Preview de la página en edición (F05): home ⇒ `/`, otra página ⇒ `/<slug>`. Con token ⇒ sirve el borrador.
+  const rutaPagina = paginaSlug === "home" ? "/" : `/${paginaSlug}`;
+  const previewSrc = previewToken
+    ? `${rutaPagina}?preview=${encodeURIComponent(previewToken)}`
+    : rutaPagina;
   const seccionSel = documento?.secciones.find((s) => s.id === seleccion) ?? null;
 
   // TenantBranding para las previews de la galería (subconjunto público + fallbacks nulos).
@@ -234,6 +274,7 @@ export function EditorPageBuilder({
 
   // ── Descriptores de los paneles del dock (orden fijo) ────────────────
   const cuerpo: Record<DockKey, ReactNode> = {
+    paginas: <PanelPaginas slugActual={paginaSlug} onSwitch={cambiarPagina} />,
     secciones: documento ? (
       <PanelSecciones
         documento={documento}
@@ -276,8 +317,17 @@ export function EditorPageBuilder({
         onAplicar={aplicar}
       />
     ) : null,
+    chrome: (
+      <PanelChrome
+        onGuardado={() => {
+          recargarPreview();
+          void utils.pagebuilder.getChrome.invalidate();
+        }}
+      />
+    ),
     historial: (
       <PanelHistorial
+        slug={paginaSlug}
         onVolver={() => colapsar("historial")}
         onRevertido={() => {
           colapsar("historial");
@@ -289,14 +339,16 @@ export function EditorPageBuilder({
   };
 
   const titulo: Record<DockKey, string> = {
-    secciones: "Secciones",
+    paginas: "Páginas",
+    secciones: paginaSlug === "home" ? "Secciones" : `Secciones · /${paginaSlug}`,
     agregar: "Agregar sección",
     editar: seccionSel ? WIDGET_META[seccionSel.tipo].titulo : "Editar",
     tema: "Tema de la página",
+    chrome: "Chrome (header/footer)",
     historial: "Historial",
   };
 
-  const orden: DockKey[] = ["secciones", "agregar", "editar", "tema", "historial"];
+  const orden: DockKey[] = ["paginas", "secciones", "agregar", "editar", "tema", "chrome", "historial"];
   const openDock: DockPanel[] = orden
     .filter((k) => abiertos[k])
     .map((k) => ({ key: k, title: titulo[k], railLabel: RAIL[k], width: anchos[k], render: () => cuerpo[k] }));
@@ -425,7 +477,7 @@ export function EditorPageBuilder({
             <Button variant="default" onClick={() => setConfirmPublicar(false)}>Cancelar</Button>
             <Button
               loading={publicar.isPending}
-              onClick={() => publicar.mutate({ expectedVersion: version ?? undefined })}
+              onClick={() => publicar.mutate({ expectedVersion: version ?? undefined, slug: paginaSlug })}
             >
               Publicar
             </Button>

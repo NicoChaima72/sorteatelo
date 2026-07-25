@@ -40,7 +40,7 @@ const GOLDEN_VACIO = {
   schemaVersion: 1,
   root: { props: {} },
   secciones: [
-    { id: "sec-hero", tipo: "hero", v: 1, props: { titulo: "Hola", ctaAncla: "catalogo", mostrarBadgeSorteo: true } },
+    { id: "sec-hero", tipo: "hero", v: 3, props: { titulo: { children: [{ t: "Hola" }] }, ctaAncla: "catalogo", mostrarBadgeSorteo: true } },
   ],
   overlays: [],
 };
@@ -51,8 +51,8 @@ describe("pagebuilder/estiloSeccion — envelope de sección (F01)", () => {
     const nodo = {
       id: "s1",
       tipo: "hero",
-      v: 1,
-      props: { titulo: "Hola" },
+      v: 3,
+      props: { titulo: { children: [{ t: "Hola" }] } },
       estilo: {
         fondo: { tipo: "esquema", esquema: "marca" },
         padY: "xl",

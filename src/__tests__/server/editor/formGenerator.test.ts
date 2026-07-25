@@ -37,12 +37,12 @@ const OVERRIDES_CONOCIDOS = new Set<string>([
   // cubre array-de-objetos→repeater, no array-de-string. Tiene default sensato; se afina por el
   // asistente hasta que el form tenga un editor de lista-de-strings dedicado (REVISABLE).
   "cinta_texto.mensajes",
-  // `hero.tituloAcento` / `hero.destacado` (builder-tanda-1 F03): objetos anidados OPCIONALES
-  // (`{palabra,estilo}` / `{texto,nota}`) — MISMO caso que `hero.ctaSecundario`: objeto suelto con
-  // toggle presente/ausente, fuera de la introspección genérica (D8). Se editan por el asistente/MCP
-  // (así los arma F12); el resto del hero (títulos/subtítulo/CTA/enums/toggles) sí es editable por form.
-  "hero.tituloAcento",
+  // `hero.destacado` (builder-tanda-1 F03): objeto anidado OPCIONAL (`{texto,nota}`) — MISMO caso que
+  // `hero.ctaSecundario`: objeto suelto con toggle presente/ausente, fuera de la introspección genérica
+  // (D8). Se edita por el asistente/MCP (así lo arma F12).
   "hero.destacado",
+  // NOTA (Tanda 3 F03/D6): `hero.titulo`/`hero.subtitulo`/`perfil_autora.bio` (RichTexto) YA NO son
+  // overrides — `clasificarCampo` los detecta por identidad y devuelve el control `runs` (EditorRuns).
   // `aviso_barra.mensajes` (builder-tanda-1 F04): array de STRINGS (mismo caso que `cinta_texto.mensajes`).
   // Además el `aviso_barra` es un OVERLAY sin panel de edición UI ⇒ se configura por MCP/apply_page.
   "aviso_barra.mensajes",
@@ -78,6 +78,17 @@ describe("editor/formGenerator — F10-1: generador de forms cubre el registro (
       const r = WIDGET_REGISTRY[tipo].propsSchema.safeParse(WIDGET_REGISTRY[tipo].defaultProps);
       expect(r.success, `${tipo}: defaultProps no parsea — ${r.success ? "" : JSON.stringify(r.error.issues)}`).toBe(true);
     }
+  });
+
+  // page.editor.form.003 (Tanda 3 F03/D6) — los campos RichTexto se detectan como control `runs` (EditorRuns)
+  it("hero.titulo/subtitulo y perfil_autora.bio mapean al control `runs`", () => {
+    const campoDe = (tipo: WidgetTipo, nombre: string) =>
+      camposDeSchema(WIDGET_REGISTRY[tipo].propsSchema)!.find((c) => c.campo === nombre)!.schema;
+    expect(clasificarCampo(campoDe("hero", "titulo")).control).toBe("runs");
+    expect(clasificarCampo(campoDe("hero", "subtitulo")).control).toBe("runs");
+    expect(clasificarCampo(campoDe("perfil_autora", "bio")).control).toBe("runs");
+    // un campo string plano NO es runs (el TextInput sigue)
+    expect(clasificarCampo(campoDe("hero", "ctaTexto")).control).toBe("texto");
   });
 });
 

@@ -56,7 +56,7 @@ describe("pagebuilder/migrate — migrate-on-read + lectura tolerante", () => {
     const conPropsMalas = {
       ...base,
       secciones: [
-        { id: "sec-hero", tipo: "hero", v: 1, props: { titulo: "x".repeat(500) } }, // fuera de límite
+        { id: "sec-hero", tipo: "hero", v: 1, props: { variante: "flotante" } }, // variante fuera del enum
         base.secciones[3], // como_funciona válido
       ],
     };

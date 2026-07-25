@@ -25,7 +25,7 @@ const GOLDEN = {
   schemaVersion: 1,
   root: { props: {} },
   secciones: [
-    { id: "sec-hero", tipo: "hero", v: 1, props: { titulo: "Hola", ctaAncla: "catalogo", mostrarBadgeSorteo: true } },
+    { id: "sec-hero", tipo: "hero", v: 3, props: { titulo: { children: [{ t: "Hola" }] }, ctaAncla: "catalogo", mostrarBadgeSorteo: true } },
     { id: "sec-catalogo", tipo: "catalogo", v: 1, props: { titulo: "Catálogo", modo: "todos", columnas: 3 } },
     { id: "sec-sorteo", tipo: "sorteo_vitrina", v: 1, props: { mostrarBases: true, estiloConteo: "badge" } },
     { id: "sec-como", tipo: "como_funciona", v: 1, props: { titulo: "Cómo funciona" } },

@@ -105,15 +105,24 @@ const docDreamy = {
     {
       id: nid(),
       tipo: "hero",
-      v: 2,
+      v: 3,
       props: {
         variante: "split",
         eyebrow: "Sorteo abierto 💜",
         eyebrowEstilo: "acento", // kicker ROSA (el #ec4899 del prototipo)
-        titulo: "Compra el libro. Anda a ver a BTS.",
-        tituloAcento: { palabra: "BTS", estilo: "marca" }, // F13: "BTS." en violeta PRIMARIO (no rosa), como el original
-        subtitulo:
-          "Cada libro que compras ($3.000) te inscribe automáticamente en el sorteo de 2 entradas para BTS en el Estadio Nacional · oct 2026.",
+        // Tanda 3 F02/D4: titulo/subtitulo RichTexto; "BTS" en un run con marca "marca" (violeta primario).
+        titulo: {
+          children: [
+            { t: "Compra el libro. Anda a ver a " },
+            { t: "BTS", m: ["marca"] },
+            { t: "." },
+          ],
+        },
+        subtitulo: {
+          children: [
+            { t: "Cada libro que compras ($3.000) te inscribe automáticamente en el sorteo de 2 entradas para BTS en el Estadio Nacional · oct 2026." },
+          ],
+        },
         destacado: { texto: "$3.000", nota: "1 libro (PDF) · +1 número para el sorteo" },
         ctaTexto: "Quiero participar",
         ctaAncla: "catalogo",
@@ -280,19 +289,27 @@ const docNoche = {
     {
       id: nid(),
       tipo: "hero",
-      v: 2,
+      v: 3,
       props: {
         variante: "split",
         eyebrow: "● Sorteo en vivo abierto",
         eyebrowEstilo: "acento", // kicker MAGENTA (el #d946ef del prototipo)
-        titulo: "Compra el libro. Anda a ver a BTS.",
         // F15: título ENORME en MAYÚSCULAS (el poster Anton del prototipo) con "Anda a ver a BTS" en gradiente
-        // neón violeta→magenta (la 2ª línea blanco→lila del original; "Compra el libro." queda en blanco).
+        // neón violeta→magenta. Tanda 3 F02/D4: titulo RichTexto, la frase en un run con marca "gradiente".
         tituloTamano: "enorme",
         tituloMayusculas: true,
-        tituloAcento: { palabra: "Anda a ver a BTS", estilo: "gradiente" },
-        subtitulo:
-          "Cada libro que compras ($3.000) te mete al sorteo de 2 entradas para BTS · Estadio Nacional · oct 2026.",
+        titulo: {
+          children: [
+            { t: "Compra el libro. " },
+            { t: "Anda a ver a BTS", m: ["gradiente"] },
+            { t: "." },
+          ],
+        },
+        subtitulo: {
+          children: [
+            { t: "Cada libro que compras ($3.000) te mete al sorteo de 2 entradas para BTS · Estadio Nacional · oct 2026." },
+          ],
+        },
         destacado: { texto: "$3.000", nota: "1 libro (PDF) · +1 número al sorteo" },
         ctaTexto: "Quiero participar",
         ctaAncla: "catalogo",
@@ -460,15 +477,24 @@ const docEditorial = {
     {
       id: nid(),
       tipo: "hero",
-      v: 2,
+      v: 3,
       props: {
         variante: "centrado",
         eyebrow: "Sorteo abierto — edición ARMY",
         eyebrowEstilo: "texto", // kicker taupe/dimmed (el #8a8175 del prototipo, NO el acento)
-        titulo: "Compra el libro. Anda a ver a BTS.",
-        tituloAcento: { palabra: "BTS", estilo: "marca" }, // BTS violeta tinta (#6d28d9)
-        subtitulo:
-          "Cada libro que compras ($3.000) te inscribe en el sorteo de 2 entradas para BTS en el Estadio Nacional, octubre 2026.",
+        // Tanda 3 F02/D4: titulo/subtitulo RichTexto; "BTS" en un run con marca "marca" (violeta tinta).
+        titulo: {
+          children: [
+            { t: "Compra el libro. Anda a ver a " },
+            { t: "BTS", m: ["marca"] },
+            { t: "." },
+          ],
+        },
+        subtitulo: {
+          children: [
+            { t: "Cada libro que compras ($3.000) te inscribe en el sorteo de 2 entradas para BTS en el Estadio Nacional, octubre 2026." },
+          ],
+        },
         destacado: { texto: "$3.000", nota: "Libro digital · Incluye tu número para el sorteo" },
         ctaTexto: "Quiero participar",
         ctaAncla: "catalogo",

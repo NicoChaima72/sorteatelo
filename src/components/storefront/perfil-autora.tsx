@@ -13,6 +13,7 @@ import {
 } from "@tabler/icons-react";
 import { type ComponentType } from "react";
 
+import { RunsTexto } from "~/components/storefront/runs-texto";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
@@ -70,7 +71,7 @@ export function PerfilAutora({
 
         {props.bio && (
           <Text size="lg" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
-            {props.bio}
+            <RunsTexto rico={props.bio} />
           </Text>
         )}
 

@@ -103,11 +103,11 @@ describe("pagebuilder/aplicarMutacion (transform puro)", () => {
     const nuevo = aplicarMutacion(base(), {
       accion: "update_section_props",
       id: "sec-hero",
-      props: { titulo: "Nuevo título" },
+      props: { titulo: { children: [{ t: "Nuevo título" }] } }, // titulo es RichTexto (Tanda 3 F02)
     });
     const hero = nuevo.secciones.find((s) => s.id === "sec-hero")!;
     if (hero.tipo === "hero") {
-      expect(hero.props.titulo).toBe("Nuevo título");
+      expect(hero.props.titulo?.children[0]?.t).toBe("Nuevo título");
       expect(hero.props.mostrarBadgeSorteo).toBe(true); // default preservado (merge)
     }
   });
@@ -140,7 +140,7 @@ describe("pagebuilder/aplicarMutacion (transform puro)", () => {
     const nuevoDoc = {
       schemaVersion: 1,
       root: { props: {} },
-      secciones: [{ id: "solo-hero", tipo: "hero", v: 1, props: { titulo: "Único" } }],
+      secciones: [{ id: "solo-hero", tipo: "hero", v: 3, props: { titulo: { children: [{ t: "Único" }] } } }],
       overlays: [],
     };
     const res = aplicarMutacion(doc, { accion: "apply_page", documento: nuevoDoc });

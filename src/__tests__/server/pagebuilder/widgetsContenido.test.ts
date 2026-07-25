@@ -37,28 +37,30 @@ describe("pagebuilder/widgets contenido (F04) — beneficios_grid", () => {
   });
 });
 
-describe("pagebuilder/widgets contenido (F04) — texto_rico (bloques tipados, sin HTML)", () => {
-  // page.cont.002 — texto_rico: solo bloques de la discriminated-union; bloque desconocido ⇒ rechazo
-  it("texto_rico acepta subtitulo/parrafo/cita/lista y rechaza bloque desconocido/HTML", () => {
+describe("pagebuilder/widgets contenido (F04 + Tanda 3 F01) — texto_rico v2 (bloques con runs, sin HTML)", () => {
+  // page.cont.002 — texto_rico v2: subtitulo/parrafo/cita con `rico` (runs); lista con items string;
+  // bloque desconocido ⇒ rechazo. El shape v1 (`texto` string) ya NO parsea (se migra ANTES, on-read).
+  it("texto_rico v2 acepta subtitulo/parrafo/cita (runs) + lista y rechaza bloque desconocido/HTML/v1", () => {
     const ok = {
       bloques: [
-        { tipo: "subtitulo", texto: "Título" },
-        { tipo: "parrafo", texto: "Un párrafo." },
-        { tipo: "cita", texto: "Una cita.", autor: "Alguien" },
+        { tipo: "subtitulo", rico: { children: [{ t: "Título" }] } },
+        { tipo: "parrafo", rico: { children: [{ t: "Un párrafo." }] } },
+        { tipo: "cita", rico: { children: [{ t: "Una cita." }] }, autor: "Alguien" },
         { tipo: "lista", estilo: "numerada", items: ["uno", "dos"] },
       ],
     };
     expect(textoRicoProps.safeParse(ok).success).toBe(true);
     // un bloque de tipo desconocido ⇒ rechazo (discriminated-union cerrada)
-    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "html", texto: "<b>x</b>" }] }).success).toBe(false);
-    // parrafo con HTML es texto plano permitido, pero campo extra en el bloque ⇒ rechazo (.strict)
-    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "parrafo", texto: "ok", clase: "x" }] }).success).toBe(false);
-    // límites: subtitulo ≤120, lista ≤12 items, min 1 bloque
+    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "html", rico: { children: [{ t: "x" }] } }] }).success).toBe(false);
+    // el shape v1 (`texto` string) ya NO parsea contra el schema v2 (migrate-on-read lo convierte antes)
+    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "parrafo", texto: "ok" }] }).success).toBe(false);
+    // campo extra en el bloque ⇒ rechazo (.strict)
+    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "parrafo", rico: { children: [{ t: "ok" }] }, clase: "x" }] }).success).toBe(false);
+    // límites: lista ≤12 items, min 1 bloque
     expect(textoRicoProps.safeParse({ bloques: [] }).success).toBe(false);
-    expect(textoRicoProps.safeParse({ bloques: [{ tipo: "subtitulo", texto: "x".repeat(121) }] }).success).toBe(false);
     expect(textoRicoProps.safeParse({ bloques: [{ tipo: "lista", items: Array(13).fill("x") }] }).success).toBe(false);
     expect(
-      SeccionNodeSchema.safeParse({ id: "tr", tipo: "texto_rico", v: 1, props: ok }).success,
+      SeccionNodeSchema.safeParse({ id: "tr", tipo: "texto_rico", v: 2, props: ok }).success,
     ).toBe(true);
   });
 });

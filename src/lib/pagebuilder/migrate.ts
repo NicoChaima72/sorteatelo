@@ -7,6 +7,11 @@ import {
   type PageDocument,
   type SeccionNode,
 } from "~/lib/pagebuilder/schema";
+import {
+  ESTILOS_TITULO_ACENTO,
+  runsDeTexto,
+  runsDeTituloAcento,
+} from "~/lib/pagebuilder/widgets";
 
 /**
  * Migrate-on-read del Documento de Página (ADR-0016/I9, F04/F05). Transforma un documento CRUDO de
@@ -48,12 +53,97 @@ function migrarNodo(s: unknown): unknown {
     out = { ...out, v: 2 };
     v = 2;
   }
+  // hero v2 → v3 (Tanda 3 F02/D4): `titulo`/`subtitulo` string → RichTexto; `tituloAcento` ABSORBIDO
+  // en el `titulo` (la palabra acentuada queda en un run con su marca, byte-idéntico al render previo,
+  // I-U8). El campo `tituloAcento` se elimina (ya no existe en v3). Idempotente.
+  if (out.tipo === "hero" && v < 3) {
+    out = { ...out, v: 3, props: migrarHeroV3Props(out.props) };
+    v = 3;
+  }
   // ganadores v1 → v2 (aditivo: default `fuente:"manual"` conserva los items y el look actual).
   if (out.tipo === "ganadores" && v < 2) {
     out = { ...out, v: 2 };
     v = 2;
   }
+  // perfil_autora v1 → v2 (Tanda 3 F02/D5): `bio` string → RichTexto (migrate-on-read LOSSLESS). Un
+  // perfil sin `bio` o con `bio` ya RichTexto (v2) pasa igual (idempotente).
+  if (out.tipo === "perfil_autora" && v < 2) {
+    out = { ...out, v: 2, props: migrarPropStringARuns(out.props, "bio") };
+    v = 2;
+  }
+  // texto_rico v1 → v2 (Tanda 3 F01/D3): los bloques subtitulo/parrafo/cita llevaban `texto: string`;
+  // v2 usa `children: RichTexto`. Migrate-on-read LOSSLESS `texto → runsDeTexto(texto)` (mismo contenido
+  // visible; los límites de chars se conservan a nivel de suma — un párrafo largo se trocea en runs). El
+  // `lista` (items string) y `cita.autor` quedan intactos (D3). Un bloque YA v2 (con `children`) pasa
+  // igual (idempotente ⇒ un re-migrado no lo rompe).
+  if (out.tipo === "texto_rico" && v < 2) {
+    out = { ...out, v: 2, props: migrarTextoRicoProps(out.props) };
+    v = 2;
+  }
   return out;
+}
+
+/** `true` sii `estilo` es un valor válido de ESTILOS_TITULO_ACENTO (narrowing para `runsDeTituloAcento`). */
+function esEstiloAcento(estilo: unknown): estilo is (typeof ESTILOS_TITULO_ACENTO)[number] {
+  return typeof estilo === "string" && (ESTILOS_TITULO_ACENTO as readonly string[]).includes(estilo);
+}
+
+/**
+ * Migra los `props` de un `hero` v2 a v3 (Tanda 3 F02/D4): `titulo`/`subtitulo` string → RichTexto,
+ * absorbiendo `tituloAcento` en el `titulo`. Un `titulo` con `tituloAcento {palabra, estilo}` válido usa
+ * `runsDeTituloAcento` (byte-idéntico al render con substring, I-U8); sin acento usa `runsDeTexto`. El
+ * `tituloAcento` se elimina. Un `titulo` ya RichTexto (v3, re-migrado) se deja intacto (idempotente).
+ * Nota (edge case documentado): un hero con `tituloAcento` PERO SIN `titulo` (usa el fallback
+ * `branding.nombre`, resuelto server-side) NO puede absorber el acento en el doc (violaría I2 —copiar
+ * el nombre—) ⇒ el acento se pierde en el fallback. Ningún tenant seed/publicado tiene esa combinación.
+ */
+function migrarHeroV3Props(props: unknown): unknown {
+  if (!props || typeof props !== "object") return props;
+  const p = { ...(props as Record<string, unknown>) };
+  if (typeof p.titulo === "string") {
+    const acento = p.tituloAcento as { palabra?: unknown; estilo?: unknown } | undefined;
+    if (acento && typeof acento.palabra === "string" && esEstiloAcento(acento.estilo)) {
+      p.titulo = runsDeTituloAcento(p.titulo, acento.palabra, acento.estilo);
+    } else {
+      p.titulo = runsDeTexto(p.titulo);
+    }
+  }
+  if (typeof p.subtitulo === "string") {
+    p.subtitulo = runsDeTexto(p.subtitulo);
+  }
+  delete p.tituloAcento; // consumido por la absorción (o descartado si no había titulo)
+  return p;
+}
+
+/** Promueve UN campo string de un props a RichTexto (Tanda 3 F02/D5, migrate-on-read LOSSLESS). Solo toca
+ *  el campo si es un string (un RichTexto ya migrado, o ausente, pasa igual ⇒ idempotente). */
+function migrarPropStringARuns(props: unknown, campo: string): unknown {
+  if (!props || typeof props !== "object") return props;
+  const p = props as Record<string, unknown>;
+  if (typeof p[campo] !== "string") return props;
+  return { ...p, [campo]: runsDeTexto(p[campo] as string) };
+}
+
+/** Migra los `props` de un `texto_rico` v1 a v2: cada bloque de texto (`texto` string) → `children` runs. */
+function migrarTextoRicoProps(props: unknown): unknown {
+  if (!props || typeof props !== "object") return props;
+  const p = props as Record<string, unknown>;
+  if (!Array.isArray(p.bloques)) return props;
+  const bloques = p.bloques as unknown[];
+  return {
+    ...p,
+    bloques: bloques.map((bloque: unknown): unknown => {
+      if (!bloque || typeof bloque !== "object") return bloque;
+      const b = bloque as Record<string, unknown>;
+      // Solo los bloques de texto migran (`lista` no tiene `texto`). Un bloque ya v2 (con `rico`)
+      // se deja intacto; solo se toca si trae el `texto` string viejo.
+      if (typeof b.texto === "string" && b.rico === undefined) {
+        const { texto, ...resto } = b;
+        return { ...resto, rico: runsDeTexto(texto) };
+      }
+      return bloque;
+    }),
+  };
 }
 
 /**

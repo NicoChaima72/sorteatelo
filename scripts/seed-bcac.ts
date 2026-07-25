@@ -70,15 +70,24 @@ const doc = {
     {
       id: nid(),
       tipo: "hero",
-      v: 2,
+      v: 3,
       props: {
         variante: "split",
         eyebrow: "A la venta ahora · Edición única",
         eyebrowEstilo: "acento", // Tanda 2 F04: eyebrow DORADO (acento), desacoplado del violeta de marca
-        titulo: "Cómo Enriquecer a tu Artista Favorito",
-        tituloAcento: { palabra: "Enriquecer", estilo: "acento" }, // dorado (acento)
-        subtitulo:
-          "Una guía real sobre cómo tu apoyo financiero llega —o no— a quien admiras. Cada copia que compras suma un número al sorteo de entradas al recital del 14 de octubre.",
+        // Tanda 3 F02/D4: titulo/subtitulo son RichTexto; "Enriquecer" en un run con marca "acento" (dorado).
+        titulo: {
+          children: [
+            { t: "Cómo " },
+            { t: "Enriquecer", m: ["acento"] },
+            { t: " a tu Artista Favorito" },
+          ],
+        },
+        subtitulo: {
+          children: [
+            { t: "Una guía real sobre cómo tu apoyo financiero llega —o no— a quien admiras. Cada copia que compras suma un número al sorteo de entradas al recital del 14 de octubre." },
+          ],
+        },
         destacado: {
           texto: "$3.000",
           nota: "1 copia del libro (PDF) · 1 número para el sorteo",
@@ -178,39 +187,34 @@ const doc = {
         entrada: "aparecer",
       },
     },
-    // ── BASES legales (texto_rico) — dueña del ancla #bases (destino de "Ver bases del sorteo") ──
+    // ── BASES legales (texto_rico v2, Tanda 3 F01: bloques con `rico` runs) — dueña del ancla #bases ──
     {
       id: nid(),
       tipo: "texto_rico",
-      v: 1,
+      v: 2,
       props: {
         ancho: "normal",
         bloques: [
-          { tipo: "subtitulo", texto: "Bases de la promoción" },
+          { tipo: "subtitulo", rico: { children: [{ t: "Bases de la promoción" }] } },
           {
             tipo: "parrafo",
-            texto:
-              "Este es un sorteo promocional asociado a la compra del libro, no una rifa. La participación queda sujeta a la aceptación de las bases.",
+            rico: { children: [{ t: "Este es un sorteo promocional asociado a la compra del libro, no una rifa. La participación queda sujeta a la aceptación de las bases." }] },
           },
           {
             tipo: "parrafo",
-            texto:
-              "Organiza: BCAC · Ediciones (RUT por completar). Sorteos: 15/08/2026 y 15/09/2026. Evento: recital del 14/10/2026.",
+            rico: { children: [{ t: "Organiza: BCAC · Ediciones (RUT por completar). Sorteos: 15/08/2026 y 15/09/2026. Evento: recital del 14/10/2026." }] },
           },
           {
             tipo: "parrafo",
-            texto:
-              "Mecánica: cada copia del libro comprada durante la vigencia suma un número al sorteo, sin costo adicional. El pack de 4 copias suma cuatro números.",
+            rico: { children: [{ t: "Mecánica: cada copia del libro comprada durante la vigencia suma un número al sorteo, sin costo adicional. El pack de 4 copias suma cuatro números." }] },
           },
           {
             tipo: "parrafo",
-            texto:
-              "Premio: entradas al recital del 14 de octubre. No canjeable por dinero. El ganador será contactado al correo de la compra.",
+            rico: { children: [{ t: "Premio: entradas al recital del 14 de octubre. No canjeable por dinero. El ganador será contactado al correo de la compra." }] },
           },
           {
             tipo: "parrafo",
-            texto:
-              "Sorteo ante notario con bolillero físico. Bases legales completas disponibles ante notario. Esta promoción se rige por la Ley 19.496.",
+            rico: { children: [{ t: "Sorteo ante notario con bolillero físico. Bases legales completas disponibles ante notario. Esta promoción se rige por la Ley 19.496." }] },
           },
         ],
       },

@@ -15,8 +15,10 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { type ChangeEvent } from "react";
 import { type z } from "zod";
 
+import { EditorRuns } from "~/components/editor/editor-runs";
 import { PickerImagen } from "~/components/editor/picker-imagen";
 import { camposDeSchema, clasificarCampo } from "~/lib/editor/introspeccion";
+import { type RichTexto } from "~/lib/pagebuilder/widgets";
 
 /**
  * Generador de formularios desde el REGISTRO Zod (catálogo-v2 F10/D8). La INTROSPECCIÓN (qué control
@@ -64,6 +66,19 @@ function Campo({
         label={label}
         valor={typeof valor === "string" ? valor : ""}
         onChange={(url) => onChange(url || undefined)}
+      />
+    );
+  }
+
+  if (c.control === "runs") {
+    // Campo RichTexto (Tanda 3 F03/D6): EditorRuns contenteditable. `onChange` emite el RichTexto (o
+    // undefined si queda vacío); el use case revalida server-side (I3).
+    return (
+      <EditorRuns
+        label={label}
+        value={(valor ?? undefined) as RichTexto | undefined}
+        onChange={(rico) => onChange(rico)}
+        placeholder="Escribe aquí…"
       />
     );
   }

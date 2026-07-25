@@ -39,11 +39,11 @@ describe("pagebuilder/widgets v2b (F12) — cinta_texto (marquee ticker)", () =>
 });
 
 describe("pagebuilder/widgets v2b (F12) — perfil_autora (editorial sobre mí)", () => {
-  // page.v2b.002 — perfil_autora: nombre ≤60, bio ≤400, redes ≤6 (shape botones_sociales), .strict()
-  it("perfil_autora valida nombre/bio/redes/avatar y rechaza campos extra", () => {
+  // page.v2b.002 — perfil_autora: nombre ≤60, bio=RichTexto (Tanda 3 F02/D5), redes ≤6, .strict()
+  it("perfil_autora valida nombre/bio(runs)/redes/avatar y rechaza campos extra", () => {
     const ok = {
       nombre: "María José",
-      bio: "Vendo libros digitales y sorteo uno cada mes.",
+      bio: { children: [{ t: "Vendo libros digitales y sorteo uno " }, { t: "cada mes", m: ["acento"] }] },
       avatarUrl: "https://cdn.example/yo.jpg",
       redes: [
         { red: "instagram", url: "https://instagram.com/yo" },
@@ -54,10 +54,12 @@ describe("pagebuilder/widgets v2b (F12) — perfil_autora (editorial sobre mí)"
     // solo nombre (bio/avatar/redes opcionales)
     expect(perfilAutoraProps.safeParse({ nombre: "Ana" }).success).toBe(true);
     // sin nombre ⇒ rechazo
-    expect(perfilAutoraProps.safeParse({ bio: "hola" }).success).toBe(false);
-    // nombre >60 / bio >400 ⇒ rechazo
+    expect(perfilAutoraProps.safeParse({ bio: { children: [{ t: "hola" }] } }).success).toBe(false);
+    // nombre >60 ⇒ rechazo; bio con un run >1000 chars ⇒ rechazo (límite del run, no ya un 400 plano)
     expect(perfilAutoraProps.safeParse({ nombre: "x".repeat(61) }).success).toBe(false);
-    expect(perfilAutoraProps.safeParse({ nombre: "Ana", bio: "x".repeat(401) }).success).toBe(false);
+    expect(perfilAutoraProps.safeParse({ nombre: "Ana", bio: { children: [{ t: "x".repeat(1001) }] } }).success).toBe(false);
+    // bio string plano (v1) ya NO parsea (se migra ANTES, on-read)
+    expect(perfilAutoraProps.safeParse({ nombre: "Ana", bio: "texto plano" }).success).toBe(false);
     // más de 6 redes ⇒ rechazo
     expect(
       perfilAutoraProps.safeParse({ nombre: "Ana", redes: Array(7).fill({ red: "instagram", url: "https://x.co" }) }).success,
@@ -69,7 +71,7 @@ describe("pagebuilder/widgets v2b (F12) — perfil_autora (editorial sobre mí)"
     expect(perfilAutoraProps.safeParse({ nombre: "Ana", avatarUrl: "no-url" }).success).toBe(false);
     // HTML/campo extra ⇒ rechazo (.strict)
     expect(perfilAutoraProps.safeParse({ nombre: "Ana", html: "<b>x</b>" }).success).toBe(false);
-    expect(SeccionNodeSchema.safeParse({ id: "pa", tipo: "perfil_autora", v: 1, props: ok }).success).toBe(true);
+    expect(SeccionNodeSchema.safeParse({ id: "pa", tipo: "perfil_autora", v: 2, props: ok }).success).toBe(true);
   });
 });
 

@@ -8,7 +8,8 @@ import { LandingPlataforma } from "~/components/landing/landing-plataforma";
 import { RenderPagina } from "~/components/storefront/render-pagina";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { usePreviewPatch } from "~/components/storefront/use-preview-patch";
-import { derivarNav } from "~/lib/pagebuilder/nav";
+import { hrefMenuItem, type Chrome } from "~/lib/pagebuilder/chrome";
+import { derivarNav, type NavItem } from "~/lib/pagebuilder/nav";
 import { type PageDocument } from "~/lib/pagebuilder/schema";
 import {
   getPropsHome,
@@ -37,6 +38,8 @@ export default function HomePage({
   tenantBranding,
   pagina,
   esPreview,
+  navPaginas,
+  chrome,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   if (!tenantBranding || !pagina) return <LandingPlataforma />;
   return (
@@ -44,6 +47,8 @@ export default function HomePage({
       branding={tenantBranding}
       pagina={pagina}
       esPreview={esPreview}
+      navPaginas={navPaginas}
+      chrome={chrome}
     />
   );
 }
@@ -59,10 +64,14 @@ function StorefrontHome({
   branding,
   pagina,
   esPreview,
+  navPaginas,
+  chrome,
 }: {
   branding: TenantBranding;
   pagina: PageDocument;
   esPreview: boolean;
+  navPaginas: NavItem[];
+  chrome: Chrome | null;
 }) {
   // Documento VIVO: en preview (F09/D13) el hook escucha los patches del editor y re-renderiza sin reload;
   // en público devuelve el SSR fijo (sin listener, I-T5). El shell (fondo), el nav y las secciones se
@@ -82,9 +91,14 @@ function StorefrontHome({
   const estiloLienzo = columnaMaxWidth
     ? fondoLienzoExterior(paginaViva.root.props.fondoPagina)
     : undefined;
-  // Nav auto-derivado (F05/D8): items del header desde las secciones marcadas `nav.incluir`. Sin ninguna
-  // marcada ⇒ `[]` y el layout cae al nav actual (I-H).
-  const navItems = derivarNav(paginaViva.secciones);
+  // Nav (Tanda 3 F06/D10): el MENÚ del chrome MANDA sobre el nav derivado si está configurado; si no,
+  // se deriva de las secciones (`nav.incluir`, F05/D8) + las páginas `enNav` (F04/D9). Sin nada ⇒ `[]`
+  // y el layout cae al nav actual (I-H).
+  const menuChrome = chrome?.header.menu ?? [];
+  const navItems =
+    menuChrome.length > 0
+      ? menuChrome.map((m) => ({ label: m.etiqueta, href: hrefMenuItem(m.destino) }))
+      : [...derivarNav(paginaViva.secciones), ...navPaginas];
   // Cinta SOBRE el nav (F13): el 1er `aviso_barra` con `posicion:"sobre_nav"` se pinta ANTES del header
   // (lo renderiza el layout). El resto (`bajo_nav`, default) los pinta `RenderPagina` dentro de `<main>`.
   const avisoSobreNav = paginaViva.overlays.find(
@@ -97,6 +111,7 @@ function StorefrontHome({
       estiloLienzo={estiloLienzo}
       columnaMaxWidth={columnaMaxWidth}
       navItems={navItems}
+      chrome={chrome}
       avisoSobreNav={
         avisoSobreNav?.tipo === "aviso_barra" ? (
           <AvisoBarra props={avisoSobreNav.props} />

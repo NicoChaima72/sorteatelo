@@ -5,14 +5,14 @@ import { describe, expect, it } from "vitest";
 import {
   TituloHero,
   partirEnPalabras,
-  partirTituloAcento,
+  textoPlanoDeRuns,
 } from "~/components/storefront/titulo-hero";
-import { heroProps } from "~/lib/pagebuilder/widgets";
+import { heroProps, type RichTexto } from "~/lib/pagebuilder/widgets";
 
 /**
- * Tests del hero puente (builder-tanda-1 F03/D5/D6): `tituloAcento` con match seguro sin HTML del
- * tenant (I3/I-A), efectos de título SSR-visibles (I-D), `resaltado` como background del PROPIO span
- * (lección en memoria del proyecto), y defaults del schema que conservan el look v2 (I-H, sin v-bump).
+ * Tests del título del hero sobre RUNS (Tanda 3 F02/D4). El título es un `RichTexto`; el viejo
+ * `tituloAcento` fue absorbido en un run con su marca (la migración v2→v3 lo hace, ver runs.test.ts).
+ * `TituloHero` renderiza runs con marcas por token (I-A), efectos SSR-visibles (I-D) y reduced-motion-safe.
  * Todo con `renderToStaticMarkup` (env node): `TituloHero` devuelve spans puros sin provider Mantine.
  */
 
@@ -21,185 +21,109 @@ function tieneHex(s: string): boolean {
   return /#[0-9a-fA-F]{3,8}\b/.test(s);
 }
 
-const render = (el: React.ReactElement) => renderToStaticMarkup(el);
+const render = (titulo: RichTexto, efecto: "ninguno" | "revelar_palabras" | "gradiente_animado") =>
+  renderToStaticMarkup(createElement(TituloHero, { titulo, efecto }));
 
-describe("hero.schema — campos puente parsean con defaults que conservan el look v2 (sin v-bump)", () => {
-  // hero.schema.001 — un hero v2 SIN los campos nuevos parsea; los defaults reproducen el look actual.
-  it("hero mínimo parsea y los campos puente caen a sus defaults", () => {
+describe("hero.schema — titulo/subtitulo son RichTexto; tituloAcento ya no existe (v3)", () => {
+  // hero.schema.001 — un hero mínimo parsea; titulo/subtitulo ausentes; el campo tituloAcento se fue.
+  it("hero mínimo parsea y titulo/subtitulo caen a undefined; tituloAcento removido del schema", () => {
     const p = heroProps.parse({});
-    expect(p.ctaSecundarioEstilo).toBe("boton");
-    expect(p.mostrarConfianza).toBe(true);
-    expect(p.efectoTitulo).toBe("ninguno");
-    expect(p.tituloAcento).toBeUndefined();
-    expect(p.destacado).toBeUndefined();
-    // mostrarBadgeSorteo YA existía (NO se duplica con mostrarConfianza): son booleanos distintos.
-    expect(p.mostrarBadgeSorteo).toBe(true);
-    expect("mostrarConfianza" in p && "mostrarBadgeSorteo" in p).toBe(true);
+    expect(p.titulo).toBeUndefined();
+    expect(p.subtitulo).toBeUndefined();
+    expect("tituloAcento" in p).toBe(false);
+    // un `tituloAcento` crudo ya NO parsea (se migra ANTES, on-read)
+    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "acento" } }).success).toBe(false);
   });
 
-  // hero.schema.002 — tituloAcento/destacado son objetos .strict(): campo extra o tipos malos ⇒ rechazo.
-  it("tituloAcento y destacado son estrictos y de enum cerrado", () => {
-    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "acento" } }).success).toBe(true);
-    // estilo fuera del enum ⇒ rechazo
-    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "neon" } }).success).toBe(false);
-    // campo extra en el objeto anidado ⇒ rechazo (.strict)
-    expect(
-      heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "acento", extra: 1 } }).success,
-    ).toBe(false);
-    // efectoTitulo fuera del enum ⇒ rechazo
-    expect(heroProps.safeParse({ efectoTitulo: "explotar" }).success).toBe(false);
-    // destacado.texto > 24 ⇒ rechazo (límite de texto plano)
-    expect(heroProps.safeParse({ destacado: { texto: "x".repeat(25) } }).success).toBe(false);
-    expect(heroProps.safeParse({ destacado: { texto: "$3.000", nota: "por ticket" } }).success).toBe(true);
-  });
-
-  // hero.schema.003 (F13) — `eyebrow` es texto plano opcional ≤80; ausente = no-op (docs viejos igual).
-  it("eyebrow opcional ≤80 parsea; >80 rechaza; ausente ⇒ undefined (no-op)", () => {
-    expect(heroProps.parse({}).eyebrow).toBeUndefined();
-    expect(heroProps.safeParse({ eyebrow: "Bernardita Alvarado Coddou · Libro Digital" }).success).toBe(true);
-    expect(heroProps.safeParse({ eyebrow: "x".repeat(81) }).success).toBe(false);
-    expect(heroProps.safeParse({ eyebrow: "" }).success).toBe(false); // min 1
-  });
-
-  // hero.schema.004 (F13) — el estilo `marca` del tituloAcento parsea (aditivo); los previos siguen.
-  it("tituloAcento admite el estilo nuevo 'marca' sin romper los previos", () => {
-    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "marca" } }).success).toBe(true);
-    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "acento" } }).success).toBe(true);
-    expect(heroProps.safeParse({ tituloAcento: { palabra: "X", estilo: "gradiente" } }).success).toBe(true);
+  // hero.schema.002 — titulo acepta RichTexto con marcas/links; texto plano string ⇒ rechazo (migra antes)
+  it("titulo acepta RichTexto y rechaza un string plano (que se migra on-read)", () => {
+    expect(heroProps.safeParse({ titulo: { children: [{ t: "Hola", m: ["acento"] }] } }).success).toBe(true);
+    expect(heroProps.safeParse({ titulo: "Hola plano" }).success).toBe(false);
+    // efectoTitulo sigue como prop del <Title> (no del contenido)
+    expect(heroProps.parse({}).efectoTitulo).toBe("ninguno");
   });
 });
 
-describe("hero.acento — match seguro por SUBSTRING, sin HTML del tenant", () => {
-  // hero.acento.001 — partirTituloAcento matchea la PRIMERA ocurrencia case-insensitive, conserva casing.
-  it("parte por la primera ocurrencia case-insensitive conservando el casing original", () => {
-    expect(partirTituloAcento("Vas a ENRIQUECER tu vida", "enriquecer")).toEqual({
-      antes: "Vas a ",
-      match: "ENRIQUECER",
-      despues: " tu vida",
-    });
-    // sin match ⇒ null
-    expect(partirTituloAcento("Hola mundo", "chao")).toBeNull();
-    // palabra vacía ⇒ null (nunca envuelve todo)
-    expect(partirTituloAcento("Hola", "")).toBeNull();
-  });
-
-  // hero.acento.001b — el render envuelve la primera ocurrencia en un span con color de la escala acento.
-  it("TituloHero envuelve la palabra en un span con token de acento (cero hex)", () => {
+describe("hero.render — TituloHero renderiza runs con marcas por token (efecto ninguno)", () => {
+  // hero.render.001 — un run con acento se pinta con el token de acento (fallback marca), sin hex
+  it("run con acento ⇒ span con token de acento (cero hex)", () => {
     const html = render(
-      createElement(TituloHero, {
-        titulo: "Vas a ENRIQUECER tu vida",
-        acento: { palabra: "enriquecer", estilo: "acento" },
-        efecto: "ninguno",
-      }),
+      { children: [{ t: "Vas a " }, { t: "ENRIQUECER", m: ["acento"] }, { t: " tu vida" }] },
+      "ninguno",
     );
-    expect(html).toContain("ENRIQUECER"); // casing original conservado
+    expect(html).toContain("ENRIQUECER");
     expect(html).toContain("Vas a ");
     expect(html).toContain("tu vida");
-    expect(html).toContain("--mantine-color-acento-filled"); // token de la escala acento
+    expect(html).toContain("--mantine-color-acento-filled");
     expect(html).toContain("--mantine-primary-color-filled"); // fallback a marca (I-T2)
     expect(tieneHex(html)).toBe(false);
   });
 
-  // hero.acento.001c (F13) — estilo `marca`: la palabra en el color del PRIMARIO del tenant (no acento).
-  it("estilo marca envuelve la palabra con el token del primario (cero hex)", () => {
-    const html = render(
-      createElement(TituloHero, {
-        titulo: "¿Cómo enriquecer a tu idol?",
-        acento: { palabra: "enriquecer", estilo: "marca" },
-        efecto: "ninguno",
-      }),
-    );
-    expect(html).toContain("enriquecer");
-    expect(html).toContain("--mantine-primary-color-filled"); // color de MARCA
-    expect(html).not.toContain("--mantine-color-acento-filled"); // NO usa el token de acento
+  // hero.render.002 — estilo `marca`: la palabra en el color del PRIMARIO (no acento)
+  it("run con marca ⇒ token del primario, sin el token de acento", () => {
+    const html = render({ children: [{ t: "Anda a ver a " }, { t: "BTS", m: ["marca"] }] }, "ninguno");
+    expect(html).toContain("BTS");
+    expect(html).toContain("--mantine-primary-color-filled");
+    expect(html).not.toContain("--mantine-color-acento-filled");
     expect(tieneHex(html)).toBe(false);
   });
 
-  // hero.acento.002 — `resaltado` = destacador como BACKGROUND del propio span (nunca capa aparte).
-  it("resaltado pinta el destacador como background del propio span con box-decoration-break clone", () => {
-    const html = render(
-      createElement(TituloHero, {
-        titulo: "El libro que te ENRIQUECE",
-        acento: { palabra: "ENRIQUECE", estilo: "resaltado" },
-        efecto: "ninguno",
-      }),
-    );
-    // el resaltado es un linear-gradient en background-image DEL span (no un elemento aparte con z-index)
+  // hero.render.003 — `resaltado` = destacador como background del propio span (nunca capa aparte)
+  it("run con resaltado ⇒ background-image en el propio span con box-decoration-break clone", () => {
+    const html = render({ children: [{ t: "que te " }, { t: "ENRIQUECE", m: ["resaltado"] }] }, "ninguno");
     expect(html).toMatch(/background-image:\s*linear-gradient/i);
     expect(html.toLowerCase()).toContain("box-decoration-break:clone");
     expect(html).not.toContain("z-index");
     expect(tieneHex(html)).toBe(false);
   });
 
-  // hero.acento.003 — `gradiente` = texto con background-clip:text (tokens marca/acento).
-  it("gradiente recorta el texto con background-clip y color transparente", () => {
-    const html = render(
-      createElement(TituloHero, {
-        titulo: "ENRIQUECER",
-        acento: { palabra: "ENRIQUECER", estilo: "gradiente" },
-        efecto: "ninguno",
-      }),
-    );
+  // hero.render.004 — `gradiente` = texto con background-clip:text + color transparente
+  it("run con gradiente ⇒ background-clip:text y color transparente", () => {
+    const html = render({ children: [{ t: "ENRIQUECER", m: ["gradiente"] }] }, "ninguno");
     expect(html.toLowerCase()).toContain("background-clip:text");
     expect(html.toLowerCase()).toContain("color:transparent");
     expect(tieneHex(html)).toBe(false);
   });
-
-  // hero.acento.004 — palabra sin match ⇒ título INTACTO, sin span de estilo, sin error.
-  it("palabra sin match ⇒ título intacto sin envolver nada", () => {
-    const html = render(
-      createElement(TituloHero, {
-        titulo: "Un título cualquiera",
-        acento: { palabra: "inexistente", estilo: "acento" },
-        efecto: "ninguno",
-      }),
-    );
-    expect(html).toContain("Un título cualquiera");
-    expect(html).not.toContain("--mantine-color-acento-filled");
-  });
 });
 
-describe("hero.reveal — efectos de título SSR-visibles (I-D) y reduced-motion-safe", () => {
-  // hero.reveal.001 — revelar_palabras: el HTML SSR contiene el título COMPLETO y VISIBLE (nunca opacity:0).
-  it("revelar_palabras deja el título completo VISIBLE en SSR (opacity:0 solo en el keyframe CSS)", () => {
+describe("hero.reveal — efectos SSR-visibles (I-D) y reduced-motion-safe", () => {
+  // hero.reveal.001 — revelar_palabras: título COMPLETO y VISIBLE (nunca opacity:0), acento coloreado
+  it("revelar_palabras deja el título completo VISIBLE con delay escalonado y el run del acento coloreado", () => {
     const html = render(
-      createElement(TituloHero, {
-        titulo: "Vas a ENRIQUECER tu vida hoy",
-        acento: { palabra: "ENRIQUECER", estilo: "acento" },
-        efecto: "revelar_palabras",
-      }),
+      { children: [{ t: "Vas a " }, { t: "ENRIQUECER", m: ["acento"] }, { t: " tu vida hoy" }] },
+      "revelar_palabras",
     );
-    // todas las palabras presentes en el markup
     for (const palabra of ["Vas", "ENRIQUECER", "tu", "vida", "hoy"]) {
       expect(html).toContain(palabra);
     }
-    // SSR-visible: JAMÁS opacity:0 inline (vive en el keyframe gateado de globals.css)
     expect(html.toLowerCase()).not.toContain("opacity:0");
-    expect(html.toLowerCase()).not.toContain("opacity: 0");
-    // la clase de reveal (gateada por reduced-motion en CSS) y el delay escalonado inline
     expect(html).toContain("animar-revelar-palabra");
     expect(html.toLowerCase()).toContain("animation-delay");
-    // la palabra del acento conserva su token dentro del reveal
-    expect(html).toContain("--mantine-color-acento-filled");
+    expect(html).toContain("--mantine-color-acento-filled"); // el run del acento conserva su token
   });
 
-  // hero.reveal.002 — gradiente_animado: gradiente VISIBLE (reduced-motion-safe) + clase de posición.
-  it("gradiente_animado deja el título visible con la clase animar-holo (solo la posición anima)", () => {
+  // hero.reveal.002 — gradiente_animado: título visible con la clase de posición, texto plano extraído
+  it("gradiente_animado deja el título plano visible con animar-holo y background-clip", () => {
     const html = render(
-      createElement(TituloHero, {
-        titulo: "ENRIQUECER",
-        efecto: "gradiente_animado",
-      }),
+      { children: [{ t: "Compra el libro. " }, { t: "Anda a ver a BTS", m: ["gradiente"] }] },
+      "gradiente_animado",
     );
-    expect(html).toContain("ENRIQUECER");
+    expect(html).toContain("Compra el libro. Anda a ver a BTS"); // texto plano concatenado
     expect(html).toContain("animar-holo");
     expect(html.toLowerCase()).toContain("background-clip:text");
     expect(html.toLowerCase()).not.toContain("opacity:0");
     expect(tieneHex(html)).toBe(false);
   });
+});
 
-  // hero.reveal.003 — partirEnPalabras conserva los espacios como tokens (no colapsa el whitespace).
-  it("partirEnPalabras conserva los espacios intercalados", () => {
+describe("hero.helpers — funciones puras", () => {
+  // hero.helpers.001 — partirEnPalabras conserva los espacios intercalados
+  it("partirEnPalabras conserva los espacios como tokens", () => {
     expect(partirEnPalabras("a  b c")).toEqual(["a", "  ", "b", " ", "c"]);
+  });
+
+  // hero.helpers.002 — textoPlanoDeRuns concatena los runs (para el gradiente animado)
+  it("textoPlanoDeRuns concatena los runs en el texto plano exacto", () => {
+    expect(textoPlanoDeRuns({ children: [{ t: "Hola " }, { t: "mundo", m: ["acento"] }] })).toBe("Hola mundo");
   });
 });

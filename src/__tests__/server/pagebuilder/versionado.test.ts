@@ -62,10 +62,12 @@ describe("pagebuilder/revertirPagina (rollback al borrador)", () => {
     const res = await revertirPagina({ db, tenantId: "t1", revision: 1 });
     expect(res.version).toBe(6); // bump del lock (5→6)
     expect(getVersion()).toBe(6);
-    // el borrador ahora es el documento de la revisión 1.
-    const draft = getDraft() as { secciones: { tipo: string; props: Record<string, unknown> }[] };
+    // el borrador ahora es el documento de la revisión 1 (titulo es RichTexto — Tanda 3 F02).
+    const draft = getDraft() as {
+      secciones: { tipo: string; props: { titulo?: { children: { t: string }[] } } }[];
+    };
     const hero = draft.secciones[0]!;
-    expect(hero.props.titulo).toBe("Versión 1");
+    expect(hero.props.titulo?.children.map((r) => r.t).join("")).toBe("Versión 1");
   });
 
   // page.ver.002 — una revisión inexistente ⇒ NOT_FOUND sin tocar el borrador

@@ -490,6 +490,210 @@ export const HeroVisualSchema = z.discriminatedUnion("tipo", [
 ]);
 export type HeroVisual = z.infer<typeof HeroVisualSchema>;
 
+// ── Motor de texto rico ESTRUCTURADO: runs (Tanda 3 F01/D1, evolución B) ──────────────────────────
+//
+// Subset propio estilo Portable Text (NO la librería, D6/I-U10): un `RichTexto` es una lista de `Run`
+// (spans de texto plano con marcas de un ENUM CERRADO) + `markDefs` (definiciones de link TIPADAS,
+// referenciadas por `id` desde un run). Es MÁS seguro que HTML (I-U1): `t` es texto plano; marcas y
+// destinos son enums/uniones cerradas; `.strict()` en cada nivel rechaza lo demás; el render (RunsTexto)
+// JAMÁS emite `dangerouslySetInnerHTML`. Sin Tiptap/Lexical (caso acotado: marcas planas, sin bloques
+// anidados). Puro Zod, client+server safe (lo consumen migrate, el render y el EditorRuns del panel).
+// Definido ARRIBA de `heroProps`/`texto_rico` (que lo consumen) para respetar el orden de evaluación.
+
+/**
+ * Marcas inline de un run (enum CERRADO). La directiva pide fuerte/enfasis/acento/resaltado/escala; el
+ * planner desdobla `escala` en `escala_lg`/`escala_xl` (D1, REVISABLE). El render mapea cada marca a un
+ * estilo por TOKEN (peso / itálica / color acento con fallback a marca / color de marca / gradiente
+ * background-clip / destacador como background del propio span / escala tipográfica en `em`), JAMÁS hex
+ * ni CSS libre del tenant (I-A/I-U1).
+ *
+ * `marca` y `gradiente` son ADITIVOS a la lista de la directiva (Tanda 3 F02/D4, REVISABLE): existen para
+ * que la absorción de `tituloAcento` del hero (estilos acento/marca/resaltado/gradiente) sea LOSSLESS —
+ * cada estilo del hero mapea 1:1 a una marca de run. Su CSS ESPEJA `estiloAcentoCss` de `titulo-hero.tsx`
+ * (byte-idéntico) ⇒ un hero migrado renderiza igual. La toolbar del editor (F03/D6) ofrece la lista
+ * curada (negrita/énfasis/acento/resaltado/escala); marca/gradiente quedan como marcas válidas
+ * preservadas por la migración (sin botón de toolbar por ahora — REVISABLE si se agregan).
+ */
+export const MARCAS_RUN = [
+  "fuerte",
+  "enfasis",
+  "acento",
+  "resaltado",
+  "marca",
+  "gradiente",
+  "escala_lg",
+  "escala_xl",
+] as const;
+export type MarcaRun = (typeof MARCAS_RUN)[number];
+
+/** Tope de chars de un run (D1). La migración v1→v2 (`runsDeTexto`) trocea strings largos en runs de
+ *  este tamaño ⇒ un párrafo v1 de 2000 chars migra LOSSLESS a 2 runs (la concatenación lo reproduce). */
+export const RUN_MAX_CHARS = 1000;
+
+/**
+ * Slug de página válido (kebab ≤64) para el destino `pagina` de un link (Tanda 3 F01/F04). PURO — NO
+ * importa `esSlugValido` (vive en `~/server`, off-limits para este módulo puro); replica el criterio
+ * kebab. El render resuelve a `/slug`. Lo REUSA `crearPagina` (F04) ⇒ la misma forma de slug de página
+ * en toda la plataforma. Distinto del subdominio del tenant (ese es `esSlugValido`, DNS label).
+ */
+export const slugPagina = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug inválido (usa minúsculas y guiones)");
+
+/**
+ * URL de un link inline: SOLO https, ≤2048 (I-U1). `z.string().url()` ACEPTA `javascript:alert(1)`
+ * (es una URL válida por el constructor `URL`) ⇒ el refine por protocolo NO es cosmético, es la defensa
+ * anti-XSS/anti-phishing (par de ADR-0018/0019: un `javascript:` en un subdominio cabalga la sesión
+ * wildcard). Rechaza http/mailto/data/javascript.
+ */
+export const urlLinkSegura = z
+  .string()
+  .max(2048)
+  .refine((s) => {
+    try {
+      return new URL(s).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "El enlace debe ser una URL https válida");
+
+/**
+ * Destino de un link inline, discriminado por `tipo`: `ancla` (scroll interno, enum `CTA_ANCLAS`),
+ * `pagina` (otra página del tenant, `slugPagina`), `url` (externa https). UN SOLO vocabulario de
+ * destinos en toda la plataforma — lo REUSA el `MenuItem` del chrome (F06/D10). `.strict()` por rama ⇒
+ * nunca `<a href>` libre del tenant (I-U1/ADR-0018).
+ */
+export const DestinoLinkSchema = z.discriminatedUnion("tipo", [
+  z.object({ tipo: z.literal("ancla"), ancla: z.enum(CTA_ANCLAS) }).strict(),
+  z.object({ tipo: z.literal("pagina"), slug: slugPagina }).strict(),
+  z.object({ tipo: z.literal("url"), url: urlLinkSegura }).strict(),
+]);
+export type DestinoLink = z.infer<typeof DestinoLinkSchema>;
+
+/**
+ * Definición de un link (markDef, modelo Portable Text): `id` estable ≤64 + `destino` tipado. Los runs
+ * lo referencian por `run.link === id` ⇒ un mismo link puede abarcar varios runs. `.strict()`.
+ */
+export const MarkDefLinkSchema = z
+  .object({ id: z.string().min(1).max(64), destino: DestinoLinkSchema })
+  .strict();
+export type MarkDefLink = z.infer<typeof MarkDefLinkSchema>;
+
+/**
+ * Un run: texto plano `t` (1–`RUN_MAX_CHARS`) + `m` (0–4 marcas del enum, SIN duplicados) + `link`
+ * opcional (id de un markDef). `.strict()` ⇒ un `html`/campo extra no parsea (I-U1).
+ */
+export const RunSchema = z
+  .object({
+    t: z.string().min(1).max(RUN_MAX_CHARS),
+    m: z
+      .array(z.enum(MARCAS_RUN))
+      .max(4)
+      .refine((a) => new Set(a).size === a.length, "Marcas duplicadas")
+      .optional(),
+    link: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+export type Run = z.infer<typeof RunSchema>;
+
+/**
+ * `RichTexto`: `children` (1–50 runs) + `markDefs` (0–10). Un `superRefine` cierra la integridad
+ * referencial del modelo (modelo LIMPIO, más seguro que un grafo suelto):
+ *  - ids de markDef ÚNICOS (sin duplicado ⇒ resolución ambigua);
+ *  - todo `run.link` referencia un markDef existente (sin dangling);
+ *  - todo markDef está referenciado por ≥1 run (sin huérfanos — el serializer del editor los limpia).
+ * `.strict()` en el envelope. El nombre `huérfano` cubre ambas puntas (dangling + no-usado): cualquier
+ * link roto o markDef muerto ⇒ rechazo.
+ */
+export const RichTextoSchema = z
+  .object({
+    children: z.array(RunSchema).min(1).max(50),
+    markDefs: z.array(MarkDefLinkSchema).max(10).optional(),
+  })
+  .strict()
+  .superRefine((val, ctx) => {
+    const defs = val.markDefs ?? [];
+    const ids = defs.map((d) => d.id);
+    if (new Set(ids).size !== ids.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "markDefs con id duplicado", path: ["markDefs"] });
+    }
+    const idSet = new Set(ids);
+    const usados = new Set<string>();
+    val.children.forEach((run, i) => {
+      if (run.link !== undefined) {
+        usados.add(run.link);
+        if (!idSet.has(run.link)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `link "${run.link}" sin markDef (dangling)`,
+            path: ["children", i, "link"],
+          });
+        }
+      }
+    });
+    defs.forEach((d, i) => {
+      if (!usados.has(d.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `markDef "${d.id}" huérfano (ningún run lo usa)`,
+          path: ["markDefs", i],
+        });
+      }
+    });
+  });
+export type RichTexto = z.infer<typeof RichTextoSchema>;
+
+/**
+ * Convierte un string plano a `RichTexto` (Tanda 3 F01/D3): trocea en runs de ≤`RUN_MAX_CHARS` chars
+ * (LOSSLESS — la concatenación de los `t` reproduce el original EXACTO). Base de la migración v1→v2 de
+ * `texto_rico` (migrate.ts) y del hero (F02), y del fallback del EditorRuns. PURA, determinista.
+ */
+export function runsDeTexto(texto: string): RichTexto {
+  const t = texto.length === 0 ? " " : texto; // el schema exige t≥1; un v1 nunca trae vacío (min 1)
+  const children: Run[] = [];
+  for (let i = 0; i < t.length; i += RUN_MAX_CHARS) {
+    children.push({ t: t.slice(i, i + RUN_MAX_CHARS) });
+  }
+  return { children };
+}
+
+/**
+ * Mapa `estilo de tituloAcento` (ESTILOS_TITULO_ACENTO) → `MarcaRun` equivalente (Tanda 3 F02/D4). Los
+ * 4 estilos del hero mapean 1:1 a una marca de run (acento/marca/resaltado/gradiente) ⇒ la absorción de
+ * `tituloAcento` es LOSSLESS. Definido acá (no en el hero) porque lo consume la migración pura (migrate.ts).
+ */
+export const MARCA_POR_ESTILO_ACENTO = {
+  acento: "acento",
+  marca: "marca",
+  resaltado: "resaltado",
+  gradiente: "gradiente",
+} as const satisfies Record<(typeof ESTILOS_TITULO_ACENTO)[number], MarcaRun>;
+
+/**
+ * Convierte un `titulo` string + `tituloAcento {palabra, estilo}` a `RichTexto` (Tanda 3 F02/D4): la
+ * PRIMERA ocurrencia case-insensitive de `palabra` queda en su propio run con la marca equivalente; el
+ * texto de antes/después son runs planos (byte-idéntico al render de `<TituloHero>` con substring, I-U8).
+ * Sin match (o palabra vacía) ⇒ `runsDeTexto(titulo)` (título plano). PURA, determinista.
+ */
+export function runsDeTituloAcento(
+  titulo: string,
+  palabra: string,
+  estilo: (typeof ESTILOS_TITULO_ACENTO)[number],
+): RichTexto {
+  const i = palabra.length === 0 ? -1 : titulo.toLowerCase().indexOf(palabra.toLowerCase());
+  if (i === -1) return runsDeTexto(titulo);
+  const antes = titulo.slice(0, i);
+  const match = titulo.slice(i, i + palabra.length);
+  const despues = titulo.slice(i + palabra.length);
+  const children: Run[] = [];
+  if (antes) children.push({ t: antes });
+  children.push({ t: match, m: [MARCA_POR_ESTILO_ACENTO[estilo]] });
+  if (despues) children.push({ t: despues });
+  return { children };
+}
+
 /**
  * `hero` (semilla, v2 en catálogo-v2 F05). `titulo`/`subtitulo`/`imagenUrl` son OVERRIDES opcionales
  * — sin ellos el render cae al `nombre`/`descripcion`/gradiente del Tenant (degradación elegante,
@@ -499,11 +703,16 @@ export type HeroVisual = z.infer<typeof HeroVisualSchema>;
  * v2 (aditivo, migrate-on-read trivial): `variante` (default `split` = look v1), `overlayOscuridad`
  * (para la variante `imagen_fondo`) y `ctaSecundario` opcional (2º CTA, p.ej. "Ver bases"). Todo con
  * default/optional ⇒ un hero v1 parsea y conserva su aspecto (I-H).
+ *
+ * v3 (Tanda 3 F02/D4): `titulo`/`subtitulo` pasan a `RichTexto` (runs). El viejo `tituloAcento`
+ * DESAPARECE del schema — la migración v2→v3 lo ABSORBE en el `titulo` (la palabra acentuada queda en
+ * un run con la marca equivalente, LOSSLESS, migrate.ts). Un hero v2 con `titulo:string` + `tituloAcento`
+ * migra byte-idéntico. `efectoTitulo`/`tituloTamano`/`tituloMayusculas` siguen como props del `<Title>`.
  */
 export const heroProps = z
   .object({
-    titulo: z.string().min(1).max(120).optional(),
-    subtitulo: z.string().min(1).max(300).optional(),
+    titulo: RichTextoSchema.optional(),
+    subtitulo: RichTextoSchema.optional(),
     imagenUrl: urlPublica.optional(),
     ctaTexto: z.string().min(1).max(40).optional(),
     ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
@@ -525,14 +734,9 @@ export const heroProps = z
     // primario (DEFAULT = comportamiento actual, no-op). `acento` = token de la escala acento (degrada a
     // marca sin acento, I-T2). `texto` = color de texto heredado. Cero hex (I-A).
     eyebrowEstilo: z.enum(EYEBROW_ESTILOS).default("marca"),
-    // Resalta la PRIMERA ocurrencia de `palabra` en el título (match seguro, jamás HTML del tenant).
-    tituloAcento: z
-      .object({
-        palabra: z.string().min(1).max(40),
-        estilo: z.enum(ESTILOS_TITULO_ACENTO),
-      })
-      .strict()
-      .optional(),
+    // `tituloAcento` (v2) FUE ABSORBIDO por el `titulo` RichTexto en v3 (Tanda 3 F02/D4): la palabra
+    // acentuada vive ahora como un run con su marca. La migración v2→v3 (migrate.ts) lo consume; el campo
+    // ya no existe en el schema (un doc con `tituloAcento` crudo NO parsea ⇒ se migra ANTES, on-read).
     // Cifra/etiqueta destacada del hero (el "$3.000 + nota"). Texto plano con límite.
     destacado: z
       .object({
@@ -850,17 +1054,20 @@ export type BeneficiosGridProps = z.infer<typeof beneficiosGridProps>;
 export const ESTILOS_LISTA = ["vinetas", "numerada"] as const;
 
 /**
- * Bloque de `texto_rico` (discriminated-union por `tipo`, NUNCA HTML — I3). Cada bloque es texto
- * plano con límite; `lista` es un array de strings acotado. `.strict()` en cada rama ⇒ un bloque con
- * campo extra o un `tipo` desconocido no parsea.
+ * Bloque de `texto_rico` v2 (Tanda 3 F01/D1/D3, discriminated-union por `tipo`, NUNCA HTML — I-U1).
+ * `subtitulo`/`parrafo`/`cita` llevan `rico` (un `RichTexto` = runs + marcas + links inline); `cita.autor`
+ * y `lista.items` quedan STRING plano (texto corto, sin ROI editorial — D3). `.strict()` en cada rama ⇒
+ * un bloque con campo extra, un `tipo` desconocido, o el `texto` string VIEJO (v1) no parsea (se migra
+ * ANTES, on-read, migrate.ts). El campo se llama `rico` (no `children`) para no chocar con el `children`
+ * INTERNO del RichTexto (los runs).
  */
 export const BloqueTextoSchema = z.discriminatedUnion("tipo", [
-  z.object({ tipo: z.literal("subtitulo"), texto: z.string().min(1).max(120) }).strict(),
-  z.object({ tipo: z.literal("parrafo"), texto: z.string().min(1).max(2000) }).strict(),
+  z.object({ tipo: z.literal("subtitulo"), rico: RichTextoSchema }).strict(),
+  z.object({ tipo: z.literal("parrafo"), rico: RichTextoSchema }).strict(),
   z
     .object({
       tipo: z.literal("cita"),
-      texto: z.string().min(1).max(500),
+      rico: RichTextoSchema,
       autor: z.string().min(1).max(80).optional(),
     })
     .strict(),
@@ -875,9 +1082,9 @@ export const BloqueTextoSchema = z.discriminatedUnion("tipo", [
 export type BloqueTexto = z.infer<typeof BloqueTextoSchema>;
 
 /**
- * `texto_rico` (sección, F04): cuerpo editorial estructurado por bloques tipados (subtítulo/párrafo/
- * cita/lista) — NO HTML (elegido sobre markdown por seguridad, síntesis §2). `ancho` acota la columna
- * de lectura.
+ * `texto_rico` v2 (sección, F04 + Tanda 3 F01): cuerpo editorial estructurado por bloques tipados
+ * (subtítulo/párrafo/cita con runs, lista con strings) — NO HTML (I-U1). `ancho` acota la columna de
+ * lectura. v-bump v1→v2 con migrate-on-read LOSSLESS (`string → runs`, migrate.ts).
  */
 export const textoRicoProps = z
   .object({
@@ -1230,7 +1437,9 @@ export type CintaTextoProps = z.infer<typeof cintaTextoProps>;
 export const perfilAutoraProps = z
   .object({
     nombre: z.string().min(1).max(60),
-    bio: z.string().min(1).max(400).optional(),
+    // `bio` promovida a RichTexto (Tanda 3 F02/D5): prosa editorial donde el formato inline tiene ROI (un
+    // nombre en negrita, una frase en itálica). v-bump v1→v2 con migrate-on-read LOSSLESS string→runs.
+    bio: RichTextoSchema.optional(),
     avatarUrl: urlPublica.optional(),
     redes: z
       .array(
@@ -1378,7 +1587,7 @@ function definirWidget<P extends z.ZodTypeAny>(d: WidgetDef<P>): WidgetDef<P> {
 export const WIDGET_REGISTRY = {
   hero: definirWidget({
     categoria: "seccion",
-    v: 2, // catálogo-v2 F05: +variante/+ctaSecundario/+overlayOscuridad (migrate-on-read v1→v2)
+    v: 3, // Tanda 3 F02/D4: titulo/subtitulo→RichTexto, tituloAcento ABSORBIDO (migrate-on-read v2→v3)
     propsSchema: heroProps,
     defaultProps: { ctaAncla: "catalogo", variante: "split", mostrarBadgeSorteo: true },
   }),
@@ -1488,12 +1697,12 @@ export const WIDGET_REGISTRY = {
   }),
   texto_rico: definirWidget({
     categoria: "seccion",
-    v: 1,
+    v: 2, // Tanda 3 F01/D1/D3: v-bump v1→v2 (bloques con runs; migrate-on-read string→runs LOSSLESS)
     propsSchema: textoRicoProps,
     defaultProps: {
       bloques: [
-        { tipo: "subtitulo", texto: "Sobre esta tienda" },
-        { tipo: "parrafo", texto: "Escribe aquí tu historia, cómo funciona tu tienda o lo que quieras contar a quien te visita." },
+        { tipo: "subtitulo", rico: { children: [{ t: "Sobre esta tienda" }] } },
+        { tipo: "parrafo", rico: { children: [{ t: "Escribe aquí tu historia, cómo funciona tu tienda o lo que quieras contar a quien te visita." }] } },
       ],
     },
   }),
@@ -1613,11 +1822,11 @@ export const WIDGET_REGISTRY = {
   }),
   perfil_autora: definirWidget({
     categoria: "seccion",
-    v: 1,
+    v: 2, // Tanda 3 F02/D5: `bio` string→RichTexto (migrate-on-read LOSSLESS)
     propsSchema: perfilAutoraProps,
     defaultProps: {
       nombre: "Tu nombre",
-      bio: "Cuenta quién eres en una o dos frases: qué vendes, por qué, y qué hace especial a tu tienda.",
+      bio: { children: [{ t: "Cuenta quién eres en una o dos frases: qué vendes, por qué, y qué hace especial a tu tienda." }] },
     },
   }),
   // ── Tanda 2 · fidelidad al techo (F01) ──

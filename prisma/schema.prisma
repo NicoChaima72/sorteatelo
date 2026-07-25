@@ -132,6 +132,12 @@ model Tenant {
   // del Documento de Página (I-T1); se edita en el panel Tema del EDITOR, no en el admin. No queriable
   // (se lee por el tenant ya resuelto) ⇒ sin @@index.
   colorAcento   String? // segundo color de marca del tenant (hex); null = degrada a la escala de marca
+  // Chrome GLOBAL de la Tienda (Tanda 3 F06/D10, ADR propuesto). Header/footer configurable transversal a
+  // TODAS las páginas (validado por `ChromeSchema` al escribir; menú discriminado ancla|pagina|url). null ⇒
+  // el header/footer ACTUALES byte-idénticos (no-op, I-U8/I-H). Los nodos PINNED (carrito/sesión/atribución/
+  // Bases ADR-0008) se renderizan por plataforma FUERA de este JSON ⇒ no-borrables por construcción (I-U2).
+  // No queriable (se lee por el tenant ya resuelto por id/slug) ⇒ sin @@index.
+  chromeJson    Json? // config del chrome; null = header/footer default (actuales)
   // ── Textos del storefront (F06/D4, schema-guardian APPROVE). El Organizador los edita en el
   // panel (guardarConfiguracionTienda); el render del hero/aviso los consume con fallback. NO
   // queriables (se leen por el tenant ya resuelto por id/slug) ⇒ sin @@index.
@@ -402,6 +408,12 @@ model StorefrontPage {
   publishedJson Json? // último Documento publicado; null hasta la 1ª publicación
   version       Int       @default(1) // lock optimista del borrador (expectedVersion)
   publishedAt   DateTime? // timestamp de la última publicación; null hasta publicar
+  // Multi-página (Tanda 3 F04/D9, ADITIVO no-op): `enNav` suma esta página al nav derivado del header
+  // (label = nombre humano de la página). ADITIVO con default false ⇒ toda página existente queda FUERA
+  // del nav (comportamiento actual byte-idéntico, I-U8). Cuando el chrome trae menú explícito (F06/D10),
+  // ese menú manda; `enNav` alimenta solo el modo derivado. No queriable por sí solo (se filtra dentro de
+  // las pocas páginas de un tenant ya scopeado por el prefijo del unique [tenantId]) ⇒ sin @@index.
+  enNav         Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

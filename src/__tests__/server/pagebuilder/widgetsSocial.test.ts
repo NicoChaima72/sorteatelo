@@ -16,8 +16,8 @@ import {
  */
 
 describe("pagebuilder/widgets social (F05) — hero v2 (variante + ctaSecundario)", () => {
-  // page.soc.hero.001 — un hero v1 migra on-read a v2 con variante 'split' (look v1) sin tocar props
-  it("hero v1 migra on-read a v2 con variante 'split' que conserva el look actual", () => {
+  // page.soc.hero.001 — un hero v1 migra on-read a v3 con variante 'split' (look v1); titulo→RichTexto (Tanda 3 F02)
+  it("hero v1 migra on-read a v3 con variante 'split' y titulo runs que conserva el look actual", () => {
     const raw = {
       schemaVersion: 1,
       root: { props: {} },
@@ -26,12 +26,12 @@ describe("pagebuilder/widgets social (F05) — hero v2 (variante + ctaSecundario
       ],
       overlays: [],
     };
-    const doc = parsearDocumento(raw); // migra (v1→v2) + valida
+    const doc = parsearDocumento(raw); // migra (v1→v2→v3) + valida
     const hero = doc.secciones[0]!;
-    expect(hero.v).toBe(2);
+    expect(hero.v).toBe(3);
     if (hero.tipo === "hero") {
       expect(hero.props.variante).toBe("split"); // el look v1 (split) queda como default
-      expect(hero.props.titulo).toBe("Hola"); // props intactas
+      expect(hero.props.titulo?.children.map((r) => r.t).join("")).toBe("Hola"); // titulo → runs (lossless)
     }
   });
 

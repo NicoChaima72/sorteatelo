@@ -17,12 +17,29 @@ import {
   eliminarPageAssetInput,
   listarPageAssets,
 } from "~/server/domain/pagebuilder/pageAssets";
+import {
+  getChrome,
+  setChrome,
+  setChromeInput,
+} from "~/server/domain/pagebuilder/chromeTienda";
+import {
+  crearPagina,
+  crearPaginaInput,
+  eliminarPagina,
+  eliminarPaginaInput,
+  listarPaginas,
+  renombrarPagina,
+  renombrarPaginaInput,
+  setEnNav,
+  setEnNavInput,
+} from "~/server/domain/pagebuilder/paginas";
 import { puedoEditar } from "~/server/domain/pagebuilder/puedoEditar";
 import { publicarPagina } from "~/server/domain/pagebuilder/publicarPagina";
 import { revertirPagina } from "~/server/domain/pagebuilder/revertirPagina";
 import { setColorAcento } from "~/server/domain/pagebuilder/setColorAcento";
 import {
   editarBorradorInput,
+  leerBorradorInput,
   publicarBorradorInput,
   revertirBorradorInput,
   setColorAcentoInput,
@@ -95,12 +112,14 @@ export const pagebuilderRouter = createTRPCRouter({
   // del gate `exigirEditor` (I1); publicar/mutar respetan el lock optimista (expectedVersion, I10);
   // publicar es acción humana explícita (I6) y ahora también la puede hacer la Organizadora.
 
-  /** Lee el Borrador para editar (documento + version para el expectedVersion). */
-  getBorrador: tenantProcedure.query(({ ctx }) =>
-    runDomain(async () =>
-      getPagina({ db: ctx.db, tenantId: await exigirEditor(ctx), cual: "draft" }),
+  /** Lee el Borrador para editar (documento + version). `slug` opcional elige la página (default home, F04). */
+  getBorrador: tenantProcedure
+    .input(leerBorradorInput.optional())
+    .query(({ ctx, input }) =>
+      runDomain(async () =>
+        getPagina({ db: ctx.db, tenantId: await exigirEditor(ctx), cual: "draft", slug: input?.slug }),
+      ),
     ),
-  ),
 
   /** Aplica una mutación al Borrador (misma union que el MCP) con el lock optimista. */
   mutar: tenantProcedure
@@ -112,6 +131,7 @@ export const pagebuilderRouter = createTRPCRouter({
           tenantId: await exigirEditor(ctx),
           mutacion: input.mutacion,
           expectedVersion: input.expectedVersion,
+          slug: input.slug,
         }),
       ),
     ),
@@ -127,16 +147,19 @@ export const pagebuilderRouter = createTRPCRouter({
           tenantId,
           expectedVersion: input.expectedVersion,
           publicadoPor: ctx.session?.user.email ?? undefined,
+          slug: input.slug,
         });
       }),
     ),
 
-  /** Historial de publicaciones (revisiones) para el rollback. */
-  listarVersiones: tenantProcedure.query(({ ctx }) =>
-    runDomain(async () =>
-      listarVersiones({ db: ctx.db, tenantId: await exigirEditor(ctx) }),
+  /** Historial de publicaciones (revisiones) para el rollback. `slug` opcional (F04). */
+  listarVersiones: tenantProcedure
+    .input(leerBorradorInput.optional())
+    .query(({ ctx, input }) =>
+      runDomain(async () =>
+        listarVersiones({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input?.slug }),
+      ),
     ),
-  ),
 
   /** Copia una revisión publicada al Borrador (rollback, D4); hay que RE-publicar para hacerla visible. */
   revertir: tenantProcedure
@@ -147,7 +170,67 @@ export const pagebuilderRouter = createTRPCRouter({
           db: ctx.db,
           tenantId: await exigirEditor(ctx),
           revision: input.revision,
+          slug: input.slug,
         }),
+      ),
+    ),
+
+  // ── Multi-página (Tanda 3 F04/D8) — CRUD de páginas gateado por membresía ──────────────────────
+
+  /** Lista las páginas de la Tienda (home primero) con su estado borrador/publicada + enNav. */
+  listarPaginas: tenantProcedure.query(({ ctx }) =>
+    runDomain(async () => listarPaginas({ db: ctx.db, tenantId: await exigirEditor(ctx) })),
+  ),
+
+  /** Crea una página nueva (slug validado + reservados; siembra el borrador). */
+  crearPagina: tenantProcedure
+    .input(crearPaginaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () =>
+        crearPagina({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input.slug, nombre: input.nombre }),
+      ),
+    ),
+
+  /** Renombra una página (prohíbe home; mueve el historial al slug nuevo). */
+  renombrarPagina: tenantProcedure
+    .input(renombrarPaginaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () =>
+        renombrarPagina({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input.slug, slugNuevo: input.slugNuevo }),
+      ),
+    ),
+
+  /** Elimina una página (prohíbe home; borra la fila + su historial). */
+  eliminarPagina: tenantProcedure
+    .input(eliminarPaginaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () =>
+        eliminarPagina({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input.slug }),
+      ),
+    ),
+
+  /** Suma/quita una página del nav derivado (enNav). */
+  setEnNav: tenantProcedure
+    .input(setEnNavInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () =>
+        setEnNav({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input.slug, enNav: input.enNav }),
+      ),
+    ),
+
+  // ── Chrome global (Tanda 3 F07/D12, ADR-0021) — gateado por membresía; el MCP NO lo toca (I12) ──
+
+  /** Lee el chrome del tenant para sembrar el panel Chrome (default si null). */
+  getChrome: tenantProcedure.query(({ ctx }) =>
+    runDomain(async () => getChrome({ db: ctx.db, tenantId: await exigirEditor(ctx) })),
+  ),
+
+  /** Escribe el chrome (validado por ChromeSchema server-side, I3); `null` restablece al default. */
+  setChrome: tenantProcedure
+    .input(setChromeInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () =>
+        setChrome({ db: ctx.db, tenantId: await exigirEditor(ctx), chrome: input.chrome }),
       ),
     ),
 

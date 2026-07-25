@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  AMBIENTE_FONDO,
   ANCHO_CONTENIDO,
   avisoBarraProps,
   bannerCtaProps,
@@ -36,6 +37,7 @@ import {
   urgenciaCountdownProps,
   VIBE,
   videoProps,
+  vitrinaProximamenteProps,
   whatsappFlotanteProps,
 } from "~/lib/pagebuilder/widgets";
 
@@ -140,6 +142,7 @@ export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
   nodoSeccion("galeria", galeriaProps), // catálogo-v2 F08
   nodoSeccion("cinta_texto", cintaTextoProps), // catálogo-v2 F12
   nodoSeccion("perfil_autora", perfilAutoraProps), // catálogo-v2 F12
+  nodoSeccion("vitrina_proximamente", vitrinaProximamenteProps), // Tanda 2 F01
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 
@@ -169,6 +172,7 @@ export const TemaSchema = z
     tipografia: z.enum(PARES_TIPOGRAFICOS).default("plataforma"),
     anchoContenido: z.enum(ANCHO_CONTENIDO).default("contenido"), // default heredado por secciones
     fondoPagina: z.enum(ESQUEMAS_FONDO).default("superficie"), // pinta el <body>/shell
+    ambiente: z.enum(AMBIENTE_FONDO).default("ninguno"), // Tanda 2 F05/D5: stage-lights sobre el shell
   })
   .strict();
 export type Tema = z.infer<typeof TemaSchema>;

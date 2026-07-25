@@ -21,7 +21,8 @@ export function ImagenConFallback({
   fallbackStyle,
   className,
 }: {
-  src: string;
+  /** URL de la imagen. AUSENTE/vacía ⇒ el placeholder tematizado directo (I-G), sin `<img>` roto. */
+  src?: string;
   alt: string;
   /** Color de marca del tenant (para el gradiente del placeholder vía `gradienteTematico`). */
   colorPrimario?: string | null;
@@ -33,7 +34,9 @@ export function ImagenConFallback({
 }) {
   const [fallo, setFallo] = useState(false);
 
-  if (fallo) {
+  // Sin `src` (una vitrina de "próximamente" sin cover, F01) ⇒ el placeholder tematizado directo, SIN
+  // renderizar un `<img>` con src vacío (que en SSR pediría la página entera). Mismo look que el onError.
+  if (fallo || !src) {
     return (
       <Box
         role="img"

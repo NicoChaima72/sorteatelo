@@ -5,6 +5,7 @@ import {
   ALINEAR_VERTICAL,
   ALTO_MIN,
   ALTURA_DIVISOR,
+  AMBIENTE_FONDO,
   ANCHO_CONTENIDO,
   ANCHO_FONDO,
   ANCHO_SECCION,
@@ -190,6 +191,8 @@ export function mcpListStyleOptions() {
         grilla: "Grilla fina.",
         diagonales: "Líneas diagonales.",
         perforacion: "Motivo de troquel de ticket.",
+        cuadricula_papel: "Papel de cuaderno cuadriculado.",
+        arcos: "Motivo de arcos (scallop).",
       }),
       espaciadoVertical: describir(ESPACIADO_V, {
         ninguno: "Sin aire arriba/abajo.",
@@ -197,6 +200,21 @@ export function mcpListStyleOptions() {
         m: "Aire medio.",
         l: "Aire amplio (por defecto).",
         xl: "Aire muy amplio.",
+      }),
+      // Espaciado fino por lado (Tanda 2 F06/D6): overrides opcionales de `espaciadoVertical` por lado.
+      padArriba: describir(ESPACIADO_V, {
+        ninguno: "Sin aire arriba.",
+        s: "Poco aire arriba.",
+        m: "Aire medio arriba.",
+        l: "Aire amplio arriba.",
+        xl: "Aire muy amplio arriba.",
+      }),
+      padAbajo: describir(ESPACIADO_V, {
+        ninguno: "Sin aire abajo.",
+        s: "Poco aire abajo.",
+        m: "Aire medio abajo.",
+        l: "Aire amplio abajo.",
+        xl: "Aire muy amplio abajo.",
       }),
       ancho: describir(ANCHO_SECCION, {
         contenido: "Ancho de lectura (por defecto).",
@@ -281,6 +299,13 @@ export function mcpListStyleOptions() {
         acento: "2º color de marca a fondo lleno (cae a marca sin acento).",
         acento_profundo: "2º color de marca oscuro (cae a marca sin acento).",
         tinta: "Fondo casi negro.",
+      }),
+      // Ambiente / stage-lights (Tanda 2 F05/D5): focos radiales de tokens sobre el fondo de página.
+      ambiente: describir(AMBIENTE_FONDO, {
+        ninguno: "Sin focos (por defecto).",
+        focos_marca: "Focos radiales del color de la marca (stage-lights).",
+        focos_acento: "Focos radiales del 2º color de marca (cae a marca sin acento).",
+        aurora: "Aurora: mezcla de focos de marca y acento.",
       }),
     },
   };

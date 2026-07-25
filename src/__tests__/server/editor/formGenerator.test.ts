@@ -46,6 +46,11 @@ const OVERRIDES_CONOCIDOS = new Set<string>([
   // `aviso_barra.mensajes` (builder-tanda-1 F04): array de STRINGS (mismo caso que `cinta_texto.mensajes`).
   // Además el `aviso_barra` es un OVERLAY sin panel de edición UI ⇒ se configura por MCP/apply_page.
   "aviso_barra.mensajes",
+  // `hero.visual` (Tanda 2 F02): discriminated-union `imagen|tarjeta` (holocard configurable del split).
+  // MISMO caso que `texto_rico.bloques`/`hero.destacado`: la introspección genérica (D8) no cubre uniones
+  // discriminadas ni objetos anidados con toggle ⇒ se edita por el asistente/MCP (así lo arma F09). El
+  // resto del hero sigue editable por form.
+  "hero.visual",
 ]);
 
 describe("editor/formGenerator — F10-1: generador de forms cubre el registro (generativo)", () => {

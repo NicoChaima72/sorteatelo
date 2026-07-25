@@ -18,9 +18,15 @@ import { publicarPagina } from "~/server/domain/pagebuilder/publicarPagina";
  * si alguien intenta pagar). No se arregla acá — es el estado esperado de una tienda pre-venta.
  *
  * Fidelidad de color (el signature del mockup es la TARJETA HOLOGRÁFICA violeta): `colorPrimario` = VIOLETA
- * (#b983ff) gobierna el borde holo + los CTAs + el eyebrow + el destacado; `colorAcento` = DORADO (#e8c468)
- * alimenta los esquemas `acento*` y el `tituloAcento` estilo "acento" (la palabra "Enriquecer" en dorado).
+ * (#b983ff) gobierna el borde holo + los CTAs + el destacado; `colorAcento` = DORADO (#e8c468) alimenta los
+ * esquemas `acento*`, el `tituloAcento` estilo "acento" (la palabra "Enriquecer" en dorado) Y el EYEBROW
+ * (Tanda 2 F04 `eyebrowEstilo:"acento"` — el eyebrow dorado del mockup, ya desacoplado del violeta de marca).
  * Tipografía `energia` (Space Grotesk display + Inter) = el par más fiel al display del mockup.
+ *
+ * Tanda 2 (fidelidad al techo) sobre F14: la HOLOCARD ahora vive DENTRO del hero split (visual `tarjeta`
+ * holo — F02, ya no una `imagen_destacada` full-width 864×1150 apilada); "Un libro a la vez" usa el widget
+ * DEDICADO `vitrina_proximamente` (F01, con candados + estado, ya no `beneficios_grid`); el shell lleva
+ * STAGE-LIGHTS violeta (`ambiente:"focos_marca"` — F05); espaciado fino por `padTop`/`padBottom` (F06).
  *
  * IDEMPOTENTE: find-or-create por slug/título/(tenant,ACTIVO); re-correrlo re-aplica el mismo documento
  * (la version del borrador sube, el publicado queda equivalente). Tolerante si el User dueño aún no inició
@@ -32,8 +38,8 @@ const SLUG = "bcac";
 const NOMBRE = "BCAC · Ediciones";
 const OWNER_EMAIL = "nikochaima72@gmail.com";
 
-const COLOR_VIOLETA = "#b983ff"; // MARCA (primario): borde holo + CTA + eyebrow + destacado + botones
-const COLOR_DORADO = "#e8c468"; // ACENTO: esquemas acento* + tituloAcento estilo "acento" (palabra dorada)
+const COLOR_VIOLETA = "#b983ff"; // MARCA (primario): borde holo + CTA + destacado + botones + stage-lights
+const COLOR_DORADO = "#e8c468"; // ACENTO: esquemas acento* + tituloAcento + EYEBROW (eyebrowEstilo:acento)
 
 const PRODUCTO_TITULO = "Cómo Enriquecer a tu Artista Favorito";
 const PRODUCTO_DESC =
@@ -54,17 +60,21 @@ const doc = {
       tipografia: "energia", // Space Grotesk (display) + Inter — el par más fiel al mockup
       anchoContenido: "contenido",
       fondoPagina: "tinta", // gray-9 en modo oscuro ≈ el near-black del mockup
+      ambiente: "focos_marca", // Tanda 2 F05: stage-lights violeta (los gradientes radiales del mockup)
     },
   },
   secciones: [
-    // ── HERO a PANTALLA, centrado: eyebrow + "Enriquecer" DORADO + $3.000 destacado + 2 CTAs ──
+    // ── HERO SPLIT: texto izquierda + HOLOCARD (tarjeta-placeholder holo) derecha — el hero 2-col del
+    //    mockup (Tanda 2 F02: la holocard vive DENTRO del hero split, compacta, ya no full-width). El
+    //    eyebrow va DORADO (F04 eyebrowEstilo:"acento"); "Enriquecer" dorado; $3.000 destacado; 2 CTAs. ──
     {
       id: nid(),
       tipo: "hero",
       v: 2,
       props: {
-        variante: "centrado",
+        variante: "split",
         eyebrow: "A la venta ahora · Edición única",
+        eyebrowEstilo: "acento", // Tanda 2 F04: eyebrow DORADO (acento), desacoplado del violeta de marca
         titulo: "Cómo Enriquecer a tu Artista Favorito",
         tituloAcento: { palabra: "Enriquecer", estilo: "acento" }, // dorado (acento)
         subtitulo:
@@ -80,44 +90,38 @@ const doc = {
         mostrarConfianza: false, // el mockup no tiene trust badges
         mostrarBadgeSorteo: false, // el eyebrow reemplaza al badge
         efectoTitulo: "ninguno", // el título del mockup es estático
+        // Tanda 2 F02: la HOLOCARD del mockup como visual del split — tarjeta-placeholder SIN imagen,
+        // con título/ícono dentro del marco holo (borde iridiscente violeta + tilt 3D). Compacta por ser
+        // la columna derecha del split (cierra el GAP de la holocard 864×1150 sobredimensionada de F14).
+        visual: {
+          tipo: "tarjeta",
+          titulo: "Cómo Enriquecer a tu Artista Favorito",
+          subtitulo: "PDF descargable · ES / EN",
+          icono: "grafico",
+          holo: true,
+        },
       },
-      estilo: { padY: "xl", altoMin: "pantalla", alinearVertical: "centro", entrada: "aparecer" },
+      // Composición fina (F06): sin `altoMin:pantalla` (evita el void del full-viewport que dejó F14);
+      // padTop amplio pegado a la cinta, padBottom medio para acercar la vitrina siguiente.
+      estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
     },
-    // ── TARJETA HOLOGRÁFICA (imagen_destacada con efecto holo: borde gradiente animado + tilt 3D) ──
-    // Sin cover real ⇒ placeholder dark-violeta con texto dorado; si no carga, degrada al gradiente
-    // temático (violeta + ícono) DENTRO del marco holo (ambos on-brand). Caption del mockup.
+    // ── VITRINA "Un libro a la vez": 4 próximos lanzamientos BLOQUEADOS (widget dedicado Tanda 2 F01) ──
     {
       id: nid(),
-      tipo: "imagen_destacada",
-      v: 1,
-      props: {
-        imagenUrl: "https://placehold.co/600x800/140a24/e8c468?text=Como+Enriquecer",
-        alt: "Portada: Cómo Enriquecer a tu Artista Favorito",
-        caption: "PDF descargable · ES / EN",
-        ancho: "contenido",
-        ratio: "3:4",
-        forma: "ninguna",
-        holo: true, // borde holográfico animado + tilt (marco-holo)
-      },
-      estilo: { padY: "m", entrada: "escala" },
-    },
-    // ── VITRINA "Un libro a la vez": 4 próximos lanzamientos BLOQUEADOS (candado) ──
-    // Aproximación fiel con `beneficios_grid` + ícono `candado`. GAP anotado: widget `vitrina_proximamente`.
-    {
-      id: nid(),
-      tipo: "beneficios_grid",
+      tipo: "vitrina_proximamente",
       v: 1,
       props: {
         titulo: "Un libro a la vez",
-        columnas: 2,
+        columnas: 4,
         items: [
-          { icono: "candado", titulo: "I. Claude", desc: "Próximamente" },
-          { icono: "candado", titulo: "Rezado", desc: "Próximamente" },
-          { icono: "candado", titulo: "Patrón de Rechazo", desc: "Próximamente" },
-          { icono: "candado", titulo: "OilLoop", desc: "Próximamente" },
+          { titulo: "I. Claude", subtitulo: "Próximamente" },
+          { titulo: "Rezado", subtitulo: "Próximamente" },
+          { titulo: "Patrón de Rechazo", subtitulo: "Próximamente" },
+          { titulo: "OilLoop", subtitulo: "Próximamente" },
         ],
+        notaPie: "Publicamos un título por temporada. El próximo se anuncia al cerrar el sorteo.",
       },
-      estilo: { padY: "xl", entrada: "subir" },
+      estilo: { padTop: "m", padBottom: "xl", entrada: "subir" },
       nav: { incluir: true, etiqueta: "Próximos" },
     },
     // ── "Cada compra suma números": mecánica del sorteo (bloque_ticket_promo) ──

@@ -107,6 +107,7 @@ describe("pagebuilder/TemaPagina — root.props (F01)", () => {
         tipografia: "plataforma",
         anchoContenido: "contenido",
         fondoPagina: "superficie",
+        ambiente: "ninguno", // Tanda 2 F05/D5: default no-op (el shell no cambia)
       });
     }
   });
@@ -128,6 +129,15 @@ describe("pagebuilder/TemaPagina — root.props (F01)", () => {
     expect(TemaSchema.safeParse({ modo: "sepia" }).success).toBe(false);
     expect(TemaSchema.safeParse({ colorPrimario: "#fff" }).success).toBe(false); // NO se duplica al doc
     expect(TemaSchema.safeParse({ tipografia: "comic_sans" }).success).toBe(false);
+  });
+
+  // tema.ambiente.001 (Tanda 2 F05/D5) — `ambiente` default `ninguno`; acepta el enum; rechaza fuera de rango
+  it("ambiente default ninguno, acepta focos_marca/focos_acento/aurora, rechaza inválido", () => {
+    expect(TemaSchema.parse({}).ambiente).toBe("ninguno");
+    for (const amb of ["ninguno", "focos_marca", "focos_acento", "aurora"] as const) {
+      expect(TemaSchema.safeParse({ ambiente: amb }).success).toBe(true);
+    }
+    expect(TemaSchema.safeParse({ ambiente: "neon" }).success).toBe(false);
   });
 });
 

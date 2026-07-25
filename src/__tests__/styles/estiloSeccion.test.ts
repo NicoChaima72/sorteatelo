@@ -7,6 +7,7 @@ import {
   colorSolidoDeEsquema,
   estiloSeccionACss,
   fondoSeccionACss,
+  fondoShellConAmbiente,
 } from "~/styles/estiloSeccion";
 
 /**
@@ -344,5 +345,93 @@ describe("estiloSeccion — divisor y transición de color", () => {
       colorFondoSolido(parse({ fondo: { tipo: "gradiente", preset: "marca_vivo" } })),
     ).toBe("var(--mantine-color-body)");
     expect(colorSolidoDeEsquema("tinta")).toBe("var(--mantine-color-gray-9)");
+  });
+});
+
+describe("estiloSeccion — ambiente / stage-lights (Tanda 2 F05/D5)", () => {
+  // amb.001 — ninguno = solo el color base del fondoPagina (no-op, shell idéntico al actual)
+  it("ambiente 'ninguno' devuelve solo el color sólido del fondoPagina (no-op)", () => {
+    expect(fondoShellConAmbiente("tinta", "ninguno")).toEqual({
+      background: colorSolidoDeEsquema("tinta"),
+    });
+    expect(fondoShellConAmbiente("superficie", "ninguno")).toEqual({
+      background: colorSolidoDeEsquema("superficie"),
+    });
+  });
+
+  // amb.002 — focos_marca compone radial-gradients de la escala marca sobre el color base (cero hex)
+  it("focos_marca emite radial-gradients de tokens de marca sobre el color base (cero hex)", () => {
+    const bg = fondoShellConAmbiente("tinta", "focos_marca").background as string;
+    expect(bg).toContain("radial-gradient");
+    expect(bg).toContain("--mantine-primary-color-");
+    expect(bg).toContain("color-mix"); // opacidad por token, no rgba/hex
+    expect(bg).toContain(colorSolidoDeEsquema("tinta")); // el color base queda como capa final
+    expect(tieneHex(bg)).toBe(false);
+  });
+
+  // amb.003 — focos_acento usa la escala acento (fallback a marca); aurora mezcla marca + acento
+  it("focos_acento usa la escala acento (fallback a marca) y aurora mezcla ambas (cero hex)", () => {
+    const acento = fondoShellConAmbiente("tinta", "focos_acento").background as string;
+    expect(acento).toContain("--mantine-color-acento-");
+    expect(acento).toContain("var(--mantine-primary-color-"); // fallback a marca dentro del var()
+    expect(tieneHex(acento)).toBe(false);
+
+    const aurora = fondoShellConAmbiente("tinta", "aurora").background as string;
+    expect(aurora).toContain("--mantine-primary-color-");
+    expect(aurora).toContain("--mantine-color-acento-");
+    expect(tieneHex(aurora)).toBe(false);
+  });
+});
+
+describe("estiloSeccion — padTop/padBottom (Tanda 2 F06/D6)", () => {
+  // pad.001 — sin overrides: py del enum, sin pt/pb (no-op, wrapper usa py como siempre)
+  it("sin padTop/padBottom ⇒ py del enum y pyTop/pyBottom undefined (no-op)", () => {
+    const r = estiloSeccionACss(parse({ padY: "l" }));
+    expect(r.py).toEqual({ base: "xl", md: 48 });
+    expect(r.pyTop).toBeUndefined();
+    expect(r.pyBottom).toBeUndefined();
+    expect(estiloSeccionACss(undefined).pyTop).toBeUndefined();
+    expect(estiloSeccionACss(undefined).pyBottom).toBeUndefined();
+  });
+
+  // pad.002 — padTop override el lado superior; el lado sin override cae al padY base
+  it("padTop override el top; padBottom el bottom; el lado sin override cae al padY base", () => {
+    const soloTop = estiloSeccionACss(parse({ padY: "l", padTop: "ninguno" }));
+    expect(soloTop.pyTop).toEqual({ base: 0, md: 0 }); // ninguno
+    expect(soloTop.pyBottom).toEqual({ base: "xl", md: 48 }); // cae al padY base (l)
+    const ambos = estiloSeccionACss(parse({ padTop: "xl", padBottom: "s" }));
+    expect(ambos.pyTop).toEqual({ base: 48, md: 80 }); // xl
+    expect(ambos.pyBottom).toEqual({ base: "md", md: "lg" }); // s
+  });
+
+  // pad.003 — enums cerrados
+  it("padTop/padBottom rechazan valores fuera de ESPACIADO_V", () => {
+    expect(EstiloSeccionSchema.safeParse({ padTop: "gigante" }).success).toBe(false);
+    expect(EstiloSeccionSchema.safeParse({ padBottom: "medio" }).success).toBe(false);
+  });
+});
+
+describe("estiloSeccion — patrones nuevos (Tanda 2 F07/D7)", () => {
+  // pat.001 — cuadricula_papel: doble linear-gradient de token (grid papel) sobre el esquema base
+  it("cuadricula_papel emite el doble linear-gradient de token sobre el esquema base (cero hex)", () => {
+    const css = fondoSeccionACss({ tipo: "patron", patron: "cuadricula_papel", esquema: "superficie" });
+    expect(css.background).toBe("var(--mantine-color-body)"); // esquema base
+    expect(css.backgroundImage).toContain("linear-gradient");
+    expect(css.backgroundImage!.match(/linear-gradient/g)!.length).toBeGreaterThanOrEqual(2);
+    expect(tieneHex(valoresCss(css))).toBe(false);
+  });
+
+  // pat.002 — arcos: radial-gradient (scallop) sobre el esquema base
+  it("arcos emite un radial-gradient (scallop) sobre el esquema base (cero hex)", () => {
+    const css = fondoSeccionACss({ tipo: "patron", patron: "arcos", esquema: "tinta" });
+    expect(css.background).toBe("var(--mantine-color-gray-9)"); // esquema base (tinta)
+    expect(css.backgroundImage).toContain("radial-gradient");
+    expect(tieneHex(valoresCss(css))).toBe(false);
+  });
+
+  // pat.003 — FondoSeccionSchema (rama patron) acepta los dos patrones nuevos
+  it("FondoSeccionSchema (rama patron) acepta cuadricula_papel y arcos", () => {
+    expect(parse({ fondo: { tipo: "patron", patron: "cuadricula_papel" } })).toBeTruthy();
+    expect(parse({ fondo: { tipo: "patron", patron: "arcos" } })).toBeTruthy();
   });
 });

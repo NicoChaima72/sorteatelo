@@ -26,6 +26,7 @@ import { Testimonios } from "~/components/storefront/testimonios";
 import { TextoRico } from "~/components/storefront/texto-rico";
 import { UrgenciaCountdown } from "~/components/storefront/urgencia-countdown";
 import { Video } from "~/components/storefront/video";
+import { VitrinaProximamente } from "~/components/storefront/vitrina-proximamente";
 import { WhatsappFlotante } from "~/components/storefront/whatsapp-flotante";
 import { Fragment } from "react";
 
@@ -197,6 +198,14 @@ export function RenderSeccion({
       return <CintaTexto nodo={seccion} divisorColor={divisorColor} />;
     case "perfil_autora":
       return <PerfilAutora nodo={seccion} divisorColor={divisorColor} />;
+    case "vitrina_proximamente":
+      return (
+        <VitrinaProximamente
+          nodo={seccion}
+          colorPrimario={branding.colorPrimario}
+          divisorColor={divisorColor}
+        />
+      );
     default: {
       // Candado de exhaustividad EN COMPILACIÓN (F10/F11 no pueden olvidar una rama) + tolerancia I9
       // en runtime (un `tipo` desconocido de un documento publicado viejo renderiza `null`, no crashea).

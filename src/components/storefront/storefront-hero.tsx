@@ -1,5 +1,6 @@
 import {
   Anchor,
+  AspectRatio,
   Badge,
   Box,
   Button,
@@ -7,6 +8,7 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  ThemeIcon,
   Title,
 } from "@mantine/core";
 import {
@@ -17,12 +19,18 @@ import {
   IconTicket,
 } from "@tabler/icons-react";
 
+import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
 import { ImagenConFallback } from "~/components/storefront/imagen-tenant";
+import { MarcoHolo } from "~/components/storefront/marco-holo";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { TituloHero } from "~/components/storefront/titulo-hero";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
-import { EstiloSeccionSchema, type HeroProps } from "~/lib/pagebuilder/widgets";
+import {
+  EstiloSeccionSchema,
+  type HeroProps,
+  type HeroVisual,
+} from "~/lib/pagebuilder/widgets";
 import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -101,20 +109,36 @@ function EyebrowSorteo({ mostrar }: { mostrar: boolean }) {
 }
 
 /**
- * Eyebrow de texto (F13/fidelidad): kicker pequeño en MAYÚSCULAS en el color de MARCA del tenant (cero
- * hex, token del primario, I-A), con letter-spacing. Texto plano (schema, nunca HTML del tenant, I3).
- * El mockup lo usa como firma de autoría ("Bernardita Alvarado Coddou · Libro Digital").
+ * Color del eyebrow por `eyebrowEstilo` (Tanda 2 F04/D4). `marca` (default) = token del primario
+ * (comportamiento actual). `acento` = token de la escala acento con FALLBACK a marca (I-T2, degrada sin
+ * acento). `texto` = color de texto heredado (sin color explícito). Cero hex (I-A).
  */
-function EyebrowTexto({ texto }: { texto: string }) {
+function colorEyebrow(estilo: HeroProps["eyebrowEstilo"]): string | undefined {
+  switch (estilo) {
+    case "acento":
+      return "var(--mantine-color-acento-filled, var(--mantine-primary-color-filled))";
+    case "texto":
+      return undefined; // hereda el color de texto del shell (dimmed lo aporta el <Text c>)
+    case "marca":
+    default:
+      return "var(--mantine-primary-color-filled)";
+  }
+}
+
+/**
+ * Eyebrow de texto (F13/fidelidad; color por token en Tanda 2 F04): kicker pequeño en MAYÚSCULAS con
+ * letter-spacing. El color sale de `eyebrowEstilo` (marca/acento/texto) — cero hex, tokens del tenant
+ * (I-A). Texto plano (schema, nunca HTML del tenant, I3). El mockup lo usa como firma de autoría.
+ */
+function EyebrowTexto({ texto, estilo }: { texto: string; estilo: HeroProps["eyebrowEstilo"] }) {
+  const color = colorEyebrow(estilo);
   return (
     <Text
       fw={700}
       size="sm"
       tt="uppercase"
-      style={{
-        letterSpacing: "0.12em",
-        color: "var(--mantine-primary-color-filled)",
-      }}
+      c={color ? undefined : "dimmed"}
+      style={{ letterSpacing: "0.12em", ...(color ? { color } : {}) }}
     >
       {texto}
     </Text>
@@ -122,11 +146,11 @@ function EyebrowTexto({ texto }: { texto: string }) {
 }
 
 /**
- * Kicker del hero: si el documento trae `eyebrow` explícito, gana (texto de marca); si no, cae al badge
- * "Sorteo abierto" server-side (comportamiento previo, no-op cuando no hay eyebrow — I-H).
+ * Kicker del hero: si el documento trae `eyebrow` explícito, gana (texto por token de `eyebrowEstilo`);
+ * si no, cae al badge "Sorteo abierto" server-side (comportamiento previo, no-op sin eyebrow — I-H).
  */
 function HeroEyebrow({ props }: { props: HeroProps }) {
-  if (props.eyebrow) return <EyebrowTexto texto={props.eyebrow} />;
+  if (props.eyebrow) return <EyebrowTexto texto={props.eyebrow} estilo={props.eyebrowEstilo} />;
   return <EyebrowSorteo mostrar={props.mostrarBadgeSorteo} />;
 }
 
@@ -259,6 +283,89 @@ function HeroVisual({
   return <Box aria-hidden style={{ ...base, background: gradienteTematico(colorPrimario) }} />;
 }
 
+/**
+ * Tarjeta-placeholder del hero (Tanda 2 F02/D2): la HOLOCARD del mockup `tienda-libro` SIN imagen —
+ * ícono (Tabler, enum, cero emoji libre — D2) + título + subtítulo dentro de un fondo tematizado. Ratio
+ * 3:4 (tipo portada). Cero hex (I-A): el fondo es `gradienteTematico`, el texto blanco emparejado.
+ */
+function TarjetaVisual({
+  visual,
+  colorPrimario,
+}: {
+  visual: Extract<HeroVisual, { tipo: "tarjeta" }>;
+  colorPrimario: string | null;
+}) {
+  const Icono = visual.icono ? iconoBeneficio(visual.icono) : null;
+  return (
+    <AspectRatio ratio={3 / 4}>
+      <Box
+        style={{
+          background: gradienteTematico(colorPrimario),
+          borderRadius: "var(--mantine-radius-lg)",
+          padding: "var(--mantine-spacing-xl)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          gap: "var(--mantine-spacing-md)",
+          color: "var(--mantine-color-white)",
+        }}
+      >
+        {Icono && (
+          <ThemeIcon variant="white" size={64} radius="xl">
+            <Icono className="size-8" stroke={1.5} />
+          </ThemeIcon>
+        )}
+        <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
+          {visual.titulo}
+        </Text>
+        {visual.subtitulo && (
+          <Text fz="sm" c="white" opacity={0.85}>
+            {visual.subtitulo}
+          </Text>
+        )}
+      </Box>
+    </AspectRatio>
+  );
+}
+
+/**
+ * Visual configurable del hero split (Tanda 2 F02/D2). `imagen` = imagen (con `holo` opcional);
+ * `tarjeta` = holocard-placeholder. `holo` reusa `MarcoHolo` (borde iridiscente + tilt, SSR/reduced-
+ * motion-safe). Cero hex (I-A). Es la columna derecha del split; sin `visual` el hero cae al
+ * `<HeroVisual>` de siempre (no-op, I-H) — este componente solo se monta cuando `visual` está presente.
+ */
+function HeroVisualConfigurable({
+  visual,
+  colorPrimario,
+  alt,
+}: {
+  visual: HeroVisual;
+  colorPrimario: string | null;
+  alt: string;
+}) {
+  const cuerpo =
+    visual.tipo === "imagen" ? (
+      <ImagenConFallback
+        src={visual.url}
+        alt={alt}
+        colorPrimario={colorPrimario}
+        style={{
+          width: "100%",
+          aspectRatio: "3 / 4",
+          objectFit: "cover",
+          display: "block",
+          borderRadius: "var(--mantine-radius-lg)",
+        }}
+      />
+    ) : (
+      <TarjetaVisual visual={visual} colorPrimario={colorPrimario} />
+    );
+
+  return visual.holo ? <MarcoHolo>{cuerpo}</MarcoHolo> : cuerpo;
+}
+
 // ── Variantes ───────────────────────────────────────────────────────────────
 
 /** `split` (v1): texto izquierda + visual derecha. Idéntico al hero previo a catálogo-v2 (I-H). */
@@ -291,7 +398,17 @@ function HeroSplit({
           <Ctas props={props} />
           {props.mostrarConfianza && <TrustBadges />}
         </Stack>
-        <HeroVisual imagenUrl={props.imagenUrl ?? null} alt={branding.nombre} colorPrimario={branding.colorPrimario} />
+        {/* Columna derecha (Tanda 2 F02/D2): `visual` configurable (imagen/holocard con holo opcional)
+            gana; sin `visual` cae al `<HeroVisual>` de siempre (imagenUrl/gradiente — no-op, I-H). */}
+        {props.visual ? (
+          <HeroVisualConfigurable
+            visual={props.visual}
+            colorPrimario={branding.colorPrimario}
+            alt={branding.nombre}
+          />
+        ) : (
+          <HeroVisual imagenUrl={props.imagenUrl ?? null} alt={branding.nombre} colorPrimario={branding.colorPrimario} />
+        )}
       </SimpleGrid>
     </SeccionWrapper>
   );

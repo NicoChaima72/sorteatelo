@@ -60,7 +60,9 @@ export function ImagenDestacada({
 }) {
   const props = nodo.props;
   const ratio = RATIO[props.ratio] ?? null;
-  const maw = props.ancho === "completo" ? undefined : 900;
+  // Ancho (Tanda 2 F03/D3): `completo` = full-bleed (sin maw); `card` = holocard/portada compacta
+  // (~420px); `contenido` (default) = la columna de lectura de siempre (900px, no-op).
+  const maw = props.ancho === "completo" ? undefined : props.ancho === "card" ? 420 : 900;
   const radius = "var(--mantine-radius-md)";
   // Máscara de forma (F07/D11): border-radius (círculo/blob/arco) o clip-path (ticket) que gana sobre el
   // `radius` base. `ninguna` ⇒ `{}` ⇒ la imagen conserva el radio actual (no-op, I-H). El slot ya reserva

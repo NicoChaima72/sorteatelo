@@ -165,8 +165,20 @@ export const OVERLAY_IMAGEN = ["ninguno", "tinta", "marca", "claro"] as const;
 /** Posición del fondo de imagen (object-position acotado, no CSS libre). */
 export const POSICION_IMAGEN = ["centro", "arriba", "abajo", "izq", "der"] as const;
 
-/** Patrones decorativos (motivo talonario = `perforacion`). */
-export const PATRONES = ["ninguno", "puntos", "grilla", "diagonales", "perforacion"] as const;
+/**
+ * Patrones decorativos (motivo talonario = `perforacion`). `cuadricula_papel` (papel de cuaderno, v4) y
+ * `arcos` (motivo scallop, v5) son de Tanda 2 F07/D7 — CSS puro de tokens, cero hex (I-A). Aditivos:
+ * `ninguno` sigue de default en las ramas que lo usan; docs previos sin estos valores no cambian.
+ */
+export const PATRONES = [
+  "ninguno",
+  "puntos",
+  "grilla",
+  "diagonales",
+  "perforacion",
+  "cuadricula_papel", // Tanda 2 F07: grilla de papel-cuaderno (celda ~28px)
+  "arcos", // Tanda 2 F07: motivo scallop/arcos repetido
+] as const;
 
 /** Espaciado vertical de la sección (0 / md / xl / 48 / 80px). */
 export const ESPACIADO_V = ["ninguno", "s", "m", "l", "xl"] as const;
@@ -288,6 +300,10 @@ export const EstiloSeccionSchema = z
   .object({
     fondo: FondoSeccionSchema.optional(), // ausente ⇒ "tema"/transparente
     padY: z.enum(ESPACIADO_V).default("l"), // = py actual (xl/48)
+    // Espaciado fino (Tanda 2 F06/D6): overrides OPCIONALES de `padY` por lado. Ausentes ⇒ el wrapper usa
+    // `padY` (byte-idéntico al actual, no-op I-H). Presente uno ⇒ ese lado usa su enum, el otro cae a `padY`.
+    padTop: z.enum(ESPACIADO_V).optional(),
+    padBottom: z.enum(ESPACIADO_V).optional(),
     ancho: z.enum(ANCHO_SECCION).default("contenido"),
     anchoFondo: z.enum(ANCHO_FONDO).default("completo"), // F02/D4: full-bleed = comportamiento actual
     altoMin: z.enum(ALTO_MIN).default("auto"), // F06/D9: auto = sin min-height (no-op)
@@ -321,6 +337,16 @@ export const VIBE = ["nitido", "suave", "editorial"] as const;
 /** Ancho de contenido por defecto que heredan las secciones. */
 export const ANCHO_CONTENIDO = ["contenido", "ancho"] as const;
 
+/**
+ * Ambiente del fondo de página (Tanda 2 F05/D5): "stage-lights". Ortogonal a `fondoPagina` (el color
+ * sólido base): AÑADE 2-3 `radial-gradient` FIJOS de tokens del tenant (baja opacidad) sobre ese color.
+ * CSS 100% estático (sin JS/rAF/window) ⇒ SSR-safe, reduced-motion-irrelevante (no anima). `ninguno` =
+ * DEFAULT no-op (el shell no cambia, I-H). `focos_marca`/`focos_acento` = focos de la escala marca/acento
+ * (acento degrada a marca sin acento, I-T2); `aurora` = mezcla marca+acento. Cero hex (I-A).
+ */
+export const AMBIENTE_FONDO = ["ninguno", "focos_marca", "focos_acento", "aurora"] as const;
+export type AmbienteFondo = (typeof AMBIENTE_FONDO)[number];
+
 // ── Props de cada widget semilla ─────────────────────────────────────────────
 
 /**
@@ -346,12 +372,48 @@ export const ESTILOS_TITULO_ACENTO = ["acento", "marca", "resaltado", "gradiente
 export const ESTILOS_CTA_SECUNDARIO = ["boton", "enlace"] as const;
 
 /**
+ * Color del eyebrow del hero (Tanda 2 F04/D4). `marca` = token del primario (DEFAULT = comportamiento
+ * actual, no-op). `acento` = token de la escala acento (degrada a marca sin acento, I-T2). `texto` =
+ * color de texto heredado (dimmed). Enum cerrado ⇒ cero hex (I-A); `marca` es el default aditivo.
+ */
+export const EYEBROW_ESTILOS = ["marca", "acento", "texto"] as const;
+export type EyebrowEstilo = (typeof EYEBROW_ESTILOS)[number];
+
+/**
  * Efecto del título del hero (F03/D6). `ninguno` (default = look v2). `revelar_palabras` = reveal por
  * palabra escalonado (CSS puro, SSR-visible I-D, reduced-motion ⇒ estático). `gradiente_animado` =
  * texto con gradiente animado (reusa el keyframe holo; reduced-motion ⇒ gradiente estático). Es prop
  * del hero, NO un preset de `PRESETS_ENTRADA` (que es de sección entera).
  */
 export const EFECTOS_TITULO = ["ninguno", "revelar_palabras", "gradiente_animado"] as const;
+
+/**
+ * Visual configurable del hero `split` (Tanda 2 F02/D2): la columna derecha del hero. Discriminado por
+ * `tipo`. `imagen` = una imagen (`urlPublica`) con `holo` opcional (marco holográfico). `tarjeta` = una
+ * HOLOCARD-placeholder SIN imagen (la del mockup `tienda-libro`): un `titulo`/`subtitulo`/`icono`
+ * (enum `ICONOS_BENEFICIO`, NUNCA emoji libre — I-A/D2) dentro del marco. `holo` reusa `MarcoHolo`
+ * (borde iridiscente + tilt, ya SSR/reduced-motion-safe). AUSENTE ⇒ el hero cae al `imagenUrl`/gradiente
+ * actual (no-op, I-H). `.strict()` en cada rama ⇒ un CSS/campo extra no parsea (I-A).
+ */
+export const HeroVisualSchema = z.discriminatedUnion("tipo", [
+  z
+    .object({
+      tipo: z.literal("imagen"),
+      url: urlPublica,
+      holo: z.boolean().default(false),
+    })
+    .strict(),
+  z
+    .object({
+      tipo: z.literal("tarjeta"),
+      titulo: z.string().min(1).max(60),
+      subtitulo: z.string().min(1).max(80).optional(),
+      icono: z.enum(ICONOS_BENEFICIO).optional(),
+      holo: z.boolean().default(false),
+    })
+    .strict(),
+]);
+export type HeroVisual = z.infer<typeof HeroVisualSchema>;
 
 /**
  * `hero` (semilla, v2 en catálogo-v2 F05). `titulo`/`subtitulo`/`imagenUrl` son OVERRIDES opcionales
@@ -384,6 +446,10 @@ export const heroProps = z
     // Eyebrow (F13/fidelidad): kicker pequeño en MAYÚSCULAS sobre el título (texto plano ≤80). Cuando
     // está presente REEMPLAZA al badge "Sorteo abierto" (el mockup lo usa como firma de autoría). Aditivo.
     eyebrow: z.string().min(1).max(80).optional(),
+    // Color del eyebrow (Tanda 2 F04/D4): desacopla el eyebrow del token de primario. `marca` = color del
+    // primario (DEFAULT = comportamiento actual, no-op). `acento` = token de la escala acento (degrada a
+    // marca sin acento, I-T2). `texto` = color de texto heredado. Cero hex (I-A).
+    eyebrowEstilo: z.enum(EYEBROW_ESTILOS).default("marca"),
     // Resalta la PRIMERA ocurrencia de `palabra` en el título (match seguro, jamás HTML del tenant).
     tituloAcento: z
       .object({
@@ -403,6 +469,9 @@ export const heroProps = z
     ctaSecundarioEstilo: z.enum(ESTILOS_CTA_SECUNDARIO).default("boton"),
     mostrarConfianza: z.boolean().default(true), // toggle de los trust badges (hoy hardcodeados)
     efectoTitulo: z.enum(EFECTOS_TITULO).default("ninguno"),
+    // Visual configurable del hero split (Tanda 2 F02/D2): imagen (opción holo) o holocard-tarjeta.
+    // Ausente ⇒ el hero cae al `imagenUrl`/gradiente actual (no-op, I-H). Solo lo consume la variante `split`.
+    visual: HeroVisualSchema.optional(),
   })
   .strict();
 export type HeroProps = z.infer<typeof heroProps>;
@@ -747,7 +816,10 @@ export const imagenDestacadaProps = z
     imagenUrl: urlPublica,
     alt: z.string().min(1).max(200),
     caption: z.string().min(1).max(200).optional(),
-    ancho: z.enum(["contenido", "completo"]).default("contenido"),
+    // Ancho de la imagen (Tanda 2 F03/D3): `card` (~420px, holocard/portada compacta) ADITIVO junto a
+    // `contenido` (≈900px, DEFAULT no-op) y `completo` (full-bleed). Cierra el gap de la holocard
+    // sobredimensionada 864×1150 que dejó la Tanda 1.
+    ancho: z.enum(["card", "contenido", "completo"]).default("contenido"),
     ratio: z.enum(RATIOS_IMAGEN).default("natural"),
     forma: z.enum(FORMAS_IMAGEN).default("ninguna"), // F07/D11: máscara de forma curada (default no-op)
     enlaceUrl: z.string().url().max(2048).optional(),
@@ -1078,6 +1150,37 @@ export const perfilAutoraProps = z
   .strict();
 export type PerfilAutoraProps = z.infer<typeof perfilAutoraProps>;
 
+// ── Widgets Tanda 2 · fidelidad al techo (los 6 gaps del feature-tester) ───────────────────────
+
+/**
+ * `vitrina_proximamente` (sección, Tanda 2 F01/D1): grid de LANZAMIENTOS FUTUROS bloqueados — el caso
+ * "Un libro a la vez" del mockup `tienda-libro.html` (bcac). Cada ítem es un cover con candado + estado
+ * "Próximamente" + tratamiento visual bloqueado (grayscale/opacidad, lo aplica el render). `items` 1–8
+ * de `{ titulo ≤60, subtitulo? ≤80, imagenUrl? }`; sin `imagenUrl` el render degrada a un placeholder
+ * tematizado (I-G). `columnas` acota el layout; `notaPie` es una aclaración editorial opcional. Texto
+ * plano con límite (nunca HTML, I3); imagen = `urlPublica` (ADR-0013); `.strict()`.
+ */
+export const vitrinaProximamenteProps = z
+  .object({
+    titulo: z.string().min(1).max(80).optional(),
+    columnas: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
+    items: z
+      .array(
+        z
+          .object({
+            titulo: z.string().min(1).max(60),
+            subtitulo: z.string().min(1).max(80).optional(),
+            imagenUrl: urlPublica.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(8),
+    notaPie: z.string().min(1).max(120).optional(),
+  })
+  .strict();
+export type VitrinaProximamenteProps = z.infer<typeof vitrinaProximamenteProps>;
+
 // ── Registro ─────────────────────────────────────────────────────────────────
 
 /** Categoría de un widget: en el flujo vertical de `secciones[]` o en el slot `overlays[]`. */
@@ -1347,6 +1450,20 @@ export const WIDGET_REGISTRY = {
       bio: "Cuenta quién eres en una o dos frases: qué vendes, por qué, y qué hace especial a tu tienda.",
     },
   }),
+  // ── Tanda 2 · fidelidad al techo (F01) ──
+  vitrina_proximamente: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: vitrinaProximamenteProps,
+    defaultProps: {
+      titulo: "Próximamente",
+      columnas: 3,
+      items: [
+        { titulo: "Próximo lanzamiento", subtitulo: "Muy pronto" },
+        { titulo: "En preparación", subtitulo: "Muy pronto" },
+      ],
+    },
+  }),
 } as const;
 
 export type WidgetTipo = keyof typeof WIDGET_REGISTRY;
@@ -1413,6 +1530,7 @@ export const WIDGET_META: Record<
   galeria: { titulo: "Galería", descripcion: "Varias imágenes en grilla, mosaico o carrusel.", categoria: "medios" },
   cinta_texto: { titulo: "Cinta de texto", descripcion: "Una cinta con frases que se desplazan (tipo ticker).", categoria: "estructura" },
   perfil_autora: { titulo: "Perfil / sobre mí", descripcion: "Tu foto, nombre, bio y redes — un bloque editorial.", categoria: "contenido" },
+  vitrina_proximamente: { titulo: "Próximamente", descripcion: "Una grilla de lanzamientos futuros bloqueados, con candado y estado.", categoria: "contenido" },
   whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay).", categoria: "social" },
   aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };

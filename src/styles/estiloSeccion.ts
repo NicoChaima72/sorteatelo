@@ -2,6 +2,7 @@ import { type MantineSpacing, type StyleProp } from "@mantine/core";
 import { type CSSProperties } from "react";
 
 import {
+  type AmbienteFondo,
   type EsquemaFondo,
   type EstiloSeccion,
   type FondoSeccion,
@@ -25,8 +26,12 @@ export type PyResuelto = StyleProp<MantineSpacing>;
 export interface EstiloSeccionResuelto {
   /** CSS del `<section>` (background + color de texto emparejado + patrón/imagen). */
   fondo: CSSProperties;
-  /** `py` responsive de Mantine. */
+  /** `py` responsive de Mantine (default: ambos lados iguales). */
   py: PyResuelto;
+  /** Padding-top independiente (Tanda 2 F06/D6). `undefined` ⇒ sin override ⇒ el wrapper usa `py` (no-op). */
+  pyTop?: PyResuelto;
+  /** Padding-bottom independiente (Tanda 2 F06/D6). `undefined` ⇒ sin override ⇒ el wrapper usa `py`. */
+  pyBottom?: PyResuelto;
   /** Tamaño del `Container`; `false` = full-bleed (sin Container). */
   containerSize: "lg" | "xl" | false;
   /** Divisor inferior a dibujar, o `null`. */
@@ -236,6 +241,14 @@ function patronACss(
       backgroundImage = `radial-gradient(circle, ${trazo} 2px, transparent 2px)`;
       backgroundSize = "22px 22px";
       break;
+    case "cuadricula_papel": // Tanda 2 F07/D7: papel de cuaderno (grilla de token, celda ~28px, v4)
+      backgroundImage = `linear-gradient(${trazo} 1px, transparent 1px), linear-gradient(90deg, ${trazo} 1px, transparent 1px)`;
+      backgroundSize = "28px 28px";
+      break;
+    case "arcos": // Tanda 2 F07/D7: motivo scallop/arcos (fila de semicírculos de token, v5)
+      backgroundImage = `radial-gradient(circle at 50% 0, transparent 20px, ${trazo} 20px, ${trazo} 21px, transparent 22px)`;
+      backgroundSize = "44px 44px";
+      break;
     default: // patrón sin soporte ⇒ solo el esquema base (degradación)
       return base;
   }
@@ -334,9 +347,15 @@ export function estiloSeccionACss(
   const padY = estilo?.padY ?? "l";
   const ancho = estilo?.ancho ?? "contenido";
   const divisorInferior = estilo?.divisorInferior;
+  const pyBase = PY_POR_ESPACIADO[padY] ?? PY_POR_ESPACIADO.l!;
+  // Espaciado fino (F06/D6): con `padTop`/`padBottom` presente, cada lado usa su enum (el lado sin
+  // override cae al `padY` base). Sin ninguno ⇒ pyTop/pyBottom undefined ⇒ el wrapper usa `py` (no-op, I-H).
+  const tienePadOverride = estilo?.padTop !== undefined || estilo?.padBottom !== undefined;
   return {
     fondo: fondoSeccionACss(estilo?.fondo),
-    py: PY_POR_ESPACIADO[padY] ?? PY_POR_ESPACIADO.l!,
+    py: pyBase,
+    pyTop: tienePadOverride ? (PY_POR_ESPACIADO[estilo?.padTop ?? padY] ?? pyBase) : undefined,
+    pyBottom: tienePadOverride ? (PY_POR_ESPACIADO[estilo?.padBottom ?? padY] ?? pyBase) : undefined,
     containerSize: CONTAINER_POR_ANCHO[ancho] ?? "lg",
     divisor:
       divisorInferior && divisorInferior.forma !== "ninguno"
@@ -366,4 +385,45 @@ export function colorFondoSolido(estilo: EstiloSeccion | undefined): string {
   // lande la transición desde arriba (vertical). Aproximación para horizontal/diagonal.
   if (fondo.tipo === "bicolor") return colorSolidoDeEsquema(fondo.colorA);
   return "var(--mantine-color-body)"; // gradiente/imagen ⇒ transición al fondo de página
+}
+
+// ── Ambiente del fondo de página · stage-lights (Tanda 2 F05/D5) ───────────────────────────────
+//
+// Capas de `radial-gradient` FIJAS (posiciones + opacidades curadas) de tokens del tenant, apiladas
+// SOBRE el color sólido del `fondoPagina`. CSS 100% estático (sin JS, sin animación) ⇒ SSR-safe y
+// reduced-motion-irrelevante. Opacidad por `color-mix(... transparent)` sobre tokens ⇒ CERO hex (I-A).
+// `acento*` con fallback a marca (I-T2). El `background` compone `<gradientes>, <color base>` (el color
+// va en la capa final, que es la background-color del shorthand).
+
+const AMBIENTE_CAPAS: Record<AmbienteFondo, string | null> = {
+  ninguno: null,
+  focos_marca: [
+    "radial-gradient(60% 45% at 18% 0%, color-mix(in srgb, var(--mantine-primary-color-5) 22%, transparent), transparent 70%)",
+    "radial-gradient(50% 40% at 85% 12%, color-mix(in srgb, var(--mantine-primary-color-7) 16%, transparent), transparent 65%)",
+    "radial-gradient(55% 45% at 50% 100%, color-mix(in srgb, var(--mantine-primary-color-8) 14%, transparent), transparent 75%)",
+  ].join(", "),
+  focos_acento: [
+    "radial-gradient(60% 45% at 18% 0%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 22%, transparent), transparent 70%)",
+    "radial-gradient(50% 40% at 85% 12%, color-mix(in srgb, var(--mantine-color-acento-7, var(--mantine-primary-color-7)) 16%, transparent), transparent 65%)",
+    "radial-gradient(55% 45% at 50% 100%, color-mix(in srgb, var(--mantine-color-acento-8, var(--mantine-primary-color-8)) 14%, transparent), transparent 75%)",
+  ].join(", "),
+  aurora: [
+    "radial-gradient(55% 45% at 15% 8%, color-mix(in srgb, var(--mantine-primary-color-5) 20%, transparent), transparent 70%)",
+    "radial-gradient(50% 45% at 85% 18%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 20%, transparent), transparent 70%)",
+    "radial-gradient(60% 50% at 50% 100%, color-mix(in srgb, var(--mantine-primary-color-8) 16%, transparent), transparent 75%)",
+  ].join(", "),
+};
+
+/**
+ * Fondo del shell del storefront con el ambiente aplicado (Tanda 2 F05/D5). `ambiente:"ninguno"` ⇒ solo
+ * el color sólido del `fondoPagina` (idéntico al shell actual, no-op I-H). Otro ambiente ⇒ los
+ * radial-gradients de tokens del tenant apilados sobre ese color base. PURO (SSR + cliente igual).
+ */
+export function fondoShellConAmbiente(
+  fondoPagina: EsquemaFondo,
+  ambiente: AmbienteFondo,
+): CSSProperties {
+  const base = colorSolidoDeEsquema(fondoPagina);
+  const capas = AMBIENTE_CAPAS[ambiente];
+  return { background: capas ? `${capas}, ${base}` : base };
 }

@@ -32,6 +32,10 @@ export function SeccionWrapper({
   // `heredar` ⇒ default del TemaPagina (v1: "subir"). El preset animable lo resuelve `<Animar>`.
   const preset: PresetEntrada = r.entrada === "heredar" ? "subir" : (r.entrada as PresetEntrada);
 
+  // Espaciado fino (F06/D6): con `padTop`/`padBottom` presente el wrapper usa `pt`/`pb` independientes;
+  // sin overrides usa `py` (byte-idéntico al actual, no-op I-H).
+  const padIndependiente = r.pyTop !== undefined || r.pyBottom !== undefined;
+
   // `anchoFondo` (F02/D4): `completo` (default) ⇒ el fondo va en el `<section>` (full-bleed) = render
   // ACTUAL, byte-idéntico (I-H). `contenido` ⇒ el `<section>` queda transparente y el fondo se pinta en
   // un box del ancho del contenido con radio (sección tipo "card").
@@ -70,7 +74,9 @@ export function SeccionWrapper({
     <Box
       component="section"
       id={id}
-      py={r.py}
+      py={padIndependiente ? undefined : r.py}
+      pt={padIndependiente ? r.pyTop : undefined}
+      pb={padIndependiente ? r.pyBottom : undefined}
       style={{
         ...(fondoEnSeccion ? r.fondo : {}),
         position: "relative",

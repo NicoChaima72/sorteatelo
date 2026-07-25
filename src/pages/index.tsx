@@ -14,7 +14,7 @@ import {
   getPropsHome,
   type PropsHome,
 } from "~/server/storefront/getStorefrontProps";
-import { colorSolidoDeEsquema } from "~/styles/estiloSeccion";
+import { fondoShellConAmbiente } from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -64,9 +64,13 @@ function StorefrontHome({
   // en público devuelve el SSR fijo (sin listener, I-T5). El shell (fondo), el nav y las secciones se
   // derivan TODOS de `paginaViva` ⇒ un patch actualiza header + shell + contenido juntos, sin recargar.
   const paginaViva = usePreviewPatch(pagina, esPreview);
-  // Fondo de página del TemaPagina (catálogo-v2 F02): `superficie` (default) = body ⇒ sin cambio;
-  // otros esquemas pintan el shell entero. Cero hex inline (token de la escala del tenant, I-A).
-  const fondoPagina = colorSolidoDeEsquema(paginaViva.root.props.fondoPagina);
+  // Fondo de página del TemaPagina (catálogo-v2 F02): `superficie` (default) = body ⇒ sin cambio; otros
+  // esquemas pintan el shell entero. Tanda 2 F05/D5: `ambiente` apila stage-lights (radiales de tokens)
+  // sobre ese color base — `ninguno` (default) ⇒ solo el color (no-op). Cero hex inline (I-A).
+  const estiloShellFondo = fondoShellConAmbiente(
+    paginaViva.root.props.fondoPagina,
+    paginaViva.root.props.ambiente,
+  );
   // Nav auto-derivado (F05/D8): items del header desde las secciones marcadas `nav.incluir`. Sin ninguna
   // marcada ⇒ `[]` y el layout cae al nav actual (I-H).
   const navItems = derivarNav(paginaViva.secciones);
@@ -78,7 +82,7 @@ function StorefrontHome({
   return (
     <StorefrontLayout
       branding={branding}
-      estiloShell={{ background: fondoPagina }}
+      estiloShell={estiloShellFondo}
       navItems={navItems}
       avisoSobreNav={
         avisoSobreNav?.tipo === "aviso_barra" ? (

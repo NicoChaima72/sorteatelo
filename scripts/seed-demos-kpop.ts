@@ -111,7 +111,7 @@ const docDreamy = {
         eyebrow: "Sorteo abierto 💜",
         eyebrowEstilo: "acento", // kicker ROSA (el #ec4899 del prototipo)
         titulo: "Compra el libro. Anda a ver a BTS.",
-        tituloAcento: { palabra: "BTS", estilo: "gradiente" }, // BTS con degradado violeta
+        tituloAcento: { palabra: "BTS", estilo: "marca" }, // F13: "BTS." en violeta PRIMARIO (no rosa), como el original
         subtitulo:
           "Cada libro que compras ($3.000) te inscribe automáticamente en el sorteo de 2 entradas para BTS en el Estadio Nacional · oct 2026.",
         destacado: { texto: "$3.000", nota: "1 libro (PDF) · +1 número para el sorteo" },
@@ -129,6 +129,7 @@ const docDreamy = {
           icono: "corazon",
           holo: false, // dreamy = suave, sin holo neón
           estilo: "suave", // F12: glassy — gradiente + blur-blobs del heroviz del prototipo
+          motivo: "tickets", // F13: 2 mini-tickets flotantes (el heroviz del prototipo tenía corazón + 2 tickets)
         },
       },
       estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
@@ -153,7 +154,7 @@ const docDreamy = {
       id: nid(),
       tipo: "catalogo",
       v: 1,
-      props: { titulo: "Elige tu libro (y tu chance)", modo: "todos", columnas: 3 },
+      props: { titulo: "Elige tu libro (y tu chance)", modo: "todos", columnas: 3, layout: "carrusel" }, // F13: carrusel horizontal como el prototipo
       estilo: { padY: "xl", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "Libros" },
     },

@@ -58,15 +58,42 @@ Lo que el mock reproduce, en el orden real de la página:
 - **Card «Pagos (Flow)»** — ícono tarjeta, bloque inset con el estado (`No conectada` → badge
   outline; `Configurada` → badge `exito` + ambiente), campos API Key / Secret Key enmascarados,
   select de ambiente, botón «Guardar credenciales».
-- **Card «Tu tienda»** — ícono paleta, bloque de assets (logo / imagen de hero) separado por una
-  línea, campos Descripción y Color de marca, sección «Textos del storefront» (Título del hero,
-  Subtítulo del hero, Aviso), botón «Guardar cambios».
+- **Card «Tu tienda»** — ícono paleta, sección «Logo e imagen de portada» con dos filas de asset
+  (miniatura dashed + input «Elegir imagen»), divisor, campos Descripción y Color de marca (hex),
+  divisor, sección «Textos del storefront» (Título del hero, Subtítulo del hero), botón «Guardar
+  cambios».
+- **Toast de guardado** — notificación de Mantine arriba a la derecha del contenido: franja
+  `--st-exito` a la izquierda + check + «Cambios guardados.». `z-index: 55` para quedar sobre el
+  velo del spotlight.
 
-Recorrido del cursor del piloto: `Configuración` en el rail → campo **Título del hero** →
-botón **Guardar cambios** (con el toggle del estado a «Cambios guardados»).
+Clases propias en el `<style>` de su `index.html` (12): `cfg-asset`, `cfg-thumb`, `cfg-estado`,
+`cfg-estado-label`, `cfg-estado-badge`, `cfg-sec`, `cfg-sec-txt`, `cfg-div`, `cfg-toast`,
+`cfg-toast-barra`, `cfg-toast-ic`, `cfg-toast-txt`.
+
+Recorrido del cursor del piloto: `Configuración` en el rail → campo **Título del hero**
+(`stackEl("hero", …)`: placeholder → «Todo lo que publiqué este año», con `foco`) → botón
+**Guardar cambios** (entra el toast y se sostiene hasta el fin del beat).
 
 > Para una cápsula que necesite **Redes y contacto** o **Bases del sorteo** (más abajo en la misma
 > card), extendé el builder de `configura-la-tienda/app.js` en vez de re-derivar la página.
+
+Notas de fidelidad que costaron una pasada de reviewer (respetalas al copiar el builder):
+
+- El `SimpleGrid` real lleva `style={{ alignItems: "start" }}` ⇒ las dos cards tienen **alturas
+  independientes**. No las estires a la misma altura "para que se vea prolijo": sería infiel.
+- «Estado» del inset de Flow es `<Text size="sm" c="dimmed">` — atenuado y peso 400. El énfasis de
+  esa fila lo lleva el badge, no el label.
+- Los encabezados de subsección son `fw={500}`, no 600.
+- El `#1d7a70` del campo «Color de marca (hex)» es **dato tipeado por la tienda**, no styling — y
+  es exactamente `--st-exito-6`, el token del swatch del chip. Es el único hex permitido (I7).
+
+**Candidatos a promover al kit compartido** cuando llegue la 2ª cápsula (hoy viven como `cfg-*`
+locales; no se promovieron todavía para no tocar `_lib/` con un solo caso de uso):
+
+- `cfg-sec` + `cfg-sec-txt` → `.pnl-subhead`. La subsección ícono+texto aparece 4 veces en esta
+  sola página del producto y reaparece en Productos y Sorteo.
+- `cfg-toast*` → `.pnl-toast`, con el color de la franja como parámetro (`exito` / `ladrillo`).
+  Todo tour de onboarding termina en un guardado exitoso.
 
 ---
 

@@ -1,6 +1,21 @@
 {
   "_doc": "Registro ligero de las cápsulas de la fábrica. Lo appendea new-tour.mjs. Es el futuro seed del consumo in-app (fase 2 post-F07: tabla Tutorial + MP4s en R2 + página de cápsulas en el panel). Los MP4 NO están en git: se regeneran con `node render.mjs <slug>`.",
-  "videos": [],
+  "videos": [
+    {
+      "id": "configura-la-tienda",
+      "folder": "configura-la-tienda",
+      "module": "tienda",
+      "title": "Configura la tienda",
+      "description": "Formato Tour: concepto + 3 pasos guiados sobre el panel.",
+      "format": "tour",
+      "durationSeconds": 39.5,
+      "fps": 30,
+      "aspect": "16:9",
+      "locale": "es-CL",
+      "status": "nuevo",
+      "output": "out/2026-07-25-configura-la-tienda.mp4"
+    }
+  ],
   "backlog": [
     {
       "id": "conecta-flow",

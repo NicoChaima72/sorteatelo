@@ -82,11 +82,15 @@ function StatItem({
     </Stack>
   );
 
-  // `tarjetas_suaves` (F12): envuelve la cifra en una tarjeta blanca con sombra suave (cero hex, tokens).
+  // `tarjetas_suaves` (F12; COMPACTADA en F13): tarjeta blanca con sombra suave, layout COMPACTO tipo el
+  // prototipo dreamy — ícono arriba, número grande PERO no inflado, etiqueta chica abajo. NO reusa
+  // `contenido` (cuyo número fz 44 se veía inflado y vacío en la tarjeta). Cero hex, tokens del tenant.
   if (estiloVisual === "tarjetas_suaves") {
+    const IconoTs = item.icono ? iconoBeneficio(item.icono) : null;
     return (
       <Box
-        p="md"
+        px="md"
+        py="lg"
         style={{
           background: "var(--mantine-color-body)",
           borderRadius: "var(--mantine-radius-lg)",
@@ -94,7 +98,31 @@ function StatItem({
           border: "1px solid var(--mantine-color-default-border)",
         }}
       >
-        {contenido}
+        <Stack gap={6} align="center" ta="center">
+          {IconoTs && (
+            <ThemeIcon variant="light" size="md" radius="md">
+              <IconoTs className="size-4" stroke={1.75} />
+            </ThemeIcon>
+          )}
+          <Group gap={2} align="baseline" justify="center" wrap="nowrap">
+            {item.prefijo && (
+              <Text fz={{ base: 22, sm: 26 }} fw={800} lh={1}>
+                {item.prefijo}
+              </Text>
+            )}
+            <Text ref={ref} component="span" fz={{ base: 26, sm: 32 }} fw={800} lh={1} className="tabular-nums">
+              {num(valor)}
+            </Text>
+            {item.sufijo && (
+              <Text fz={{ base: 22, sm: 26 }} fw={800} lh={1}>
+                {item.sufijo}
+              </Text>
+            )}
+          </Group>
+          <Text size="xs" c="dimmed">
+            {item.etiqueta}
+          </Text>
+        </Stack>
       </Box>
     );
   }

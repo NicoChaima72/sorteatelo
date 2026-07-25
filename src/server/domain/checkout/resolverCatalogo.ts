@@ -21,7 +21,13 @@ export interface ProductoCatalogo {
   precio: number;
   portadaUrl: string | null;
   participaEnSorteo: boolean;
+  /** Badge derivado (Tanda 2 F13): `true` sii `createdAt` < 30 días. Read-only; sin campo en el schema. */
+  esNuevo: boolean;
 }
+
+/** Ventana del badge "Nuevo" del catálogo (Tanda 2 F13). Derivado de `createdAt`, no persistido. */
+const DIAS_NUEVO = 30;
+const MS_NUEVO = DIAS_NUEVO * 24 * 60 * 60 * 1000;
 
 const SELECT = {
   id: true,
@@ -30,6 +36,7 @@ const SELECT = {
   precio: true,
   portadaUrl: true,
   participaEnSorteo: true,
+  createdAt: true,
 } as const;
 
 function mapear(p: {
@@ -39,6 +46,7 @@ function mapear(p: {
   precio: { toNumber: () => number };
   portadaUrl: string | null;
   participaEnSorteo: boolean;
+  createdAt: Date;
 }): ProductoCatalogo {
   return {
     id: p.id,
@@ -47,6 +55,9 @@ function mapear(p: {
     precio: p.precio.toNumber(),
     portadaUrl: p.portadaUrl,
     participaEnSorteo: p.participaEnSorteo,
+    // Derivado server-side (el catálogo se consume por tRPC/cliente ⇒ sin mismatch SSR): "Nuevo" si el
+    // producto se creó hace menos de DIAS_NUEVO. Solo lectura sobre `createdAt`; no toca el schema Prisma.
+    esNuevo: Date.now() - p.createdAt.getTime() < MS_NUEVO,
   };
 }
 

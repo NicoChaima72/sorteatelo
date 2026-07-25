@@ -18,7 +18,7 @@ import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { clp } from "~/lib/formato";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
-import { gradienteTematico, hueCoverDeterminista } from "~/styles/tenantTheme";
+import { gradientePortadaDeterminista } from "~/styles/tenantTheme";
 import { api, type RouterOutputs } from "~/utils/api";
 
 /** Tipo derivado del backend (no redeclarar el shape a mano). */
@@ -47,6 +47,7 @@ export function CatalogoStorefront({
     productoIds: props.productoIds,
   });
   const cols = { base: 1, sm: 2, md: props.columnas };
+  const esCarrusel = props.layout === "carrusel";
 
   return (
     <SeccionWrapper
@@ -89,6 +90,8 @@ export function CatalogoStorefront({
               Esta tienda todavía no tiene productos publicados.
             </Text>
           </Stack>
+        ) : esCarrusel ? (
+          <CarruselCatalogo productos={productos.data} colorPrimario={colorPrimario} />
         ) : (
           <SimpleGrid cols={cols} spacing="lg">
             {productos.data.map((producto) => (
@@ -105,12 +108,49 @@ export function CatalogoStorefront({
   );
 }
 
+/**
+ * Layout `carrusel` (Tanda 2 F13): fila horizontal de covers con auto-scroll CSS continuo (patrón
+ * marquee de `cinta_texto`). La pista lleva las tarjetas DUPLICADAS (2ª copia `aria-hidden` + clase
+ * `carrusel-marquee-dup`) ⇒ `translateX(-50%)` hace un loop sin costura; pausa en hover. Con
+ * `prefers-reduced-motion` la pista NO anima y el contenedor pasa a scroll manual (`overflow-x`),
+ * ocultando la copia (globals.css). Covers compactos (~220px, retrato) como el carrusel del prototipo.
+ */
+function CarruselCatalogo({
+  productos,
+  colorPrimario,
+}: {
+  productos: ProductoCatalogo[];
+  colorPrimario: string | null;
+}) {
+  const item = (producto: ProductoCatalogo, dup: boolean) => (
+    <Box
+      key={dup ? `dup-${producto.id}` : producto.id}
+      aria-hidden={dup || undefined}
+      className={dup ? "carrusel-marquee-dup" : undefined}
+      style={{ flex: "0 0 220px", marginInlineEnd: "var(--mantine-spacing-md)" }}
+    >
+      <TarjetaProducto producto={producto} colorPrimario={colorPrimario} retrato />
+    </Box>
+  );
+  return (
+    <Box className="carrusel-marquee carrusel-marquee-pausa">
+      <Box className="carrusel-marquee-pista">
+        {productos.map((p) => item(p, false))}
+        {productos.map((p) => item(p, true))}
+      </Box>
+    </Box>
+  );
+}
+
 function TarjetaProducto({
   producto,
   colorPrimario,
+  retrato,
 }: {
   producto: ProductoCatalogo;
   colorPrimario: string | null;
+  /** Carrusel (F13): cover en retrato (3:4) tipo el prototipo, en vez del 4:3 de la grilla. */
+  retrato?: boolean;
 }) {
   const { contiene, agregar, quitar } = useCarrito();
   const enCarrito = contiene(producto.id);
@@ -128,6 +168,8 @@ function TarjetaProducto({
           titulo={producto.titulo}
           colorPrimario={colorPrimario}
           participaEnSorteo={producto.participaEnSorteo}
+          esNuevo={producto.esNuevo}
+          retrato={retrato}
         />
 
         <Stack gap="sm" p="md" className="flex-1">
@@ -182,26 +224,24 @@ function TarjetaProducto({
   );
 }
 
-/** Portada del producto: imagen, o placeholder temático (gradiente + inicial) si no hay (§5.2). */
+/** Portada del producto: imagen, o TAPA DE LIBRO tematizada si no hay (§5.2; F13). */
 function Portada({
   url,
   titulo,
   colorPrimario,
   participaEnSorteo,
+  esNuevo,
+  retrato,
 }: {
   url: string | null;
   titulo: string;
   colorPrimario: string | null;
   participaEnSorteo: boolean;
+  esNuevo: boolean;
+  retrato?: boolean;
 }) {
-  const inicial = titulo.trim().charAt(0).toUpperCase() || "?";
-  // Covers VARIADOS (Tanda 2 F12): sin portada, el placeholder rota el matiz del gradiente por hash del
-  // título (determinista, SSR-safe) ⇒ cada producto degrada a un color distinto (no todos al mismo lila).
-  // `hue-rotate` deja intacto el texto blanco (achromático); cero hex (I-A): un grado sobre un token.
-  const hue = hueCoverDeterminista(titulo);
-
   return (
-    <Box pos="relative" style={{ aspectRatio: "4 / 3", overflow: "hidden" }}>
+    <Box pos="relative" style={{ aspectRatio: retrato ? "3 / 4" : "4 / 3", overflow: "hidden" }}>
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -215,20 +255,7 @@ function Portada({
           }}
         />
       ) : (
-        <Box
-          aria-hidden
-          className="flex items-center justify-center"
-          style={{
-            width: "100%",
-            height: "100%",
-            background: gradienteTematico(colorPrimario),
-            ...(hue ? { filter: `hue-rotate(${hue}deg)` } : {}),
-          }}
-        >
-          <Text fz={44} fw={800} c="white" style={{ opacity: 0.9 }}>
-            {inicial}
-          </Text>
-        </Box>
+        <TapaLibro titulo={titulo} colorPrimario={colorPrimario} />
       )}
 
       {participaEnSorteo && (
@@ -244,6 +271,92 @@ function Portada({
           Sorteo
         </Badge>
       )}
+
+      {/* Badge DERIVADO "Nuevo" (F13): producto creado hace < 30 días (dato del use case, no persistido).
+          Esquina opuesta al "Sorteo" ⇒ no se pisan. `variant="white"` = fondo blanco + texto de marca. */}
+      {esNuevo && (
+        <Badge
+          variant="white"
+          radius="sm"
+          pos="absolute"
+          top={8}
+          right={8}
+          styles={{ label: { textTransform: "none" } }}
+        >
+          Nuevo
+        </Badge>
+      )}
+    </Box>
+  );
+}
+
+/**
+ * Fallback de portada cuando el producto no tiene imagen (Tanda 2 F13): una TAPA DE LIBRO diseñada, no
+ * una inicial gigante. El fondo es un gradiente del SET CURADO acotado a la FAMILIA de marca del tenant
+ * (`gradientePortadaDeterminista`, determinista por título — cero hex, sin `hue-rotate` que metía azules).
+ * Detalles que hacen leer "libro": un LOMO sutil (franja vertical cerca del borde izquierdo) + el TÍTULO
+ * EN la tapa (uppercase, display font del tema, abajo-izquierda con padding), sobre un scrim inferior de
+ * tono profundo de marca que garantiza legibilidad sobre cualquier gradiente del set. `aria-hidden`: el
+ * título accesible ya vive en el `<Text>` de la tarjeta. CSS 100% de tokens (I-A), sin motion (I-C).
+ */
+function TapaLibro({
+  titulo,
+  colorPrimario,
+}: {
+  titulo: string;
+  colorPrimario: string | null;
+}) {
+  return (
+    <Box
+      aria-hidden
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        background: gradientePortadaDeterminista(colorPrimario, titulo),
+      }}
+    >
+      {/* Lomo del libro: fina franja vertical clara cerca del borde izquierdo. */}
+      <Box
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 14,
+          width: 3,
+          background: "color-mix(in srgb, var(--mantine-color-white) 22%, transparent)",
+        }}
+      />
+      {/* Scrim inferior (tono profundo de marca) ⇒ el título blanco es legible sobre cualquier gradiente. */}
+      <Box
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(to top, color-mix(in srgb, var(--mantine-primary-color-9) 62%, transparent), transparent 58%)",
+        }}
+      />
+      {/* Título EN la tapa: uppercase, bold, display font del tema, abajo-izquierda con padding generoso. */}
+      <Text
+        fz={{ base: 15, sm: 17 }}
+        lineClamp={4}
+        style={{
+          position: "absolute",
+          left: 20,
+          right: 20,
+          bottom: 18,
+          fontFamily: "var(--mantine-font-family-headings)",
+          textTransform: "uppercase",
+          fontWeight: 800,
+          lineHeight: 1.12,
+          letterSpacing: "0.01em",
+          color: "var(--mantine-color-white)",
+          textShadow: "0 1px 12px color-mix(in srgb, var(--mantine-color-black) 45%, transparent)",
+        }}
+      >
+        {titulo}
+      </Text>
     </Box>
   );
 }

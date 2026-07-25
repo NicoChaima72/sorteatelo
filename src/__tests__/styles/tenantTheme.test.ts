@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   esHex,
   generarEscalaColor,
+  gradientePortadaDeterminista,
   gradienteTematico,
-  hueCoverDeterminista,
   overrideDesdeBranding,
   type TenantBranding,
 } from "~/styles/tenantTheme";
@@ -38,12 +38,16 @@ const branding = (
 
 const ES_HEX = /^#[0-9a-f]{6}$/;
 
-describe("styles/tenantTheme — hueCoverDeterminista (covers variados, Tanda 2 F12)", () => {
-  // covers.hue.001 — determinista (mismo título ⇒ misma rotación) + varía entre títulos distintos
-  it("es determinista por semilla y reparte rotaciones distintas entre títulos", () => {
-    // determinista: mismo string ⇒ mismo grado (SSR = cliente, sin hydration mismatch)
-    expect(hueCoverDeterminista("Cartas a los 7")).toBe(hueCoverDeterminista("Cartas a los 7"));
-    // reparte variedad: un catálogo de 5 títulos NO cae todo en el mismo grado
+describe("styles/tenantTheme — gradientePortadaDeterminista (covers de libro, familia de marca, Tanda 2 F13)", () => {
+  const ES_GRADIENTE = /^linear-gradient\(/;
+
+  // covers.gradiente.001 — determinista (mismo título ⇒ mismo gradiente) + variedad real entre títulos
+  it("es determinista por semilla y reparte gradientes distintos entre títulos", () => {
+    // determinista: mismo string ⇒ mismo gradiente (SSR = cliente, sin hydration mismatch)
+    expect(gradientePortadaDeterminista("#7c3aed", "Cartas a los 7")).toBe(
+      gradientePortadaDeterminista("#7c3aed", "Cartas a los 7"),
+    );
+    // reparte variedad: un catálogo de 5 títulos NO cae todo en el mismo gradiente
     const titulos = [
       "Cómo enriquecer a tu idol favorito",
       "Cartas a los 7",
@@ -51,18 +55,27 @@ describe("styles/tenantTheme — hueCoverDeterminista (covers variados, Tanda 2 
       "Diario de una ARMY",
       "Borahae: ensayos de fandom",
     ];
-    const grados = new Set(titulos.map(hueCoverDeterminista));
-    expect(grados.size).toBeGreaterThan(1);
+    const grads = new Set(titulos.map((t) => gradientePortadaDeterminista("#7c3aed", t)));
+    expect(grads.size).toBeGreaterThan(1);
   });
 
-  // covers.hue.002 — el grado es un entero acotado (0–359), apto para `hue-rotate(Ndeg)`; cadena vacía OK
-  it("devuelve un entero 0–359 (grado de hue-rotate), robusto ante semilla vacía", () => {
-    for (const s of ["", "x", "un título largo con acentos áéí", "42"]) {
-      const g = hueCoverDeterminista(s);
-      expect(Number.isInteger(g)).toBe(true);
-      expect(g).toBeGreaterThanOrEqual(0);
-      expect(g).toBeLessThan(360);
+  // covers.gradiente.002 — familia acotada: SOLO tokens Mantine (primario/acento), CERO hex, CERO hue-rotate
+  it("emite un linear-gradient de tokens del tenant, sin hex ni hue-rotate (paleta acotada a la familia)", () => {
+    for (const s of ["", "x", "Uno", "Dos", "Tres", "Cuatro", "Cinco", "Seis", "Siete", "42"]) {
+      const g = gradientePortadaDeterminista("#7c3aed", s);
+      expect(g).toMatch(ES_GRADIENTE);
+      expect(g).toContain("var(--mantine-"); // tokens del tenant
+      expect(g).not.toContain("#"); // cero hex inline (I-A)
+      expect(g).not.toContain("hue-rotate"); // ya NO rota el matiz por el círculo completo (metía azules)
     }
+  });
+
+  // covers.gradiente.003 — sin color de marca degrada limpio (tokens del primario base, salida válida)
+  it("con colorPrimario null degrada a tokens del primario base (salida válida, cero hex)", () => {
+    const g = gradientePortadaDeterminista(null, "Sin marca");
+    expect(g).toMatch(ES_GRADIENTE);
+    expect(g).toContain("var(--mantine-primary-color-");
+    expect(g).not.toContain("#");
   });
 });
 

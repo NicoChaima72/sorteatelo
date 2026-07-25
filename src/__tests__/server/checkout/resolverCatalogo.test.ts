@@ -99,4 +99,18 @@ describe("domain/checkout/resolverCatalogo (render del page builder)", () => {
     expect(await resolverCatalogo({ db, tenantId: "A", modo: "seleccion", productoIds: [] })).toEqual([]);
     expect(await resolverCatalogo({ db, tenantId: "A", modo: "seleccion" })).toEqual([]);
   });
+
+  // page.render.resolver.004 (Tanda 2 F13) — esNuevo derivado de createdAt (<30d ⇒ true), read-only
+  it("marca esNuevo cuando el producto fue creado hace menos de 30 días (badge 'Nuevo')", async () => {
+    const ahora = Date.now();
+    const diasAtras = (n: number) => new Date(ahora - n * 24 * 60 * 60 * 1000);
+    const db = fakeDb([
+      prod({ id: "recien", createdAt: diasAtras(3) }),
+      prod({ id: "antiguo", createdAt: diasAtras(45) }),
+    ]);
+    const res = await resolverCatalogo({ db, tenantId: "A", modo: "todos" });
+    const porId = new Map(res.map((p) => [p.id, p]));
+    expect(porId.get("recien")!.esNuevo).toBe(true);
+    expect(porId.get("antiguo")!.esNuevo).toBe(false);
+  });
 });

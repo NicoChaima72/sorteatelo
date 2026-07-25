@@ -222,7 +222,7 @@
 .fld-label { font-family: var(--st-font-texto); font-weight: 500; font-size: 15px; color: var(--st-texto); }
 .fld-desc { font-family: var(--st-font-texto); font-size: 13px; color: var(--st-texto-suave); line-height: 1.35; }
 .fld-input {
-  display: flex; align-items: center; padding: 0 14px; border-radius: var(--st-radio-control);
+  display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: var(--st-radio-control);
   background: var(--st-superficie); border: 1px solid var(--st-borde);
   font-family: var(--st-font-texto); font-size: 16px; color: var(--st-texto); white-space: nowrap;
 }

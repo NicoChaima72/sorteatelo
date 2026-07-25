@@ -388,6 +388,23 @@ export type EyebrowEstilo = (typeof EYEBROW_ESTILOS)[number];
 export const EFECTOS_TITULO = ["ninguno", "revelar_palabras", "gradiente_animado"] as const;
 
 /**
+ * Motivo decorativo de la holocard-placeholder `suave` del hero (Tanda 2 F13): qué chips FLOTANTES
+ * (además de los blur-blobs) pinta el heroviz suave. `corazon` (default) = solo los blobs (no-op, look
+ * F12). `tickets` = 2 mini-tickets flotantes. `estrella` = chips-estrella. Enum cerrado ⇒ cero contenido
+ * libre (I-A); el render mapea cada valor a una forma CSS de tokens.
+ */
+export const MOTIVOS_TARJETA = ["corazon", "tickets", "estrella"] as const;
+export type MotivoTarjeta = (typeof MOTIVOS_TARJETA)[number];
+
+/**
+ * Layout del widget `catalogo` (Tanda 2 F13): `grilla` (DEFAULT) = la grilla de tarjetas de siempre
+ * (no-op, I-H). `carrusel` = fila horizontal con auto-scroll CSS continuo (marquee, pausa en hover;
+ * reduced-motion ⇒ scroll manual con overflow-x), covers compactos tipo el carrusel del prototipo.
+ */
+export const LAYOUTS_CATALOGO = ["grilla", "carrusel"] as const;
+export type LayoutCatalogo = (typeof LAYOUTS_CATALOGO)[number];
+
+/**
  * Visual configurable del hero `split` (Tanda 2 F02/D2): la columna derecha del hero. Discriminado por
  * `tipo`. `imagen` = una imagen (`urlPublica`) con `holo` opcional (marco holográfico). `tarjeta` = una
  * HOLOCARD-placeholder SIN imagen (la del mockup `tienda-libro`): un `titulo`/`subtitulo`/`icono`
@@ -414,6 +431,12 @@ export const HeroVisualSchema = z.discriminatedUnion("tipo", [
       // look actual, no-op I-H). `suave` = "glassy" — mismo gradiente + 2-3 blur-blobs decorativos de
       // tokens (el heroviz soft del prototipo dreamy). CSS puro, sin motion, cero hex (I-A). NO usa `holo`.
       estilo: z.enum(["plano", "suave"]).default("plano"),
+      // Motivo decorativo del estilo `suave` (Tanda 2 F13): sobre los blur-blobs, agrega 1–2 chips
+      // FLOTANTES (mini-tickets/estrellas) con blur + rotación leve — el heroviz del prototipo dreamy tenía
+      // corazón + 2 tickets. `corazon` (DEFAULT) = solo los blobs actuales (no-op, I-H). `tickets` = 2
+      // mini-tickets flotantes. `estrella` = chips-estrella. CSS estático de tokens, aria-hidden, no anima
+      // (I-C). Solo aplica en `suave` (en `plano` se ignora). Cero hex (I-A).
+      motivo: z.enum(MOTIVOS_TARJETA).default("corazon"),
     })
     .strict(),
 ]);
@@ -491,6 +514,8 @@ export const catalogoProps = z
     modo: z.enum(["todos", "seleccion"]).default("todos"),
     productoIds: z.array(z.string().cuid()).max(60).optional(),
     columnas: z.union([z.literal(2), z.literal(3)]).default(3),
+    // Layout de la sección (Tanda 2 F13): `grilla` (default = no-op, I-H) o `carrusel` (marquee horizontal).
+    layout: z.enum(LAYOUTS_CATALOGO).default("grilla"),
   })
   .strict();
 export type CatalogoProps = z.infer<typeof catalogoProps>;

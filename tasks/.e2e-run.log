@@ -1,45 +1,6 @@
-# E2E RUN LOG — builder-tanda-1 (VISUAL FINAL post-F13/F14)
-mode: feature (slug=builder-tanda-1) — visual closure only, NO Vitest (ya verde)
-scope: replica landing_idol (prueba) post-F13 + tienda-libro (bcac) F14 + sanidad autora
-server: http://localhost:3001 (single instance) — apex/prueba/bcac/autora all 200
-lane: chrome-devtools MCP (free)
-start: 2026-07-24
----
-
-## STORE 1 — landing_idol replica (prueba) post-F13
-[prueba] server 200, no console errors
-[prueba] no scroll-x (docW 1776 <= winW 1790) — PASS
-[prueba] F13 fix#2 TYPOGRAPHY: h1 computed font-family = __Bebas_Neue_d65ff6 ; --font-heading = Bebas Neue — PASS (the key fix)
-[prueba] F13 fix#7 colors: marca-6=#c9a130 gold, acento-8=#3c1678 purple, scheme dark — PASS
-[prueba] F13 fix#1 ticker SOBRE nav, 7 msgs (IDOL ECONOMY/FAN ECONOMICS/MERCH INTELIGENTE/STREAM Y GANA/INVERSION K-POP/SORTEO BTS/FANDOM FINANCIERO) — PASS
-[prueba] F13 fix#6 eyebrow "Bernardita Alvarado Coddou · Libro Digital" gold — PASS
-[prueba] hero: "enriquecer" gold (tituloAcento marca), "$3.000 CLP" gold destacado, gold CTA + link enlace — PASS
-[prueba] F13 fix#8 NO stats row after hero (removed); section 1 = beneficios "Fanear tiene un costo" — PASS
-[prueba] F13 fix#3 bicolor sorteo band: white text over purple zone, gold pushed to bottom-right corner (colorA solid to 60%) — LEGIBLE, PASS
-[prueba] F13 fix#5 nav El libro->#beneficios / Sorteo->#sorteo / Autora->#autora / Bases->#bases ; scroll to #autora works (y=2391) — PASS
-[prueba] DIFF (actionable): hero altoMin:pantalla -> 784px full-viewport, content vertically centered => ~220px empty above + ~230px below; mockup hero is compact/top-aligned
-[prueba] DIFF (guardrail): beneficios cards grey Mantine surfaces + monochrome lucide icons vs mockup purple cards + emoji; sorteo reorganized (vitrina+como-participar vs single banner); surfaces neutral grey
-[prueba] replica.001 6 checkpoints — ALL PASS in vivo. Fidelity ~88%
-
-## STORE 2 — tienda-libro replica (bcac) F14
-[bcac] server 200, no console errors, no scroll-x (1776<=1790) — PASS
-[bcac] --font-heading = Space Grotesk (h1 computed too) — PASS
-[bcac] marca-6=#b983ff violet, acento-6=#e8c468 gold, scheme dark, body rgb(36,36,36) near-black — PASS
-[bcac] holocard: .animar-holo gradient border present (animated) — PASS
-[bcac] holocard TILT: synthetic mouse/pointer events do NOT fire it; TRUSTED CDP hover DID -> inline transform rotateX(-1.7deg) rotateY(0deg) — WORKS
-[bcac] holocard SIZE: 864w x 1150h (ratio 0.75 3:4); section 1 = 1292px; TALLER than viewport(784) — GROSSLY OVERSIZED (implementer duda CONFIRMED)
-[bcac] eyebrow "A la venta ahora · Edición única" (violet not gold, GAP#5) — PRESENT
-[bcac] vitrina "Un libro a la vez" 4 candado cards (I. Claude/Rezado/Patron de Rechazo/OilLoop, Proximamente) — PASS
-[bcac] pricing $3.000 (1 numero·1 copia PDF) + $10.000 (4 numeros·pack 4 copias) — PASS
-[bcac] sorteo bicolor violet(60%)->near-black, white text legible, countdown "Cierra en 21d 15h" (D-22), disclaimer — PASS
-[bcac] ticker SOBRE nav (3 msgs) — PASS (note: mockup has NO ticker)
-[bcac] DIFF (actionable): holocard full-width stacked (864x1150) vs mockup compact ~380px in hero-SPLIT right column
-[bcac] DIFF (guardrail/tanda2): no hero-split holo visual (GAP#4), no card width (GAP#3), eyebrow violet not gold (GAP#5), no stage-lights bg (GAP#6), no inline sorteo checkout form (GAP#2 pack-tickets), extra ticker + bicolor band not in mockup
-[bcac] Fidelity ~75%
-
-## STORE 3 — autora sanity (regression I-H)
-[autora] no scroll-x; --font-heading=Fraunces (NOT overridden); scheme light; body white; h1 "Historias que enamoran" Fraunces; nav hardcoded [Catalogo/Sorteo/Como funciona]; NO ticker; NO eyebrow; trust badges present — UNCHANGED, migration no-op CONFIRMED
-
---
-FOOTER: visual closure complete. NO Vitest (green already). NO state/status change, NO commit, NO INDEX.
-lane: chrome-devtools (browser left open, session preserved)
+# feature-tester run log
+modo: feature (slug=videos-hyperframes-fabrica)
+scope: gate propio de la fabrica de videos (D8) — SIN Vitest, SIN E2E de navegador
+server: N/A (no se requiere dev server; el gate es el pipeline HyperFrames + ffmpeg)
+inicio: 2026-07-25
+entorno: Windows, Node v24.14.1, ffmpeg 8.1.1-full_build

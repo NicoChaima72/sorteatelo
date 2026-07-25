@@ -11,6 +11,7 @@ import {
   ThemeIcon,
   Title,
 } from "@mantine/core";
+import { type CSSProperties } from "react";
 import {
   IconArrowRight,
   IconBolt,
@@ -30,6 +31,7 @@ import {
   EstiloSeccionSchema,
   type HeroProps,
   type HeroVisual,
+  type MotivoTarjeta,
 } from "~/lib/pagebuilder/widgets";
 import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 
@@ -284,13 +286,92 @@ function HeroVisual({
 }
 
 /**
+ * Chip-ticket flotante del heroviz `suave` (Tanda 2 F13, `motivo:"tickets"`): un mini-ticket blanco
+ * translúcido con la línea troquelada al medio, blur y rotación leve — los 2 tickets del prototipo dreamy.
+ * CSS de tokens (cero hex), aria-hidden, sin motion. La posición/rotación llega por `style`.
+ */
+function TicketFlotante({ style }: { style: CSSProperties }) {
+  return (
+    <Box
+      style={{
+        position: "absolute",
+        width: 64,
+        height: 40,
+        borderRadius: 12,
+        background: "color-mix(in srgb, var(--mantine-color-white) 88%, transparent)",
+        boxShadow: "0 10px 22px color-mix(in srgb, var(--mantine-color-black) 22%, transparent)",
+        filter: "blur(0.6px)",
+        ...style,
+      }}
+    >
+      <Box
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: 6,
+          bottom: 6,
+          width: 0,
+          borderLeft: "1px dashed color-mix(in srgb, var(--mantine-primary-color-4) 85%, transparent)",
+        }}
+      />
+    </Box>
+  );
+}
+
+/**
+ * Chip-estrella flotante del heroviz `suave` (Tanda 2 F13, `motivo:"estrella"`): una chispa de 4 puntas
+ * (clip-path) blanca translúcida, blur y rotación leve. CSS de tokens (cero hex), aria-hidden, sin motion.
+ */
+function EstrellaFlotante({ style, size = 30 }: { style: CSSProperties; size?: number }) {
+  return (
+    <Box
+      style={{
+        position: "absolute",
+        width: size,
+        height: size,
+        background: "color-mix(in srgb, var(--mantine-color-white) 82%, transparent)",
+        clipPath:
+          "polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%)",
+        filter: "blur(0.6px)",
+        ...style,
+      }}
+    />
+  );
+}
+
+/**
+ * Decoración flotante del heroviz `suave` por `motivo` (Tanda 2 F13): sobre los blur-blobs, agrega 1–2
+ * chips curados. `corazon` (default) = sin chips extra (no-op, look F12). `tickets` = 2 mini-tickets.
+ * `estrella` = 2 chispas. Todo aria-hidden, CSS estático de tokens (no anima, I-C).
+ */
+function DecoracionMotivo({ motivo }: { motivo: MotivoTarjeta }) {
+  if (motivo === "tickets") {
+    return (
+      <>
+        <TicketFlotante style={{ bottom: "13%", left: "12%", transform: "rotate(-8deg)" }} />
+        <TicketFlotante style={{ bottom: "17%", right: "11%", transform: "rotate(7deg)" }} />
+      </>
+    );
+  }
+  if (motivo === "estrella") {
+    return (
+      <>
+        <EstrellaFlotante style={{ top: "13%", right: "16%", transform: "rotate(12deg)" }} />
+        <EstrellaFlotante style={{ bottom: "18%", left: "13%", transform: "rotate(-10deg)" }} size={22} />
+      </>
+    );
+  }
+  return null; // corazon: solo los blur-blobs (no-op)
+}
+
+/**
  * Tarjeta-placeholder del hero (Tanda 2 F02/D2): la HOLOCARD del mockup `tienda-libro` SIN imagen —
  * ícono (Tabler, enum, cero emoji libre — D2) + título + subtítulo dentro de un fondo tematizado. Ratio
  * 3:4 (tipo portada). Cero hex (I-A): el fondo es `gradienteTematico`, el texto blanco emparejado.
  *
  * `estilo:"suave"` (Tanda 2 F12): look "glassy" del prototipo dreamy — mismo gradiente + 2-3 blur-blobs
  * decorativos de tokens (círculos difusos de blanco/marca a baja opacidad), CSS puro sin motion. `plano`
- * (default) = el fondo sólido de siempre (no-op, I-H).
+ * (default) = el fondo sólido de siempre (no-op, I-H). El `motivo` (F13) suma chips flotantes al `suave`.
  */
 function TarjetaVisual({
   visual,
@@ -319,12 +400,14 @@ function TarjetaVisual({
           color: "var(--mantine-color-white)",
         }}
       >
-        {/* Blur-blobs decorativos (glassy) — solo en `suave`. CSS estático, cero hex, no anima (I-C). */}
+        {/* Blur-blobs decorativos (glassy) — solo en `suave`. CSS estático, cero hex, no anima (I-C). El
+            `motivo` (F13) suma 1–2 chips flotantes (tickets/estrellas) sobre los blobs. */}
         {suave && (
           <Box aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
             <Box style={{ position: "absolute", top: "8%", left: "10%", width: 96, height: 96, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-color-white) 42%, transparent)", filter: "blur(22px)" }} />
             <Box style={{ position: "absolute", top: "16%", right: "14%", width: 56, height: 56, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-color-white) 55%, transparent)", filter: "blur(14px)" }} />
             <Box style={{ position: "absolute", bottom: "14%", right: "12%", width: 84, height: 84, borderRadius: 999, background: "color-mix(in srgb, var(--mantine-primary-color-2) 45%, transparent)", filter: "blur(24px)" }} />
+            <DecoracionMotivo motivo={visual.motivo} />
           </Box>
         )}
         <Box style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--mantine-spacing-md)" }}>

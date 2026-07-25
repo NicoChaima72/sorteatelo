@@ -205,23 +205,45 @@ export function gradienteTematico(colorPrimario: string | null): string {
   return "linear-gradient(135deg, var(--mantine-primary-color-filled), var(--mantine-primary-color-filled-hover))";
 }
 
-/**
- * Rotaciones de matiz CURADAS para variar los covers-placeholder del catálogo (Tanda 2 F12). El
- * `gradienteTematico` es un color FIJO (la escala de marca) ⇒ todos los productos sin portada degradan al
- * MISMO gradiente. Para recuperar la variedad del prototipo (covers de colores distintos) se rota el
- * matiz del placeholder con `filter: hue-rotate(Ndeg)` — donde N sale de este set por hash del título:
- * DETERMINISTA (SSR = cliente, sin hydration mismatch) y CERO CONFIG. `hue-rotate` deja intacto el texto
- * blanco/ícono del placeholder (achromático) ⇒ solo el gradiente cambia de tono. Cero hex (I-A): es un
- * grado sobre un token, no un color nuevo.
- */
-const HUE_COVERS = [0, 42, 88, 132, 186, 232, 288, 324] as const;
-
-/** Grado de `hue-rotate` (0–359) estable por `semilla` (p.ej. el título del producto). Determinista. */
-export function hueCoverDeterminista(semilla: string): number {
-  let h = 2166136261; // FNV-1a base (hash estable, sin dependencias)
+/** Hash FNV-1a estable de una `semilla` (sin dependencias) → uint32. Determinista (SSR = cliente). */
+function hashSemilla(semilla: string): number {
+  let h = 2166136261;
   for (let i = 0; i < semilla.length; i++) {
     h ^= semilla.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return HUE_COVERS[(h >>> 0) % HUE_COVERS.length]!;
+  return h >>> 0;
+}
+
+/**
+ * Gradiente de PORTADA-placeholder del catálogo (Tanda 2 F13). REEMPLAZA el `hue-rotate` de F12, que
+ * rotaba el matiz por el círculo completo e introducía AZULES ajenos a la paleta de marca (bug: las
+ * covers lila quedaban azules). Acá el gradiente sale de un SET CURADO acotado a la FAMILIA del tenant
+ * (mezclas de la escala primario/acento vía tokens y `color-mix`), elegido por hash del título:
+ * coherencia de paleta GARANTIZADA (nada fuera de la marca) con variedad real (6 combinaciones). Cero
+ * hex (I-A): todo es `var(--mantine-color-*)`/`color-mix` de tokens. Determinista por `semilla` (mismo
+ * título ⇒ mismo gradiente, sirve SSR + cliente sin mismatch).
+ *
+ * Los tonos primarios usan `--mantine-primary-color-N` (que Mantine aliasa a la escala `marca` del
+ * tenant cuando definió su color, o al primario de plataforma si no); el acento usa la escala `acento`
+ * con FALLBACK CSS al primario (I-T2: un tenant sin acento degrada dentro de su misma familia). Mismo
+ * criterio de tokens que `estiloSeccion.ts`.
+ */
+export function gradientePortadaDeterminista(
+  _colorPrimario: string | null,
+  semilla: string,
+): string {
+  // Tono N de la escala primaria (aliaseada a `marca` cuando el tenant fijó su color).
+  const p = (n: number) => `var(--mantine-primary-color-${n})`;
+  // Tono N de la escala acento, con fallback al primario (degrada dentro de la familia, I-T2).
+  const a = (n: number) => `var(--mantine-color-${COLOR_ACENTO}-${n}, ${p(n)})`;
+  const SET = [
+    `linear-gradient(140deg, ${p(5)}, ${p(8)})`, // marca media → profunda (el tematico de siempre)
+    `linear-gradient(140deg, ${p(6)}, ${p(9)})`, // marca profunda
+    `linear-gradient(150deg, ${p(6)}, ${a(7)})`, // primario → acento profundo
+    `linear-gradient(150deg, ${a(5)}, ${p(8)})`, // acento → marca profunda
+    `linear-gradient(135deg, ${p(4)}, ${p(7)})`, // marca clara → media (pastel con cuerpo)
+    `linear-gradient(160deg, color-mix(in srgb, ${p(6)} 60%, ${a(6)}), ${p(9)})`, // mezcla marca/acento → profundo
+  ];
+  return SET[hashSemilla(semilla) % SET.length]!;
 }

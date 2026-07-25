@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { SeccionNodeSchema } from "~/lib/pagebuilder/schema";
 import {
+  catalogoProps,
   estadisticasProps,
   heroProps,
   imagenDestacadaProps,
@@ -228,6 +229,40 @@ describe("pagebuilder/tanda2 (F12) — estadisticas tarjetas_suaves", () => {
       expect(estadisticasProps.safeParse({ ...base, estiloVisual: est }).success).toBe(true);
     }
     expect(estadisticasProps.safeParse({ ...base, estiloVisual: "neon" }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F13) — catalogo layout grilla|carrusel", () => {
+  // page.tanda2.catalogo.001 — el enum layout gana grilla|carrusel; default grilla (no-op v1)
+  it("catalogo.layout acepta grilla|carrusel, default grilla (no-op)", () => {
+    // v1 sin layout ⇒ default grilla (no-op, migración I-H)
+    expect(catalogoProps.parse({}).layout).toBe("grilla");
+    for (const layout of ["grilla", "carrusel"] as const) {
+      expect(catalogoProps.safeParse({ layout }).success).toBe(true);
+    }
+    // valor fuera del enum ⇒ rechazo
+    expect(catalogoProps.safeParse({ layout: "masonry" }).success).toBe(false);
+    // campo extra ⇒ rechazo (.strict)
+    expect(catalogoProps.safeParse({ layout: "grilla", html: "<b>x</b>" }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F13) — hero visual tarjeta motivo (decoración flotante)", () => {
+  // page.tanda2.herovisual.003 — la tarjeta gana `motivo` (corazon/tickets/estrella); default corazon (no-op)
+  it("visual tarjeta acepta motivo corazon|tickets|estrella, default corazon (no-op)", () => {
+    const base = { titulo: "Hola" };
+    // sin motivo ⇒ default corazon (el look suave actual, sin chips flotantes extra)
+    const parsed = heroProps.parse({ ...base, visual: { tipo: "tarjeta", titulo: "T", estilo: "suave" } });
+    expect(parsed.visual).toMatchObject({ tipo: "tarjeta", motivo: "corazon" });
+    for (const motivo of ["corazon", "tickets", "estrella"] as const) {
+      expect(
+        heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", estilo: "suave", motivo } }).success,
+      ).toBe(true);
+    }
+    // motivo fuera del enum ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "tarjeta", titulo: "T", motivo: "fuego" } }).success).toBe(false);
+    // `motivo` NO existe en la rama imagen (.strict) ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, visual: { tipo: "imagen", url: "https://x.co", motivo: "tickets" } }).success).toBe(false);
   });
 });
 

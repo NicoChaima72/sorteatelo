@@ -140,4 +140,37 @@
       transform: translateX(-50%);
     }
   }
+
+  /* Carrusel del catálogo (Tanda 2 F13): la pista (covers DUPLICADAS) hace un loop -50% sin costura;
+     pausa en hover. Solo con movimiento (gateado por esta media query); con reduced-motion la pista no
+     anima y el contenedor pasa a scroll manual (ver bloque base + reduce más abajo). Solo transform. */
+  .carrusel-marquee-pista {
+    animation: animar-marquee 48s linear infinite;
+    will-change: transform;
+  }
+  .carrusel-marquee-pausa:hover .carrusel-marquee-pista {
+    animation-play-state: paused;
+  }
+}
+
+/* Carrusel del catálogo (Tanda 2 F13) — estructura base, INDEPENDIENTE de motion. Con movimiento, la
+   pista anima (regla gateada arriba) dentro de un contenedor overflow:hidden. Con reduced-motion, el
+   contenedor pasa a scroll manual (overflow-x) y se oculta la copia duplicada ⇒ una sola fila navegable
+   a mano, sin animación. La regla de reduce va última en el archivo ⇒ gana por orden de fuente. */
+.carrusel-marquee {
+  overflow: hidden;
+  width: 100%;
+}
+.carrusel-marquee-pista {
+  display: flex;
+  width: max-content;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carrusel-marquee {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .carrusel-marquee-dup {
+    display: none;
+  }
 }

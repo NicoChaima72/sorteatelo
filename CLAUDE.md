@@ -71,3 +71,14 @@ Single-context: un `CONTEXT.md` + `docs/adr/` en la raíz. See `docs/agents/doma
 - UI con **Mantine 7** (`@mantine/core` + form/modals/notifications/hooks; íconos `@tabler/icons-react`) — ADR-0011. Convenciones en `docs/agents/frontend-conventions.md`.
 - **Línea gráfica completa en `docs/design.md`** — fuente de verdad de todo artefacto visual. Leerlo antes de generar cualquier cosa visual.
 - **Identidad de marca de la plataforma: RESUELTA — dirección «El Talonario»** (nombre **Sortéatelo**, blanco + azul cobalto `#2b3fbf` + amarillo lotería `#ffc530` + tinta `#191b22`; Fraunces headings + Bricolage wordmark + Instrument Sans texto + IBM Plex Mono números). Instanciada en `src/styles/theme.ts` y en la landing (`src/components/landing/`) con la gramática talonario (bandas, plumón, perforaciones, sellos, ticket con muescas). **La landing del apex es la referencia de estilo** para cualquier artefacto de marca de plataforma (incl. videos/cápsulas). Detalle completo en `docs/design.md`. Pendiente solo el logo/isotipo dibujado (hoy wordmark tipográfico + `IconTicket` provisional). El theming per-tenant sigue siendo dato del `Tenant`, no código (seam ADR-0011).
+
+### Cápsulas de video
+
+Los tutoriales de onboarding del panel se producen en `videos/hyperframes/` (motor HyperFrames
+pinneado `0.7.56`, HTML+CSS+GSAP → MP4 mudo 1920×1080, 6 beats). Los mocks se **re-dibujan** en
+HTML con el tour-kit; nunca son screenshots. La marca sale de tokens `--st-*` que
+`build-tokens.mjs` deriva de `src/styles/theme.ts` — cambiar la paleta es editar el theme y
+regenerar, nunca tocar hex en un video. Para producir una cápsula se usa la skill `capsula-video`
+(arma el spec y delega en el subagente `hyperframes-video-builder`); el gate visual son **frames
+del MP4 real**, jamás los snapshots del motor. Catálogo de pantallas ya mockeadas: `MOCKS.md`.
+Los MP4 NO se commitean (`out/` gitignoreado): su destino es R2 en la fase 2 post-F07.

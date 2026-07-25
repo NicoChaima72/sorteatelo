@@ -36,6 +36,8 @@ import { type TenantBranding } from "~/styles/tenantTheme";
 export function StorefrontLayout({
   branding,
   estiloShell,
+  estiloLienzo,
+  columnaMaxWidth,
   navItems,
   avisoSobreNav,
   children,
@@ -43,6 +45,12 @@ export function StorefrontLayout({
   branding: TenantBranding;
   /** Fondo del shell derivado del TemaPagina (catálogo-v2 F02); ausente ⇒ fondo por defecto. */
   estiloShell?: CSSProperties;
+  /** Fondo del LIENZO EXTERIOR (Tanda 2 F15): el área fuera de la columna estrecha (un pelo más oscura que
+   * la columna). Solo se usa con `columnaMaxWidth` presente (anchoContenido:"estrecho"). */
+  estiloLienzo?: CSSProperties;
+  /** Ancho máximo (px) de la columna de contenido (Tanda 2 F15). Presente ⇒ el shell centra header+main+
+   * footer en una columna de esa medida (editorial); ausente ⇒ ancho completo (comportamiento actual, I-H). */
+  columnaMaxWidth?: number | null;
   /** Items del nav derivados del documento (F05/D8); vacío/ausente ⇒ nav hardcodeado actual (I-H). */
   navItems?: NavItem[];
   /** Cinta `aviso_barra` con `posicion:"sobre_nav"` (F13): se pinta ANTES del header, en el tope
@@ -51,6 +59,24 @@ export function StorefrontLayout({
   children: ReactNode;
 }) {
   const [drawerAbierto, drawer] = useDisclosure(false);
+
+  // Núcleo del shell (banner + cinta + header + main + footer), común a ambos layouts.
+  const nucleo = (
+    <>
+      {/* Banner "Editar mi tienda" (F09): chrome de plataforma, monta post-hidratación (no toca el SSR). */}
+      <BannerEditarTienda slug={branding.slug} />
+      {/* Cinta SOBRE el nav (F13): en el tope absoluto, antes del header sticky. Al hacer scroll la cinta
+          se va y el header queda pegado a top:0 (el ticker "sobre el nav" del mockup). */}
+      {avisoSobreNav}
+      <Header branding={branding} navItems={navItems} onAbrirCarrito={drawer.open} />
+
+      <Box component="main" className="flex-1">
+        {children}
+      </Box>
+
+      <Footer branding={branding} />
+    </>
+  );
 
   return (
     <CarritoProvider slug={branding.slug}>
@@ -62,20 +88,29 @@ export function StorefrontLayout({
         />
       </Head>
 
-      <div className="flex min-h-screen flex-col" style={estiloShell}>
-        {/* Banner "Editar mi tienda" (F09): chrome de plataforma, monta post-hidratación (no toca el SSR). */}
-        <BannerEditarTienda slug={branding.slug} />
-        {/* Cinta SOBRE el nav (F13): en el tope absoluto, antes del header sticky. Al hacer scroll la cinta
-            se va y el header queda pegado a top:0 (el ticker "sobre el nav" del mockup). */}
-        {avisoSobreNav}
-        <Header branding={branding} navItems={navItems} onAbrirCarrito={drawer.open} />
-
-        <Box component="main" className="flex-1">
-          {children}
-        </Box>
-
-        <Footer branding={branding} />
-      </div>
+      {columnaMaxWidth ? (
+        // Columna estrecha editorial (Tanda 2 F15): el lienzo exterior (más oscuro) enmarca una columna
+        // centrada (marfil) con header+main+footer. La columna lleva `estiloShell` + una sombra suave (la
+        // "columna sobre crema" del prototipo). Cero hex: la sombra es un `color-mix` de token (I-A).
+        <div className="flex min-h-screen w-full flex-col items-center" style={estiloLienzo}>
+          <Box
+            w="100%"
+            className="flex flex-1 flex-col"
+            style={{
+              maxWidth: columnaMaxWidth,
+              ...estiloShell,
+              boxShadow:
+                "0 0 60px -20px color-mix(in srgb, var(--mantine-color-black) 22%, transparent)",
+            }}
+          >
+            {nucleo}
+          </Box>
+        </div>
+      ) : (
+        <div className="flex min-h-screen flex-col" style={estiloShell}>
+          {nucleo}
+        </div>
+      )}
 
       <CarritoDrawer opened={drawerAbierto} onClose={drawer.close} />
     </CarritoProvider>

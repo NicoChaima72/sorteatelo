@@ -83,33 +83,95 @@ export function ComoFunciona({
           {props.titulo}
         </Title>
 
-        <SimpleGrid
-          cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
-          spacing="lg"
-        >
-          {pasos.map((paso, i) => {
-            const Icono = ICONOS[paso.icono] ?? IconSparkles;
-            return (
-              <Card key={`${paso.titulo}-${i}`} withBorder radius="md" padding="lg">
-                <Stack gap="sm">
-                  <Group gap="sm" wrap="nowrap">
-                    <ThemeIcon variant="light" size="xl" radius="md">
-                      <Icono className="size-6" stroke={1.75} />
-                    </ThemeIcon>
-                    <Text fz={28} fw={800} c="dimmed" className="tabular-nums">
-                      {i + 1}
+        {props.layout === "lista" ? (
+          <ListaMetodo pasos={pasos} />
+        ) : (
+          <SimpleGrid
+            cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
+            spacing="lg"
+          >
+            {pasos.map((paso, i) => {
+              const Icono = ICONOS[paso.icono] ?? IconSparkles;
+              return (
+                <Card key={`${paso.titulo}-${i}`} withBorder radius="md" padding="lg">
+                  <Stack gap="sm">
+                    <Group gap="sm" wrap="nowrap">
+                      <ThemeIcon variant="light" size="xl" radius="md">
+                        <Icono className="size-6" stroke={1.75} />
+                      </ThemeIcon>
+                      <Text fz={28} fw={800} c="dimmed" className="tabular-nums">
+                        {i + 1}
+                      </Text>
+                    </Group>
+                    <Text fw={600}>{paso.titulo}</Text>
+                    <Text size="sm" c="dimmed">
+                      {paso.desc}
                     </Text>
-                  </Group>
-                  <Text fw={600}>{paso.titulo}</Text>
-                  <Text size="sm" c="dimmed">
-                    {paso.desc}
-                  </Text>
-                </Stack>
-              </Card>
-            );
-          })}
-        </SimpleGrid>
+                  </Stack>
+                </Card>
+              );
+            })}
+          </SimpleGrid>
+        )}
       </Stack>
     </SeccionWrapper>
+  );
+}
+
+/**
+ * Layout `lista` (Tanda 2 F15/fidelidad editorial): el "método" del prototipo editorial — lista NUMERADA
+ * vertical, numeral serif itálico grande de marca a la izquierda + título (serif) + desc, con un divisor
+ * inferior sutil entre pasos (excepto el último). Elegante y sobrio (sin cards ni íconos). Cero hex (I-A).
+ */
+function ListaMetodo({
+  pasos,
+}: {
+  pasos: { icono: string; titulo: string; desc: string }[];
+}) {
+  return (
+    <Stack gap={0}>
+      {pasos.map((paso, i) => (
+        <Group
+          key={`${paso.titulo}-${i}`}
+          gap="lg"
+          align="flex-start"
+          wrap="nowrap"
+          py="lg"
+          style={
+            i < pasos.length - 1
+              ? { borderBottom: "1px solid var(--mantine-color-default-border)" }
+              : undefined
+          }
+        >
+          <Text
+            span
+            fw={700}
+            fz={{ base: 30, sm: 36 }}
+            lh={1}
+            className="tabular-nums"
+            style={{
+              fontFamily: "var(--mantine-font-family-headings)",
+              fontStyle: "italic",
+              color: "var(--mantine-primary-color-filled)",
+              flex: "0 0 auto",
+            }}
+          >
+            {i + 1}
+          </Text>
+          <Stack gap={4}>
+            <Text
+              fw={700}
+              fz={{ base: 16, sm: 18 }}
+              style={{ fontFamily: "var(--mantine-font-family-headings)" }}
+            >
+              {paso.titulo}
+            </Text>
+            <Text size="sm" c="dimmed">
+              {paso.desc}
+            </Text>
+          </Stack>
+        </Group>
+      ))}
+    </Stack>
   );
 }

@@ -64,6 +64,24 @@ function anclaHref(ancla: string): string {
   return `#${ancla}`;
 }
 
+/**
+ * `fz` responsive del título del hero por `tituloTamano` (Tanda 2 F15/fidelidad concert). `normal` ⇒
+ * `null` (el caller usa el fz por-variante de siempre, no-op I-H). `grande`/`enorme` escalan a un poster de
+ * recital (el "COMPRA EL LIBRO. ANDA A VER A BTS" ENORME con Anton del prototipo). Sin px libre.
+ */
+function fzTituloHero(
+  tamano: HeroProps["tituloTamano"],
+): { base: number; sm: number; md?: number } | null {
+  switch (tamano) {
+    case "grande":
+      return { base: 40, sm: 56 };
+    case "enorme":
+      return { base: 44, sm: 60, md: 72 };
+    default:
+      return null; // normal ⇒ el fz por-variante de siempre
+  }
+}
+
 export function StorefrontHero({
   nodo,
   branding,
@@ -382,13 +400,21 @@ function TarjetaVisual({
 }) {
   const Icono = visual.icono ? iconoBeneficio(visual.icono) : null;
   const suave = visual.estilo === "suave";
+  // Fondo de la holocard (Tanda 2 F15/fidelidad concert): en `suave` es DARK-AWARE por `light-dark` — modo
+  // claro = el gradiente pastel de marca (byte-idéntico al de siempre para dreamy, no-op I-H); modo oscuro
+  // = un "stage" oscuro (marca-9 → negro) con los blur-blobs blancos como haces de luz (el escenario del
+  // recital del prototipo concert, no una tarjeta clara sobre fondo oscuro). `plano` conserva el gradiente
+  // tematico sólido. Cero hex (I-A).
+  const fondoTarjeta = suave
+    ? "linear-gradient(135deg, light-dark(var(--mantine-primary-color-5), var(--mantine-primary-color-9)), light-dark(var(--mantine-primary-color-8), var(--mantine-color-black)))"
+    : gradienteTematico(colorPrimario);
   return (
     <AspectRatio ratio={3 / 4}>
       <Box
         style={{
           position: "relative",
           overflow: "hidden",
-          background: gradienteTematico(colorPrimario),
+          background: fondoTarjeta,
           borderRadius: "var(--mantine-radius-lg)",
           padding: "var(--mantine-spacing-xl)",
           display: "flex",
@@ -486,7 +512,13 @@ function HeroSplit({
       <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "xl", md: 48 }} style={{ alignItems: "center" }}>
         <Stack gap="lg">
           <HeroEyebrow props={props} />
-          <Title order={1} fz={{ base: 32, sm: 44 }} lh={1.1} fw={800}>
+          <Title
+            order={1}
+            fz={fzTituloHero(props.tituloTamano) ?? { base: 32, sm: 44 }}
+            lh={props.tituloMayusculas && props.tituloTamano === "enorme" ? 0.95 : 1.1}
+            fw={800}
+            tt={props.tituloMayusculas ? "uppercase" : undefined}
+          >
             <TituloHero titulo={titulo} acento={props.tituloAcento} efecto={props.efectoTitulo} />
           </Title>
           {subtitulo && (
@@ -533,7 +565,13 @@ function HeroCentrado({
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
       <Stack gap="lg" align="center" ta="center" maw={720} mx="auto">
         {!minimal && <HeroEyebrow props={props} />}
-        <Title order={1} fz={{ base: minimal ? 28 : 34, sm: minimal ? 40 : 48 }} lh={1.1} fw={800}>
+        <Title
+          order={1}
+          fz={fzTituloHero(props.tituloTamano) ?? { base: minimal ? 28 : 34, sm: minimal ? 40 : 48 }}
+          lh={props.tituloMayusculas && props.tituloTamano === "enorme" ? 0.95 : 1.1}
+          fw={800}
+          tt={props.tituloMayusculas ? "uppercase" : undefined}
+        >
           <TituloHero titulo={titulo} acento={props.tituloAcento} efecto={props.efectoTitulo} />
         </Title>
         {subtitulo && (

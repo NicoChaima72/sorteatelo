@@ -3,6 +3,7 @@ import { type CSSProperties } from "react";
 
 import {
   type AmbienteFondo,
+  type AnchoContenido,
   type EsquemaFondo,
   type EstiloSeccion,
   type FondoSeccion,
@@ -38,6 +39,8 @@ export interface EstiloSeccionResuelto {
   divisor: { forma: string; altura: string; invertir: boolean } | null;
   /** Preset de entrada (F03). `heredar` ⇒ el wrapper toma el default del TemaPagina. */
   entrada: string;
+  /** Kicker de sección (F15): encabezado pequeño + numeral romano opcional, o `null` (sin kicker). */
+  kicker: { texto: string; numeral: string } | null;
   /** Ancho del FONDO (F02/D4): `completo` = full-bleed (default, comportamiento actual); `contenido` = acotado. */
   anchoFondo: "completo" | "contenido";
   /** Min-height CSS resuelto (F06/D9): `undefined` = auto (sin min-height, comportamiento actual). */
@@ -56,7 +59,30 @@ const ESQUEMAS_OSCUROS: ReadonlySet<EsquemaFondo> = new Set([
   "marca_profundo",
   "acento_profundo",
   "tinta",
+  "tinta_profunda",
 ]);
+
+/**
+ * Fondo TINTA PROFUNDA (Tanda 2 F15, fidelidad concert): near-black con un TINTE de marca — el `#070310`
+ * del prototipo "Concert Night" (negro profundo con un dejo púrpura), más profundo que `tinta` (gray-9).
+ * Curado de TOKENS (I-A: `color-mix` de `black` + el tono más oscuro de la marca), cero hex. Texto claro
+ * (es un esquema oscuro). Sirve de base para el ambiente `neon` (el glow concentra sobre este negro).
+ */
+const TINTA_PROFUNDA_FONDO =
+  "color-mix(in srgb, var(--mantine-color-black) 86%, var(--mantine-primary-color-9))";
+
+/**
+ * Fondo MARFIL cálido (Tanda 2 F14, fidelidad editorial): el off-white cálido tipo papel del prototipo
+ * "Editorial Boutique" (≈`#faf7f2`), que la escala NEUTRA de plataforma no tiene (`superficie` = blanco
+ * stark). Curado del sistema (I-A: preset compuesto de TOKENS, cero hex): mezcla `white`/`dark` con una
+ * pizca de `orange` para la calidez, dark-aware vía `light-dark` (claro = marfil cálido; oscuro = carbón
+ * cálido). Su texto emparejado es `--mantine-color-text` (tinta dark-aware) ⇒ NO es un esquema oscuro
+ * (se comporta como `superficie`: sub-textos `dimmed`, no derivados de currentColor). SSR-safe (estático).
+ */
+const MARFIL_FONDO =
+  "light-dark(" +
+  "color-mix(in srgb, var(--mantine-color-white) 92%, var(--mantine-color-orange-3)), " +
+  "color-mix(in srgb, var(--mantine-color-dark-7) 90%, var(--mantine-color-orange-9)))";
 
 /** CSS de background + color de texto de un esquema sólido. */
 function esquemaACss(esquema: EsquemaFondo): CSSProperties {
@@ -73,6 +99,9 @@ function esquemaACss(esquema: EsquemaFondo): CSSProperties {
         background: "light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))",
         color: "var(--mantine-color-text)",
       };
+    case "marfil":
+      // Tanda 2 F14: off-white CÁLIDO dark-aware (fidelidad editorial). Texto tinta como `superficie`.
+      return { background: MARFIL_FONDO, color: "var(--mantine-color-text)" };
     case "marca_suave":
       return { background: "var(--mantine-primary-color-0)", color: "var(--mantine-color-text)" };
     case "marca":
@@ -105,6 +134,9 @@ function esquemaACss(esquema: EsquemaFondo): CSSProperties {
       };
     case "tinta":
       return { background: "var(--mantine-color-gray-9)", color: "var(--mantine-color-white)" };
+    case "tinta_profunda":
+      // Tanda 2 F15: near-black con tinte de marca (fidelidad concert), texto claro.
+      return { background: TINTA_PROFUNDA_FONDO, color: "var(--mantine-color-white)" };
   }
 }
 
@@ -125,6 +157,8 @@ export function colorSolidoDeEsquema(esquema: EsquemaFondo): string {
       return "var(--mantine-color-body)";
     case "superficie_alt":
       return "light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))";
+    case "marfil":
+      return MARFIL_FONDO; // Tanda 2 F14: off-white cálido (fill del shell/divisor)
     case "marca_suave":
       return "var(--mantine-primary-color-0)";
     case "marca":
@@ -139,6 +173,8 @@ export function colorSolidoDeEsquema(esquema: EsquemaFondo): string {
       return "var(--mantine-color-acento-8, var(--mantine-primary-color-8))";
     case "tinta":
       return "var(--mantine-color-gray-9)";
+    case "tinta_profunda":
+      return TINTA_PROFUNDA_FONDO; // Tanda 2 F15: near-black brand-tinted (fill del shell concert)
   }
 }
 
@@ -366,6 +402,10 @@ export function estiloSeccionACss(
           }
         : null,
     entrada: estilo?.entrada ?? "heredar",
+    // Kicker (F15): presente ⇒ el wrapper pinta el encabezado + numeral; ausente ⇒ null (no-op, I-H).
+    kicker: estilo?.kicker
+      ? { texto: estilo.kicker.texto, numeral: estilo.kicker.numeral ?? "ninguno" }
+      : null,
     anchoFondo: estilo?.anchoFondo ?? "completo", // default full-bleed = comportamiento actual (I-H)
     altoMin: ALTO_MIN_CSS[estilo?.altoMin ?? "auto"], // undefined con "auto" (no-op, I-H)
     justifyVertical: JUSTIFY_POR_ALINEAR[estilo?.alinearVertical ?? "arriba"] ?? "flex-start",
@@ -452,6 +492,17 @@ const AMBIENTE_CAPAS: Record<AmbienteFondo, string | null> = {
     "radial-gradient(50% 45% at 85% 18%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 20%, transparent), transparent 70%)",
     "radial-gradient(60% 50% at 50% 100%, color-mix(in srgb, var(--mantine-primary-color-8) 16%, transparent), transparent 75%)",
   ].join(", "),
+  // Tanda 2 F14/F15 (fidelidad concert): stage-lights de RECITAL — UN foco de marca CONCENTRADO arriba-
+  // centro (el `radial(120% 50% at 50% -5%, #2a0f55→#070310)` del prototipo). F15 lo RE-CONCENTRA: menos
+  // extensión (62%×42% vs 100%×55%), pico más alto (46%) y falloff más corto (50%) ⇒ el glow no lava el
+  // top; los dos focos de acento (los haces neón) bajan a chips chicos y tenues en las esquinas superiores.
+  // Sobre `tinta_profunda` (near-black) ⇒ el foco púrpura pop concentrado del original, negro profundo
+  // alrededor. Cero hex (I-A); acento con fallback a marca (I-T2).
+  neon: [
+    "radial-gradient(62% 42% at 50% -2%, color-mix(in srgb, var(--mantine-primary-color-5) 46%, transparent), transparent 50%)",
+    "radial-gradient(34% 30% at 14% 4%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 20%, transparent), transparent 55%)",
+    "radial-gradient(34% 30% at 86% 6%, color-mix(in srgb, var(--mantine-color-acento-6, var(--mantine-primary-color-6)) 18%, transparent), transparent 55%)",
+  ].join(", "),
 };
 
 /**
@@ -466,4 +517,26 @@ export function fondoShellConAmbiente(
   const base = colorSolidoDeEsquema(fondoPagina);
   const capas = AMBIENTE_CAPAS[ambiente];
   return { background: capas ? `${capas}, ${base}` : base };
+}
+
+// ── Ancho de contenido del shell · columna estrecha editorial (Tanda 2 F15/D fidelidad) ────────
+//
+// `anchoContenido` (del TemaPagina) hoy era un campo MUDO (solo lo describía el MCP). F15 lo cablea: el
+// shell centra el contenido en una medida por defecto. `estrecho` = columna boutique (~640px) sobre un
+// lienzo exterior un pelo MÁS OSCURO que la columna (la "columna marfil sobre crema" del prototipo
+// editorial). `contenido`/`ancho` ⇒ null (sin columna acotada = comportamiento actual, no-op I-H).
+
+/** Ancho máximo (px) de la columna de contenido del shell por `anchoContenido`. `null` ⇒ sin acotar. */
+export function maxWidthColumna(ancho: AnchoContenido): number | null {
+  return ancho === "estrecho" ? 640 : null;
+}
+
+/**
+ * Fondo del LIENZO EXTERIOR (el área fuera de la columna estrecha): el color del `fondoPagina` un pelo más
+ * OSCURO (la crema `#ece7df` bajo la columna marfil `#faf7f2` del prototipo editorial). Curado de tokens
+ * (`color-mix` del sólido base con `black`) ⇒ cero hex (I-A). Solo se usa con `anchoContenido:"estrecho"`.
+ */
+export function fondoLienzoExterior(fondoPagina: EsquemaFondo): CSSProperties {
+  const base = colorSolidoDeEsquema(fondoPagina);
+  return { background: `color-mix(in srgb, ${base} 93%, var(--mantine-color-black))` };
 }

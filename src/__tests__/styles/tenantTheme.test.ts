@@ -77,6 +77,17 @@ describe("styles/tenantTheme — gradientePortadaDeterminista (covers de libro, 
     expect(g).toContain("var(--mantine-primary-color-");
     expect(g).not.toContain("#");
   });
+
+  // covers.gradiente.004 (Tanda 2 F15) — dark-aware: cada stop es light-dark(claro, oscuro) ⇒ modo oscuro
+  // elige tonos más CLAROS/vivos (covers brillantes del concert), modo claro conserva el índice de siempre.
+  it("cada stop es light-dark(claro, oscuro) para covers vivas en modo oscuro (cero hex)", () => {
+    for (const s of ["Uno", "Dos", "Tres", "Cuatro", "Cinco", "Seis"]) {
+      const g = gradientePortadaDeterminista("#a855f7", s);
+      expect(g).toContain("light-dark("); // dark-aware
+      expect(g).toContain("var(--mantine-primary-color-"); // tokens
+      expect(g).not.toContain("#"); // cero hex (I-A)
+    }
+  });
 });
 
 describe("styles/tenantTheme — generarEscalaColor", () => {

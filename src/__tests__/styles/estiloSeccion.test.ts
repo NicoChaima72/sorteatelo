@@ -7,8 +7,10 @@ import {
   colorSolidoDeEsquema,
   esFondoOscuro,
   estiloSeccionACss,
+  fondoLienzoExterior,
   fondoSeccionACss,
   fondoShellConAmbiente,
+  maxWidthColumna,
   TEXTO_TENUE_SOBRE_OSCURO,
 } from "~/styles/estiloSeccion";
 
@@ -449,6 +451,47 @@ describe("estiloSeccion — padTop/padBottom (Tanda 2 F06/D6)", () => {
   });
 });
 
+describe("estiloSeccion — esquema marfil (Tanda 2 F14, fidelidad editorial)", () => {
+  // marfil.001 — `marfil` es un fondo CÁLIDO curado dark-aware (el #faf7f2 del prototipo editorial), texto
+  // tinta. Emite solo tokens (`light-dark` + `color-mix` de white/dark/orange) — cero hex (I-A). Es CLARO
+  // (dark-aware como `superficie`) ⇒ `esFondoOscuro` false. `colorSolidoDeEsquema` da el mismo cálido.
+  it("marfil emite un fondo cálido de tokens (cero hex), texto tinta, y NO es oscuro", () => {
+    const css = fondoSeccionACss({ tipo: "esquema", esquema: "marfil" });
+    expect(css.background).toContain("light-dark"); // dark-aware
+    expect(css.background).toContain("color-mix"); // compuesto de tokens (calidez)
+    expect(css.background).toContain("--mantine-color-orange"); // fuente de la calidez (token, no hex)
+    expect(css.color).toBe("var(--mantine-color-text)"); // texto tinta dark-aware
+    expect(tieneHex(valoresCss(css))).toBe(false);
+    // marfil NO es un esquema oscuro (su texto emparejado es tinta, como superficie) ⇒ sub-textos dimmed
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "marfil" })).toBe(false);
+    // el fill sólido (divisor / shell) es el MISMO cálido
+    expect(colorSolidoDeEsquema("marfil")).toBe(css.background);
+  });
+
+  // marfil.002 — FondoSeccionSchema (rama esquema) acepta `marfil`; el shell con marfil + ambiente ninguno
+  // es solo el sólido cálido (no-op de ambiente sobre marfil).
+  it("EstiloSeccionSchema acepta marfil y el shell (ambiente ninguno) es el sólido cálido", () => {
+    expect(parse({ fondo: { tipo: "esquema", esquema: "marfil" } })).toBeTruthy();
+    expect(fondoShellConAmbiente("marfil", "ninguno")).toEqual({
+      background: colorSolidoDeEsquema("marfil"),
+    });
+  });
+});
+
+describe("estiloSeccion — ambiente neon (Tanda 2 F14, fidelidad concert)", () => {
+  // neon.001 — `neon` compone radiales SATURADOS y CONCENTRADOS de marca + acento (fallback a marca, I-T2)
+  // sobre el color base (el foco púrpura top-center del prototipo concert). Más opaco que `aurora`. Cero hex.
+  it("neon emite radial-gradients saturados de marca + acento sobre el color base (cero hex)", () => {
+    const bg = fondoShellConAmbiente("tinta", "neon").background as string;
+    expect(bg).toContain("radial-gradient");
+    expect(bg).toContain("--mantine-primary-color-"); // foco de marca
+    expect(bg).toContain("--mantine-color-acento-"); // focos de acento (fallback a marca dentro del var)
+    expect(bg).toContain("color-mix"); // opacidad por token, no rgba/hex
+    expect(bg).toContain(colorSolidoDeEsquema("tinta")); // el color base queda como capa final
+    expect(tieneHex(bg)).toBe(false);
+  });
+});
+
 describe("estiloSeccion — patrones nuevos (Tanda 2 F07/D7)", () => {
   // pat.001 — cuadricula_papel: doble linear-gradient de token (grid papel) sobre el esquema base
   it("cuadricula_papel emite el doble linear-gradient de token sobre el esquema base (cero hex)", () => {
@@ -471,5 +514,73 @@ describe("estiloSeccion — patrones nuevos (Tanda 2 F07/D7)", () => {
   it("FondoSeccionSchema (rama patron) acepta cuadricula_papel y arcos", () => {
     expect(parse({ fondo: { tipo: "patron", patron: "cuadricula_papel" } })).toBeTruthy();
     expect(parse({ fondo: { tipo: "patron", patron: "arcos" } })).toBeTruthy();
+  });
+});
+
+describe("estiloSeccion — esquema tinta_profunda (Tanda 2 F15, fidelidad concert)", () => {
+  // tintaprofunda.001 — near-black con tinte de marca, más profundo que tinta (gray-9), texto claro, OSCURO
+  it("tinta_profunda emite un near-black brand-tinted de tokens (cero hex), texto claro, y ES oscuro", () => {
+    const css = fondoSeccionACss({ tipo: "esquema", esquema: "tinta_profunda" });
+    expect(css.background).toContain("color-mix"); // near-black compuesto de tokens
+    expect(css.background).toContain("--mantine-color-black");
+    expect(css.background).toContain("--mantine-primary-color-9"); // el tinte de marca (no hex)
+    expect(css.color).toBe("var(--mantine-color-white)"); // texto claro
+    expect(tieneHex(valoresCss(css))).toBe(false);
+    // ES un esquema oscuro (su texto emparejado es claro) ⇒ los sub-textos derivan de currentColor
+    expect(esFondoOscuro({ tipo: "esquema", esquema: "tinta_profunda" })).toBe(true);
+    // el fill sólido (shell/divisor) es el mismo near-black
+    expect(colorSolidoDeEsquema("tinta_profunda")).toBe(css.background);
+    // NO es un hex ni gray-9: es DISTINTO (más profundo) que tinta
+    expect(colorSolidoDeEsquema("tinta_profunda")).not.toBe(colorSolidoDeEsquema("tinta"));
+  });
+
+  // tintaprofunda.002 — el ambiente neon sobre tinta_profunda concentra el glow sobre el near-black
+  it("neon sobre tinta_profunda apila el foco concentrado sobre el near-black (cero hex)", () => {
+    const bg = fondoShellConAmbiente("tinta_profunda", "neon").background as string;
+    expect(bg).toContain("radial-gradient");
+    expect(bg).toContain(colorSolidoDeEsquema("tinta_profunda")); // base near-black como capa final
+    expect(tieneHex(bg)).toBe(false);
+  });
+});
+
+describe("estiloSeccion — kicker de sección (Tanda 2 F15, numerales romanos editorial)", () => {
+  // kicker.001 — sin kicker ⇒ resuelve a null (no-op I-H); con kicker ⇒ texto + numeral resueltos
+  it("kicker ausente ⇒ null (no-op); presente ⇒ {texto, numeral}; numeral default ninguno", () => {
+    expect(estiloSeccionACss(undefined).kicker).toBeNull();
+    expect(estiloSeccionACss(parse({})).kicker).toBeNull();
+    const r = estiloSeccionACss(parse({ kicker: { texto: "El libro", numeral: "I" } }));
+    expect(r.kicker).toEqual({ texto: "El libro", numeral: "I" });
+    // numeral opcional ⇒ default ninguno
+    expect(estiloSeccionACss(parse({ kicker: { texto: "Dudas" } })).kicker).toEqual({
+      texto: "Dudas",
+      numeral: "ninguno",
+    });
+  });
+
+  // kicker.002 — EstiloSeccionSchema valida el kicker: texto ≤40, numeral del enum, .strict()
+  it("EstiloSeccionSchema valida kicker (texto ≤40, numeral del enum, rechaza extras)", () => {
+    expect(parse({ kicker: { texto: "II", numeral: "II" } })).toBeTruthy();
+    // texto >40 ⇒ rechazo; numeral fuera del enum ⇒ rechazo; campo extra ⇒ rechazo (.strict)
+    expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "x".repeat(41) } }).success).toBe(false);
+    expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", numeral: "IX" } }).success).toBe(false);
+    expect(EstiloSeccionSchema.safeParse({ kicker: { texto: "ok", html: "<b>x</b>" } }).success).toBe(false);
+  });
+});
+
+describe("estiloSeccion — columna estrecha del shell (Tanda 2 F15, fidelidad editorial)", () => {
+  // columna.001 — anchoContenido estrecho ⇒ maxWidth 640; contenido/ancho ⇒ null (no-op I-H)
+  it("maxWidthColumna: estrecho ⇒ ~640; contenido/ancho ⇒ null (sin columna acotada)", () => {
+    expect(maxWidthColumna("estrecho")).toBe(640);
+    expect(maxWidthColumna("contenido")).toBeNull();
+    expect(maxWidthColumna("ancho")).toBeNull();
+  });
+
+  // columna.002 — el lienzo exterior es el fondoPagina un pelo más oscuro (color-mix con black), cero hex
+  it("fondoLienzoExterior oscurece el fondoPagina con un color-mix de tokens (cero hex)", () => {
+    const css = fondoLienzoExterior("marfil");
+    expect(css.background).toContain("color-mix");
+    expect(css.background).toContain("--mantine-color-black"); // oscurece
+    expect(css.background).toContain(colorSolidoDeEsquema("marfil")); // sobre el marfil base
+    expect(tieneHex(css.background as string)).toBe(false);
   });
 });

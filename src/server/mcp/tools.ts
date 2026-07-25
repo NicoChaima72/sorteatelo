@@ -138,6 +138,7 @@ export function mcpListStyleOptions() {
         tema: "Transparente: hereda el fondo de la página (por defecto).",
         superficie: "Blanco (o tinta en modo oscuro), texto tinta.",
         superficie_alt: "Banda gris suave para separar del fondo.",
+        marfil: "Off-white cálido tipo papel (editorial/boutique), texto tinta.",
         marca_suave: "Tinte claro del color de la tienda, texto tinta.",
         marca: "Color de la tienda a fondo lleno, texto claro legible.",
         marca_profundo: "Versión oscura del color de la tienda, texto claro.",
@@ -145,6 +146,7 @@ export function mcpListStyleOptions() {
         acento: "2º color de marca a fondo lleno, texto emparejado; sin acento cae al de marca.",
         acento_profundo: "Versión oscura del 2º color de marca, texto claro; cae a marca sin acento.",
         tinta: "Fondo casi negro, texto claro (alto contraste).",
+        tinta_profunda: "Negro profundo con un dejo de marca (más oscuro que tinta), texto claro.",
       }),
       fondoGradiente: describir(GRADIENTES, {
         marca_suave: "Degradado suave entre tonos claros de la marca.",
@@ -287,11 +289,13 @@ export function mcpListStyleOptions() {
       anchoContenido: describir(ANCHO_CONTENIDO, {
         contenido: "Ancho de lectura por defecto de las secciones.",
         ancho: "Secciones más anchas por defecto.",
+        estrecho: "Columna angosta tipo boutique (editorial), centrada sobre un lienzo un pelo más oscuro.",
       }),
       fondoPagina: describir(ESQUEMAS_FONDO, {
         tema: "Transparente (usa el fondo del shell).",
         superficie: "Blanco/tinta (por defecto).",
         superficie_alt: "Gris suave de fondo.",
+        marfil: "Off-white cálido tipo papel (editorial/boutique).",
         marca_suave: "Tinte claro de la marca de fondo.",
         marca: "Color de la marca a fondo lleno.",
         marca_profundo: "Marca oscura de fondo.",
@@ -299,6 +303,7 @@ export function mcpListStyleOptions() {
         acento: "2º color de marca a fondo lleno (cae a marca sin acento).",
         acento_profundo: "2º color de marca oscuro (cae a marca sin acento).",
         tinta: "Fondo casi negro.",
+        tinta_profunda: "Negro profundo con un dejo de marca (más oscuro que tinta, fidelidad concert).",
       }),
       // Ambiente / stage-lights (Tanda 2 F05/D5): focos radiales de tokens sobre el fondo de página.
       ambiente: describir(AMBIENTE_FONDO, {
@@ -306,6 +311,7 @@ export function mcpListStyleOptions() {
         focos_marca: "Focos radiales del color de la marca (stage-lights).",
         focos_acento: "Focos radiales del 2º color de marca (cae a marca sin acento).",
         aurora: "Aurora: mezcla de focos de marca y acento.",
+        neon: "Neón: focos saturados y concentrados (glow de recital), fidelidad concert.",
       }),
     },
   };

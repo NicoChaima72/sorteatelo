@@ -14,7 +14,11 @@ import {
   getPropsHome,
   type PropsHome,
 } from "~/server/storefront/getStorefrontProps";
-import { fondoShellConAmbiente } from "~/styles/estiloSeccion";
+import {
+  fondoLienzoExterior,
+  fondoShellConAmbiente,
+  maxWidthColumna,
+} from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -71,6 +75,13 @@ function StorefrontHome({
     paginaViva.root.props.fondoPagina,
     paginaViva.root.props.ambiente,
   );
+  // Columna estrecha editorial (Tanda 2 F15): `anchoContenido:"estrecho"` centra el contenido en ~640px
+  // sobre un lienzo exterior un pelo más OSCURO que la columna (marfil sobre crema del prototipo). `null`
+  // (contenido/ancho) ⇒ sin columna acotada (comportamiento actual, no-op I-H). Cero hex (I-A).
+  const columnaMaxWidth = maxWidthColumna(paginaViva.root.props.anchoContenido);
+  const estiloLienzo = columnaMaxWidth
+    ? fondoLienzoExterior(paginaViva.root.props.fondoPagina)
+    : undefined;
   // Nav auto-derivado (F05/D8): items del header desde las secciones marcadas `nav.incluir`. Sin ninguna
   // marcada ⇒ `[]` y el layout cae al nav actual (I-H).
   const navItems = derivarNav(paginaViva.secciones);
@@ -83,6 +94,8 @@ function StorefrontHome({
     <StorefrontLayout
       branding={branding}
       estiloShell={estiloShellFondo}
+      estiloLienzo={estiloLienzo}
+      columnaMaxWidth={columnaMaxWidth}
       navItems={navItems}
       avisoSobreNav={
         avisoSobreNav?.tipo === "aviso_barra" ? (

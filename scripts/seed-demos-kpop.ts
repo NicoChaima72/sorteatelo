@@ -260,7 +260,7 @@ const docDreamy = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// TIENDA 2 — "Concert Night": oscura, neón magenta/violeta, poster (par `impacto`, stage-lights aurora)
+// TIENDA 2 — "Concert Night": oscura, neón magenta/violeta, poster (par `impacto`, F14: ambiente `neon`)
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 const docNoche = {
   schemaVersion: 1,
@@ -271,8 +271,8 @@ const docNoche = {
       vibe: "nitido", // neón, borde marcado
       tipografia: "impacto", // Anton + Roboto — poster/recital en mayúsculas
       anchoContenido: "contenido",
-      fondoPagina: "tinta", // near-black (#070310 del prototipo) = gray-9
-      ambiente: "aurora", // stage-lights violeta + magenta (los haces de luz del recital)
+      fondoPagina: "tinta_profunda", // F15: near-black brand-tinted (#070310 del prototipo), más profundo que gray-9
+      ambiente: "neon", // F14/F15: glow púrpura CONCENTRADO top-center + haces neón, re-concentrado (sin lavar el top)
     },
   },
   secciones: [
@@ -286,7 +286,11 @@ const docNoche = {
         eyebrow: "● Sorteo en vivo abierto",
         eyebrowEstilo: "acento", // kicker MAGENTA (el #d946ef del prototipo)
         titulo: "Compra el libro. Anda a ver a BTS.",
-        tituloAcento: { palabra: "BTS", estilo: "gradiente" }, // neón violeta→magenta
+        // F15: título ENORME en MAYÚSCULAS (el poster Anton del prototipo) con "Anda a ver a BTS" en gradiente
+        // neón violeta→magenta (la 2ª línea blanco→lila del original; "Compra el libro." queda en blanco).
+        tituloTamano: "enorme",
+        tituloMayusculas: true,
+        tituloAcento: { palabra: "Anda a ver a BTS", estilo: "gradiente" },
         subtitulo:
           "Cada libro que compras ($3.000) te mete al sorteo de 2 entradas para BTS · Estadio Nacional · oct 2026.",
         destacado: { texto: "$3.000", nota: "1 libro (PDF) · +1 número al sorteo" },
@@ -296,37 +300,26 @@ const docNoche = {
         ctaSecundarioEstilo: "enlace",
         mostrarConfianza: true,
         mostrarBadgeSorteo: false,
-        efectoTitulo: "gradiente_animado", // el título neón animado
+        efectoTitulo: "ninguno", // F15: el gradiente vive en el acento de la 2ª línea, no en TODO el título
         visual: {
           tipo: "tarjeta",
-          titulo: "2 entradas para BTS",
+          titulo: "2 entradas para BTS 💜",
           subtitulo: "Estadio Nacional · Octubre 2026",
-          icono: "estrella",
-          holo: true, // HOLOCARD iridiscente + tilt = el corazón neón del prototipo
+          icono: "corazon", // F14: el corazón púrpura que corona el heroviz del prototipo concert
+          holo: true, // HOLOCARD iridiscente NEÓN + tilt = el borde neón del recital
+          estilo: "suave", // F14: glassy — los haces de luz difusos (blur-blobs) del heroviz
+          motivo: "tickets", // F14: 2 mini-tickets flotantes = los ticket stubs del prototipo
         },
       },
       estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
     },
-    // ── CINTA NEÓN (ticker de recital) — extra fiel a la energía concert ──
-    {
-      id: nid(),
-      tipo: "cinta_texto",
-      v: 1,
-      props: {
-        mensajes: ["SORTEO EN VIVO", "2 ENTRADAS PARA BTS", "ESTADIO NACIONAL", "COMPRA Y PARTICIPA"],
-        separador: "estrella",
-        velocidad: "media",
-        esquema: "acento", // banda magenta neón
-      },
-      estilo: { padY: "ninguno", entrada: "ninguna" },
-    },
-    // ── STATS ──
+    // ── STATS (F14: tarjetas OSCURAS con borde = los `bg-white/[0.04] border-white/10` del prototipo) ──
     {
       id: nid(),
       tipo: "estadisticas",
       v: 1,
       props: {
-        estiloVisual: "cards",
+        estiloVisual: "tarjetas_suaves", // en modo oscuro ⇒ tarjetas dark-7 con borde (las stat cards del original)
         items: [
           { valor: 2480, prefijo: "+", etiqueta: "participando", icono: "ticket" },
           { valor: 12, etiqueta: "días para el cierre", icono: "reloj" },
@@ -335,26 +328,25 @@ const docNoche = {
       },
       estilo: { padTop: "l", padBottom: "l", entrada: "subir" },
     },
-    // ── CATÁLOGO ──
+    // ── CARRUSEL de libros (F14: auto-scroll horizontal = el `BookCarousel` "Pasa el mouse para pausar") ──
     {
       id: nid(),
       tipo: "catalogo",
       v: 1,
-      props: { titulo: "Elige tu libro (y tu chance)", modo: "todos", columnas: 3 },
+      props: { titulo: "Elige tu libro (y tu chance)", modo: "todos", columnas: 3, layout: "carrusel" },
       estilo: { padY: "xl", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "Libros" },
     },
-    // ── PACKS ──
+    // ── PACKS (F14): tarjetas de precio reales del prototipo (1 libro / Pack 4 destacado "Más elegido") ──
     {
       id: nid(),
-      tipo: "estadisticas",
+      tipo: "packs_precio",
       v: 1,
       props: {
         titulo: "Más libros, más chances",
-        estiloVisual: "cards",
         items: [
-          { valor: 3000, prefijo: "$", etiqueta: "1 libro · 1 participación", icono: "ticket" },
-          { valor: 10000, prefijo: "$", etiqueta: "Pack 4 libros · 4 participaciones", icono: "regalo" },
+          { titulo: "1 libro", precio: 3000, detalle: "1 participación", ctaTexto: "Comprar", ctaAncla: "catalogo" },
+          { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "Más elegido", ctaTexto: "Comprar", ctaAncla: "catalogo" },
         ],
       },
       estilo: { padY: "l", entrada: "subir" },
@@ -380,6 +372,21 @@ const docNoche = {
         entrada: "aparecer",
       },
       nav: { incluir: true, etiqueta: "El sorteo" },
+    },
+    // ── ¡ESTÁS DENTRO! (F14): la tarjeta del número de sorteo (ARMY-04821) del prototipo concert ──
+    {
+      id: nid(),
+      tipo: "momento_ticket",
+      v: 1,
+      props: {
+        titulo: "¡Estás dentro! 💜",
+        etiqueta: "Tu número de sorteo:",
+        codigoEjemplo: "ARMY-04821",
+        ctaTexto: "Compartir y sumar chances",
+        ctaAncla: "catalogo",
+        nota: "Número de ejemplo — recibes el tuyo al comprar.",
+      },
+      estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
     },
     // ── CONFIANZA ──
     {
@@ -426,28 +433,14 @@ const docNoche = {
       estilo: { padY: "l", entrada: "aparecer" },
     },
   ],
-  overlays: [
-    {
-      id: nid(),
-      tipo: "aviso_barra",
-      v: 2,
-      props: {
-        mensajes: [
-          "SORTEO EN VIVO ABIERTO",
-          "2 ENTRADAS PARA BTS",
-          "ESTADIO NACIONAL · OCTUBRE 2026",
-        ],
-        modo: "marquee",
-        esquema: "tinta", // banda oscura sobre el nav (el tope del prototipo)
-        posicion: "sobre_nav",
-        mostrarCountdown: true,
-      },
-    },
-  ],
+  // F14: el prototipo concert tiene un topbar sticky LIMPIO (marca + nav + chip de countdown + carrito),
+  // SIN cinta/marquee arriba ni banda neón mid-page. El countdown ya vive en el header del storefront
+  // (CountdownChip) ⇒ sin overlay (fidelidad al original).
+  overlays: [],
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// TIENDA 3 — "Editorial Boutique": marfil, serif refinada, cuadrada (par `clasica`, patrón papel)
+// TIENDA 3 — "Editorial Boutique": MARFIL cálido, serif refinada, cuadrada (par `clasica`, F14: esquema `marfil`)
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 const docEditorial = {
   schemaVersion: 1,
@@ -457,8 +450,8 @@ const docEditorial = {
       radio: "nulo", // botones/cajas CUADRADAS (el rasgo firma del prototipo editorial)
       vibe: "editorial",
       tipografia: "clasica", // Playfair Display + Source Sans 3 — serif refinada boutique
-      anchoContenido: "contenido",
-      fondoPagina: "superficie", // marfil limpio (aprox. del #faf7f2 — gap: el token no es cálido)
+      anchoContenido: "estrecho", // F15: columna angosta (~640px) sobre lienzo exterior más oscuro (la columna marfil sobre crema del prototipo)
+      fondoPagina: "marfil", // F14: off-white CÁLIDO dark-aware = el #faf7f2 del prototipo (cierra EL gap del 78%)
       ambiente: "ninguno", // editorial = plano, sin glows
     },
   },
@@ -500,59 +493,48 @@ const docEditorial = {
       },
       estilo: { padY: "m", entrada: "aparecer" },
     },
-    // ── I · EL LIBRO (el objeto del deseo) — bloque editorial ──
+    // ── I · EL LIBRO (F15: producto_spotlight REEMPLAZA el bloque de texto + el grid de catálogo — el
+    //    original NO tiene grilla, el spotlight ES "El objeto del deseo": portada + cita + precio REAL) ──
     {
       id: nid(),
-      tipo: "texto_rico",
+      tipo: "producto_spotlight",
       v: 1,
       props: {
-        ancho: "normal",
-        bloques: [
-          { tipo: "subtitulo", texto: "El objeto del deseo" },
-          { tipo: "cita", texto: "«Cómo enriquecer a tu idol favorito»", autor: "por la autora" },
-          { tipo: "parrafo", texto: LIBRO_DESC },
-        ],
+        titulo: "El objeto del deseo",
+        autoria: "por la autora",
+        ctaTexto: "Quiero este libro",
+        ctaAncla: "catalogo",
+        // productoId se inyecta en el seed (el LIBRO principal) — referencia resuelta server-side, no copia (I2).
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { kicker: { texto: "El libro", numeral: "I" }, padY: "l", entrada: "subir" },
+      nav: { incluir: true, etiqueta: "El libro" },
     },
-    // ── EL CATÁLOGO ──
+    // ── II · ELIGE TU PACK (F15: packs_precio real — el "1 libro / Pack 4 destacado" del prototipo, no
+    //    cifras planas de `estadisticas`) ──
     {
       id: nid(),
-      tipo: "catalogo",
-      v: 1,
-      props: { titulo: "El catálogo", modo: "todos", columnas: 2 },
-      estilo: { padY: "l", entrada: "aparecer" },
-      nav: { incluir: true, etiqueta: "El catálogo" },
-    },
-    // ── II · PACKS (fila limpia, cifras serif) ──
-    {
-      id: nid(),
-      tipo: "estadisticas",
+      tipo: "packs_precio",
       v: 1,
       props: {
         titulo: "Más libros, más chances",
-        estiloVisual: "simple",
         items: [
-          { valor: 3000, prefijo: "$", etiqueta: "1 libro · 1 participación" },
-          { valor: 10000, prefijo: "$", etiqueta: "Pack 4 libros · 4 participaciones" },
+          { titulo: "1 libro", precio: 3000, detalle: "1 participación", ctaTexto: "Comprar", ctaAncla: "catalogo" },
+          { titulo: "Pack 4 libros", precio: 10000, detalle: "4 participaciones", destacado: true, badge: "Más elegido", ctaTexto: "Comprar", ctaAncla: "catalogo" },
         ],
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { kicker: { texto: "Elige tu pack", numeral: "II" }, padY: "l", entrada: "subir" },
     },
-    // ── III · EL MÉTODO (cómo funciona) — sobre PAPEL CUADRICULADO (patrón papel del arsenal) ──
+    // ── III · EL MÉTODO (F15: lista NUMERADA vertical serif — el "método" del prototipo editorial, SIN el
+    //    papel cuadriculado que el original no tiene sobre el método) ──
     {
       id: nid(),
       tipo: "como_funciona",
       v: 1,
-      props: { titulo: "Comprar es participar", pasos: PASOS },
-      estilo: {
-        fondo: { tipo: "patron", patron: "cuadricula_papel", esquema: "superficie_alt" },
-        padY: "xl",
-        entrada: "aparecer",
-      },
+      props: { titulo: "Comprar es participar", layout: "lista", pasos: PASOS },
+      estilo: { kicker: { texto: "El método", numeral: "III" }, padY: "xl", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "El método" },
     },
-    // ── EL PREMIO — caja violeta suave (el #f1ecfa del prototipo) ──
+    // ── EL PREMIO — CAJA violeta suave bordeada (el box `#f1ecfa` acotado del prototipo, no full-bleed) ──
     {
       id: nid(),
       tipo: "sorteo_vitrina",
@@ -560,9 +542,26 @@ const docEditorial = {
       props: { mostrarBases: true, estiloConteo: "badge" },
       estilo: {
         fondo: { tipo: "esquema", esquema: "marca_suave" },
+        anchoFondo: "contenido", // F14: caja acotada con esquinas (el box lila del original), no banda full-bleed
         padY: "xl",
         entrada: "aparecer",
       },
+    },
+    // ── IV · APENAS COMPRAS (F15: momento_ticket "¡Estás dentro!" — la tarjeta del número de sorteo del
+    //    prototipo editorial, que la réplica no tenía) ──
+    {
+      id: nid(),
+      tipo: "momento_ticket",
+      v: 1,
+      props: {
+        titulo: "¡Estás dentro!",
+        etiqueta: "Tu número de sorteo",
+        codigoEjemplo: "ARMY-04821",
+        ctaTexto: "Compartir y sumar más chances",
+        ctaAncla: "catalogo",
+        nota: "Número de ejemplo — recibes el tuyo al comprar.",
+      },
+      estilo: { kicker: { texto: "Apenas compras", numeral: "IV" }, padY: "l", entrada: "subir" },
     },
     // ── V · CONFIANZA (un sorteo a la vista de todas) ──
     {
@@ -577,15 +576,15 @@ const docEditorial = {
           { icono: "escudo", titulo: "Cada ganadora con su número", desc: "Camila R. ganó el sorteo anterior · Ticket ARMY-01337." },
         ],
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { kicker: { texto: "Confianza", numeral: "V" }, padY: "l", entrada: "subir" },
     },
-    // ── VI · FAQ ──
+    // ── VI · DUDAS (FAQ) ──
     {
       id: nid(),
       tipo: "faq",
       v: 1,
       props: { titulo: "Preguntas frecuentes", items: FAQS },
-      estilo: { padY: "l", entrada: "aparecer" },
+      estilo: { kicker: { texto: "Dudas", numeral: "VI" }, padY: "l", entrada: "aparecer" },
       nav: { incluir: true, etiqueta: "Preguntas" },
     },
     // ── FOOTER social ──
@@ -597,20 +596,10 @@ const docEditorial = {
       estilo: { padY: "l", entrada: "aparecer" },
     },
   ],
-  overlays: [
-    {
-      id: nid(),
-      tipo: "aviso_barra",
-      v: 2,
-      props: {
-        mensajes: ["Sorteo abierto — edición ARMY"],
-        modo: "estatico",
-        esquema: "tema", // transparente + borde inferior (el topbar sobrio del prototipo)
-        posicion: "bajo_nav",
-        mostrarCountdown: true,
-      },
-    },
-  ],
+  // F14: el prototipo editorial tiene un topbar sticky SOBRIO (marca serif + "cierra en X" + carrito), sin
+  // strip extra bajo el nav — el "Sorteo abierto — edición ARMY" ya es el EYEBROW del hero, y el countdown
+  // vive en el header del storefront (CountdownChip) ⇒ sin overlay (fidelidad al original).
+  overlays: [],
 };
 
 // ── Las 3 specs ─────────────────────────────────────────────────────────────────────────────────
@@ -755,6 +744,19 @@ async function sembrarTienda(db: PrismaClient, spec: SpecTienda, doc: PageDocume
       },
       select: { version: true },
     });
+  }
+
+  // 5b) F15: inyecta el `productoId` REAL del LIBRO principal en cualquier `producto_spotlight` del doc —
+  //     REFERENCIA resuelta server-side (I2/ADR-0017), jamás copia de precio/título. El doc ya está
+  //     validado (productoId es opcional); acá se completa con el cuid real antes de aplicar/publicar.
+  const libroPrincipal = await db.product.findFirst({
+    where: { tenantId: tenant.id, titulo: CATALOGO[0]!.titulo },
+    select: { id: true },
+  });
+  if (libroPrincipal) {
+    for (const s of doc.secciones) {
+      if (s.tipo === "producto_spotlight") s.props.productoId = libroPrincipal.id;
+    }
   }
 
   // 6) Aplicar la réplica al Borrador (apply_page) + PUBLICAR — los MISMOS use cases del editor.

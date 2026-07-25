@@ -1,4 +1,4 @@
-import { Box, Container } from "@mantine/core";
+import { Box, Container, Group, Text } from "@mantine/core";
 import { type ReactNode } from "react";
 
 import { Animar } from "~/components/storefront/animar";
@@ -41,12 +41,23 @@ export function SeccionWrapper({
   // un box del ancho del contenido con radio (sección tipo "card").
   const fondoEnSeccion = r.anchoFondo !== "contenido";
 
+  // Kicker (F15): encabezado pequeño + numeral romano opcional ARRIBA del contenido del widget (el "I EL
+  // LIBRO" del prototipo editorial). Ausente ⇒ null (no-op, I-H). El contenido efectivo es kicker+children.
+  const cuerpo = r.kicker ? (
+    <>
+      <KickerSeccion texto={r.kicker.texto} numeral={r.kicker.numeral} />
+      {children}
+    </>
+  ) : (
+    children
+  );
+
   const inner =
     r.containerSize === false ? (
-      children
+      cuerpo
     ) : (
       <Container size={r.containerSize} px={{ base: "md", lg: "xl" }}>
-        {children}
+        {cuerpo}
       </Container>
     );
 
@@ -65,7 +76,7 @@ export function SeccionWrapper({
           paddingBlock: "var(--mantine-spacing-xl)",
         }}
       >
-        {children}
+        {cuerpo}
       </Box>
     </Container>
   );
@@ -100,6 +111,35 @@ export function SeccionWrapper({
         />
       )}
     </Box>
+  );
+}
+
+/**
+ * Kicker de sección (Tanda 2 F15/fidelidad editorial): numeral romano opcional (serif itálico, color de
+ * marca) + texto en MAYÚSCULAS con tracking (dimmed) — el "I EL LIBRO / II ELIGE TU PACK" del prototipo
+ * editorial. Texto plano (schema, nunca HTML del tenant, I3); el numeral usa la display font del tema
+ * (Playfair en editorial) por `--mantine-font-family-headings`. Cero hex (tokens de marca, I-A).
+ */
+function KickerSeccion({ texto, numeral }: { texto: string; numeral: string }) {
+  return (
+    <Group gap="sm" align="baseline" mb="xs" wrap="nowrap">
+      {numeral !== "ninguno" && (
+        <Text
+          span
+          fw={700}
+          style={{
+            fontFamily: "var(--mantine-font-family-headings)",
+            fontStyle: "italic",
+            color: "var(--mantine-primary-color-filled)",
+          }}
+        >
+          {numeral}
+        </Text>
+      )}
+      <Text span fw={600} size="sm" c="dimmed" tt="uppercase" style={{ letterSpacing: "0.18em" }}>
+        {texto}
+      </Text>
+    </Group>
   );
 }
 

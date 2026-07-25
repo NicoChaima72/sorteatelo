@@ -122,6 +122,7 @@ export const ESQUEMAS_FONDO = [
   "tema", // transparente, hereda el fondo de página (DEFAULT)
   "superficie", // blanco / (dark) tinta — texto tinta
   "superficie_alt", // banda gris (gray-1) — texto tinta
+  "marfil", // Tanda 2 F14: off-white CÁLIDO (papel/ivory) dark-aware — texto tinta (fidelidad editorial)
   "marca_suave", // marca-0/1 — texto tinta
   "marca", // marca-6 filled — texto claro (autoContrast)
   "marca_profundo", // marca-8 — texto claro
@@ -129,6 +130,7 @@ export const ESQUEMAS_FONDO = [
   "acento", // acento filled — texto emparejado (autoContrast; degrada a marca)
   "acento_profundo", // acento-8 — texto claro (degrada a marca)
   "tinta", // gray-9 — texto claro
+  "tinta_profunda", // Tanda 2 F15: near-black con tinte de marca (más profundo que gray-9) — texto claro (fidelidad concert)
 ] as const;
 export type EsquemaFondo = (typeof ESQUEMAS_FONDO)[number];
 
@@ -182,6 +184,25 @@ export const PATRONES = [
 
 /** Espaciado vertical de la sección (0 / md / xl / 48 / 80px). */
 export const ESPACIADO_V = ["ninguno", "s", "m", "l", "xl"] as const;
+
+/**
+ * Numeral del kicker de sección (Tanda 2 F15/fidelidad editorial): glifos romanos CURADOS (enum cerrado,
+ * jamás string libre — I-A). El editor/Organizador elige el numeral EXPLÍCITO por sección (como el
+ * prototipo editorial hardcodea `roman="I"`/`"II"`… por bloque) ⇒ sin estado cross-sección ni cómputo en
+ * el render (SSR-safe, determinista). `ninguno` (DEFAULT) = sin numeral (no-op, el kicker es solo texto).
+ */
+export const KICKER_NUMERALES = [
+  "ninguno",
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+] as const;
+export type KickerNumeral = (typeof KICKER_NUMERALES)[number];
 
 /** Ancho del contenido de la sección (Container lg / xl / full-bleed). */
 export const ANCHO_SECCION = ["contenido", "ancho", "completo"] as const;
@@ -305,6 +326,17 @@ export const EstiloSeccionSchema = z
     padTop: z.enum(ESPACIADO_V).optional(),
     padBottom: z.enum(ESPACIADO_V).optional(),
     ancho: z.enum(ANCHO_SECCION).default("contenido"),
+    // Kicker de sección (Tanda 2 F15/fidelidad editorial): encabezado pequeño en MAYÚSCULAS con un numeral
+    // romano opcional (el "I EL LIBRO / II ELIGE TU PACK" del prototipo editorial), renderizado por el
+    // `<SeccionWrapper>` ARRIBA del contenido del widget. `texto` plano ≤40 (nunca HTML, I3); `numeral` de
+    // un enum de glifos curados (default `ninguno`). Ausente ⇒ sin kicker (no-op, I-H). `.strict()`.
+    kicker: z
+      .object({
+        texto: z.string().min(1).max(40),
+        numeral: z.enum(KICKER_NUMERALES).default("ninguno"),
+      })
+      .strict()
+      .optional(),
     anchoFondo: z.enum(ANCHO_FONDO).default("completo"), // F02/D4: full-bleed = comportamiento actual
     altoMin: z.enum(ALTO_MIN).default("auto"), // F06/D9: auto = sin min-height (no-op)
     alinearVertical: z.enum(ALINEAR_VERTICAL).default("arriba"), // F06/D9: arriba = comportamiento actual
@@ -334,17 +366,24 @@ export const RADIO_GLOBAL = ["nulo", "s", "m", "l", "completo"] as const;
 /** Dial de personalidad (radius + sombra). */
 export const VIBE = ["nitido", "suave", "editorial"] as const;
 
-/** Ancho de contenido por defecto que heredan las secciones. */
-export const ANCHO_CONTENIDO = ["contenido", "ancho"] as const;
+/**
+ * Ancho de contenido por defecto que heredan las secciones. `estrecho` (Tanda 2 F15/fidelidad editorial):
+ * columna angosta (~640px) tipo boutique — el shell centra el contenido en esa medida sobre un lienzo
+ * exterior un pelo más oscuro (la "columna marfil sobre crema" del prototipo editorial). Aditivo:
+ * `contenido` sigue de default (no-op, I-H).
+ */
+export const ANCHO_CONTENIDO = ["contenido", "ancho", "estrecho"] as const;
+export type AnchoContenido = (typeof ANCHO_CONTENIDO)[number];
 
 /**
  * Ambiente del fondo de página (Tanda 2 F05/D5): "stage-lights". Ortogonal a `fondoPagina` (el color
  * sólido base): AÑADE 2-3 `radial-gradient` FIJOS de tokens del tenant (baja opacidad) sobre ese color.
  * CSS 100% estático (sin JS/rAF/window) ⇒ SSR-safe, reduced-motion-irrelevante (no anima). `ninguno` =
  * DEFAULT no-op (el shell no cambia, I-H). `focos_marca`/`focos_acento` = focos de la escala marca/acento
- * (acento degrada a marca sin acento, I-T2); `aurora` = mezcla marca+acento. Cero hex (I-A).
+ * (acento degrada a marca sin acento, I-T2); `aurora` = mezcla marca+acento; `neon` (Tanda 2 F14) = focos
+ * más SATURADOS y CONCENTRADOS (el glow púrpura top-center del recital, fidelidad concert). Cero hex (I-A).
  */
-export const AMBIENTE_FONDO = ["ninguno", "focos_marca", "focos_acento", "aurora"] as const;
+export const AMBIENTE_FONDO = ["ninguno", "focos_marca", "focos_acento", "aurora", "neon"] as const;
 export type AmbienteFondo = (typeof AMBIENTE_FONDO)[number];
 
 // ── Props de cada widget semilla ─────────────────────────────────────────────
@@ -386,6 +425,15 @@ export type EyebrowEstilo = (typeof EYEBROW_ESTILOS)[number];
  * del hero, NO un preset de `PRESETS_ENTRADA` (que es de sección entera).
  */
 export const EFECTOS_TITULO = ["ninguno", "revelar_palabras", "gradiente_animado"] as const;
+
+/**
+ * Tamaño del título del hero (Tanda 2 F15/fidelidad concert): `normal` (DEFAULT = el fz actual, no-op
+ * I-H). `grande`/`enorme` escalan el `font-size` del `<Title>` a un poster de recital (el "COMPRA EL
+ * LIBRO. ANDA A VER A BTS" ENORME del prototipo concert, que con el par `impacto`/Anton pedía tamaño).
+ * Enum cerrado ⇒ el render mapea a un fz responsive fijo, jamás px libre.
+ */
+export const TITULO_TAMANOS = ["normal", "grande", "enorme"] as const;
+export type TituloTamano = (typeof TITULO_TAMANOS)[number];
 
 /**
  * Motivo decorativo de la holocard-placeholder `suave` del hero (Tanda 2 F13): qué chips FLOTANTES
@@ -496,6 +544,11 @@ export const heroProps = z
     ctaSecundarioEstilo: z.enum(ESTILOS_CTA_SECUNDARIO).default("boton"),
     mostrarConfianza: z.boolean().default(true), // toggle de los trust badges (hoy hardcodeados)
     efectoTitulo: z.enum(EFECTOS_TITULO).default("ninguno"),
+    // Tamaño + mayúsculas del título (Tanda 2 F15/fidelidad concert): `tituloTamano` escala el fz del
+    // `<Title>` (normal = actual, no-op I-H); `tituloMayusculas` aplica `text-transform:uppercase` por CSS
+    // (NO reescribe el copy — el texto en DB queda en su casing). Ambos aditivos con default no-op.
+    tituloTamano: z.enum(TITULO_TAMANOS).default("normal"),
+    tituloMayusculas: z.boolean().default(false),
     // Visual configurable del hero split (Tanda 2 F02/D2): imagen (opción holo) o holocard-tarjeta.
     // Ausente ⇒ el hero cae al `imagenUrl`/gradiente actual (no-op, I-H). Solo lo consume la variante `split`.
     visual: HeroVisualSchema.optional(),
@@ -534,12 +587,22 @@ export const sorteoVitrinaProps = z
 export type SorteoVitrinaProps = z.infer<typeof sorteoVitrinaProps>;
 
 /**
+ * Layout de `como_funciona` (Tanda 2 F15/fidelidad editorial): `tarjetas` (DEFAULT) = la grilla de cards
+ * de siempre (no-op, I-H). `lista` = lista NUMERADA vertical elegante (numeral serif grande a la izquierda
+ * + título/desc), el "método" del prototipo editorial. Enum cerrado.
+ */
+export const LAYOUTS_COMO_FUNCIONA = ["tarjetas", "lista"] as const;
+export type LayoutComoFunciona = (typeof LAYOUTS_COMO_FUNCIONA)[number];
+
+/**
  * `como_funciona` (semilla): pasos de conversión. Sin `pasos` ⇒ el render usa los 3 pasos FIJOS de
  * plataforma (copy actual). `icono` es un enum cerrado (nunca string libre); textos con límite.
  */
 export const comoFuncionaProps = z
   .object({
     titulo: z.string().min(1).max(80).default("Cómo funciona"),
+    // Layout (Tanda 2 F15): `tarjetas` (default = grilla de cards, no-op I-H) o `lista` (numerada vertical).
+    layout: z.enum(LAYOUTS_COMO_FUNCIONA).default("tarjetas"),
     pasos: z
       .array(
         z
@@ -1268,6 +1331,26 @@ export const momentoTicketProps = z
   .strict();
 export type MomentoTicketProps = z.infer<typeof momentoTicketProps>;
 
+/**
+ * `producto_spotlight` (sección, Tanda 2 F15/fidelidad editorial): destaca UN producto por REFERENCIA
+ * (`productoId`, I2/ADR-0017 — jamás copia precio/título al documento; el render lo resuelve tenant-scoped
+ * server-side vía `listarProductosDeCatalogo`, D6/I1). Es "El objeto del deseo" del prototipo editorial:
+ * mini portada (imagen del producto o `TapaLibro` tematizada) + cita/descripción + PRECIO REAL (el
+ * `Product.precio`, no un número narrado) + CTA. `productoId` OPCIONAL: ausente ⇒ el render usa el 1er
+ * producto activo del catálogo (degradación elegante, I-G). `titulo` (el h2 de la sección) y `autoria`
+ * (la línea "por la autora") son texto plano con límite (nunca HTML, I3). `.strict()`.
+ */
+export const productoSpotlightProps = z
+  .object({
+    titulo: z.string().min(1).max(80).optional(),
+    productoId: z.string().cuid().optional(),
+    autoria: z.string().min(1).max(60).optional(),
+    ctaTexto: z.string().min(1).max(30).optional(),
+    ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
+  })
+  .strict();
+export type ProductoSpotlightProps = z.infer<typeof productoSpotlightProps>;
+
 // ── Registro ─────────────────────────────────────────────────────────────────
 
 /** Categoría de un widget: en el flujo vertical de `secciones[]` o en el slot `overlays[]`. */
@@ -1576,6 +1659,18 @@ export const WIDGET_REGISTRY = {
       ctaAncla: "catalogo",
     },
   }),
+  // ── Tanda 2 · fidelidad editorial (F15) ──
+  producto_spotlight: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: productoSpotlightProps,
+    defaultProps: {
+      titulo: "El objeto del deseo",
+      autoria: "por la autora",
+      ctaTexto: "Quiero este",
+      ctaAncla: "catalogo",
+    },
+  }),
 } as const;
 
 export type WidgetTipo = keyof typeof WIDGET_REGISTRY;
@@ -1645,6 +1740,7 @@ export const WIDGET_META: Record<
   vitrina_proximamente: { titulo: "Próximamente", descripcion: "Una grilla de lanzamientos futuros bloqueados, con candado y estado.", categoria: "contenido" },
   packs_precio: { titulo: "Packs de precio", descripcion: "Tarjetas de precio con una opción destacada (más elegido).", categoria: "sorteo" },
   momento_ticket: { titulo: "Tu número de sorteo", descripcion: "La tarjeta aspiracional '¡Estás dentro!' con un número de ejemplo.", categoria: "sorteo" },
+  producto_spotlight: { titulo: "Producto destacado", descripcion: "Destaca un producto con su portada, descripción y precio.", categoria: "contenido" },
   whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay).", categoria: "social" },
   aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };

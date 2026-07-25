@@ -233,17 +233,21 @@ export function gradientePortadaDeterminista(
   _colorPrimario: string | null,
   semilla: string,
 ): string {
-  // Tono N de la escala primaria (aliaseada a `marca` cuando el tenant fijó su color).
-  const p = (n: number) => `var(--mantine-primary-color-${n})`;
-  // Tono N de la escala acento, con fallback al primario (degrada dentro de la familia, I-T2).
-  const a = (n: number) => `var(--mantine-color-${COLOR_ACENTO}-${n}, ${p(n)})`;
+  // Tono primario DARK-AWARE (Tanda 2 F15/fidelidad concert): cada stop es `light-dark(claro, oscuro)`
+  // donde el tono OSCURO usa un índice MÁS CLARO (más brillo/saturación) ⇒ en modo oscuro las covers
+  // salen vivas (rosa/lila del prototipo concert) en vez de apagadas; en modo CLARO se elige el índice
+  // de siempre (no-op byte-idéntico, I-H). El acento degrada al primario dentro de la familia (I-T2).
+  const p = (nl: number, nd: number) =>
+    `light-dark(var(--mantine-primary-color-${nl}), var(--mantine-primary-color-${nd}))`;
+  const a = (nl: number, nd: number) =>
+    `light-dark(var(--mantine-color-${COLOR_ACENTO}-${nl}, var(--mantine-primary-color-${nl})), var(--mantine-color-${COLOR_ACENTO}-${nd}, var(--mantine-primary-color-${nd})))`;
   const SET = [
-    `linear-gradient(140deg, ${p(5)}, ${p(8)})`, // marca media → profunda (el tematico de siempre)
-    `linear-gradient(140deg, ${p(6)}, ${p(9)})`, // marca profunda
-    `linear-gradient(150deg, ${p(6)}, ${a(7)})`, // primario → acento profundo
-    `linear-gradient(150deg, ${a(5)}, ${p(8)})`, // acento → marca profunda
-    `linear-gradient(135deg, ${p(4)}, ${p(7)})`, // marca clara → media (pastel con cuerpo)
-    `linear-gradient(160deg, color-mix(in srgb, ${p(6)} 60%, ${a(6)}), ${p(9)})`, // mezcla marca/acento → profundo
+    `linear-gradient(140deg, ${p(5, 4)}, ${p(8, 6)})`, // marca media → profunda (el tematico de siempre)
+    `linear-gradient(140deg, ${p(6, 4)}, ${p(9, 7)})`, // marca profunda
+    `linear-gradient(150deg, ${p(6, 4)}, ${a(7, 5)})`, // primario → acento profundo
+    `linear-gradient(150deg, ${a(5, 4)}, ${p(8, 6)})`, // acento → marca profunda
+    `linear-gradient(135deg, ${p(4, 3)}, ${p(7, 5)})`, // marca clara → media (pastel con cuerpo)
+    `linear-gradient(160deg, color-mix(in srgb, ${p(6, 4)} 60%, ${a(6, 4)}), ${p(9, 7)})`, // mezcla marca/acento → profundo
   ];
   return SET[hashSemilla(semilla) % SET.length]!;
 }

@@ -37,6 +37,8 @@ export const ANCLA_POR_TIPO: Partial<Record<SeccionNode["tipo"], string>> = {
   ganadores: "ganadores",
   // Tanda 2 F01: la vitrina de "próximos lanzamientos" entra al nav ("Próximos" en el mockup bcac).
   vitrina_proximamente: "proximos",
+  // Tanda 2 F15: el producto destacado ("El libro" en el prototipo editorial) entra al nav como catálogo.
+  producto_spotlight: "catalogo",
 };
 
 /** Etiqueta por defecto del nav por TIPO (si la sección no trae `nav.etiqueta` explícita). */
@@ -57,6 +59,7 @@ export const ETIQUETA_POR_TIPO: Partial<Record<SeccionNode["tipo"], string>> = {
   texto_rico: "Bases",
   imagen_destacada: "Destacado",
   vitrina_proximamente: "Próximos",
+  producto_spotlight: "El libro",
 };
 
 /**

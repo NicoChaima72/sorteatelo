@@ -31,6 +31,7 @@ import {
   packsPrecioProps,
   PARES_TIPOGRAFICOS,
   perfilAutoraProps,
+  productoSpotlightProps,
   RADIO_GLOBAL,
   separadorProps,
   sorteoVitrinaProps,
@@ -147,6 +148,7 @@ export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
   nodoSeccion("vitrina_proximamente", vitrinaProximamenteProps), // Tanda 2 F01
   nodoSeccion("packs_precio", packsPrecioProps), // Tanda 2 F12
   nodoSeccion("momento_ticket", momentoTicketProps), // Tanda 2 F12
+  nodoSeccion("producto_spotlight", productoSpotlightProps), // Tanda 2 F15
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 

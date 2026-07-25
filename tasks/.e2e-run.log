@@ -1,6 +1,75 @@
 # feature-tester run log
-modo: feature (slug=videos-hyperframes-fabrica)
-scope: gate propio de la fabrica de videos (D8) — SIN Vitest, SIN E2E de navegador
-server: N/A (no se requiere dev server; el gate es el pipeline HyperFrames + ffmpeg)
-inicio: 2026-07-25
-entorno: Windows, Node v24.14.1, ffmpeg 8.1.1-full_build
+modo:    feature (slug=videos-hyperframes-fabrica)
+scope:   gate propio de la fabrica de videos (D8) — SIN Vitest, SIN E2E de navegador
+server:  N/A (no se requiere dev server; el gate es el pipeline HyperFrames + ffmpeg)
+entorno: Windows, Node v24.14.1, ffmpeg/ffprobe 8.1.1-full_build
+inicio:  2026-07-25
+
+--- F01 · kit de marca derivado -------------------------------------------------
+[PASS] build-tokens.mjs --check .......... "brand.tokens.css al dia con theme.ts + tokens.local.json" (exit 0)
+[PASS] gate de drift del chrome .......... 4 claves (railAncho/railColapsado/topbarAlto/navegadorAlto) vs `const CHROME` de _lib/tour-kit.js — sin drift
+[PASS] tokens --st-* generados ........... 131 declaraciones unicas
+[PASS] paleta vs theme.ts ................ --st-cobalto-6 #2b3fbf · --st-amarillo-6 #ffc530 · --st-tinta #191b22
+[PASS] 4 familias tipograficas ........... Fraunces / Bricolage Grotesque / Instrument Sans / IBM Plex Mono
+[PASS] tokens.local.json sin hex ......... 0 hex (sombras/tintes por NOMBRE de token + alpha)
+[NOTA] anotacion del checkbox ............ dice "128 tokens"; el real es 131 (coincide con la Bitacora del implementer)
+
+--- F02 · fabrica portada y reskineada ------------------------------------------
+[PASS] new-tour.mjs <slug> ............... scaffold "tester-descartable" OK — 6 clips borde a borde 5·6·7,5·8·8·5 = 39,5s / 1185 frames; registrado en videos.json
+[PASS] check-classes.mjs (scaffold) ...... ✓ (exit 0)
+[PASS] hyperframes@0.7.56 lint (scaffold)  0 errores, 1 warning esperado `timeline_track_too_dense`
+[PASS] limpieza del descartable .......... carpeta borrada + videos.json restaurado byte-exact (git diff vacio)
+[PASS] render.mjs (workaround del `á`) ... MP4 real producido en 1m 3,2s, sin tocar el username con acento
+[PASS] embed-fonts.mjs ................... "6 face(s) embebido(s)"; 0 url() externas remanentes en el HTML de render
+[PASS] gitignore / higiene I8 ............ git ls-files videos/ = 20 fuentes, 0 MP4 / 0 woff2 / 0 binarios; en el scaffold git solo vio app.js+index.html (assets/ ignorado)
+[PASS] no-regresion tsc .................. npx tsc --noEmit = exactamente los 2 errores preexistentes AJENOS de `montoEsperado`; 0 errores desde videos/
+[PASS] no-regresion lint ................. npx next lint exit 0; unico warning preexistente wordmark.tsx:97 (no-img-element); no barre videos/
+[PASS] no-regresion vitest scope ......... vitest.config include = ["src/__tests__/**"] — no barre videos/
+
+--- F03 · harness Claude --------------------------------------------------------
+[PASS] .claude/agents/hyperframes-video-builder.md  8441 b — "NO re-explores" (l.16), rutas videos/hyperframes, marca Talonario, tokens --st-*, frame de panel
+[PASS] regla de copy D6 .................. tabla si/no presente: "Conecta Flow" ✔ / "Conecta tu Flow" ✘ · sin usted · sin voseo · sin hype
+[PASS] .claude/skills/capsula-video/SKILL.md  5543 b — 6 beats (poster/concepto/pasos/outro), delega a hyperframes-video-builder
+[PASS] regla anti-falso-verde ............ "Los `snapshot` del motor NO son gate … El unico gate visual valido son los frames del MP4 real."
+
+--- F04 · piloto «Configura la tienda» ------------------------------------------
+[PASS] check-classes.mjs (piloto) ........ ✓ (exit 0)
+[PASS] hyperframes lint (piloto) ......... 0 errores, 1 warning esperado `timeline_track_too_dense`
+[PASS] render real ....................... out/2026-07-25-configura-la-tienda.mp4 — 2.710.841 b, 1m 3,2s
+[PASS] ffprobe contenedor ................ h264 · 1920x1080 · r_frame_rate=30/1 · nb_frames=1185 · duration=39.500000
+[PASS] mudez (doble via) ................. ffprobe -select_streams a = 0 streams; trace del motor hasAudio:false
+[PASS] reproducibilidad .................. md5 1d942b22d120c00abf7ad5fbfd74a53f — IDENTICO al render del implementer (bit a bit)
+[PASS] timeline registrado ............... "pollSubCompositionTimelines complete (ready)" — gotcha 14 ausente (video no estatico)
+[PASS] frames del MP4 REAL (I5) .......... 7 extraidos con ffmpeg + 3 crops de zoom; JAMAS snapshots del motor
+         t=2  poster ... Fraunces real, plumon amarillo SOLO sobre «Configura», isotipo inline S/cobalto+barra amarilla, eyebrow Plex Mono
+         t=13 paso 1 ... rail tinta con los 5 items EXACTOS del NAV real + Configuracion al pie; topbar chip «Ediciones Luna» con swatch, ⌘K, Ver mi tienda, avatar PL light; URL mono del apex sorteatelo.cl/admin/configuracion
+         t=22 paso 2 ... velo + spotlight sobre «Titulo del hero», tooltip «PASO 2 DE 3» en Plex Mono + titular Fraunces, cursor alineado al campo, valor escrito
+         t=32 paso 3 ... toast «Cambios guardados.» teal sobre el velo, cursor en «Guardar cambios», el titulo del hero SIGUE escrito (estado sostenido)
+         t=35/36,5/39,2 outro ... regla cobalto que barre hacia arriba revelando blanco; plumon sobre «Conecta Flow»; linea ADR-0008 legible; lockup isotipo+wordmark+sorteatelo.cl
+         zoom rail ..... padding 8px (fiel al `p-2` real) + barra de acento 3px al borde del rail (fiel a RailNavLink)
+[PASS] fidelidad vs producto real ........ 5 items/iconos del NAV identicos a admin-layout.tsx:70-76; isotipo = el mismo /favicon.svg (wordmark.tsx:26); 2 PanelCard de alturas independientes = alignItems:"start" real; badge «No conectada» NEUTRO (pendiente nunca en rojo)
+[PASS] gotcha 9 (app.js solo clases) ..... los style= inline son EXCLUSIVAMENTE top/left/width/height/position/margin-top — 0 tipograficos
+[PASS] 12 clases cfg-* ................... 12 declaradas en el <style> == 12 usadas por app.js, 0 faltantes
+[PASS] I7 cero hex ....................... unico hex #1d7a70 = VALOR de dato del campo «Color de marca», identico a --st-exito-6 del CSS generado
+
+--- design compliance (docs/design.md) ------------------------------------------
+[OK] tipografia ..... Fraunces en headings, Bricolage 800 confinado a wordmark/isotipo, Instrument en cuerpo, Plex Mono en numeros/eyebrows (§3)
+[OK] paleta ......... cobalto/amarillo/tinta; toast en teal --st-exito (§2 lo prescribe: "teal, no verde-esmeralda"), NO verde generico
+[OK] pendiente ...... badge «No conectada» neutro, nunca rojo (§9)
+[OK] gramatica ...... plumon amarillo sobre el verbo, 1 vez por beat; perforaciones dashed en las miniaturas; mono en numeros (§4)
+[OK] motion ......... barrido calmado del outro, crossfades, spotlight; sin springs, rebotes ni zooms (§7)
+=> 0 violaciones de diseno
+
+--- hallazgos (no bloqueantes) --------------------------------------------------
+[H1] La anotacion del checkbox F01 dice "128 tokens"; el valor real es 131.
+[H2] HIGIENE GIT: toda la fabrica + el harness quedaron commiteados por commits de una tanda
+     PARALELA (builder-tanda-2): 1a08945 y fd39987, ambos "feat(builder): …" sobre demos del
+     page-builder. videos/ esta limpio y sin binarios, pero el historial atribuye mal el trabajo.
+
+--- resumen ---------------------------------------------------------------------
+gate de fabrica: 6/6 puntos verdes · 22/22 checkboxes de Validaciones
+evidencia visual: videos/hyperframes/frames/tester/ (7 frames + 3 crops, gitignored)
+Vitest: no aplica (D8) · E2E navegador: no aplica (D8)
+auto-retries usados: 0
+design findings: 0
+fin: 2026-07-25

@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import { SeccionNodeSchema } from "~/lib/pagebuilder/schema";
 import {
   catalogoProps,
+  comoFuncionaProps,
   estadisticasProps,
   heroProps,
   imagenDestacadaProps,
   momentoTicketProps,
   packsPrecioProps,
+  productoSpotlightProps,
   vitrinaProximamenteProps,
   WIDGET_META,
   WIDGET_REGISTRY,
@@ -276,5 +278,72 @@ describe("pagebuilder/tanda2 (F04) — eyebrowEstilo del hero", () => {
       expect(heroProps.safeParse({ ...base, eyebrowEstilo: est }).success).toBe(true);
     }
     expect(heroProps.safeParse({ ...base, eyebrowEstilo: "neon" }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F15) — hero tituloTamano + tituloMayusculas (impacto concert)", () => {
+  // page.tanda2.titulo.001 — el hero gana tituloTamano (normal|grande|enorme) + tituloMayusculas (bool);
+  // ambos con default no-op (normal/false). Un hero previo sin ellos parsea idéntico (I-H).
+  it("heroProps.tituloTamano default normal + tituloMayusculas default false (no-op); enums cerrados", () => {
+    const base = { titulo: "Compra el libro. Anda a ver a BTS." };
+    const def = heroProps.parse(base);
+    expect(def.tituloTamano).toBe("normal");
+    expect(def.tituloMayusculas).toBe(false);
+    for (const t of ["normal", "grande", "enorme"] as const) {
+      expect(heroProps.safeParse({ ...base, tituloTamano: t }).success).toBe(true);
+    }
+    // tamaño fuera del enum ⇒ rechazo; tituloMayusculas no-boolean ⇒ rechazo
+    expect(heroProps.safeParse({ ...base, tituloTamano: "gigante" }).success).toBe(false);
+    expect(heroProps.safeParse({ ...base, tituloMayusculas: "si" }).success).toBe(false);
+    expect(heroProps.safeParse({ ...base, tituloMayusculas: true, tituloTamano: "enorme" }).success).toBe(true);
+  });
+});
+
+describe("pagebuilder/tanda2 (F15) — como_funciona layout tarjetas|lista (método editorial)", () => {
+  // page.tanda2.comofunciona.001 — el enum layout gana tarjetas|lista; default tarjetas (no-op v1)
+  it("como_funciona.layout acepta tarjetas|lista, default tarjetas (no-op)", () => {
+    expect(comoFuncionaProps.parse({ titulo: "Cómo funciona" }).layout).toBe("tarjetas");
+    for (const layout of ["tarjetas", "lista"] as const) {
+      expect(comoFuncionaProps.safeParse({ titulo: "T", layout }).success).toBe(true);
+    }
+    expect(comoFuncionaProps.safeParse({ titulo: "T", layout: "columnas" }).success).toBe(false);
+  });
+});
+
+describe("pagebuilder/tanda2 (F15) — producto_spotlight (el objeto del deseo)", () => {
+  // page.tanda2.spotlight.001 — valida titulo/productoId/autoria/cta opcionales, límites y .strict()
+  it("producto_spotlight valida campos opcionales con límite, productoId cuid, y rechaza extras", () => {
+    // todo opcional (productoId ausente ⇒ el render usa el 1er producto) — ctaAncla default catalogo
+    const min = productoSpotlightProps.parse({});
+    expect(min.ctaAncla).toBe("catalogo");
+    const ok = {
+      titulo: "El objeto del deseo",
+      productoId: "clemp=0000000000000000000000", // se valida como cuid abajo con uno real
+      autoria: "por la autora",
+      ctaTexto: "Quiero este",
+    };
+    // productoId debe ser cuid (formato Prisma) ⇒ un cuid válido parsea, un no-cuid rechaza
+    expect(productoSpotlightProps.safeParse({ productoId: "cjld2cjxh0000qzrmn831i7rn" }).success).toBe(true);
+    expect(productoSpotlightProps.safeParse({ productoId: "no-es-cuid" }).success).toBe(false);
+    void ok;
+    // límites: titulo >80 / autoria >60 / ctaTexto >30 ⇒ rechazo
+    expect(productoSpotlightProps.safeParse({ titulo: "x".repeat(81) }).success).toBe(false);
+    expect(productoSpotlightProps.safeParse({ autoria: "x".repeat(61) }).success).toBe(false);
+    expect(productoSpotlightProps.safeParse({ ctaTexto: "x".repeat(31) }).success).toBe(false);
+    // ctaAncla fuera del enum / campo extra (HTML) ⇒ rechazo (.strict, I2/I3)
+    expect(productoSpotlightProps.safeParse({ ctaAncla: "otro" }).success).toBe(false);
+    expect(productoSpotlightProps.safeParse({ html: "<b>x</b>" }).success).toBe(false);
+    // NO copia precio/titulo del producto al documento (I2): esos campos no existen en el schema
+    expect(productoSpotlightProps.safeParse({ precio: 3000 }).success).toBe(false);
+  });
+
+  // page.tanda2.spotlight.002 — el nodo parsea contra la union; registro + WIDGET_META; defaultProps parsea
+  it("el nodo producto_spotlight parsea contra la union y está en el registro/meta", () => {
+    const nodo = { id: "ps", tipo: "producto_spotlight", v: 1, props: {} };
+    expect(SeccionNodeSchema.safeParse(nodo).success).toBe(true);
+    const def = WIDGET_REGISTRY.producto_spotlight;
+    expect(def.categoria).toBe("seccion");
+    expect(def.propsSchema.safeParse(def.defaultProps).success).toBe(true);
+    expect(WIDGET_META.producto_spotlight.titulo).not.toBe("producto_spotlight");
   });
 });

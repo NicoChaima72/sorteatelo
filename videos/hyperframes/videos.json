@@ -14,6 +14,20 @@
       "locale": "es-CL",
       "status": "nuevo",
       "output": "out/2026-07-25-configura-la-tienda.mp4"
+    },
+    {
+      "id": "crea-tu-tienda",
+      "folder": "crea-tu-tienda",
+      "module": "tienda",
+      "title": "Crea tu tienda y tu sorteo",
+      "description": "Formato Tour: concepto + 3 pasos guiados sobre el panel.",
+      "format": "tour",
+      "durationSeconds": 38.5,
+      "fps": 30,
+      "aspect": "16:9",
+      "locale": "es-CL",
+      "status": "nuevo",
+      "output": "out/2026-07-25-crea-tu-tienda.mp4"
     }
   ],
   "backlog": [

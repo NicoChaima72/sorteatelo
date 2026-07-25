@@ -234,6 +234,31 @@ describe("pagebuilder/tanda2 (F12) — estadisticas tarjetas_suaves", () => {
   });
 });
 
+describe("pagebuilder/tanda2 (F17) — estadisticas estilo dreamy + notaPie", () => {
+  const base = { items: [{ valor: 1, etiqueta: "a" }, { valor: 2, etiqueta: "b" }] };
+
+  // page.tanda2.stats.dreamy.001 — el enum estiloVisual gana `dreamy`; default sigue `cards` (no-op I-H);
+  // los 4 valores válidos, fuera del enum ⇒ rechazo. El estilo nuevo NO cambia el default.
+  it("estadisticas.estiloVisual acepta dreamy; default sigue cards (no-op)", () => {
+    expect(estadisticasProps.parse(base).estiloVisual).toBe("cards"); // migración no-op
+    for (const est of ["cards", "simple", "tarjetas_suaves", "dreamy"] as const) {
+      expect(estadisticasProps.safeParse({ ...base, estiloVisual: est }).success).toBe(true);
+    }
+    expect(estadisticasProps.safeParse({ ...base, estiloVisual: "neon" }).success).toBe(false);
+  });
+
+  // page.tanda2.stats.dreamy.001 — `notaPie` opcional ≤40; ausente = no-op; vacío/>40 ⇒ rechazo; .strict()
+  it("estadisticas.notaPie es opcional (≤40); ausente cae a undefined; excesos rechazados", () => {
+    expect(estadisticasProps.parse(base).notaPie).toBeUndefined(); // no-op (docs previos)
+    expect(estadisticasProps.safeParse({ ...base, notaPie: "Cifras de ejemplo" }).success).toBe(true);
+    expect(estadisticasProps.safeParse({ ...base, notaPie: "x".repeat(40) }).success).toBe(true);
+    expect(estadisticasProps.safeParse({ ...base, notaPie: "x".repeat(41) }).success).toBe(false); // >40
+    expect(estadisticasProps.safeParse({ ...base, notaPie: "" }).success).toBe(false); // min 1
+    // .strict() se conserva: un campo desconocido sigue rechazado
+    expect(estadisticasProps.safeParse({ ...base, foo: 1 }).success).toBe(false);
+  });
+});
+
 describe("pagebuilder/tanda2 (F13) — catalogo layout grilla|carrusel", () => {
   // page.tanda2.catalogo.001 — el enum layout gana grilla|carrusel; default grilla (no-op v1)
   it("catalogo.layout acepta grilla|carrusel, default grilla (no-op)", () => {

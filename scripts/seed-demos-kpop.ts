@@ -39,10 +39,12 @@ const LIBRO_DESC =
   "La guía con humor y corazón para apoyar a tu bias sin fundirte el sueldo: ahorro real, merch inteligente y cómo llegar a verlos en vivo.";
 
 /** Catálogo de ejemplo del mock (5 libros, todos $3.000). El item 0 es el LIBRO principal. */
-const CATALOGO: { titulo: string; descripcion: string }[] = [
+// `nuevo`: solo el que debe llevar el badge "Nuevo" (el resto se retrodata >30 días para que el
+// badge derivado de createdAt NO salga en todas las cards — como el original, badge curado).
+const CATALOGO: { titulo: string; descripcion: string; nuevo?: boolean }[] = [
   { titulo: "Cómo enriquecer a tu idol favorito", descripcion: LIBRO_DESC },
   { titulo: "Cartas a los 7", descripcion: "Cartas íntimas a los siete. Un diario de fandom hecho libro digital." },
-  { titulo: "Mi era favorita", descripcion: "Un recorrido por las eras que marcaron a toda una generación ARMY." },
+  { titulo: "Mi era favorita", descripcion: "Un recorrido por las eras que marcaron a toda una generación ARMY.", nuevo: true },
   { titulo: "Diario de una ARMY", descripcion: "Las páginas de una fan: conciertos, ahorros y borahae." },
   { titulo: "Borahae: ensayos de fandom", descripcion: "Ensayos sobre pertenecer, amar y sostener a un fandom." },
 ];
@@ -144,17 +146,20 @@ const docDreamy = {
       },
       estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
     },
-    // ── STATS (los 3 STATS del mock) ──
+    // ── STATS (F17: las stat-cards EXACTAS del prototipo `dev-ref/variant-dreamy` L96-107 / mock.ts STATS) ──
+    //    Estilo `dreamy`: emoji del set curado arriba (🎟️/⏳/💜), número VIOLETA con la UNIDAD inline
+    //    ("+2.480"/"12 días"/"2 entradas"), etiqueta gris chica, card aireada + nota "Cifras de ejemplo".
     {
       id: nid(),
       tipo: "estadisticas",
       v: 1,
       props: {
-        estiloVisual: "tarjetas_suaves", // F12: tarjetas blancas con sombra suave (el `cards` NO envolvía en tarjeta)
+        estiloVisual: "dreamy",
+        notaPie: "Cifras de ejemplo",
         items: [
-          { valor: 2480, prefijo: "+", etiqueta: "participando", icono: "ticket" },
-          { valor: 12, etiqueta: "días para el cierre", icono: "reloj" },
-          { valor: 2, etiqueta: "entradas · el premio", icono: "corazon" },
+          { valor: 2480, prefijo: "+", etiqueta: "participando", icono: "ticket" }, // 🎟️ +2.480
+          { valor: 12, sufijo: "días", etiqueta: "para el cierre", icono: "reloj" }, // ⏳ 12 días
+          { valor: 2, sufijo: "entradas", etiqueta: "el premio", icono: "corazon" }, // 💜 2 entradas
         ],
       },
       estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
@@ -877,9 +882,18 @@ async function sembrarTienda(db: PrismaClient, spec: SpecTienda, doc: PageDocume
 }
 
 async function main() {
-  // 1) Validar los 3 documentos ANTES de tocar la DB (feedback inmediato sin conexión).
+  // `SOLO_SLUG=<slug>` ⇒ siembra SOLO esa tienda (deja las otras filas de la DB literalmente intactas —
+  // p.ej. re-seed de `demo-dreamy` sin bumpear la revisión de noche/editorial). Sin la var ⇒ las 3.
+  const soloSlug = process.env.SOLO_SLUG;
+  const tiendas = soloSlug ? TIENDAS.filter((t) => t.slug === soloSlug) : TIENDAS;
+  if (soloSlug && tiendas.length === 0) {
+    console.error(`SOLO_SLUG="${soloSlug}" no coincide con ninguna tienda (${TIENDAS.map((t) => t.slug).join(", ")}).`);
+    process.exit(1);
+  }
+
+  // 1) Validar los documentos ANTES de tocar la DB (feedback inmediato sin conexión).
   const parseados: PageDocument[] = [];
-  for (const spec of TIENDAS) {
+  for (const spec of tiendas) {
     const parsed = PageDocumentSchema.safeParse(spec.doc);
     if (!parsed.success) {
       console.error(`DOC INVÁLIDO (${spec.slug}):`);
@@ -906,10 +920,10 @@ async function main() {
 
   const db = new PrismaClient();
   try {
-    for (let i = 0; i < TIENDAS.length; i++) {
-      const resumen = await sembrarTienda(db, TIENDAS[i]!, parseados[i]!);
+    for (let i = 0; i < tiendas.length; i++) {
+      const resumen = await sembrarTienda(db, tiendas[i]!, parseados[i]!);
       console.log(resumen);
-      console.log(`  Verificá en: http://${TIENDAS[i]!.slug}.localhost:3001`);
+      console.log(`  Verificá en: http://${tiendas[i]!.slug}.localhost:3001`);
     }
   } finally {
     await db.$disconnect();

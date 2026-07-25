@@ -1246,10 +1246,14 @@ export type BannerCtaProps = z.infer<typeof bannerCtaProps>;
 /**
  * Estilo visual de `estadisticas` (builder-tanda-1 F06/D10): `cards` = render actual (ThemeIcon, sin
  * contenedor); `simple` = limpio; `tarjetas_suaves` (Tanda 2 F12) = cada cifra en una TARJETA blanca con
- * sombra suave (las stats del prototipo dreamy — el `cards` histórico NO envolvía en tarjeta). Aditivo:
- * `cards` sigue de default (no-op, I-H).
+ * sombra suave (las stats del prototipo dreamy — el `cards` histórico NO envolvía en tarjeta); `dreamy`
+ * (Tanda 2 F17) = las stat-cards EXACTAS del prototipo `dev-ref/variant-dreamy` (L96-107): card AIREADA
+ * (blanco translúcido + sombra suave + ring BLANCO, sin borde gris), EMOJI del set curado arriba (map
+ * `EMOJI_BENEFICIO` del mismo `ICONOS_BENEFICIO`, jamás emoji libre — D2), número en VIOLETA primario con
+ * la UNIDAD (sufijo) INLINE al mismo tamaño/color, y etiqueta gris chica. Aditivo: `cards` sigue de default
+ * (no-op, I-H); `dreamy` NO altera el render de los otros tres (autora/noche/editorial byte-idénticas).
  */
-export const ESTILOS_ESTADISTICA = ["cards", "simple", "tarjetas_suaves"] as const;
+export const ESTILOS_ESTADISTICA = ["cards", "simple", "tarjetas_suaves", "dreamy"] as const;
 
 /**
  * `estadisticas` (sección, F05): fila 2–4 de cifras grandes con count-up. `valor` es ENTERO (no
@@ -1262,8 +1266,12 @@ export const estadisticasProps = z
   .object({
     titulo: z.string().min(1).max(80).optional(),
     // Estilo visual (builder-tanda-1 F06/D10): `cards` = render ACTUAL (default no-op, I-H); `simple` =
-    // cifras limpias sin ThemeIcon ni contenedor (las stats del mockup).
+    // cifras limpias sin ThemeIcon ni contenedor (las stats del mockup); `dreamy` (F17) = las stat-cards
+    // aireadas del prototipo con emoji del set curado + número violeta + unidad inline.
     estiloVisual: z.enum(ESTILOS_ESTADISTICA).default("cards"),
+    // Nota al pie OPCIONAL bajo el grid (F17): el "Cifras de ejemplo" del prototipo dreamy. Ausente ⇒ no se
+    // renderiza (no-op, I-H): los docs previos siguen byte-idénticos. Texto plano acotado (nunca HTML, I3).
+    notaPie: z.string().min(1).max(40).optional(),
     items: z
       .array(
         z

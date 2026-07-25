@@ -87,6 +87,7 @@
     upload: '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/>',
     chevronDown: '<path d="M6 9l6 6l6 -6"/>',
     eye: '<path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/>',
+    store: '<path d="M3 21l18 0"/><path d="M3 7v1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1h-18l2 -4h14l2 4"/><path d="M5 21l0 -10.15"/><path d="M19 21l0 -10.15"/><path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4"/>',
     alert: '<path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.535a1.914 1.914 0 0 0 1.636 2.874h16.214a1.914 1.914 0 0 0 1.636 -2.874l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/>',
   };
 
@@ -157,17 +158,25 @@
    * Topbar liviano SIN borde inferior (§4): hamburguesa · chip de tienda (con el
    * swatch de su colorPrimario, el ÚNICO color-desde-dato del admin) · Buscar ⌘K ·
    * Ver mi tienda · avatar de la sesión.
+   *
+   * `opt.sinTienda`: el Organizador todavía NO creó su tienda (alta self-service,
+   * `crear-tienda.tsx`) ⇒ no existe chip ni «Ver mi tienda». Quedan hamburguesa,
+   * Buscar y avatar. Es aditivo: sin la opción, el topbar es el de siempre.
    */
   const topbar = (opt = {}) => {
     const tienda = opt.tienda ?? "Mi tienda";
     const color = opt.color ?? "var(--st-gris-4)";
     const iniciales = opt.iniciales ?? "MC";
+    const chip = opt.sinTienda ? "" :
+      `<div class="app-chip"><div class="app-swatch" style="background:${color};"></div>${tienda}</div>`;
+    const verTienda = opt.sinTienda ? "" :
+      `<div class="btn btn-suave btn-sm">${ic("external", "var(--st-acento-fuerte)", 14, 1.75)}Ver mi tienda</div>`;
     return `<div class="app-topbar">
       ${ic("burger", T.suave, 20, 1.75)}
-      <div class="app-chip"><div class="app-swatch" style="background:${color};"></div>${tienda}</div>
+      ${chip}
       <div class="app-topbar-right">
         <div class="btn btn-default btn-sm">${ic("search", T.suave, 14, 1.75)}Buscar<div class="app-kbd">⌘K</div></div>
-        <div class="btn btn-suave btn-sm">${ic("external", "var(--st-acento-fuerte)", 14, 1.75)}Ver mi tienda</div>
+        ${verTienda}
         <div class="app-avatar">${iniciales}</div>
       </div>
     </div>`;

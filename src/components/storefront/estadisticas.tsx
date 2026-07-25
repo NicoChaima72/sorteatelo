@@ -1,7 +1,7 @@
 import { Box, Group, SimpleGrid, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 
 import { useCountUp } from "~/components/storefront/animar";
-import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
+import { emojiBeneficio, iconoBeneficio } from "~/components/storefront/iconos-beneficio";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { num } from "~/lib/formato";
 import { type EstadisticasProps } from "~/lib/pagebuilder/widgets";
@@ -24,6 +24,13 @@ export function Estadisticas({
   comoHoja?: boolean;
 }) {
   const props = nodo.props;
+  const grid = (
+    <SimpleGrid cols={{ base: 2, sm: props.items.length }} spacing="lg">
+      {props.items.map((item, i) => (
+        <StatItem key={i} item={item} estiloVisual={props.estiloVisual} />
+      ))}
+    </SimpleGrid>
+  );
   return (
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Stack gap="lg">
@@ -32,11 +39,18 @@ export function Estadisticas({
             {props.titulo}
           </Title>
         )}
-        <SimpleGrid cols={{ base: 2, sm: props.items.length }} spacing="lg">
-          {props.items.map((item, i) => (
-            <StatItem key={i} item={item} estiloVisual={props.estiloVisual} />
-          ))}
-        </SimpleGrid>
+        {/* Nota al pie OPCIONAL (F17): el "Cifras de ejemplo" del prototipo dreamy, 6px bajo el grid.
+            Ausente ⇒ el grid es hijo directo del Stack, byte-idéntico al render previo (no-op, I-H). */}
+        {props.notaPie ? (
+          <Stack gap={6}>
+            {grid}
+            <Text fz={{ base: 10, sm: 11 }} c="dimmed" ta="center">
+              {props.notaPie}
+            </Text>
+          </Stack>
+        ) : (
+          grid
+        )}
       </Stack>
     </SeccionWrapper>
   );
@@ -46,9 +60,12 @@ export function Estadisticas({
  * Una cifra con count-up. Sub-componente porque `useCountUp` es un hook (uno por ítem). `estiloVisual`
  * `cards` (default) = render actual con `ThemeIcon`; `simple` (F06/D10) = sin icono ni contenedor, solo
  * la cifra grande + etiqueta (las stats limpias del mockup); `tarjetas_suaves` (F12) = cada cifra en una
- * TARJETA blanca con sombra suave (las stats del prototipo dreamy — cero hex, tokens del tenant).
+ * TARJETA blanca con sombra suave; `dreamy` (F17) = las stat-cards EXACTAS del prototipo `dev-ref/
+ * variant-dreamy` (L96-107): EMOJI del set curado arriba + número en violeta primario con la UNIDAD inline
+ * + etiqueta gris chica, en una card aireada (blanco translúcido + sombra suave + ring blanco, sin borde
+ * gris). Todo con tokens del tenant (cero hex). Exportado para test unitario del render (F17).
  */
-function StatItem({
+export function StatItem({
   item,
   estiloVisual,
 }: {
@@ -123,6 +140,58 @@ function StatItem({
             )}
           </Group>
           <Text size="xs" c="dimmed">
+            {item.etiqueta}
+          </Text>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // `dreamy` (F17): las stat-cards EXACTAS de `dev-ref/variant-dreamy` (L96-107). Cierra los 4 diffs:
+  //  (1) ícono = EMOJI del set curado (map `EMOJI_BENEFICIO`, no ThemeIcon monocromo, no emoji libre — D2);
+  //  (2) número en VIOLETA primario (`--mantine-primary-color-filled`), no tinta;
+  //  (3) unidad (sufijo) INLINE en el número, mismo tamaño/color — "12 días"/"2 entradas" juntos;
+  //  (4) card AIREADA: fondo blanco translúcido + sombra suave + ring BLANCO (sin el borde gris de
+  //      `tarjetas_suaves`), dark-aware por `light-dark()`. Cero hex (tokens del tenant, I-A).
+  if (estiloVisual === "dreamy") {
+    const emoji = item.icono ? emojiBeneficio(item.icono) : null;
+    return (
+      <Box
+        px="sm"
+        py="lg"
+        ta="center"
+        style={{
+          background:
+            "light-dark(color-mix(in srgb, var(--mantine-color-white) 72%, transparent), color-mix(in srgb, var(--mantine-color-dark-6) 72%, transparent))",
+          borderRadius: "var(--mantine-radius-lg)",
+          boxShadow: "var(--mantine-shadow-sm)",
+          // ring BLANCO/airy (≈ sin borde): NO el `--mantine-color-default-border` gris de `tarjetas_suaves`.
+          border:
+            "1px solid light-dark(color-mix(in srgb, var(--mantine-color-white), transparent 20%), var(--mantine-color-dark-4))",
+        }}
+      >
+        <Stack gap={4} align="center">
+          {emoji && (
+            <Text component="span" fz={{ base: 20, sm: 26 }} lh={1} aria-hidden>
+              {emoji}
+            </Text>
+          )}
+          {/* Número VIOLETA con prefijo/sufijo INLINE al mismo tamaño/color (diff 2 + 3). El count-up
+              vive en el span interior; prefijo/sufijo son texto hermano ⇒ misma línea, mismo color. */}
+          <Text
+            className="st-stat-valor tabular-nums"
+            fw={800}
+            fz={{ base: 15, sm: 20 }}
+            lh={1.1}
+            style={{ color: "var(--mantine-primary-color-filled)" }}
+          >
+            {item.prefijo}
+            <Text component="span" ref={ref} inherit>
+              {num(valor)}
+            </Text>
+            {item.sufijo ? ` ${item.sufijo}` : ""}
+          </Text>
+          <Text className="st-stat-label" fz={{ base: 10, sm: 12 }} lh={1.15} c="dimmed">
             {item.etiqueta}
           </Text>
         </Stack>

@@ -25,7 +25,7 @@ browserFrame(url, activeNavIdx, { tienda, color, iniciales, colapsado, operador 
 | Barra de URL | dentro de `browserFrame` | mono; el panel vive en el **apex** (`sorteatelo.cl/admin/…`), el subdominio es del storefront |
 | Rail tinta | `rail(activeIdx, opt)` | 232px (68 colapsado); isotipo + wordmark Bricolage 800 blanco; ítem **esbelto** (tinte cobalto 22% + barra de acento 3px al borde), NO pill sólido |
 | Navegación | `NAV_PRINCIPAL` / `NAV_PIE` | 0 Resumen · 1 Productos · 2 Ventas · 3 Sorteo · 4 Configuración (pie). `opt.operador` agrega el ítem del rol |
-| Topbar | `topbar(opt)` | 64px **sin borde inferior**: hamburguesa · chip de tienda con swatch del `colorPrimario` (único color-desde-dato) · Buscar ⌘K · Ver mi tienda · avatar |
+| Topbar | `topbar(opt)` | 64px **sin borde inferior**: hamburguesa · chip de tienda con swatch del `colorPrimario` (único color-desde-dato) · Buscar ⌘K · Ver mi tienda · avatar. `opt.sinTienda` → sin chip ni «Ver mi tienda» (Organizador que todavía no creó su tienda) |
 | Canvas | `.app-content` | `gray-0`, full-width (sin cap `max-w-6xl`) |
 
 Coordenadas derivadas (`CONTENT`): `left 442 · top 180 · right 1710 · bottom 980`. El contenido de
@@ -97,11 +97,60 @@ locales; no se promovieron todavía para no tocar `_lib/` con un solo caso de us
 
 ---
 
+## Panel · Alta self-service — `crea-tu-tienda/app.js` (`cardAlta`)
+
+**Estado: LISTO.** Componente real: `src/components/admin/crear-tienda.tsx`, que `admin-layout.tsx`
+renderiza **en lugar del contenido** cuando el Organizador todavía NO tiene tienda.
+
+- Chrome: `browserFrame("sorteatelo.cl/admin", -1, { sinTienda: true, iniciales })` — rail **sin
+  ítem activo** y topbar **sin chip ni «Ver mi tienda»** (la tienda aún no existe; quedan
+  hamburguesa, Buscar ⌘K y avatar de la sesión).
+- Card **centrada** en `CONTENT` (440×~590). Ojo: en el real es `Card withBorder radius="md"`,
+  **NO** una `PanelCard` ⇒ clase `.ct-card` con borde y radio 8, no la superficie sin borde.
+- Contenido: ThemeIcon circular 48 (`variant="light"` cobalto, ícono `store`) · título «Crea tu
+  tienda» como `Text fw={600} size="lg"` (**no** un heading Fraunces) · bajada dimmed centrada ·
+  campo «Identificador de la tienda» (desc + preview del subdominio) · campo «Nombre de la tienda» ·
+  Alert gris del identificador irreversible · botón fullWidth «Crear mi tienda».
+- El preview del subdominio se muestra **sólo con el campo lleno**: por eso el bloque entero
+  (label + input + desc + preview) va en un `stackEl("slug", …)` con caja de 132 px reservada.
+- **Divergencia deliberada del producto**: el componente real imprime el literal `.tudominio`
+  (string sin cablear). El mock muestra `.sorteatelo.cl` — el video enseña el dominio real.
+  Está flaggeado al usuario; si se arregla el componente, el mock ya coincide.
+
+Clases propias: `ct-card`, `ct-icon`, `ct-title`, `ct-desc`, `ct-preview`, `ct-preview-slug`,
+`ct-alert`, `ct-alert-txt`.
+
+---
+
+## Panel · Sorteo (crear + gestión) — `crea-tu-tienda/app.js` (`formSorteo` / `gestion`)
+
+**Estado: LISTO.** Componente real: `src/pages/admin/sorteo.tsx`, estado **sin sorteo activo** y
+organizador nuevo (⇒ sin sección Participantes / importar).
+
+- `pageHeader(474, 208, "Sorteo", "Crea y gestiona el sorteo de la tienda.")` + `panelCard` de 688
+  (campos de 640 + padding 24) con `Text fw={600}` «Crea tu sorteo».
+- Campos en columna: «Nombre del sorteo» · «Premio» · «Fecha de cierre» (valor en `.mono`) ·
+  «Enlace a las bases (opcional)». Botón cobalto «Crear sorteo» al pie.
+- Estado **de gestión** tras crear: `SimpleGrid` de 3 StatCards (390 × 132, gap 17, a lo ancho del
+  contenido): Participaciones · Estado · Cierre. Se entra con el crossfade `stackEl("gestion", …)`,
+  que reserva la caja del formulario — el swap form → grilla es un solo toggle del timeline.
+- Los tres campos que se tipean son `stackEl` independientes (`srNombre`/`srPremio`/`srFecha`), así
+  el timeline los llena escalonados.
+
+Clases propias: `ct-stat-label`, `ct-stat-row`, `ct-stat-valor`, `ct-stat-num`, `ct-stat-hint`.
+`ct-stat-num` (mono tabular) se declara en el `<style>` del video **a propósito**: `.mono` de
+`tour-kit.css` carga antes y perdería contra cualquier regla local que fije `font-family`.
+
+> Toast de confirmación: `ct-toast*`, copia del `cfg-toast*` del piloto. Es la **segunda** cápsula
+> que lo necesita ⇒ ya está maduro para promoverlo al kit como `.pnl-toast` en la próxima.
+
+---
+
 ## Pendientes de mockear (backlog de cápsulas)
 
 | Pantalla | Componente real | Para la cápsula |
 |---|---|---|
 | Panel · Productos (tabla + modal de alta) | `src/pages/admin/productos.tsx` | Sube productos |
-| Panel · Sorteo | `src/pages/admin/sorteo.tsx` | Monta el sorteo |
+| Panel · Sorteo con participantes (tabla + tickets + sortear) | `src/pages/admin/sorteo.tsx` | Monta el sorteo |
 | Panel · Resumen (KPIs + gráfico) | `src/pages/admin/index.tsx` | (futura) |
 | Storefront del Comprador | `src/components/storefront/` | fuera de scope de esta tanda (D2) |

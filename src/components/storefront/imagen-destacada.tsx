@@ -53,10 +53,13 @@ export function ImagenDestacada({
   nodo,
   colorPrimario,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "imagen_destacada" }>;
   colorPrimario: string | null;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   const ratio = RATIO[props.ratio] ?? null;
@@ -112,7 +115,7 @@ export function ImagenDestacada({
   );
 
   return (
-    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Box maw={maw} mx={maw ? "auto" : undefined}>
         <Stack gap="xs">
           {contenidoImagen}

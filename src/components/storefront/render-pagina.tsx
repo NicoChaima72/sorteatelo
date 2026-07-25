@@ -12,6 +12,7 @@ import { EmbedSocial } from "~/components/storefront/embed-social";
 import { Espaciador } from "~/components/storefront/espaciador";
 import { Estadisticas } from "~/components/storefront/estadisticas";
 import { Faq } from "~/components/storefront/faq";
+import { Fila } from "~/components/storefront/fila";
 import { Galeria } from "~/components/storefront/galeria";
 import { Ganadores } from "~/components/storefront/ganadores";
 import { GarantiasSorteo } from "~/components/storefront/garantias-sorteo";
@@ -221,6 +222,8 @@ export function RenderSeccion({
           divisorColor={divisorColor}
         />
       );
+    case "fila":
+      return <Fila nodo={seccion} branding={branding} divisorColor={divisorColor} />;
     default: {
       // Candado de exhaustividad EN COMPILACIÓN (F10/F11 no pueden olvidar una rama) + tolerancia I9
       // en runtime (un `tipo` desconocido de un documento publicado viejo renderiza `null`, no crashea).

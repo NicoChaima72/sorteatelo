@@ -412,6 +412,86 @@ export function estiloSeccionACss(
   };
 }
 
+// ── Responsive por nodo · overrides móviles + visibleEn (Tanda 3 F10/D16/D17) ──────────────────
+//
+// D17: los inline styles NO admiten `@media` ⇒ el wrapper emite CUSTOM PROPERTIES + clases de
+// plataforma (en `globals.css`) con `@media (max-width: <bp>)` que aplican `var(--sx-*-m, var(--sx-*))`.
+// SSR-safe, cero JS de resize. Solo se ACTIVA cuando la sección tiene `movil` o `visibleEn` restringido
+// (una sección sin overrides no recibe clase ni var ⇒ render byte-idéntico al actual, I-U8). Cero hex:
+// las medidas salen de tokens Mantine / `svh` / `calc` (I-A). El breakpoint móvil se alinea con el `sm`
+// de Mantine (768px = 48em) — mismo corte donde la `fila` (F08) apila y donde cae el preview 390px (F11).
+
+/** Padding (enum ESPACIADO_V) → UN valor CSS de tokens (el valor "grande" de cada enum). Cero px libre. */
+const PAD_CSS_RESPONSIVE: Record<string, string> = {
+  ninguno: "0",
+  s: "var(--mantine-spacing-lg)",
+  m: "var(--mantine-spacing-xl)",
+  l: "calc(var(--mantine-spacing-xl) * 1.5)",
+  xl: "calc(var(--mantine-spacing-xl) * 2.5)",
+};
+
+/** Descriptor responsive que consume `<SeccionWrapper>` (clases de plataforma + custom props). */
+export interface ResponsiveResuelto {
+  /** Clases de `globals.css`: `sx-sec-responsive` (padding móvil), `sx-sec-altomin` (min-height/flex
+   *  móvil), `sx-solo-desktop`/`sx-solo-movil` (visibleEn). Vacío ⇒ sin overrides (no-op, I-U8). */
+  clases: string[];
+  /** Custom props (CSS vars) que leen las clases. Vacío si no hay override de padding/altoMin móvil. */
+  vars: Record<string, string>;
+  /** `true` sii (desktop o móvil) fija un `altoMin` ⇒ la sección va en flex-column (lo hace el CSS). */
+  hayAltoMin: boolean;
+}
+
+/**
+ * Resuelve los overrides RESPONSIVE de un `EstiloSeccion` a clases + custom props (Tanda 3 F10/D17). PURO,
+ * SSR-safe, cero hex. Sin `movil` ni `visibleEn` restringido ⇒ `{ clases:[], vars:{}, hayAltoMin:false }`
+ * (la sección usa su render inline actual, byte-idéntico I-U8).
+ */
+export function resolverResponsive(estilo: EstiloSeccion | undefined): ResponsiveResuelto {
+  const clases: string[] = [];
+  const vars: Record<string, string> = {};
+
+  // visibleEn (ortogonal): clase de ocultamiento por media query. `todos` ⇒ sin clase (no-op).
+  const visibleEn = estilo?.visibleEn ?? "todos";
+  if (visibleEn === "desktop") clases.push("sx-solo-desktop");
+  else if (visibleEn === "movil") clases.push("sx-solo-movil");
+
+  const movil = estilo?.movil;
+  if (!movil) return { clases, vars, hayAltoMin: false };
+
+  // Padding responsive: desktop = padTop/padBottom (o padY); móvil = movil.padTop/padBottom (o movil.padY),
+  // con fallback CSS a desktop cuando la hoja móvil no override ese lado.
+  const padY = estilo?.padY ?? "l";
+  const ptD = estilo?.padTop ?? padY;
+  const pbD = estilo?.padBottom ?? padY;
+  vars["--sx-pt"] = PAD_CSS_RESPONSIVE[ptD] ?? PAD_CSS_RESPONSIVE.l!;
+  vars["--sx-pb"] = PAD_CSS_RESPONSIVE[pbD] ?? PAD_CSS_RESPONSIVE.l!;
+  const tienePadMovil =
+    movil.padY !== undefined || movil.padTop !== undefined || movil.padBottom !== undefined;
+  if (tienePadMovil) {
+    const ptM = movil.padTop ?? movil.padY ?? ptD;
+    const pbM = movil.padBottom ?? movil.padY ?? pbD;
+    vars["--sx-pt-m"] = PAD_CSS_RESPONSIVE[ptM] ?? vars["--sx-pt"]!;
+    vars["--sx-pb-m"] = PAD_CSS_RESPONSIVE[pbM] ?? vars["--sx-pb"]!;
+  }
+  clases.push("sx-sec-responsive");
+
+  // Alto mínimo + alineación vertical responsive: si desktop O móvil fija altoMin, la sección va en
+  // flex-column (clase `sx-sec-altomin`). `--sx-minh` = altoMin desktop (o "auto"); `--sx-minh-m` solo
+  // si `movil.altoMin` override. Ídem `--sx-justify(-m)` (alineación vertical).
+  const altoMinD = estilo?.altoMin ?? "auto";
+  const hayAltoMin = altoMinD !== "auto" || (movil.altoMin !== undefined && movil.altoMin !== "auto");
+  if (hayAltoMin) {
+    vars["--sx-minh"] = ALTO_MIN_CSS[altoMinD] ?? "auto";
+    vars["--sx-justify"] = JUSTIFY_POR_ALINEAR[estilo?.alinearVertical ?? "arriba"] ?? "flex-start";
+    if (movil.altoMin !== undefined) vars["--sx-minh-m"] = ALTO_MIN_CSS[movil.altoMin] ?? "auto";
+    if (movil.alinearVertical !== undefined)
+      vars["--sx-justify-m"] = JUSTIFY_POR_ALINEAR[movil.alinearVertical] ?? "flex-start";
+    clases.push("sx-sec-altomin");
+  }
+
+  return { clases, vars, hayAltoMin };
+}
+
 // ── Contraste sobre esquema oscuro (Tanda 2 F12, bug de la sorteo_vitrina) ─────────────────────
 //
 // Una sección con fondo OSCURO (bicolor `marca_profundo`, esquema `marca`/`tinta`…) recibe del wrapper

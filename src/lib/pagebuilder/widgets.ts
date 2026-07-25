@@ -228,6 +228,15 @@ export const ALTO_MIN = ["auto", "media", "pantalla"] as const;
  */
 export const ALINEAR_VERTICAL = ["arriba", "centro", "abajo"] as const;
 
+/**
+ * Visibilidad de una sección por breakpoint (Tanda 3 F10/D16). `todos` = DEFAULT (siempre visible =
+ * comportamiento actual, no-op I-U8). `desktop` = oculta en móvil; `movil` = oculta en desktop. Se
+ * resuelve como CSS ESTÁTICO (`display:none` por media query, SSR-safe — el slot simplemente no existe
+ * a ese ancho, sin JS de resize ni aparición tardía ⇒ CLS controlado, I-U5). Enum cerrado.
+ */
+export const VISIBLE_EN = ["todos", "desktop", "movil"] as const;
+export type VisibleEn = (typeof VISIBLE_EN)[number];
+
 /** Formas de divisor inferior (SVG generado por NOSOTROS, nunca markup del tenant). */
 export const FORMAS_DIVISOR = [
   "ninguno",
@@ -349,6 +358,24 @@ export const EstiloSeccionSchema = z
       })
       .strict()
       .optional(),
+    // Responsive por nodo (Tanda 3 F10/D16): `movil` es un Partial del SUBSET de LAYOUT (mismos enums,
+    // JAMÁS valores nuevos ni px). `fondo`/`entrada`/`divisor` NO se overridean por breakpoint (snowflake +
+    // rompe la simplicidad LLM, I-U5) ⇒ NO están en este subset (`.strict()` los rechaza). Ausente ⇒
+    // resolver móvil = desktop (byte-idéntico, I-U8). Todos opcionales (Partial).
+    movil: z
+      .object({
+        padY: z.enum(ESPACIADO_V).optional(),
+        padTop: z.enum(ESPACIADO_V).optional(),
+        padBottom: z.enum(ESPACIADO_V).optional(),
+        altoMin: z.enum(ALTO_MIN).optional(),
+        alinearVertical: z.enum(ALINEAR_VERTICAL).optional(),
+        ancho: z.enum(ANCHO_SECCION).optional(),
+      })
+      .strict()
+      .optional(),
+    // Visibilidad por breakpoint (Tanda 3 F10/D16): CSS estático (display:none por media query, I-U5).
+    // `todos` = DEFAULT (siempre visible = comportamiento actual, no-op I-U8).
+    visibleEn: z.enum(VISIBLE_EN).default("todos"),
   })
   .strict();
 export type EstiloSeccion = z.infer<typeof EstiloSeccionSchema>;
@@ -1560,6 +1587,102 @@ export const productoSpotlightProps = z
   .strict();
 export type ProductoSpotlightProps = z.infer<typeof productoSpotlightProps>;
 
+// ── Widget `fila`: layout de columnas con slots tipados (Tanda 3 F08/D13, evolución fila) ──────
+//
+// La `fila` es una SECCIÓN cuyo `props` contiene `columnas` de nodos-HOJA. Los nodos-HOJA son una union
+// discriminada WHITELIST que NO incluye `fila` ⇒ **recursión imposible por construcción** (I-U4): sección
+// → fila → hoja, nunca 3 niveles. No hay box-model libre; el reparto es un enum de spans curados. Definido
+// ACÁ (no en `./schema`) porque `filaProps` lo consume y `./schema` importa `filaProps` de este módulo
+// (la dependencia va schema→widgets, jamás al revés).
+
+/** Reparto de columnas de una `fila` (enum cerrado → spans curados en el render, jamás CSS libre). */
+export const REPARTOS_FILA = ["50_50", "66_33", "33_66", "33_33_33"] as const;
+export type RepartoFila = (typeof REPARTOS_FILA)[number];
+
+/** Cuántas columnas exige cada reparto (el `superRefine` de `filaProps` obliga esta coherencia). */
+export const COLUMNAS_POR_REPARTO: Record<RepartoFila, number> = {
+  "50_50": 2,
+  "66_33": 2,
+  "33_66": 2,
+  "33_33_33": 3,
+};
+
+/**
+ * Whitelist de tipos-HOJA que pueden vivir dentro de una columna de `fila` (D13). Deliberadamente NO
+ * incluye `fila` (recursión imposible, I-U4) ni widgets full-bleed que no rinden angostos (hero, catálogo,
+ * sorteo…). Son piezas que se ven bien en una columna. El editor filtra la galería de "agregar hoja" por
+ * esta lista (F09). REVISABLE: ampliar/recortar según lo que renderice bien.
+ */
+export const HOJAS_FILA = [
+  "texto_rico",
+  "imagen_destacada",
+  "beneficios_grid",
+  "botones_sociales",
+  "estadisticas",
+  "separador",
+  "espaciador",
+  "banner_cta",
+] as const;
+export type HojaFilaTipo = (typeof HOJAS_FILA)[number];
+
+/** Tope de hojas por columna (cordura anti-abuso, espejo de `MAX_SECCIONES`). */
+export const MAX_HOJAS_POR_COLUMNA = 4;
+
+/**
+ * Nodo-HOJA: `{ id, tipo, v, props }` estricto, SIN `estilo`/`nav` (el estilo de sección vive en la
+ * FILA, no por hoja — D14). El `id` es estable (direcciona selección/edición en el editor, F09).
+ */
+function nodoHoja<T extends string, P extends z.ZodTypeAny>(tipo: T, props: P) {
+  return z
+    .object({
+      id: z.string().min(1).max(64),
+      tipo: z.literal(tipo),
+      v: z.number().int().positive(),
+      props,
+    })
+    .strict();
+}
+
+/**
+ * Union discriminada de nodos-HOJA (whitelist SIN `fila`, D13/I-U4). Un tipo fuera de la whitelist —o
+ * una `fila` metida dentro de una columna— NO parsea ⇒ la recursión es imposible por construcción, no
+ * por una guarda de profundidad en runtime. Debe seguir a `HOJAS_FILA` (mismos tipos).
+ */
+export const NodoHojaSchema = z.discriminatedUnion("tipo", [
+  nodoHoja("texto_rico", textoRicoProps),
+  nodoHoja("imagen_destacada", imagenDestacadaProps),
+  nodoHoja("beneficios_grid", beneficiosGridProps),
+  nodoHoja("botones_sociales", botonesSocialesProps),
+  nodoHoja("estadisticas", estadisticasProps),
+  nodoHoja("separador", separadorProps),
+  nodoHoja("espaciador", espaciadorProps),
+  nodoHoja("banner_cta", bannerCtaProps),
+]);
+export type NodoHoja = z.infer<typeof NodoHojaSchema>;
+
+/**
+ * `fila` (sección, F08/D13): layout de 2–3 columnas de nodos-HOJA. `reparto` fija los spans curados;
+ * `columnas` es un array (2 o 3, coherente con el reparto vía `superRefine`) de arrays de hojas (0–4
+ * c/u). La recursión es imposible por construcción (NodoHojaSchema no contiene `fila`, I-U4). `.strict()`.
+ */
+export const filaProps = z
+  .object({
+    reparto: z.enum(REPARTOS_FILA).default("50_50"),
+    columnas: z.array(z.array(NodoHojaSchema).max(MAX_HOJAS_POR_COLUMNA)).min(2).max(3),
+  })
+  .strict()
+  .superRefine((val, ctx) => {
+    const esperadas = COLUMNAS_POR_REPARTO[val.reparto];
+    if (val.columnas.length !== esperadas) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `El reparto "${val.reparto}" exige ${esperadas} columnas (hay ${val.columnas.length}).`,
+        path: ["columnas"],
+      });
+    }
+  });
+export type FilaProps = z.infer<typeof filaProps>;
+
 // ── Registro ─────────────────────────────────────────────────────────────────
 
 /** Categoría de un widget: en el flujo vertical de `secciones[]` o en el slot `overlays[]`. */
@@ -1880,6 +2003,14 @@ export const WIDGET_REGISTRY = {
       ctaAncla: "catalogo",
     },
   }),
+  // ── Tanda 3 · fila con slots tipados (F08/D13) ──
+  fila: definirWidget({
+    categoria: "seccion",
+    v: 1,
+    propsSchema: filaProps,
+    // Nace con 2 columnas VACÍAS (50/50): el Organizador las puebla desde la galería filtrada (F09).
+    defaultProps: { reparto: "50_50", columnas: [[], []] },
+  }),
 } as const;
 
 export type WidgetTipo = keyof typeof WIDGET_REGISTRY;
@@ -1950,6 +2081,7 @@ export const WIDGET_META: Record<
   packs_precio: { titulo: "Packs de precio", descripcion: "Tarjetas de precio con una opción destacada (más elegido).", categoria: "sorteo" },
   momento_ticket: { titulo: "Tu número de sorteo", descripcion: "La tarjeta aspiracional '¡Estás dentro!' con un número de ejemplo.", categoria: "sorteo" },
   producto_spotlight: { titulo: "Producto destacado", descripcion: "Destaca un producto con su portada, descripción y precio.", categoria: "contenido" },
+  fila: { titulo: "Fila / columnas", descripcion: "Coloca 2 o 3 elementos lado a lado; en el celular se apilan.", categoria: "estructura" },
   whatsapp_flotante: { titulo: "WhatsApp flotante", descripcion: "Un botón flotante de WhatsApp (overlay).", categoria: "social" },
   aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };

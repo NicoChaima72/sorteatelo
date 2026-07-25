@@ -43,14 +43,17 @@ const VARIANTE: Record<string, string> = {
 export function BotonesSociales({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "botones_sociales" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   const variant = VARIANTE[props.estilo] ?? "filled";
   return (
-    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Stack gap="md" align="center">
         {props.titulo && (
           <Text fw={600} fz={{ base: "lg", sm: "xl" }} ta="center">

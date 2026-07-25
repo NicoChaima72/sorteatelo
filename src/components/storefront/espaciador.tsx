@@ -17,9 +17,12 @@ const ALTO: Record<string, number> = { xs: 16, s: 32, m: 64, l: 96, xl: 144 };
 export function Espaciador({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "espaciador" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const alto = ALTO[nodo.props.alto] ?? ALTO.m!;
   return (
@@ -27,6 +30,7 @@ export function Espaciador({
       id={nodo.id}
       estilo={nodo.estilo ?? ESTILO_ESPACIADOR_DEFAULT}
       divisorColor={divisorColor}
+      comoHoja={comoHoja}
     >
       <Box aria-hidden h={alto} />
     </SeccionWrapper>

@@ -19,6 +19,7 @@ import {
   estadisticasProps,
   EstiloSeccionSchema,
   faqProps,
+  filaProps,
   galeriaProps,
   ganadoresProps,
   garantiasSorteoProps,
@@ -149,6 +150,7 @@ export const SeccionNodeSchema = z.discriminatedUnion("tipo", [
   nodoSeccion("packs_precio", packsPrecioProps), // Tanda 2 F12
   nodoSeccion("momento_ticket", momentoTicketProps), // Tanda 2 F12
   nodoSeccion("producto_spotlight", productoSpotlightProps), // Tanda 2 F15
+  nodoSeccion("fila", filaProps), // Tanda 3 F08/D13: layout de columnas con slots-HOJA tipados
 ]);
 export type SeccionNode = z.infer<typeof SeccionNodeSchema>;
 

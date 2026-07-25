@@ -5,7 +5,9 @@ import { env } from "~/env";
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
 import { esOperador, parsearAllowlist } from "~/server/authPolicy";
+import { asistenteDisponible, crearModeloAsistente } from "~/server/ai/gateway";
 import { aplicarMutacionPagina } from "~/server/domain/pagebuilder/aplicarMutacionPagina";
+import { asistente } from "~/server/domain/pagebuilder/asistente";
 import { getPagina } from "~/server/domain/pagebuilder/getPagina";
 import { listarVersiones } from "~/server/domain/pagebuilder/listarVersiones";
 import {
@@ -38,6 +40,7 @@ import { publicarPagina } from "~/server/domain/pagebuilder/publicarPagina";
 import { revertirPagina } from "~/server/domain/pagebuilder/revertirPagina";
 import { setColorAcento } from "~/server/domain/pagebuilder/setColorAcento";
 import {
+  asistenteInput,
   editarBorradorInput,
   leerBorradorInput,
   publicarBorradorInput,
@@ -216,6 +219,32 @@ export const pagebuilderRouter = createTRPCRouter({
       runDomain(async () =>
         setEnNav({ db: ctx.db, tenantId: await exigirEditor(ctx), slug: input.slug, enNav: input.enNav }),
       ),
+    ),
+
+  // ── Asistente de IA (Tanda 3 F14/D21) — gateado por membresía; solo muta el borrador (I-U6) ────
+
+  /** ¿Está configurado el asistente (hay API key)? El cliente lo consulta para mostrar/ocultar el panel. */
+  asistenteDisponible: tenantProcedure.query(() => ({ disponible: asistenteDisponible() })),
+
+  /**
+   * Turno del asistente de IA: traduce el chat a mutaciones del borrador de la página. Gateado por
+   * `exigirEditor` (I1); el modelo se inyecta desde el composition root (API key server-side, I-U6);
+   * NUNCA publica ni toca chrome/páginas. Devuelve texto + acciones aplicadas + documento/version nuevos.
+   */
+  asistente: tenantProcedure
+    .input(asistenteInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(async () => {
+        const tenantId = await exigirEditor(ctx);
+        return asistente({
+          db: ctx.db,
+          tenantId,
+          slug: input.slug,
+          mensajes: input.mensajes,
+          seleccionId: input.seleccionId,
+          modelo: crearModeloAsistente(),
+        });
+      }),
     ),
 
   // ── Chrome global (Tanda 3 F07/D12, ADR-0021) — gateado por membresía; el MCP NO lo toca (I12) ──

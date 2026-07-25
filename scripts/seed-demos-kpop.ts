@@ -158,6 +158,59 @@ const docDreamy = {
       },
       estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
     },
+    // ── FILA 66/33 (Tanda 3 F08): "por qué el libro" (texto_rico con runs acento/resaltado + link a #sorteo)
+    //    al lado de los botones sociales. Demuestra el widget `fila` + responsive por nodo (padY menor en
+    //    móvil) donde el prototipo dreamy tenía una banda de dos columnas. ──
+    {
+      id: nid(),
+      tipo: "fila",
+      v: 1,
+      props: {
+        reparto: "66_33",
+        columnas: [
+          [
+            {
+              id: nid(),
+              tipo: "texto_rico",
+              v: 2,
+              props: {
+                ancho: "normal",
+                bloques: [
+                  { tipo: "subtitulo", rico: { children: [{ t: "Por qué este libro" }] } },
+                  {
+                    tipo: "parrafo",
+                    rico: {
+                      markDefs: [{ id: "s", destino: { tipo: "ancla", ancla: "sorteo" } }],
+                      children: [
+                        { t: "Con humor y corazón, para apoyar a tu bias sin fundirte el sueldo. Cada copia " },
+                        { t: "suma un número al sorteo", m: ["resaltado"], link: "s" },
+                        { t: " y te acerca a " },
+                        { t: "verlos en vivo", m: ["acento"] },
+                        { t: "." },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+          [
+            {
+              id: nid(),
+              tipo: "botones_sociales",
+              v: 1,
+              props: {
+                titulo: "Síguenos",
+                estilo: "contorno",
+                redes: REDES.map((r) => ({ red: r.red, url: r.url })),
+              },
+            },
+          ],
+        ],
+      },
+      // Responsive fino por nodo (F10): en móvil menos aire vertical (padY: s) — el resto igual.
+      estilo: { padY: "l", entrada: "aparecer", movil: { padY: "s" } },
+    },
     // ── CATÁLOGO de libros (el carrusel de 5 del prototipo) ──
     {
       id: nid(),
@@ -328,7 +381,8 @@ const docNoche = {
           motivo: "tickets", // F14: 2 mini-tickets flotantes = los ticket stubs del prototipo
         },
       },
-      estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer" },
+      // Responsive fino (Tanda 3 F10): el poster ENORME respira menos en móvil (padding más apretado).
+      estilo: { padTop: "xl", padBottom: "m", entrada: "aparecer", movil: { padTop: "l", padBottom: "s" } },
     },
     // ── STATS (F14: tarjetas OSCURAS con borde = los `bg-white/[0.04] border-white/10` del prototipo) ──
     {
@@ -502,7 +556,8 @@ const docEditorial = {
         mostrarBadgeSorteo: false,
         efectoTitulo: "ninguno", // editorial = estático, refinado
       },
-      estilo: { padTop: "l", padBottom: "l", entrada: "aparecer" },
+      // Responsive fino (Tanda 3 F10): en móvil el hero editorial abre un poco menos arriba.
+      estilo: { padTop: "l", padBottom: "l", entrada: "aparecer", movil: { padTop: "m" } },
     },
     // ── STATS (fila dividida, cifras serif — estiloVisual simple) ──
     {

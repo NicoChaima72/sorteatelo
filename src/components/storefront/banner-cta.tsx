@@ -15,9 +15,12 @@ import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 export function BannerCta({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "banner_cta" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   const estilo =
@@ -35,13 +38,13 @@ export function BannerCta({
     });
 
   return (
-    <SeccionWrapper id={nodo.id} estilo={estilo} divisorColor={divisorColor}>
+    <SeccionWrapper id={nodo.id} estilo={estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Stack gap="md" align="center" ta="center" maw={720} mx="auto">
-        <Title order={2} fz={{ base: 26, sm: 36 }} fw={800} lh={1.15} c="inherit">
+        <Title order={2} fz={{ base: 26, sm: 36 }} fw={800} lh={1.15} c="inherit" data-campo="titulo">
           {props.titulo}
         </Title>
         {props.subtitulo && (
-          <Text fz={{ base: "md", sm: "lg" }} c="inherit" opacity={0.9}>
+          <Text fz={{ base: "md", sm: "lg" }} c="inherit" opacity={0.9} data-campo="subtitulo">
             {props.subtitulo}
           </Text>
         )}

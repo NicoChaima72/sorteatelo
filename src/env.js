@@ -92,6 +92,11 @@ export const env = createEnv({
     // `storeSlug`). SECRETO fuerte, jamás se loguea. Opcional: ausente ⇒ el MCP responde 401 a todo
     // (fail-closed). OAuth per-tenant queda para fase Pro. El MCP escribe Borrador; publicar es humano.
     MCP_OPERADOR_TOKEN: z.string().optional(),
+    // Asistente de IA del editor (Tanda 3 F14/D21). API key del Vercel AI Gateway (`createGateway`).
+    // OPCIONAL y fail-soft: ausente ⇒ el panel "Asistente" NO aparece (cero degradación fea, el editor
+    // funciona igual). SECRETA: solo server-side, jamás en el cliente, log ni respuesta (patrón
+    // FlowCredential ADR-0006). El gateway rutea al modelo por string `"provider/model"`.
+    AI_GATEWAY_API_KEY: z.string().optional(),
   },
 
   /**
@@ -135,6 +140,7 @@ export const env = createEnv({
     APP_URL: process.env.APP_URL,
     STOREFRONT_PREVIEW_TOKEN: process.env.STOREFRONT_PREVIEW_TOKEN,
     MCP_OPERADOR_TOKEN: process.env.MCP_OPERADOR_TOKEN,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     NEXT_PUBLIC_PLATFORM_DOMAIN: process.env.NEXT_PUBLIC_PLATFORM_DOMAIN,
   },
   /**

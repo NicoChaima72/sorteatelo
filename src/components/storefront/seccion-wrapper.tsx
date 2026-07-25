@@ -1,8 +1,8 @@
 import { Box, Container, Group, Text } from "@mantine/core";
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 
 import { Animar } from "~/components/storefront/animar";
-import { estiloSeccionACss } from "~/styles/estiloSeccion";
+import { estiloSeccionACss, resolverResponsive } from "~/styles/estiloSeccion";
 import { type EstiloSeccion, type PresetEntrada } from "~/lib/pagebuilder/widgets";
 
 /**
@@ -19,6 +19,7 @@ export function SeccionWrapper({
   id,
   estilo,
   divisorColor,
+  comoHoja = false,
   children,
 }: {
   /** Id estable del nodo (dirección del scroll del editor, D7; también target de nav por id de nodo). */
@@ -26,8 +27,42 @@ export function SeccionWrapper({
   estilo?: EstiloSeccion;
   /** Color sólido de la sección SIGUIENTE (fill del divisor inferior — lee como transición). */
   divisorColor?: string;
+  /**
+   * `true` cuando la sección se renderiza como HOJA dentro de una `fila` (Tanda 3 F08/D14): se DESCARTA
+   * todo el chrome de sección (Container, py, fondo, altoMin, entrada, divisor) — el estilo de sección
+   * vive en la fila, no por hoja. Solo se conserva el `id` DOM (dirección del nodo). El contenido va en
+   * un `<div>` plano ⇒ la hoja hereda el ancho de su columna del Grid.
+   */
+  comoHoja?: boolean;
   children: ReactNode;
 }) {
+  // Modo HOJA (F08/D14): sin chrome de sección (Container, py de banda, altoMin, entrada, divisor) — la
+  // fila aporta el ancho (columna del Grid) y su propio spacing/entrada. Se conserva SOLO el `id` DOM y,
+  // si el widget-hoja trae un `fondo` propio (p.ej. `banner_cta`, cuyo gradiente ES su identidad), ese
+  // fondo se pinta como un box con radio + padding legible ⇒ una hoja con fondo no queda transparente
+  // ni ilegible (REVISABLE, D14: "sin wrapper propio, salvo que la hoja necesite su fondo").
+  if (comoHoja) {
+    const rh = estiloSeccionACss(estilo);
+    const conFondo = estilo?.fondo !== undefined;
+    return (
+      <Box
+        id={id}
+        style={{
+          position: "relative",
+          ...(conFondo
+            ? {
+                ...rh.fondo,
+                borderRadius: "var(--mantine-radius-lg)",
+                paddingInline: "var(--mantine-spacing-lg)",
+                paddingBlock: "var(--mantine-spacing-xl)",
+              }
+            : {}),
+        }}
+      >
+        {children}
+      </Box>
+    );
+  }
   const r = estiloSeccionACss(estilo);
   // `heredar` ⇒ default del TemaPagina (v1: "subir"). El preset animable lo resuelve `<Animar>`.
   const preset: PresetEntrada = r.entrada === "heredar" ? "subir" : (r.entrada as PresetEntrada);
@@ -81,20 +116,37 @@ export function SeccionWrapper({
     </Container>
   );
 
+  // Responsive por nodo (Tanda 3 F10/D17): overrides `movil` + `visibleEn`. Con `movil` presente, el
+  // padding y el min-height/flex se manejan por CLASE + custom props (media query en globals.css) en vez
+  // de las props inline de Mantine ⇒ SSR-safe sin JS. Sin `movil`/`visibleEn` ⇒ `resp` vacío y el render
+  // es byte-idéntico al actual (I-U8). `visibleEn` (ocultamiento por breakpoint) es ortogonal (ambos paths).
+  const resp = resolverResponsive(estilo);
+  const usaResponsive = estilo?.movil !== undefined;
+  const className = resp.clases.length > 0 ? resp.clases.join(" ") : undefined;
+
   return (
     <Box
       component="section"
       id={id}
-      py={padIndependiente ? undefined : r.py}
-      pt={padIndependiente ? r.pyTop : undefined}
-      pb={padIndependiente ? r.pyBottom : undefined}
+      // Contrato del inline editing (Tanda 3 F12/D19): el `data-nodo` en el `<section>` de nivel superior
+      // deja que el runtime resuelva el nodo dueño de un `[data-campo]` clickeado. Inerte fuera de preview.
+      data-nodo={id}
+      className={className}
+      // Con overrides móviles el padding lo pone la clase `sx-sec-responsive` (custom props); si no, las
+      // props inline de siempre (byte-idéntico).
+      py={usaResponsive || padIndependiente ? undefined : r.py}
+      pt={!usaResponsive && padIndependiente ? r.pyTop : undefined}
+      pb={!usaResponsive && padIndependiente ? r.pyBottom : undefined}
       style={{
         ...(fondoEnSeccion ? r.fondo : {}),
         position: "relative",
+        // Custom props responsive (F10/D17): las lee `globals.css` en su media query. Vacío ⇒ sin efecto.
+        ...(resp.vars as CSSProperties),
         // Alto mínimo + alineación vertical (F06/D9): solo con `altoMin` presente ⇒ la sección pasa a
         // flex-column para centrar/anclar el contenido. Sin altoMin (default `auto`), NADA de esto se
-        // aplica ⇒ layout byte-idéntico al actual (I-H). `svh` no anima (CLS=0, I-C).
-        ...(r.altoMin
+        // aplica ⇒ layout byte-idéntico al actual (I-H). `svh` no anima (CLS=0, I-C). Con overrides móviles
+        // (`usaResponsive`), esto lo maneja la clase `sx-sec-altomin` (media query) ⇒ no se inlinea acá.
+        ...(!usaResponsive && r.altoMin
           ? { minHeight: r.altoMin, display: "flex", flexDirection: "column", justifyContent: r.justifyVertical }
           : {}),
       }}

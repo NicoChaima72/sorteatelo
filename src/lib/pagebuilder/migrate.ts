@@ -80,7 +80,28 @@ function migrarNodo(s: unknown): unknown {
     out = { ...out, v: 2, props: migrarTextoRicoProps(out.props) };
     v = 2;
   }
+  // fila (Tanda 3 F08/D13): migrar RECURSIVAMENTE los nodos-HOJA de cada columna — un leaf `texto_rico`
+  // v1 (con `texto` string legacy) DENTRO de una fila debe migrar a v2 igual que uno top-level. La
+  // recursión es finita por construcción: `NodoHojaSchema` no contiene `fila` (I-U4) ⇒ un leaf nunca es
+  // fila, la profundidad máxima es 2. No hay v-bump de la fila (nace en v1); solo se migran las hojas.
+  if (out.tipo === "fila") {
+    out = { ...out, props: migrarFilaProps(out.props) };
+  }
   return out;
+}
+
+/** Migra los `props` de una `fila`: cada nodo-HOJA de cada columna pasa por `migrarNodo` (PURO). */
+function migrarFilaProps(props: unknown): unknown {
+  if (!props || typeof props !== "object") return props;
+  const p = props as Record<string, unknown>;
+  if (!Array.isArray(p.columnas)) return props;
+  const columnas = p.columnas as unknown[];
+  return {
+    ...p,
+    columnas: columnas.map((col: unknown): unknown =>
+      Array.isArray(col) ? col.map(migrarNodo) : col,
+    ),
+  };
 }
 
 /** `true` sii `estilo` es un valor válido de ESTILOS_TITULO_ACENTO (narrowing para `runsDeTituloAcento`). */

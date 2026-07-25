@@ -13,16 +13,19 @@ import { type SeccionNode } from "~/lib/pagebuilder/schema";
 export function BeneficiosGrid({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "beneficios_grid" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   return (
-    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Stack gap="lg">
         {props.titulo && (
-          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} ta="center">
+          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} ta="center" data-campo="titulo">
             {props.titulo}
           </Title>
         )}

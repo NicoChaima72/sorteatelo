@@ -174,3 +174,61 @@
     display: none;
   }
 }
+
+/*
+  Responsive POR NODO (Tanda 3 F10/D17) — CSS ESTÁTICO SSR-safe (sin JS de resize). El `<SeccionWrapper>`
+  emite custom props (`--sx-pt`, `--sx-pt-m`…) + estas clases cuando la sección tiene overrides `movil` o
+  `visibleEn` restringido. Sin overrides ⇒ la sección NO recibe estas clases y usa su padding inline de
+  siempre (byte-idéntico, I-U8). Breakpoint móvil = 48em (768px, `sm` de Mantine): mismo corte donde la
+  `fila` apila y donde cae el preview de 390px. Cero hex: las medidas vienen en las custom props (tokens).
+*/
+.sx-sec-responsive {
+  padding-top: var(--sx-pt);
+  padding-bottom: var(--sx-pb);
+}
+.sx-sec-altomin {
+  min-height: var(--sx-minh, auto);
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--sx-justify, flex-start);
+}
+@media (max-width: 47.99em) {
+  .sx-sec-responsive {
+    /* Móvil: usa el override si existe, si no cae al valor desktop (fallback en la propia var). */
+    padding-top: var(--sx-pt-m, var(--sx-pt));
+    padding-bottom: var(--sx-pb-m, var(--sx-pb));
+  }
+  .sx-sec-altomin {
+    min-height: var(--sx-minh-m, var(--sx-minh, auto));
+    justify-content: var(--sx-justify-m, var(--sx-justify, flex-start));
+  }
+  /* visibleEn:"desktop" ⇒ oculta la sección en móvil (el slot no existe a este ancho ⇒ CLS controlado). */
+  .sx-solo-desktop {
+    display: none !important;
+  }
+}
+@media (min-width: 48em) {
+  /* visibleEn:"movil" ⇒ oculta la sección en desktop. */
+  .sx-solo-movil {
+    display: none !important;
+  }
+}
+
+/*
+  Edición INLINE sobre el canvas (Tanda 3 F12/D19). El runtime agrega `.pb-inline-activo` al <body> SOLO
+  en preview dentro del iframe del editor ⇒ los `[data-campo]` (campos planos anotados por los widgets)
+  muestran cursor de texto + un anillo al hover/foco. En el SSR público NO existe esta clase ⇒ los
+  `data-campo` quedan inertes (sin cursor, sin edición). Cero hex: tokens del tenant.
+*/
+.pb-inline-activo [data-campo] {
+  cursor: text;
+  border-radius: 3px;
+  transition: box-shadow 0.12s ease;
+}
+.pb-inline-activo [data-campo]:hover {
+  box-shadow: 0 0 0 2px var(--mantine-primary-color-light-hover, var(--mantine-primary-color-1));
+}
+.pb-inline-activo [data-campo][contenteditable]:focus {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 3px;
+}

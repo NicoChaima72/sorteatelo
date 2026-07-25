@@ -20,9 +20,12 @@ const TRAZO = "var(--mantine-color-gray-4)";
 export function Separador({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "separador" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   const alto = ALTURA[props.tamano] ?? ALTURA.m!;
@@ -31,6 +34,7 @@ export function Separador({
       id={nodo.id}
       estilo={nodo.estilo ?? ESTILO_SEPARADOR_DEFAULT}
       divisorColor={divisorColor}
+      comoHoja={comoHoja}
     >
       <Box aria-hidden mx="auto" maw={props.estilo === "linea" ? 520 : 220}>
         <Motivo estilo={props.estilo} alto={alto} />

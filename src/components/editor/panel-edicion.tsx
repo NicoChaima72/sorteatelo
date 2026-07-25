@@ -13,6 +13,7 @@ import { IconArrowLeft } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { FormProps } from "~/components/editor/form-props";
+import { PanelFila } from "~/components/editor/panel-fila";
 import { PickerImagen } from "~/components/editor/picker-imagen";
 import { useAutoGuardado } from "~/components/editor/use-auto-guardado";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
@@ -125,7 +126,13 @@ export function PanelEdicion({
 
         <Tabs.Panel value="contenido" pt="sm">
           <Stack gap="md">
-            <FormProps propsSchema={propsSchema} valor={props} onChange={setProps} slug={slug} />
+            {/* La `fila` (Tanda 3 F09/D15) no se edita con el form-generator genérico (su `columnas` es un
+                array de arrays de nodos): usa el editor de columnas dedicado. El resto usa `FormProps`. */}
+            {nodo.tipo === "fila" ? (
+              <PanelFila slug={slug} valor={props} onChange={setProps} />
+            ) : (
+              <FormProps propsSchema={propsSchema} valor={props} onChange={setProps} slug={slug} />
+            )}
           </Stack>
         </Tabs.Panel>
 
@@ -308,6 +315,93 @@ function PanelEstilo({
           onChange={(v) => v && setCampo("divisorInferior", { ...e.divisorInferior, altura: v })}
         />
       )}
+
+      {/* ── Responsive (Tanda 3 F10/D16): visibilidad por breakpoint + overrides SOLO móvil ── */}
+      <Select
+        label="Mostrar en"
+        description="Oculta esta sección en escritorio o en móvil (se resuelve por CSS, sin recargar)"
+        data={[
+          { value: "todos", label: "Todos los tamaños" },
+          { value: "desktop", label: "Solo en escritorio" },
+          { value: "movil", label: "Solo en móvil" },
+        ]}
+        value={e.visibleEn ?? "todos"}
+        onChange={(v) => v && setCampo("visibleEn", v)}
+      />
+
+      <PanelMovil estilo={estilo} onChange={onChange} />
     </Stack>
+  );
+}
+
+/**
+ * Sub-sección "Móvil" del panel de estilo (Tanda 3 F10/D16): overrides SOLO del SUBSET de layout
+ * (espaciado/alto/alineación/ancho — mismos enums, jamás valores nuevos I-U5). Cada control escribe
+ * en `estilo.movil.<campo>`; vacío ("(igual que escritorio)") lo borra ⇒ el móvil hereda el desktop. El
+ * `fondo`/`entrada`/`divisor` NO se overridean por breakpoint (no están acá — el schema los rechaza).
+ */
+function PanelMovil({
+  estilo,
+  onChange,
+}: {
+  estilo: EstiloSeccion | undefined;
+  onChange: (e: EstiloSeccion) => void;
+}) {
+  const movil = (estilo?.movil ?? {}) as Record<string, string | undefined>;
+  const setMovil = (campo: string, valor: string | undefined) => {
+    const siguiente = { ...movil, [campo]: valor };
+    // Limpia las claves vacías; si el objeto queda vacío, quita `movil` entero (⇒ móvil = desktop, no-op).
+    const limpio = Object.fromEntries(Object.entries(siguiente).filter(([, v]) => v !== undefined));
+    onChange({
+      ...(estilo ?? {}),
+      movil: Object.keys(limpio).length > 0 ? limpio : undefined,
+    } as EstiloSeccion);
+  };
+  const OPCION_IGUAL = { value: "", label: "(igual que escritorio)" };
+  const sel = (v: string | undefined) => v ?? "";
+  /** El sentinel vacío (o null de un clear) BORRA el override ⇒ ese lado hereda el desktop. */
+  const limpiar = (v: string | null): string | undefined => (v === "" || v === null ? undefined : v);
+
+  return (
+    <Box
+      p="xs"
+      style={{
+        border: "1px dashed var(--mantine-color-default-border)",
+        borderRadius: "var(--mantine-radius-sm)",
+      }}
+    >
+      <Text size="sm" fw={600} mb={4}>
+        En móvil
+      </Text>
+      <Text size="xs" c="dimmed" mb="xs">
+        Ajusta solo lo que cambie en pantallas chicas. Lo que dejes “igual” hereda el escritorio.
+      </Text>
+      <Stack gap="sm">
+        <Select
+          label="Espaciado vertical"
+          data={[OPCION_IGUAL, ...ESPACIADO_V.map((o) => ({ value: o, label: o }))]}
+          value={sel(movil.padY)}
+          onChange={(v) => setMovil("padY", limpiar(v))}
+        />
+        <Select
+          label="Alto mínimo"
+          data={[OPCION_IGUAL, ...ALTO_MIN.map((o) => ({ value: o, label: o }))]}
+          value={sel(movil.altoMin)}
+          onChange={(v) => setMovil("altoMin", limpiar(v))}
+        />
+        <Select
+          label="Alineación vertical"
+          data={[OPCION_IGUAL, ...ALINEAR_VERTICAL.map((o) => ({ value: o, label: o }))]}
+          value={sel(movil.alinearVertical)}
+          onChange={(v) => setMovil("alinearVertical", limpiar(v))}
+        />
+        <Select
+          label="Ancho del contenido"
+          data={[OPCION_IGUAL, ...ANCHO_SECCION.map((o) => ({ value: o, label: o }))]}
+          value={sel(movil.ancho)}
+          onChange={(v) => setMovil("ancho", limpiar(v))}
+        />
+      </Stack>
+    </Box>
   );
 }

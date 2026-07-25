@@ -7,6 +7,7 @@ import { AvisoBarra } from "~/components/storefront/aviso-barra";
 import { LandingPlataforma } from "~/components/landing/landing-plataforma";
 import { RenderPagina } from "~/components/storefront/render-pagina";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
+import { useInlineEdit } from "~/components/storefront/use-inline-edit";
 import { usePreviewPatch } from "~/components/storefront/use-preview-patch";
 import { hrefMenuItem, type Chrome } from "~/lib/pagebuilder/chrome";
 import { derivarNav, type NavItem } from "~/lib/pagebuilder/nav";
@@ -77,6 +78,8 @@ function StorefrontHome({
   // en público devuelve el SSR fijo (sin listener, I-T5). El shell (fondo), el nav y las secciones se
   // derivan TODOS de `paginaViva` ⇒ un patch actualiza header + shell + contenido juntos, sin recargar.
   const paginaViva = usePreviewPatch(pagina, esPreview);
+  // Edición inline sobre el canvas (Tanda 3 F12/D19): SOLO en preview y dentro del iframe del editor.
+  useInlineEdit(esPreview);
   // Fondo de página del TemaPagina (catálogo-v2 F02): `superficie` (default) = body ⇒ sin cambio; otros
   // esquemas pintan el shell entero. Tanda 2 F05/D5: `ambiente` apila stage-lights (radiales de tokens)
   // sobre ese color base — `ninguno` (default) ⇒ solo el color (no-op). Cero hex inline (I-A).

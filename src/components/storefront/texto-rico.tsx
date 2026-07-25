@@ -13,14 +13,17 @@ import { type SeccionNode } from "~/lib/pagebuilder/schema";
 export function TextoRico({
   nodo,
   divisorColor,
+  comoHoja,
 }: {
   nodo: Extract<SeccionNode, { tipo: "texto_rico" }>;
   divisorColor?: string;
+  /** `true` ⇒ se renderiza como HOJA de una `fila` (sin chrome de sección propio, Tanda 3 F08/D14). */
+  comoHoja?: boolean;
 }) {
   const props = nodo.props;
   const maw = props.ancho === "estrecho" ? 680 : undefined;
   return (
-    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
+    <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor} comoHoja={comoHoja}>
       <Box maw={maw} mx={maw ? "auto" : undefined}>
         <Stack gap="md">
           {props.bloques.map((bloque, i) => (

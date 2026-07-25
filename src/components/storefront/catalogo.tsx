@@ -56,7 +56,7 @@ export function CatalogoStorefront({
       divisorColor={divisorColor}
     >
       <Stack gap="lg">
-        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} data-campo="titulo">
           {props.titulo}
         </Title>
 

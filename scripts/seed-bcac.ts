@@ -197,24 +197,55 @@ const doc = {
         bloques: [
           { tipo: "subtitulo", rico: { children: [{ t: "Bases de la promoción" }] } },
           {
+            // Tanda 3 F14/seeds: runs REALES (marca `fuerte`) en vez de texto plano — sube fidelidad legal.
             tipo: "parrafo",
-            rico: { children: [{ t: "Este es un sorteo promocional asociado a la compra del libro, no una rifa. La participación queda sujeta a la aceptación de las bases." }] },
+            rico: {
+              children: [
+                { t: "Este es un sorteo promocional asociado a la compra del libro, " },
+                { t: "no una rifa", m: ["fuerte"] },
+                { t: ". La participación queda sujeta a la aceptación de las bases." },
+              ],
+            },
           },
           {
             tipo: "parrafo",
             rico: { children: [{ t: "Organiza: BCAC · Ediciones (RUT por completar). Sorteos: 15/08/2026 y 15/09/2026. Evento: recital del 14/10/2026." }] },
           },
           {
+            // `resaltado` sobre "sin costo adicional" (destacador como background del propio span, D2).
             tipo: "parrafo",
-            rico: { children: [{ t: "Mecánica: cada copia del libro comprada durante la vigencia suma un número al sorteo, sin costo adicional. El pack de 4 copias suma cuatro números." }] },
+            rico: {
+              children: [
+                { t: "Mecánica: cada copia del libro comprada durante la vigencia suma un número al sorteo, " },
+                { t: "sin costo adicional", m: ["resaltado"] },
+                { t: ". El pack de 4 copias suma cuatro números." },
+              ],
+            },
           },
           {
+            // `acento` sobre el premio (color de la escala acento — el dorado del tenant).
             tipo: "parrafo",
-            rico: { children: [{ t: "Premio: entradas al recital del 14 de octubre. No canjeable por dinero. El ganador será contactado al correo de la compra." }] },
+            rico: {
+              children: [
+                { t: "Premio: " },
+                { t: "entradas al recital del 14 de octubre", m: ["acento"] },
+                { t: ". No canjeable por dinero. El ganador será contactado al correo de la compra." },
+              ],
+            },
           },
           {
+            // Link inline TIPADO (url https validada) + `enfasis` — reemplaza el texto plano de la Ley.
             tipo: "parrafo",
-            rico: { children: [{ t: "Sorteo ante notario con bolillero físico. Bases legales completas disponibles ante notario. Esta promoción se rige por la Ley 19.496." }] },
+            rico: {
+              markDefs: [
+                { id: "ley", destino: { tipo: "url", url: "https://www.bcn.cl/leychile/navegar?idNorma=61438" } },
+              ],
+              children: [
+                { t: "Sorteo ante notario con bolillero físico. Bases legales completas disponibles ante notario. Esta promoción se rige por la " },
+                { t: "Ley 19.496", m: ["enfasis"], link: "ley" },
+                { t: "." },
+              ],
+            },
           },
         ],
       },

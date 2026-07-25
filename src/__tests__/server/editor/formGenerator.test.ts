@@ -14,6 +14,14 @@ import { WIDGET_META, WIDGET_REGISTRY, type WidgetTipo } from "~/lib/pagebuilder
 const TIPOS = Object.keys(WIDGET_REGISTRY) as WidgetTipo[];
 
 /**
+ * Widgets con EDITOR PROPIO (no usan el form-generator por introspección). Su `propsSchema` puede no ser
+ * un objeto introspectable (p.ej. una `fila` es un `ZodEffects` por su `superRefine` reparto↔columnas), y
+ * el editor lo maneja con un panel dedicado. Tanda 3 F09/D15: `fila` usa `PanelFila` (sub-lista de columnas
+ * + selección de hoja → FormProps de la hoja), no el generador genérico.
+ */
+const WIDGETS_EDITOR_PROPIO = new Set<WidgetTipo>(["fila"]);
+
+/**
  * Campos que la introspección NO alcanza a mapear a un control (⇒ "editar por el asistente"): cada uno
  * es un override CONSCIENTE con su razón. Un campo nuevo no listado que caiga acá HACE FALLAR el test —
  * la señal de que un widget nuevo necesita soporte de form o un override manual (nunca queda mudo).
@@ -58,6 +66,9 @@ describe("editor/formGenerator — F10-1: generador de forms cubre el registro (
   it("cada campo de cada widget mapea a un control soportado, salvo overrides documentados", () => {
     const noSoportados: string[] = [];
     for (const tipo of TIPOS) {
+      // Los widgets con editor propio (fila) no pasan por el form-generator ⇒ su propsSchema no tiene que
+      // ser introspectable (Tanda 3 F09/D15).
+      if (WIDGETS_EDITOR_PROPIO.has(tipo)) continue;
       const campos = camposDeSchema(WIDGET_REGISTRY[tipo].propsSchema);
       expect(campos, `${tipo}: propsSchema debe ser un objeto introspectable`).not.toBeNull();
       for (const { campo, schema } of campos!) {

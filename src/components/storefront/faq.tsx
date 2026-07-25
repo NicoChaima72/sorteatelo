@@ -20,7 +20,7 @@ export function Faq({
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
       <Box maw={620} mx="auto" w="100%">
         <Stack gap="lg">
-          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+          <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} data-campo="titulo">
             {props.titulo}
           </Title>
           <Accordion variant="separated" radius="md">

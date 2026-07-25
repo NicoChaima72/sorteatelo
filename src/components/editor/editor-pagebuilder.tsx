@@ -11,6 +11,8 @@ import {
   Tooltip,
 } from "@mantine/core";
 import {
+  IconArrowBackUp,
+  IconArrowForwardUp,
   IconCheck,
   IconDeviceDesktop,
   IconDeviceMobile,
@@ -21,6 +23,7 @@ import { notifications } from "@mantine/notifications";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { PanelAsistente } from "~/components/editor/panel-asistente";
 import { PanelChrome } from "~/components/editor/panel-chrome";
 import { PanelDock, type DockPanel } from "~/components/editor/panel-dock";
 import { PanelEdicion } from "~/components/editor/panel-edicion";
@@ -29,7 +32,15 @@ import { PanelPaginas } from "~/components/editor/panel-paginas";
 import { PanelSecciones } from "~/components/editor/panel-secciones";
 import { PanelTema } from "~/components/editor/panel-tema";
 import { WidgetGallery } from "~/components/editor/widget-gallery";
+import { validarMensajeInline } from "~/components/storefront/use-inline-edit";
 import { TIPO_PATCH } from "~/components/storefront/use-preview-patch";
+import {
+  crearStack,
+  deshacer,
+  registrar,
+  rehacer,
+  type StackSnapshots,
+} from "~/lib/pagebuilder/historial-edicion";
 import { WIDGET_META, type WidgetTipo } from "~/lib/pagebuilder/widgets";
 import { type MutacionPagina } from "~/server/domain/pagebuilder/schemas";
 import { type PageDocument } from "~/lib/pagebuilder/schema";
@@ -58,7 +69,7 @@ const MUTACIONES_QUE_RECARGAN = new Set<MutacionPagina["accion"]>([
  * colapso a rail. El estado del dock (cuáles abiertos + ancho) vive acá.
  */
 
-type DockKey = "paginas" | "secciones" | "agregar" | "editar" | "tema" | "chrome" | "historial";
+type DockKey = "paginas" | "secciones" | "agregar" | "editar" | "tema" | "chrome" | "historial" | "asistente";
 
 const RAIL: Record<DockKey, string> = {
   paginas: "Páginas",
@@ -68,6 +79,7 @@ const RAIL: Record<DockKey, string> = {
   tema: "Tema",
   chrome: "Chrome",
   historial: "Historial",
+  asistente: "Asistente",
 };
 
 const ANCHO_INICIAL: Record<DockKey, number> = {
@@ -78,6 +90,7 @@ const ANCHO_INICIAL: Record<DockKey, number> = {
   tema: 340,
   chrome: 360,
   historial: 340,
+  asistente: 380,
 };
 
 export function EditorPageBuilder({
@@ -111,6 +124,21 @@ export function EditorPageBuilder({
   const guardadoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (guardadoTimer.current) clearTimeout(guardadoTimer.current); }, []);
 
+  // ── Undo/redo (F13/D20): snapshot-stack LOCAL (memoria; se pierde al recargar — MVP). Publicar/rollback
+  // NUNCA participan. `docActualRef` = último documento aplicado; `docAntesRef` = el previo a la mutación en
+  // curso (para empujarlo al stack en onSuccess); `navRef` = stack pendiente cuando la mutación EN CURSO es
+  // un undo/redo (apply_page de un snapshot) ⇒ en onSuccess NO se registra (es navegación, no edición).
+  const stackRef = useRef<StackSnapshots<PageDocument>>(crearStack<PageDocument>());
+  const docActualRef = useRef<PageDocument | null>(null);
+  const docAntesRef = useRef<PageDocument | null>(null);
+  const navRef = useRef<StackSnapshots<PageDocument> | null>(null);
+  const [puedeUndo, setPuedeUndo] = useState(false);
+  const [puedeRedo, setPuedeRedo] = useState(false);
+  const sincronizarBotones = useCallback(() => {
+    setPuedeUndo(stackRef.current.pasado.length > 0);
+    setPuedeRedo(stackRef.current.futuro.length > 0);
+  }, []);
+
   // ── Estado del dock (F11) ────────────────────────────────────────────
   const [abiertos, setAbiertos] = useState<Record<DockKey, boolean>>({
     paginas: false,
@@ -120,27 +148,41 @@ export function EditorPageBuilder({
     tema: false,
     chrome: false,
     historial: false,
+    asistente: false,
   });
   const [anchos, setAnchos] = useState<Record<DockKey, number>>(ANCHO_INICIAL);
   const abrir = useCallback((k: DockKey) => setAbiertos((s) => ({ ...s, [k]: true })), []);
   const colapsar = useCallback((k: DockKey) => setAbiertos((s) => ({ ...s, [k]: false })), []);
 
   const borrador = api.pagebuilder.getBorrador.useQuery({ slug: paginaSlug }, { retry: false });
+  // ¿Está configurado el asistente de IA (F14)? Sin API key ⇒ el panel no se ofrece (fail-soft, D21).
+  const asistenteDisp = api.pagebuilder.asistenteDisponible.useQuery(undefined, { retry: false });
   const utils = api.useUtils();
 
   useEffect(() => {
-    if (borrador.data) setVersion(borrador.data.version);
+    if (borrador.data) {
+      setVersion(borrador.data.version);
+      // Sincroniza el documento actual del stack de undo (F13) con el borrador persistido (fuente de verdad
+      // tras invalidate/refetch). Sin esto un undo tras un refetch usaría un doc stale.
+      docActualRef.current = borrador.data.documento;
+    }
   }, [borrador.data]);
 
   const recargarPreview = useCallback(() => setPreviewKey((k) => k + 1), []);
 
   // Al cambiar de página (F05): resetea el lock (el version del nuevo borrador llega con su refetch) y
   // recarga la preview sobre la página nueva. El getBorrador ya refetchea solo (su input incluye el slug).
+  // El stack de undo (F13) también se reinicia — es por página (no cruza páginas).
   useEffect(() => {
     setVersion(null);
     setSeleccion(null);
+    stackRef.current = crearStack<PageDocument>();
+    docActualRef.current = null;
+    docAntesRef.current = null;
+    navRef.current = null;
+    sincronizarBotones();
     recargarPreview();
-  }, [paginaSlug, recargarPreview]);
+  }, [paginaSlug, recargarPreview, sincronizarBotones]);
 
   /** Cambia la página en edición (switcher del panel Páginas): actualiza `?pagina=` shallow. */
   const cambiarPagina = useCallback(
@@ -167,9 +209,25 @@ export function EditorPageBuilder({
   const mutar = api.pagebuilder.mutar.useMutation({
     onSuccess: (res, variables) => {
       setVersion(res.version);
-      // Patch en vivo salvo las mutaciones que exigen reload (tema/apply_page, D13).
-      if (MUTACIONES_QUE_RECARGAN.has(variables.mutacion.accion)) recargarPreview();
-      else patchearPreview(res.documento);
+      const esNavegacion = navRef.current !== null;
+      if (esNavegacion) {
+        // Undo/redo (F13/D20): adopta el stack pendiente y NO registra (es navegación, no edición nueva).
+        // Patch en vivo aunque sea `apply_page` (el snapshot es un doc que el editor ya renderizó).
+        stackRef.current = navRef.current!;
+        navRef.current = null;
+        patchearPreview(res.documento);
+      } else {
+        // Edición normal: empuja el estado PREVIO al stack de undo (si lo había).
+        if (docAntesRef.current) {
+          stackRef.current = registrar(stackRef.current, docAntesRef.current);
+        }
+        // Patch en vivo salvo las mutaciones que exigen reload (tema/apply_page, D13).
+        if (MUTACIONES_QUE_RECARGAN.has(variables.mutacion.accion)) recargarPreview();
+        else patchearPreview(res.documento);
+      }
+      docActualRef.current = res.documento;
+      docAntesRef.current = null;
+      sincronizarBotones();
       // Indicador de auto-guardado (F10/D14): "Guardado" por ~1.6s tras cada mutación exitosa.
       setGuardadoFlash(true);
       if (guardadoTimer.current) clearTimeout(guardadoTimer.current);
@@ -177,6 +235,8 @@ export function EditorPageBuilder({
       void utils.pagebuilder.getBorrador.invalidate();
     },
     onError: (e) => {
+      navRef.current = null; // un undo/redo fallido no debe dejar el stack a medio navegar
+      docAntesRef.current = null;
       if (e.data?.code === "CONFLICT") {
         notifications.show({
           color: "yellow",
@@ -190,14 +250,42 @@ export function EditorPageBuilder({
     },
   });
 
-  /** Aplica una mutación con el expectedVersion actual (lock optimista). Deshabilitado si no hay version. */
+  /** Aplica una mutación con el expectedVersion actual (lock optimista). Deshabilitado si no hay version.
+   *  Captura el documento PREVIO (docAntesRef) para el stack de undo (F13). */
   const aplicar = useCallback(
     (mutacion: MutacionPagina) => {
       if (version === null) return;
+      docAntesRef.current = docActualRef.current;
       mutar.mutate({ mutacion, expectedVersion: version, slug: paginaSlug });
     },
     [version, mutar, paginaSlug],
   );
+
+  /** Deshace la última edición: aplica el snapshot previo del stack vía `apply_page` (re-valida, I3). */
+  const deshacerEdicion = useCallback(() => {
+    if (version === null || docActualRef.current === null || mutar.isPending) return;
+    const r = deshacer(stackRef.current, docActualRef.current);
+    if (!r) return;
+    navRef.current = r.stack;
+    mutar.mutate({
+      mutacion: { accion: "apply_page", documento: r.snapshot },
+      expectedVersion: version,
+      slug: paginaSlug,
+    });
+  }, [version, mutar, paginaSlug]);
+
+  /** Rehace la última edición deshecha (espejo de `deshacerEdicion`). */
+  const rehacerEdicion = useCallback(() => {
+    if (version === null || docActualRef.current === null || mutar.isPending) return;
+    const r = rehacer(stackRef.current, docActualRef.current);
+    if (!r) return;
+    navRef.current = r.stack;
+    mutar.mutate({
+      mutacion: { accion: "apply_page", documento: r.snapshot },
+      expectedVersion: version,
+      slug: paginaSlug,
+    });
+  }, [version, mutar, paginaSlug]);
 
   /** Agregar una sección desde la galería (add_section con los defaultProps del registro). */
   const agregarSeccion = useCallback(
@@ -233,6 +321,23 @@ export function EditorPageBuilder({
     },
   });
 
+  /**
+   * El asistente de IA (F14) ya aplicó sus mutaciones al borrador server-side; acá se sincroniza el editor:
+   * empuja el doc PREVIO al undo-stack (F13 — un undo revierte todo el turno del asistente), avanza
+   * version/docActual, patchea el preview en vivo e invalida el borrador. Publicar sigue humano (I-U6).
+   */
+  const aplicarDesdeAsistente = useCallback(
+    (documento: PageDocument, version: number) => {
+      if (docActualRef.current) stackRef.current = registrar(stackRef.current, docActualRef.current);
+      docActualRef.current = documento;
+      setVersion(version);
+      sincronizarBotones();
+      patchearPreview(documento);
+      void utils.pagebuilder.getBorrador.invalidate();
+    },
+    [patchearPreview, sincronizarBotones, utils],
+  );
+
   /** Scroll del iframe (same-origin) al nodo + abre su panel de edición (D7). */
   const irASeccion = useCallback(
     (id: string) => {
@@ -243,6 +348,49 @@ export function EditorPageBuilder({
     },
     [abrir],
   );
+
+  // Edición inline (F12/D19): el runtime del preview (en el iframe) postMessage-a el cambio de un campo
+  // plano; el editor lo RE-VALIDA (origin + shape + campo permitido, jamás confía) y lo aplica por la
+  // mutación normal `update_section_props` (el server revalida el documento entero, I3). El editor y el
+  // iframe son same-origin ⇒ el mensaje llega a `window` de este componente.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const inline = validarMensajeInline({ origin: e.origin, data: e.data }, window.location.origin);
+      if (inline) {
+        aplicar({
+          accion: "update_section_props",
+          id: inline.nodoId,
+          props: { [inline.campo]: inline.valor.length > 0 ? inline.valor : undefined },
+        });
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [aplicar]);
+
+  // Atajos de teclado (F13/D20): Ctrl/Cmd+Z deshace, Ctrl/Cmd+Shift+Z (o Ctrl+Y) rehace, Ctrl/Cmd+D
+  // duplica la sección seleccionada. Se IGNORAN cuando el foco está en un campo editable (input/textarea/
+  // contenteditable) para no pisar el undo NATIVO del texto que el usuario está escribiendo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        deshacerEdicion();
+      } else if ((k === "z" && e.shiftKey) || k === "y") {
+        e.preventDefault();
+        rehacerEdicion();
+      } else if (k === "d" && seleccion) {
+        e.preventDefault();
+        aplicar({ accion: "duplicate_section", id: seleccion });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deshacerEdicion, rehacerEdicion, aplicar, seleccion]);
 
   const documento = borrador.data?.documento ?? null;
   const publicado = borrador.data?.publicado ?? false;
@@ -336,6 +484,9 @@ export function EditorPageBuilder({
         }}
       />
     ),
+    asistente: (
+      <PanelAsistente slug={paginaSlug} seleccionId={seleccion} onAplicado={aplicarDesdeAsistente} />
+    ),
   };
 
   const titulo: Record<DockKey, string> = {
@@ -346,9 +497,14 @@ export function EditorPageBuilder({
     tema: "Tema de la página",
     chrome: "Chrome (header/footer)",
     historial: "Historial",
+    asistente: "Asistente",
   };
 
-  const orden: DockKey[] = ["paginas", "secciones", "agregar", "editar", "tema", "chrome", "historial"];
+  // El "asistente" solo entra al dock si está configurado (F14/D21): sin API key ⇒ no se ofrece el panel.
+  const ordenBase: DockKey[] = ["paginas", "secciones", "agregar", "editar", "tema", "chrome", "historial"];
+  const orden: DockKey[] = asistenteDisp.data?.disponible
+    ? [...ordenBase, "asistente"]
+    : ordenBase;
   const openDock: DockPanel[] = orden
     .filter((k) => abiertos[k])
     .map((k) => ({ key: k, title: titulo[k], railLabel: RAIL[k], width: anchos[k], render: () => cuerpo[k] }));
@@ -392,6 +548,26 @@ export function EditorPageBuilder({
           ) : null}
         </Group>
         <Group gap="sm" wrap="nowrap">
+          <Tooltip label="Deshacer (Ctrl+Z)">
+            <ActionIcon
+              variant="default"
+              aria-label="Deshacer"
+              disabled={!puedeUndo}
+              onClick={deshacerEdicion}
+            >
+              <IconArrowBackUp className="size-4" />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Rehacer (Ctrl+Shift+Z)">
+            <ActionIcon
+              variant="default"
+              aria-label="Rehacer"
+              disabled={!puedeRedo}
+              onClick={rehacerEdicion}
+            >
+              <IconArrowForwardUp className="size-4" />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label={viewport === "movil" ? "Ver en escritorio" : "Ver en móvil"}>
             <ActionIcon
               variant="default"

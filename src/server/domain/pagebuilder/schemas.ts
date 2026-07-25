@@ -36,6 +36,12 @@ export const mutacionPaginaSchema = z.discriminatedUnion("accion", [
     accion: z.literal("remove_section"),
     id: z.string().min(1),
   }),
+  // Duplicar una sección por `id` (Tanda 3 F13/D20): clona el nodo con ids NUEVOS (incluidas las hojas de
+  // una fila) e inserta la copia DESPUÉS del original. El documento completo se revalida (I3).
+  z.object({
+    accion: z.literal("duplicate_section"),
+    id: z.string().min(1),
+  }),
   // Actualizar (merge shallow) las props de una sección por `id`.
   z.object({
     accion: z.literal("update_section_props"),
@@ -121,6 +127,26 @@ export type RevertirBorradorInput = z.infer<typeof revertirBorradorInput>;
 /** Leer el Borrador / historial de una página (`slug` opcional, default home, F04). */
 export const leerBorradorInput = z.object({ slug: slugEditor });
 export type LeerBorradorInput = z.infer<typeof leerBorradorInput>;
+
+/**
+ * Input del asistente de IA (Tanda 3 F14/D21): historial acotado del chat + página (slug) + selección
+ * opcional como contexto. El `tenantId` NO viaja (sale del gate `exigirEditor`, I1). Límites de cordura
+ * anti-abuso (mensajes/longitud). El asistente solo muta el borrador de la página `slug` (I-U6).
+ */
+export const asistenteInput = z.object({
+  slug: slugEditor,
+  seleccionId: z.string().min(1).max(64).optional(),
+  mensajes: z
+    .array(
+      z.object({
+        rol: z.enum(["user", "assistant"]),
+        texto: z.string().min(1).max(4000),
+      }),
+    )
+    .min(1)
+    .max(30),
+});
+export type AsistenteInput = z.infer<typeof asistenteInput>;
 
 /**
  * Setear el segundo color de marca del tenant (builder-tanda-1 F01/D2). `colorAcento` vive en la

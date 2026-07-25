@@ -36,6 +36,32 @@ function esTipoSeccion(tipo: string): tipo is WidgetTipo {
   );
 }
 
+/**
+ * Clona un nodo laxo con un `id` NUEVO; si es una `fila`, REGENERA además el `id` de cada hoja de sus
+ * columnas (clon profundo — F13/D20/I-U4: la recursión es finita, una hoja nunca es fila). Deep-copia las
+ * props (JSON round-trip) para no compartir referencias con el original. PURO.
+ */
+function clonarNodoConIdsNuevos(nodo: NodoLaxo): NodoLaxo {
+  const props = structuredClone(nodo.props) as Record<string, unknown>;
+  if (nodo.tipo === "fila" && Array.isArray(props.columnas)) {
+    props.columnas = (props.columnas as unknown[]).map((col: unknown): unknown => {
+      if (!Array.isArray(col)) return col;
+      return (col as unknown[]).map((hoja: unknown): unknown =>
+        hoja && typeof hoja === "object"
+          ? { ...(hoja as Record<string, unknown>), id: randomUUID() }
+          : hoja,
+      );
+    });
+  }
+  return {
+    ...nodo,
+    id: randomUUID(),
+    props,
+    ...(nodo.estilo !== undefined ? { estilo: structuredClone(nodo.estilo) } : {}),
+    ...(nodo.nav !== undefined ? { nav: structuredClone(nodo.nav) } : {}),
+  };
+}
+
 /** Resumen corto del primer issue de Zod (para el mensaje del DomainError, útil al LLM). */
 function resumenZod(error: ZodError): string {
   const issue = error.issues[0];
@@ -108,6 +134,17 @@ export function aplicarMutacion(
         throw new DomainError("NOT_FOUND", `Sección no encontrada: "${mut.id}".`);
       }
       secciones.splice(idx, 1);
+      break;
+    }
+    case "duplicate_section": {
+      const idx = secciones.findIndex((s) => s.id === mut.id);
+      if (idx === -1) {
+        throw new DomainError("NOT_FOUND", `Sección no encontrada: "${mut.id}".`);
+      }
+      // Clon PROFUNDO con ids NUEVOS (F13/D20): el nodo y —si es fila— cada hoja de sus columnas reciben
+      // un id nuevo ⇒ ningún id colisiona (I3). Insertado DESPUÉS del original.
+      const copia = clonarNodoConIdsNuevos(secciones[idx]!);
+      secciones.splice(idx + 1, 0, copia);
       break;
     }
     case "update_section_props": {

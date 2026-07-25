@@ -6,6 +6,7 @@ import Head from "next/head";
 import { AvisoBarra } from "~/components/storefront/aviso-barra";
 import { RenderPagina } from "~/components/storefront/render-pagina";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
+import { useInlineEdit } from "~/components/storefront/use-inline-edit";
 import { usePreviewPatch } from "~/components/storefront/use-preview-patch";
 import { hrefMenuItem } from "~/lib/pagebuilder/chrome";
 import { derivarNav } from "~/lib/pagebuilder/nav";
@@ -39,6 +40,8 @@ export default function PaginaTienda({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Documento VIVO: en preview el hook escucha los patches del editor (F09/D13); en público es el SSR fijo.
   const paginaViva = usePreviewPatch(pagina, esPreview);
+  // Edición inline sobre el canvas (Tanda 3 F12/D19): SOLO en preview y dentro del iframe del editor.
+  useInlineEdit(esPreview);
   const estiloShellFondo = fondoShellConAmbiente(
     paginaViva.root.props.fondoPagina,
     paginaViva.root.props.ambiente,

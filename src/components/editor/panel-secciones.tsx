@@ -11,6 +11,7 @@ import {
 import {
   IconChevronDown,
   IconChevronUp,
+  IconCopy,
   IconGripVertical,
   IconPlus,
   IconTrash,
@@ -164,6 +165,16 @@ export function PanelSecciones({
                         onClick={() => onAplicar({ accion: "move_section", id: s.id, aPosicion: i + 1 })}
                       >
                         <IconChevronDown className="size-4" />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Duplicar">
+                      <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        aria-label="Duplicar sección"
+                        onClick={() => onAplicar({ accion: "duplicate_section", id: s.id })}
+                      >
+                        <IconCopy className="size-4" />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label="Eliminar">

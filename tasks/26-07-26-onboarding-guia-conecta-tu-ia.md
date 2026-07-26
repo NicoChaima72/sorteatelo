@@ -1,6 +1,6 @@
 ---
 slug: guia-conecta-tu-ia
-status: testing
+status: done
 owner: nicolas
 created: 2026-07-26
 related_adrs: [ADR-0025, ADR-0011, ADR-0018]
@@ -9,23 +9,23 @@ related_context: [Organizador, Conexión MCP, Tienda]
 features:
   - id: F01
     behavior: "Botón «¿Cómo conecto una app de IA?» en el header de la card Conexiones IA abre un Drawer con la guía (SettingCard gana slot opcional de acción en el header)"
-    state: active
+    state: done
 
   - id: F02
     behavior: "Motor de la guía + carril Claude: guion en 6 beats numerados como DATA (con selector de carril), capturas reales WebP lazy, y la URL de conexión derivada de la config (con botón copiar)"
-    state: active
+    state: done
 
   - id: F03
     behavior: "Secciones complementarias del Drawer: «Qué puedes pedirle» (prompts reales sobre la whitelist + qué NO puede hacer), Claude Code en acordeón técnico, troubleshooting mínimo"
-    state: active
+    state: done
 
   - id: F04
     behavior: "Carril ChatGPT completo (D9, decisión del usuario): su propio paso a paso real —modo desarrollador + conector con la URL + dance OAuth— con sus requisitos de plan/modo documentados honestos, igual de digno que el de Claude"
-    state: active
+    state: done
 
   - id: F05
     behavior: "Política de `redirect_uri` del AS extendida para habilitar ChatGPT (D12, opción A del usuario): caso nuevo de prefijo ANCLADO sobre la URL parseada (origin exacto + prefijo de path + id no vacío + sin query) + el callback legacy de OpenAI como exact-match, con addendum al ADR-0025"
-    state: active
+    state: done
 ---
 
 # Guía «Conecta tu IA» — manual con capturas para el Organizador

@@ -81,7 +81,7 @@ sus Validaciones. Marcado `[x]` solo por el feature-tester.
   (`chatgpt-modo-desarrollador.webp`) se ve nítida y **no muestra ningún dato privado** — el recorte
   existe justamente porque la barra lateral de ChatGPT lista los chats del usuario.
 
-- [ ] **guia.carril.003** — **Conexión real de punta a punta con ChatGPT.** ~~Bloqueado por D11~~ ⇒
+- [x] ✅ 2026-07-26 **guia.carril.003** — **Conexión real de punta a punta con ChatGPT.** ~~Bloqueado por D11~~ ⇒
   **DESBLOQUEADO por D12/F05** (la política del AS ya acepta el callback dinámico
   `https://chatgpt.com/connector/oauth/{id}`; ver el addendum del ADR-0025). Ahora es un check
   **pendiente de prueba con cuenta real del usuario**: exige plan pagado + **modo desarrollador**
@@ -94,3 +94,5 @@ sus Validaciones. Marcado `[x]` solo por el feature-tester.
   en el `aud` del access token; los tokens del AS son **opacos y no llevan `aud`**. Si el dance muere
   ahí, es el límite documentado en el addendum del ADR-0025 — anotarlo tal cual y NO tratarlo como
   regresión de la guía ni de la política.
+
+> **guia.carril.003 ejercido en vivo 2026-07-26 (sesión principal, Chrome del usuario, contra PRODUCCIÓN)**: modo desarrollador activado en ChatGPT (Plus), «Crear app» con nombre Sortéatelo + `https://sorteatelo.cl/api/mcp` + OAuth ⇒ DCR aceptado por la allowlist F05 (callback dinámico `https://chatgpt.com/connector/oauth/CNzLChPSmcK3` registrado), consent de producción autorizado, y el canje del token FUNCIONÓ: `McpClient` "ChatGPT" en DB, tokens 4→6, 5 filas de `McpAuditLog` (ChatGPT ya invoca tools). **El riesgo `aud`/`resource` del addendum ADR-0025 NO se materializó** — los tokens opacos le bastan. Claude web/desktop ya se había conectado igual (cliente "Claude" 21:29). Capturas curadas de claude-chat/chatgpt siguen pendientes (declaradas), no bloquean.

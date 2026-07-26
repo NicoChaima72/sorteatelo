@@ -37,6 +37,13 @@ const config = {
         source: "/.well-known/oauth-protected-resource",
         destination: "/api/well-known/oauth-protected-resource",
       },
+      {
+        // La URL PÚBLICA del endpoint MCP (`PATH_MCP_PUBLICO`, la que anuncia el discovery y se
+        // pega en `claude mcp add`). El archivo no puede ser `api/mcp/index.ts` conviviendo limpio
+        // con `api/mcp/oauth/*`, así que vive en `handler.ts` y se reescribe acá.
+        source: "/api/mcp",
+        destination: "/api/mcp/handler",
+      },
     ];
   },
 };

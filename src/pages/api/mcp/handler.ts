@@ -5,6 +5,6 @@ import { createMcpHandler } from "~/server/mcp/createMcpHandler";
  * per-usuario y cruza sus Tiendas, así que no puede colgar del host de una.
  *
  * Toda la lógica está en el factory. Este archivo existe para que el path sea exactamente el que
- * publica el discovery (`/api/mcp/handler`, constante `PATH_HANDLER_MCP`).
+ * publica el discovery (`/api/mcp`, constante `PATH_MCP_PUBLICO`; el rewrite de next.config.js trae el path público hasta acá).
  */
 export default createMcpHandler();

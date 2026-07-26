@@ -43,7 +43,7 @@ describe("mcp/discovery", () => {
   it("apunta al handler MCP único del apex y al AS propio", () => {
     const meta = metadataProtectedResource(BASE);
 
-    expect(meta.resource).toBe(`${BASE}/api/mcp/handler`);
+    expect(meta.resource).toBe(`${BASE}/api/mcp`);
     expect(meta.authorization_servers).toEqual([BASE]);
     expect(meta.bearer_methods_supported).toEqual(["header"]);
     expect(meta.scopes_supported).toEqual(["mcp"]);
@@ -57,7 +57,7 @@ describe("mcp/discovery", () => {
       "http://localhost:3001/api/mcp/oauth/token",
     );
     expect(metadataProtectedResource("http://localhost:3001").resource).toBe(
-      "http://localhost:3001/api/mcp/handler",
+      "http://localhost:3001/api/mcp",
     );
   });
 });

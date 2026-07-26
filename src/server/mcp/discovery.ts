@@ -11,8 +11,14 @@
  * token es per-usuario y cruza Tiendas, así que no puede colgar del host de una.
  */
 
-/** Path del único handler MCP (D3). Constante compartida: la metadata y el borde no se desfasan. */
-export const PATH_HANDLER_MCP = "/api/mcp/handler";
+/**
+ * Path PÚBLICO del único endpoint MCP (D3) — el que el Organizador pega en `claude mcp add` y el
+ * que la metadata RFC 9728 anuncia como `resource`. El archivo del handler vive en
+ * `/api/mcp/handler` (un `index.ts` chocaría con el prefijo `/api/mcp/oauth/*`), y `next.config.js`
+ * reescribe el path público hacia él. Los clientes MCP comparan `resource` contra la URL
+ * configurada EXACTA: anunciar la ruta interna rompe el dance ("does not match expected").
+ */
+export const PATH_MCP_PUBLICO = "/api/mcp";
 
 /** Scope único de v1 (D10). La matriz de límites vive en el registro de tools, no en scopes. */
 const SCOPES = ["mcp"] as const;
@@ -64,7 +70,7 @@ export function metadataProtectedResource(
   base: string,
 ): MetadataProtectedResource {
   return {
-    resource: `${base}${PATH_HANDLER_MCP}`,
+    resource: `${base}${PATH_MCP_PUBLICO}`,
     // El AS y el resource server son la MISMA app (AS propio, D1).
     authorization_servers: [base],
     scopes_supported: [...SCOPES],

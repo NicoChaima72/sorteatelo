@@ -27,6 +27,10 @@ interface Escenario {
   flowConfigurada?: boolean;
   productoPublicable?: boolean;
   raffleActivo?: boolean;
+  /** Estado de la `PlatformSubscription` (ADR-0026); null ⇒ la Tienda no tiene plan. */
+  suscripcion?: string | null;
+  /** `PlatformExemption.exentaHasta`; `undefined` ⇒ sin exención, `null` ⇒ exenta PERPETUA. */
+  exentaHasta?: Date | null;
 }
 
 const VIGENTE = "2026-07-17";
@@ -49,14 +53,41 @@ function fakeDb(s: Escenario) {
         (s.flowConfigurada ?? true) ? { tenantId } : null,
     },
     product: {
-      findFirst: async () =>
-        (s.productoPublicable ?? true) ? { id: "p1" } : null,
+      // Desde F06 el gate resuelve "hay producto entregable" con un `findMany` + la regla pura
+      // `esProductoEntregable` (la comparación pool ≥ pack de un SOBRE no se expresa en un `where`).
+      // Este fake sigue respondiendo por FLAG: devuelve un producto ESTANDAR con un archivo
+      // confirmado (entregable) o la lista vacía. La semántica del filtro se testea contra la DB
+      // real en `productos/hayProductoEntregable.test.ts`; acá el sujeto es la POLÍTICA del gate.
+      findMany: async () =>
+        (s.productoPublicable ?? true)
+          ? [
+              {
+                modalidad: "ESTANDAR" as const,
+                pdfPath: null,
+                _count: { files: 1 },
+                packOptions: [],
+              },
+            ]
+          : [],
     },
     raffle: {
       findFirst: async () =>
         (s.raffleActivo ?? false)
           ? { id: "r1", basesPdfUrl: s.basesPdf ?? null }
           : null,
+    },
+    // Facturación de la plataforma (ADR-0026): por default la Tienda tiene su plan AL_DIA, para
+    // que los escenarios preexistentes sigan describiendo lo que describían (el requisito nuevo
+    // no es el sujeto de esos tests).
+    platformSubscription: {
+      findUnique: async () => {
+        const estado = s.suscripcion === undefined ? "AL_DIA" : s.suscripcion;
+        return estado === null ? null : { estado };
+      },
+    },
+    platformExemption: {
+      findUnique: async () =>
+        "exentaHasta" in s ? { exentaHasta: s.exentaHasta ?? null } : null,
     },
   } as unknown as PrismaClient;
 }
@@ -75,7 +106,63 @@ describe("domain/tenants/getEstadoPublicacion (fake db, tenant-scoped)", () => {
     expect(res.requisitos.flow.cumplido).toBe(true);
     expect(res.requisitos.producto.cumplido).toBe(true);
     expect(res.requisitos.bases.aplica).toBe(false);
+    expect(res.requisitos.facturacion.cumplido).toBe(true);
     expect(res.puedePublicar).toBe(true);
+  });
+
+  // tenants.publicacion.010 — el checklist LEE la facturación real de la Tienda (ADR-0026, F03)
+  it("refleja el requisito del plan según la suscripción y la exención de la Tienda", async () => {
+    // Sin plan ni exención ⇒ el checklist muestra el paso "Activa tu plan" pendiente.
+    const sinPlan = await getEstadoPublicacion({
+      db: fakeDb({ suscripcion: null }),
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+    });
+    expect(sinPlan.requisitos.facturacion.cumplido).toBe(false);
+    expect(sinPlan.requisitos.facturacion.exenta).toBe(false);
+    expect(sinPlan.puedePublicar).toBe(false);
+
+    // Suscripción CANCELADA ⇒ tampoco cumple (republicar exige re-suscribir, D6).
+    const cancelada = await getEstadoPublicacion({
+      db: fakeDb({ suscripcion: "CANCELADA" }),
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+    });
+    expect(cancelada.requisitos.facturacion.cumplido).toBe(false);
+
+    // Tienda EXENTA sin suscripción ⇒ cumple y se marca `exenta` (la UI dirá "Plan cortesía").
+    const exenta = await getEstadoPublicacion({
+      db: fakeDb({ suscripcion: null, exentaHasta: null }),
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+    });
+    expect(exenta.requisitos.facturacion.cumplido).toBe(true);
+    expect(exenta.requisitos.facturacion.exenta).toBe(true);
+    expect(exenta.puedePublicar).toBe(true);
+  });
+
+  // tenants.publicacion.011 — la exención EXPIRADA se evalúa lazy y deja de cumplir (D8)
+  it("una exención vencida deja de habilitar la publicación (evaluación lazy)", async () => {
+    const db = fakeDb({
+      suscripcion: null,
+      exentaHasta: new Date("2026-07-01T00:00:00Z"),
+    });
+    const vencida = await getEstadoPublicacion({
+      db,
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+      ahora: new Date("2026-07-26T00:00:00Z"),
+    });
+    expect(vencida.requisitos.facturacion.cumplido).toBe(false);
+
+    // La MISMA fila, evaluada antes del corte, sí valía.
+    const vigente = await getEstadoPublicacion({
+      db,
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+      ahora: new Date("2026-06-15T00:00:00Z"),
+    });
+    expect(vigente.requisitos.facturacion.cumplido).toBe(true);
   });
 
   // tenants.publicacion.001b — un requisito ausente se marca no-cumplido y baja puedePublicar

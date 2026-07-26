@@ -18,7 +18,12 @@ export interface RequisitosPublicacion {
   tos: Requisito;
   /** Credenciales Flow cargadas (BYO-Flow, ADR-0006). */
   flow: Requisito;
-  /** ≥1 Product `activo` con `pdfPath` (publicable = entregable, I9/D5). */
+  /**
+   * ≥1 Product `activo` y **ENTREGABLE** (I9/D5). Desde productos-tipos-digitales F03 "entregable"
+   * es "tiene ≥1 `ProductFile` confirmado, o el `pdfPath` legacy" — ya no la columna a secas; y desde
+   * F06 un producto **SOBRE** además exige pool ≥ pack ACTIVO más grande (D4/I7).
+   * El criterio concreto vive en `esProductoEntregable`; acá solo llega el booleano.
+   */
   producto: Requisito;
   /**
    * Bases del sorteo: solo `aplica` si hay un Raffle ACTIVO (ADR-0008). Desde admin-bases-pdf
@@ -26,6 +31,13 @@ export interface RequisitosPublicacion {
    * borrador en el Tenant.
    */
   bases: Requisito & { aplica: boolean };
+  /**
+   * Facturación de la plataforma (ADR-0026, F03/D2): plan activo **o** [[Exención]] vigente. Es el
+   * ÚLTIMO requisito a propósito — el paso del compromiso económico no se le pide a quien todavía
+   * no terminó de armar su tienda. `exenta` distingue «pagó» de «es cortesía» para que la UI
+   * muestre lo correcto sin volver a preguntar (D8/D12).
+   */
+  facturacion: Requisito & { exenta: boolean };
 }
 
 export interface EstadoPublicacion {
@@ -56,6 +68,17 @@ export interface DatosGate {
    * son SIEMPRE un PDF y viven en el SORTEO, no en la Tienda.
    */
   basesPdfDelRaffleActivo: string | null;
+  /**
+   * `true` sii la Tienda tiene una `PlatformSubscription` ACTIVA (estado ≠ CANCELADA — ver
+   * `domain/facturacion/_estadoSuscripcion.ts`). El caller la resuelve; el núcleo no conoce Prisma.
+   */
+  suscripcionActiva: boolean;
+  /**
+   * `true` sii tiene una `PlatformExemption` VIGENTE. La vigencia (la fecha `exentaHasta`) la evalúa
+   * el caller con `exencionVigente` — misma función que usa el gate de venta, para que «exenta» no
+   * signifique dos cosas distintas según por dónde se entre.
+   */
+  exentaVigente: boolean;
 }
 
 /**
@@ -85,10 +108,26 @@ export function evaluarPublicacion(d: DatosGate): EstadoPublicacion {
     cumplido: !basesAplica || tieneValor(d.basesPdfDelRaffleActivo),
   };
 
-  const puedePublicar =
-    tos.cumplido && flow.cumplido && producto.cumplido && bases.cumplido;
+  // Facturación (ADR-0026, F03/D2): «el plan corre cuando publicas» — la etapa de configuración es
+  // el gratis y el cobro nace al publicar, sin trial. Una Tienda exenta (cortesía / grandfather)
+  // cumple sin tarjeta ni suscripción Flow (D8).
+  const facturacion = {
+    exenta: d.exentaVigente,
+    cumplido: d.suscripcionActiva || d.exentaVigente,
+  };
 
-  return { estado: d.estado, requisitos: { tos, flow, producto, bases }, puedePublicar };
+  const puedePublicar =
+    tos.cumplido &&
+    flow.cumplido &&
+    producto.cumplido &&
+    bases.cumplido &&
+    facturacion.cumplido;
+
+  return {
+    estado: d.estado,
+    requisitos: { tos, flow, producto, bases, facturacion },
+    puedePublicar,
+  };
 }
 
 /**
@@ -105,10 +144,14 @@ export function mensajeRequisitoFaltante(
     return "Antes de publicar debes conectar tu cuenta de Flow para cobrar.";
   }
   if (!r.producto.cumplido) {
-    return "Antes de publicar necesitas al menos un producto activo con su PDF subido.";
+    return "Antes de publicar necesitas al menos un producto activo con su archivo subido.";
   }
   if (r.bases.aplica && !r.bases.cumplido) {
     return "Tu sorteo está activo: antes de publicar debes subir el PDF con sus bases.";
+  }
+  // ÚLTIMO en el orden: el compromiso económico se pide recién cuando el resto está listo (D12).
+  if (!r.facturacion.cumplido) {
+    return "Antes de publicar debes activar tu plan de Sortéatelo.";
   }
   return null;
 }

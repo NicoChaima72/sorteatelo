@@ -1,0 +1,31 @@
+# Corrida feature-tester — plataforma-facturacion-suscripciones
+modo: feature (slug=plataforma-facturacion-suscripciones)
+scope: Vitest area + suite completa; E2E tasks/e2e-plataforma-facturacion.md (20 checks)
+server: http://localhost:3001 (sorteatelo; :3000 es otro proyecto ajeno)
+carril: NINGUNO libre (playwright y chrome-devtools ocupados por agentes concurrentes) => E2E por HTTP/curl + tRPC con cookie de sesion + evidencia DB
+inicio: 2026-07-26 16:38
+---
+[16:39] VITEST area facturacion+scripts: 198/198 PASS (22 archivos)
+[16:39] VITEST adyacentes (tenants/checkout/storefront/panel/styles): 85/85 PASS
+[16:46] VITEST suite completa: 1383 pass / 1 fail / 1 skip (1385). Unico rojo: src/__tests__/server/mcp/redirectUris.test.ts (carril guia-conecta-tu-ia, D11 pendiente de usuario) => AJENO
+[16:55] E2E: carril chrome-devtools OCUPADO (pid 26900, arrancado 16:46); carril playwright OCUPADO (pid 48976, 12:09). No se le roba el navegador a otro agente (browser-verify §0).
+NOTA: tasks/.e2e-run.log es un archivo COMPARTIDO — el feature-tester de guia-conecta-tu-ia lo sobreescribio a mitad de esta corrida (y yo habia sobreescrito el suyo antes). Su contenido quedo restaurado alli; este log vive aparte.
+[16:58] setup: escenarios inducidos por DB (tmp/fact-escenario.mts). Tenants usados: autora, e2e-numeros.
+[17:00] pausa.e2e.001  PASS  / , /producto/<id>, /checkout -> 307 /en-pausa ; /en-pausa 200 + noindex + 0 menciones de pago/plan/mora
+[17:01] pausa.e2e.001  PASS  extra: checkout.iniciarCheckout por HTTP rechazado ("Esta tienda no esta recibiendo pedidos por ahora.") con 0 ordenes
+[17:01] pausa.e2e.003  PASS  I5: /api/descargas/<token> 302 y /checkout/retorno?token= 200 con la tienda en pausa
+[17:02] pausa.e2e.002  PARCIAL  5 rutas del panel -> 307 /admin/plan ; /admin/plan 200 ; aviso EN_PAUSA_POR_PAGO + paymentLink + enPausa
+[17:02] pausa.e2e.002  PARCIAL  contraste COBRO_PENDIENTE: panel 200, storefront 200, enPausa false. Falta render (rail/color) = navegador
+[17:03] plan.e2e.001   PARCIAL  historial: PAGADA sin paymentLink, FALLIDA/VENCIDA con link; tarjeta solo marca+ultimos4
+[17:03] plan.e2e.003   PARCIAL  cortesia SOBRE plan vivo: exenta true Y suscripcion completa en el payload
+[17:04] cancelar.e2e.003 PARCIAL  CANCELADA -> /en-pausa + panel restringido + aviso SIN_PLAN + tarjeta persiste
+[17:05] cortesia.e2e.002 PARCIAL  ventana 7d LAZY: +4d EXENCION_POR_EXPIRAR / +30d sin aviso / vencida EXENCION_EXPIRADA + pausa
+[17:06] cron.e2e.001   PASS  401 sin header, 401 bearer malo, 405 POST
+[17:07] cron.e2e.002   PASS  renovaciones 1 -> 0 ; periodo nuevo -> 1 (la marca es fecha, no flag)
+[17:08] cron.e2e.003   PASS  exenciones 1 -> 0 ; con plan AL_DIA detras -> 0 y sin envio
+[17:09] cortesia.e2e.001 PARCIAL  checklist facturacion {exenta:true, cumplido:true}; iniciarRegistroTarjeta a exenta RECHAZADO (D8)
+[17:10] activar.*      PENDIENTE-SANDBOX  falta FLOW_PLATAFORMA_API_KEY en .env (fail-fast verificado, sin filtrar secreto)
+[17:11] cupon.e2e.002  PARCIAL  flow:cupones listar OK ; crear aborta sin creds y NO deja fila local
+[17:11] grandfather:tiendas (seco) OK: lista candidata cuando falta exencion, "nada que hacer" con todas exentas, nada escrito
+[17:12] restore: 0 subscriptions / 0 invoices / 0 billing customers / 0 coupons ; 7 exenciones GRANDFATHER ; 7 storefronts 200
+fin: 2026-07-26 21:15 | Vitest 283/283 area, 1383/1385 suite (1 rojo ajeno) | E2E 5 PASS, 8 PARCIAL, 7 pendiente-sandbox

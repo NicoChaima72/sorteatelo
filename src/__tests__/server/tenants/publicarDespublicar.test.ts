@@ -31,6 +31,10 @@ interface Escenario {
   flowConfigurada?: boolean;
   productoPublicable?: boolean;
   raffleActivo?: boolean;
+  /** Estado de la `PlatformSubscription` (ADR-0026); null ⇒ la Tienda no tiene plan. */
+  suscripcion?: string | null;
+  /** `PlatformExemption.exentaHasta`; `undefined` ⇒ sin exención, `null` ⇒ exenta PERPETUA. */
+  exentaHasta?: Date | null;
 }
 
 /** Fake stateful para publicarTienda: expone la $tx y captura la transición de estado. */
@@ -52,14 +56,39 @@ function fakePublicar(s: Escenario) {
         (s.flowConfigurada ?? true) ? { tenantId: "A" } : null,
     },
     product: {
-      findFirst: async () =>
-        (s.productoPublicable ?? true) ? { id: "p1" } : null,
+      // Desde F06 el gate resuelve "hay producto entregable" con un `findMany` + la regla pura
+      // `esProductoEntregable`, leído con la MISMA `tx` (I2). El fake sigue respondiendo por FLAG:
+      // un producto ESTANDAR con archivo confirmado (entregable), o la lista vacía. El filtro real
+      // se testea contra la DB en `productos/hayProductoEntregable.test.ts`.
+      findMany: async () =>
+        (s.productoPublicable ?? true)
+          ? [
+              {
+                modalidad: "ESTANDAR" as const,
+                pdfPath: null,
+                _count: { files: 1 },
+                packOptions: [],
+              },
+            ]
+          : [],
     },
     raffle: {
       findFirst: async () =>
         (s.raffleActivo ?? false)
           ? { id: "r1", basesPdfUrl: s.basesPdf ?? null }
           : null,
+    },
+    // Facturación de la plataforma (ADR-0026): default AL_DIA para que los escenarios
+    // preexistentes sigan aislando el requisito que cada uno testea.
+    platformSubscription: {
+      findUnique: async () => {
+        const estado = s.suscripcion === undefined ? "AL_DIA" : s.suscripcion;
+        return estado === null ? null : { estado };
+      },
+    },
+    platformExemption: {
+      findUnique: async () =>
+        "exentaHasta" in s ? { exentaHasta: s.exentaHasta ?? null } : null,
     },
   };
   const db = {
@@ -72,6 +101,42 @@ describe("domain/tenants/publicarTienda (fake db stateful, gate recomputado)", (
   // tenants.publicacion.002 — todos los requisitos ⇒ CONFIGURACION→PUBLICADA
   it("con todos los requisitos, transiciona CONFIGURACION→PUBLICADA", async () => {
     const { db, estadoRef } = fakePublicar({});
+    const res = await publicarTienda({
+      db,
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+    });
+    expect(res.estado).toBe("PUBLICADA");
+    expect(estadoRef.valor).toBe("PUBLICADA");
+  });
+
+  // tenants.publicacion.012 — SIN plan activo ni exención, publicar se RECHAZA server-side
+  // (ADR-0026, F03/D2 + I2/I4): el gate se recomputa dentro de la $tx; no alcanza con que la UI
+  // esconda el botón. Es la defensa contra un cliente que llame la mutation a mano.
+  it("sin suscripción activa ni exención NO publica, aunque el resto del checklist esté listo", async () => {
+    const { db, estadoRef } = fakePublicar({ suscripcion: null });
+    await expect(
+      publicarTienda({ db, acceso: acceso(["A"]), tosVersionVigente: VIGENTE }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+    expect(estadoRef.valor).toBe("CONFIGURACION"); // no transicionó
+
+    // El mensaje le dice al Organizador QUÉ falta.
+    const cancelada = fakePublicar({ suscripcion: "CANCELADA" });
+    await expect(
+      publicarTienda({
+        db: cancelada.db,
+        acceso: acceso(["A"]),
+        tosVersionVigente: VIGENTE,
+      }),
+    ).rejects.toThrow(/plan/i);
+  });
+
+  // tenants.publicacion.013 — tienda EXENTA publica SIN tarjeta ni suscripción (D8)
+  it("una tienda exenta publica sin pasar por la tarjeta", async () => {
+    const { db, estadoRef } = fakePublicar({
+      suscripcion: null,
+      exentaHasta: null, // exención PERPETUA (cortesía / grandfather)
+    });
     const res = await publicarTienda({
       db,
       acceso: acceso(["A"]),

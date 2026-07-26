@@ -91,6 +91,10 @@ export const SLUGS_PAGINA_RESERVADOS: ReadonlySet<string> = new Set([
   // ADR-0008). Además de ser una ruta estática que taparía a la página del Organizador, es el destino
   // del enlace LEGAL del footer y de la vitrina: no puede quedar bajo contenido que el tenant edita.
   "bases",
+  // `/en-pausa` = la página neutral de PLATAFORMA que se sirve cuando la Tienda dejó de vender por
+  // facturación (facturación F05/D4). Ruta estática que taparía a una página del Organizador, y
+  // además el destino del gate: no puede quedar bajo contenido que el tenant edita.
+  "en-pausa",
   "dev",
   "dev-ref",
   "prototipo",

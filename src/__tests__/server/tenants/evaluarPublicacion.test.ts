@@ -21,6 +21,9 @@ const base: DatosGate = {
   tieneProductoPublicable: true,
   hayRaffleActivo: false,
   basesPdfDelRaffleActivo: null,
+  // Facturación de la plataforma (ADR-0026, F03/D2): publicar exige plan activo o exención.
+  suscripcionActiva: true,
+  exentaVigente: false,
 };
 
 describe("domain/tenants/evaluarPublicacion (núcleo puro del gate)", () => {
@@ -106,5 +109,46 @@ describe("domain/tenants/evaluarPublicacion (núcleo puro del gate)", () => {
     expect(mensajeRequisitoFaltante(sinFlow.requisitos)).toMatch(/Flow|pago/i);
     // todo cumplido ⇒ null (no hay faltante)
     expect(mensajeRequisitoFaltante(evaluarPublicacion(base).requisitos)).toBeNull();
+  });
+
+  // tenants.publicacion.eval.007 — facturación (ADR-0026, F03/D2): publicar exige plan O exención.
+  // «El plan corre cuando publicas» es la promesa literal de la landing: la etapa de configuración
+  // es el gratis y el cobro nace al publicar, sin trial.
+  it("sin plan activo ni exención NO publica; con cualquiera de los dos sí", () => {
+    const sinNada = evaluarPublicacion({
+      ...base,
+      suscripcionActiva: false,
+      exentaVigente: false,
+    });
+    expect(sinNada.requisitos.facturacion.cumplido).toBe(false);
+    expect(sinNada.puedePublicar).toBe(false);
+    expect(mensajeRequisitoFaltante(sinNada.requisitos)).toMatch(/plan/i);
+
+    // Con suscripción activa (el camino normal).
+    expect(evaluarPublicacion(base).requisitos.facturacion.cumplido).toBe(true);
+
+    // Tienda EXENTA: publica sin tarjeta ni suscripción (D8 — cortesía / grandfather).
+    const exenta = evaluarPublicacion({
+      ...base,
+      suscripcionActiva: false,
+      exentaVigente: true,
+    });
+    expect(exenta.requisitos.facturacion.cumplido).toBe(true);
+    expect(exenta.requisitos.facturacion.exenta).toBe(true);
+    expect(exenta.puedePublicar).toBe(true);
+  });
+
+  // tenants.publicacion.eval.008 — el requisito del plan es el ÚLTIMO del checklist
+  // Es el paso del compromiso económico: no se le pide la tarjeta a alguien que todavía no
+  // terminó de armar la tienda. El mensaje del faltante respeta ese orden.
+  it("el plan se reclama recién cuando el resto del checklist está listo", () => {
+    const sinProductoNiPlan = evaluarPublicacion({
+      ...base,
+      tieneProductoPublicable: false,
+      suscripcionActiva: false,
+    });
+    expect(mensajeRequisitoFaltante(sinProductoNiPlan.requisitos)).toMatch(
+      /producto/i,
+    );
   });
 });

@@ -2,12 +2,14 @@ import { type GetServerSidePropsContext } from "next";
 
 import { getServerAuthSession } from "~/server/auth";
 import { db } from "~/server/db";
+import { cargarGateVenta } from "~/server/domain/facturacion/cargarGateVenta";
 import {
   decidirAccesoAdmin,
   origenDeHostAdmin,
   type DecisionAdmin,
 } from "~/server/panel/guardAdmin";
 import { cargarMembresiasCanonicas } from "~/server/panel/membresias";
+import { decidirRestriccionFacturacion } from "~/server/panel/restriccionFacturacion";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { crearRepoTenants } from "~/server/tenancy/repoTenants";
 import { resolverTenantAdminDesdeHost } from "~/server/tenancy/resolverTenantAdmin";
@@ -52,6 +54,7 @@ export type ResultadoGuardAdmin =
 export async function guardPaginaAdmin(
   ctx: GetServerSidePropsContext,
 ): Promise<ResultadoGuardAdmin> {
+  const ruta = rutaDe(ctx.resolvedUrl);
   const config = configPlataformaDesdeEnv();
 
   const resolucion = await resolverTenantAdminDesdeHost({
@@ -83,7 +86,7 @@ export async function guardPaginaAdmin(
     membresias,
     // `resolvedUrl` incluye la query string; para el destino del panel solo interesa la RUTA
     // (D4: el switcher aterriza en el dashboard; D8: el apex preserva la subruta, no el query).
-    ruta: rutaDe(ctx.resolvedUrl),
+    ruta,
     origen: origenDeHostAdmin({
       host: ctx.req.headers.host,
       forwardedProto: ctx.req.headers["x-forwarded-proto"],
@@ -91,7 +94,27 @@ export async function guardPaginaAdmin(
     }),
   });
 
-  return traducir(decision);
+  const acceso = traducir(decision);
+
+  // SEGUNDO gate, y solo después de autorizar (F05/D4, ADR-0026): si la Tienda quedó «en pausa por
+  // pago», el panel se reduce a la página Plan. Se consulta acá —y no en `decidirAccesoAdmin`— porque
+  // el `tenantId` a consultar es justamente el que produce esa decisión, y porque el orden es
+  // load-bearing: a quien no es miembro se le responde lo de siempre (404 neutral / redirect al
+  // storefront) SIN gastar una query ni contarle nada del estado comercial de una tienda ajena.
+  //
+  // `tenantId === null` = la puerta del apex (alta de Tienda): no hay facturación que gatear.
+  if (!("ok" in acceso) || acceso.tenantId === null) return acceso;
+
+  const gate = await cargarGateVenta({ db, where: { id: acceso.tenantId } });
+  const restriccion = decidirRestriccionFacturacion({
+    enPausa: gate.enPausa,
+    ruta,
+  });
+  if (restriccion) {
+    return { redirect: { destination: restriccion.destino, permanent: false } };
+  }
+
+  return acceso;
 }
 
 /** `/admin/productos?x=1` ⇒ `/admin/productos`. Fail-closed a `/admin` si viniera algo raro. */

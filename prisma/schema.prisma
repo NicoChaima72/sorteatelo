@@ -56,21 +56,25 @@ model Session {
 }
 
 model User {
-  id            String             @id @default(cuid())
-  name          String?
-  email         String?            @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  posts         Post[]
-  memberships   TenantMembership[] // Tiendas que este Organizador administra (F05, S6)
+  id                      String                   @id @default(cuid())
+  name                    String?
+  email                   String?                  @unique
+  emailVerified           DateTime?
+  image                   String?
+  accounts                Account[]
+  sessions                Session[]
+  posts                   Post[]
+  memberships             TenantMembership[] // Tiendas que este Organizador administra (F05, S6)
   // Conexiones MCP del Organizador (ADR-0025): codes del dance OAuth + tokens vivos. Cascade
   // desde el hijo ⇒ borrar el User desarma sus Tokens MCP al instante. La AUDITORÍA
   // (`McpAuditLog`) NO cuelga de acá a propósito: es append-only y sobrevive al borrado (I7).
   mcpAuthCodes            McpAuthCode[]
   mcpAccessTokens         McpAccessToken[]
   mcpRefreshTokens        McpRefreshToken[]
+  // El Pagador de la facturación de plataforma (ADR-0026): 1-1, Restrict desde el hijo — mandato
+  // financiero vivo (tarjeta en Flow + cobros corriendo), NO contenido del usuario. Ver el comentario
+  // de `PlatformBillingCustomer`: es la 2ª excepción documentada al Cascade hacia User (tras McpAuditLog).
+  platformBillingCustomer PlatformBillingCustomer?
 }
 
 model VerificationToken {
@@ -152,6 +156,40 @@ model Tenant {
   tiktokUrl      String? // URL del perfil de TikTok; null = ícono oculto
   whatsappUrl    String? // enlace de WhatsApp; null = ícono oculto
   contactoEmail  String? // email de contacto PÚBLICO del Organizador (footer). Distinto de Order.email (identidad del comprador, ADR-0004)
+  // Prefijo PRESENTACIONAL de los Números del sorteo de esta Tienda (F08/D12, invariante I12) —
+  // ocupa el seam que ADR-0024 §6 dejó abierto ("si mañana hay prefijo, es presentacional; el
+  // `numero` no se re-significa"). Es identidad de la TIENDA, como `logoUrl`/`colorPrimario`, y por
+  // eso vive acá y no en `Raffle`: aplica a TODOS sus sorteos (el override per-sorteo se descartó
+  // razonadamente en D12 — con el arrastre D13 de `crearSorteo` ni siquiera hay respuesta buena a
+  // "qué prefijo hereda un ticket arrastrado"). Se guarda DESNUDO y en MAYÚSCULAS (`ARMY`): el
+  // separador «-» lo pone el FORMATEADOR, así que la cadena `ARMY-1043` no existe en ninguna
+  // columna. null (o vacío al guardar) ⇒ sin prefijo ⇒ todo se ve byte-idéntico a antes de F08.
+  //
+  // JAMÁS DATO, SOLO PRESENTACIÓN — esta es la parte que un lector futuro NO puede romper:
+  // `RaffleEntry.numero` sigue siendo Int puro (ADR-0024); el prefijo NO se persiste junto al
+  // número, NO entra en las claves de `CorreoEnviado` (namespace de idempotencia, no texto para
+  // humanos), NO entra en la asignación de rango ni en la ejecución del sorteo, y NO se snapshotea
+  // en ningún registro. Se aplica en UN solo lugar —`src/lib/numerosDelSorteo.ts`, por BLOQUE
+  // plegado (`ARMY-3, ARMY-7–9`), nunca a cada extremo del rango— del que cuelgan panel y correos,
+  // así que las dos superficies dicen el MISMO texto por construcción. Persistirlo junto al número
+  // convertiría un cambio de prefijo en una migración de datos sobre una promesa pública inmutable
+  // (ADR-0024 §4), que es exactamente lo que este diseño evita.
+  //
+  // Consecuencia ASUMIDA de ser presentación: cambiarlo RE-ETIQUETA la historia viva — quien recibió
+  // «1043» verá «ARMY-1043» en panel y correos futuros (los correos ya enviados son artefactos
+  // congelados y conservan su texto). Es cosmético (el número no cambia), pero el panel lo dice al
+  // editar.
+  //
+  // Formato (1–8 alfanuméricos, MAYÚSCULAS, sin espacios ni símbolos) vive en Zod, NO en la DB: acá
+  // no se usa `@db.VarChar` y un CHECK a mano sería INVISIBLE al `db push` ⇒ prohibido (mismo
+  // criterio que `ProductPackOption.unidades` y la exclusión mutua de `PlatformCoupon`). Un largo en
+  // DB cubriría un tercio de la regla y volvería destructivo un futuro "quiero 10". La
+  // normalización a MAYÚSCULAS va en el SCHEMA Zod y no en el form: las DOS puertas a esta columna
+  // (panel y tool MCP `configurar_tienda`) lo comparten y no pueden discrepar (misma lección que
+  // `colorPrimario`/`colorAcento`). No queriable —se lee por el tenant YA resuelto (por id desde la
+  // membresía en el panel, o vía la orden en el dominio de correo)— ⇒ sin @@index, igual que
+  // `colorPrimario`/`chromeJson`.
+  prefijoTicket  String? // prefijo de los Números del sorteo (ej. "ARMY" ⇒ "ARMY-1043"); null = sin prefijo
   // ── Lo que NO vive en Tenant (admin-bases-pdf F07/D3/D8) ─────────────────────────────
   // Hero (título/subtítulo/imagen) y aviso: viven en el Documento de Página (`StorefrontPage`,
   // ADR-0016) y se editan en el EDITOR. Las columnas homónimas existieron hasta F07 y se
@@ -168,20 +206,28 @@ model Tenant {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  flowCredential         FlowCredential?
-  products               Product[]
-  orders                 Order[]
-  orderItems             OrderItem[]
-  payments               Payment[]
-  raffles                Raffle[] // efectos post-pago F02
-  raffleEntries          RaffleEntry[] // efectos post-pago F02
-  downloadGrants         DownloadGrant[] // efectos post-pago F02
-  memberships            TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
-  checkoutFields         CheckoutField[] // definiciones de Campos de checkout de esta Tienda (F01)
-  checkoutFieldResponses CheckoutFieldResponse[] // Respuestas de checkout snapshot de sus compras (F01)
-  storefrontPages        StorefrontPage[] // Página(s) de tienda del page builder (ADR-0016)
-  storefrontPageVersions StorefrontPageVersion[] // Snapshots de publicación (F12, ADR-0016)
-  pageAssets             PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
+  flowCredential            FlowCredential?
+  products                  Product[]
+  productFiles              ProductFile[] // archivos vendibles de sus productos (F01/D2; cuota futura D8)
+  packOptions               ProductPackOption[] // menú de precios de sus Productos SOBRE (F05/D3)
+  packAssignments           PackAssignment[] // qué archivo del pool le tocó a cada compra (F05/D12)
+  orders                    Order[]
+  orderItems                OrderItem[]
+  payments                  Payment[]
+  raffles                   Raffle[] // efectos post-pago F02
+  raffleEntries             RaffleEntry[] // efectos post-pago F02
+  downloadGrants            DownloadGrant[] // efectos post-pago F02
+  memberships               TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
+  checkoutFields            CheckoutField[] // definiciones de Campos de checkout de esta Tienda (F01)
+  checkoutFieldResponses    CheckoutFieldResponse[] // Respuestas de checkout snapshot de sus compras (F01)
+  storefrontPages           StorefrontPage[] // Página(s) de tienda del page builder (ADR-0016)
+  storefrontPageVersions    StorefrontPageVersion[] // Snapshots de publicación (F12, ADR-0016)
+  pageAssets                PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
+  correosEnviados           CorreoEnviado[] // ledger de correos al Comprador de esta Tienda (F02, ADR-0027)
+  // Facturación de la PLATAFORMA (ADR-0026): las tres FK son IDENTIDAD, no scoping de dominio (D14).
+  platformSubscription      PlatformSubscription? // 1-1: el cobro mensual de la Plataforma a esta Tienda (Restrict desde el hijo — registro de plata)
+  platformExemption         PlatformExemption? // 1-1: exención del cobro (D8); Cascade desde el hijo — es configuración, no un hecho
+  platformCouponRedemptions PlatformCouponRedemption[] // canjes de Cupón de plataforma hechos por esta Tienda (D9)
 }
 
 // Credenciales Flow propias del Organizador (BYO-Flow, ADR-0006). 1-1 con Tenant.
@@ -218,25 +264,106 @@ model TenantMembership {
   @@index([tenantId]) // dirección inversa: organizadores de una tienda (panel Operador)
 }
 
-// Un producto digital descargable (MVP: PDF) que una Tienda vende. Ver CONTEXT.md § Producto.
+// Un producto digital descargable que una Tienda vende. Ver CONTEXT.md § Producto.
 // (rename de Book — D3/S5). Pertenece a exactamente una Tienda (tenantId).
+//
+// Desde la ENMIENDA v2 de productos-tipos-digitales (F10, E13/E14/E15) esta tabla tiene TRES roles,
+// discriminados por `fuenteId` + `modalidad`, y NINGUNO es un concepto nuevo para el Organizador:
+//   1. Producto normal  — `fuenteId = null`, `modalidad = ESTANDAR`: vende SUS `files`. Lo de siempre.
+//   2. Colección (pool) — `fuenteId = null`, `modalidad = SOBRE`: contenedor de archivos que NO se
+//      vende directo ni aparece en el catálogo; existe para que sus packs la referencien.
+//   3. Pack             — `fuenteId != null`: se registra como cualquier producto (título, portada,
+//      descripción, precio) y entrega `unidadesPorPack` del contenido de SU FUENTE. Sin `files` propios.
 model Product {
-  id                String          @id @default(cuid())
+  id                String              @id @default(cuid())
   tenantId          String
   titulo            String
   descripcion       String
-  precio            Decimal         @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
+  precio            Decimal             @db.Decimal(15, 2) // precio final al público, IVA incluido (I4). El precio de un PACK es este número, tipeado por el Organizador: nada se deriva del precio de la unidad (V-I5)
   portadaUrl        String?
-  pdfPath           String? // null = PDF pendiente; NO-null = key determinística `<tenantId>/<productId>.pdf` verificada en R2 privado (ADR-0002/0009), la escribe SOLO confirmarPdfProducto tras headObject; nunca enlace público
-  activo            Boolean         @default(true)
-  participaEnSorteo Boolean         @default(false) // opt-in al Sorteo (ADR-0012/D1): comprarlo genera Tickets en el Raffle ACTIVO del tenant. Se snapshotea en OrderItem al comprar. No queriable por sí solo (se lee por el Product ya scopeado) ⇒ sin @@index
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  // DEPRECADO como fuente de verdad desde productos-tipos-digitales F01 (el canónico es `ProductFile`),
+  // pero se CONSERVA durante la fase EXPANDIR: la DB es compartida dev=prod (ADR-0015) y el código viejo
+  // deployado lo lee Y lo escribe. El lector nuevo resuelve `ProductFile` con FALLBACK a esta columna.
+  // Su drop es un plan aparte (jamás en este). null = PDF pendiente; NO-null = key determinística
+  // `<tenantId>/<productId>.pdf` verificada en R2 privado (ADR-0002/0009); nunca enlace público.
+  pdfPath           String?
+  activo            Boolean             @default(true)
+  participaEnSorteo Boolean             @default(false) // opt-in al Sorteo (ADR-0012/D1): comprarlo genera Tickets en el Raffle ACTIVO del tenant. Se snapshotea en OrderItem al comprar. Es del PACK mismo (un pack es un producto): tickets = unidadesPorPack × cantidad. No queriable por sí solo ⇒ sin @@index
+  // Modalidad de venta (productos-tipos-digitales D2/D9): ESTANDAR = 1 archivo fijo; SOBRE = pool con
+  // asignación aleatoria por compra (F05). Default ESTANDAR ⇒ ADD COLUMN seguro sobre la tabla viva y
+  // toda fila existente conserva su semántica actual. No queriable por sí sola (se lee por el Product ya
+  // resuelto; el catálogo filtra por [tenantId, activo]) ⇒ sin @@index.
+  //
+  // OJO desde la enmienda v2: en un PACK esta columna NO significa nada. Un pack se registra SIEMPRE
+  // con ESTANDAR (el default) y la modalidad EFECTIVA de su entrega es la de la FUENTE — ramificar la
+  // entrega por `product.modalidad` de un pack es un bug (se ramifica por `fuente.modalidad`). Marcar un
+  // pack como SOBRE además lo auto-escondería: el catálogo excluye `modalidad = SOBRE` (F13).
+  modalidad         ProductMode         @default(ESTANDAR)
+  // De dónde salen los archivos que entrega este producto (CONTEXT § Fuente de archivos, E14/E15).
+  // null ⇒ producto normal: entrega sus propios `files`, comportamiento byte-idéntico al de siempre.
+  // NO-null ⇒ este producto es un PACK: la compra entrega `unidadesPorPack` del contenido de la fuente.
+  //   · fuente ESTANDAR (1 archivo, caso libro) ⇒ N copias DERIVADAS EN PRESENTACIÓN y CERO
+  //     `PackAssignment` (V-I2 — el @@unique([orderItemId, packOrdinal, productFileId]) prohíbe la fila
+  //     repetida, y está bien que la prohíba).
+  //   · fuente SOBRE (pool, caso stickers) ⇒ asignación aleatoria sin duplicados intra-pack: el backend
+  //     de F08 (`muestrearPacks` + la $tx idempotente) re-anclado a la FUENTE, no al producto de la línea.
+  //
+  // CUATRO reglas que la DB NO expresa y viven como invariante de USE CASE (V-I1) — están acá para que
+  // nadie las busque en un constraint: (a) la fuente es del MISMO tenant; (b) SIN CADENAS: la fuente no
+  // puede ser a su vez un pack (`fuente.fuenteId` debe ser null), y tampoco puede ser el producto mismo;
+  // (c) INMUTABLE tras crear (mismo patrón que `modalidad` y `CheckoutField.clave/tipo`); (d) un pack NO
+  // tiene `files` propios. Prisma no expresa CHECK ni uniques parciales, y un CHECK a mano sería
+  // INVISIBLE al `db push` ⇒ prohibido (mismo criterio que `ProductPackOption.unidades`, la exclusión
+  // mutua de `PlatformCoupon` y el formato de `Tenant.prefijoTicket`).
+  // Solo (a) sería expresable, con `@@unique([tenantId, id])` + FK compuesta [tenantId, fuenteId]:
+  // DESCARTADO a propósito. Ningún FK de este schema usa ese patrón —`OrderItem.productId`,
+  // `DownloadGrant.productId` y `PackAssignment.productFileId` corren exactamente el mismo riesgo y se
+  // sostienen con queries tenant-scoped— así que blindar UNA relación sugeriría que las otras están
+  // garantizadas; además el escalar `tenantId` participando en dos relaciones ensucia todo `create` de
+  // Product. Si algún día el schema adopta FKs compuestas por tenant como POLÍTICA, esta es buena
+  // primera clienta: es una decisión de schema entero, no de esta feature.
+  fuenteId          String?
+  // Cuántas unidades del contenido de la FUENTE entrega UNA unidad vendida de este producto.
+  // Se llama IGUAL que su snapshot `OrderItem.unidadesPorPack` a propósito: en este schema el snapshot
+  // repite SIEMPRE el nombre de la columna que congeló (`precio`, `participaEnSorteo`,
+  // `CheckoutFieldResponse.clave/etiqueta/tipo`, `PlatformCouponRedemption.codigo`), así el snapshot es
+  // una COPIA y no una traducción, y la fórmula `unidadesPorPack × cantidad` se lee idéntica en las dos
+  // tablas. `unidades` a secas se descartó: en una tabla de productos se lee como STOCK — justo lo que
+  // un digital no tiene.
+  // `@default(1)` NOT NULL y no nullable: para todo producto existente (`fuenteId = null`) "1 unidad por
+  // pack" es un hecho VERDADERO —vende 1 unidad de sí mismo, comprar 3 = 3 unidades— no una categoría
+  // que no aplica ⇒ mismo criterio que `OrderItem.unidadesPorPack`/`cantidad`, y el CONTRARIO de
+  // `ProductFile.bytes Int?` (donde el 0 habría fabricado un hecho falso). Consecuencia buscada: cero
+  // `?? 1` en los callers — un `??` olvidado son 0 tickets para alguien que YA PAGÓ. El default existe
+  // para las filas HISTÓRICAS y para el código VIEJO deployado contra esta misma DB (ADR-0015), NO para
+  // relevar al writer: el panel lo escribe EXPLÍCITO. `≥1` va en Zod (Prisma no expresa CHECK).
+  // EDITABLE libre, a diferencia de `fuenteId`: la historia la protege el snapshot del OrderItem.
+  unidadesPorPack   Int                 @default(1)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  // Self-relation "FuenteDeArchivos" (E14): el pack apunta al producto que TIENE los archivos.
+  // onDelete: Restrict, y acá no es ceremonia. Para una fuente ESTANDAR vendida SOLO vía packs, este
+  // Restrict es lo ÚNICO que impide borrarla: no hay `OrderItem` ni `DownloadGrant` apuntándole (apuntan
+  // al PACK) y tampoco hay `PackAssignment` (V-I2: las copias se derivan en presentación). Sin él,
+  // borrar la fuente cascadearía sus `ProductFile` y dejaría 404 a todo el que YA compró el pack.
+  // SetNull sería PEOR que un error: el pack sobreviviría ACTIVO, con precio y sin nada que entregar —
+  // degradaría a "producto normal sin archivos propios" y se seguiría VENDIENDO. El corte es el de
+  // `OrderItem → Product`, no el de `CheckoutFieldResponse → CheckoutField`: ese SetNull se reserva para
+  // filas SNAPSHOT cuya definición es borrable por diseño, y un pack no es un snapshot — depende de su
+  // fuente para funcionar. Consecuencias asumidas: liberar una fuente exige borrar antes sus packs (y
+  // `fuenteId` es inmutable, así que no hay "re-apuntar"), y un pack VENDIDO es indeleble (Restrict desde
+  // OrderItem) ⇒ su fuente también. Es lo correcto: son los bytes que alguien pagó.
+  fuente            Product?            @relation("FuenteDeArchivos", fields: [fuenteId], references: [id], onDelete: Restrict)
+  packs             Product[]           @relation("FuenteDeArchivos")
   orderItems        OrderItem[]
   downloadGrants    DownloadGrant[] // efectos post-pago F02
+  files             ProductFile[] // archivos vendibles: 1 si ESTANDAR, pool de M si SOBRE (F01/D2). Un PACK no tiene: sus archivos son los de `fuente`
+  packOptions       ProductPackOption[] // DEPRECADA (enmienda v2): sin lectores ni escritores; la back-relation solo existe porque el modelo sigue en pie. Ver el bloque de ProductPackOption
 
   @@index([tenantId, activo]) // el catálogo consulta WHERE tenantId = ? AND activo = true; sirve tenant-only por prefijo
+  @@index([fuenteId]) // NECESARIO por el Restrict: sin él, borrar CUALQUIER producto obliga a Postgres a un seq scan de Product para el chequeo de integridad. Es además la query de los guards del panel ("¿qué packs cuelgan de esta fuente?"). Mismo rol doble y misma forma BARE que PackAssignment.@@index([productFileId]): no se compone `activo` porque una fuente tiene 1–3 packs y filtrarlos en heap es gratis
 }
 
 // Una compra dentro de una Tienda. Identidad del comprador = su correo (ADR-0004). Ver CONTEXT.md § Orden.
@@ -260,22 +387,50 @@ model Order {
 }
 
 // Línea de una Orden. Snapshot inmutable al comprar (sin updatedAt): precio UNITARIO congelado (I4),
-// más `cantidad` y `participaEnSorteo` congelados (ADR-0012/D2/D5). Subtotal = precio × cantidad en Decimal server-side.
+// más `cantidad`, `participaEnSorteo` y `unidadesPorPack` congelados (ADR-0012/D2/D5 + F05/D3/D6).
+// Subtotal = precio × cantidad en Decimal server-side.
 model OrderItem {
   id                String   @id @default(cuid())
   tenantId          String
   orderId           String
   productId         String
-  precio            Decimal  @db.Decimal(15, 2) // snapshot del precio UNITARIO del Product al comprar (I4)
-  cantidad          Int      @default(1) // unidades de esta línea (≥1 vía Zod; default 1 = ítems históricos, implícitamente 1u)
+  precio            Decimal  @db.Decimal(15, 2) // snapshot del precio UNITARIO del Product al comprar (I4). Para un SOBRE la "unidad" ES UN PACK: acá va el precio del PACK COMPLETO de la opción elegida (ProductPackOption.precio), no el del archivo
+  cantidad          Int      @default(1) // unidades de esta línea (≥1 vía Zod; default 1 = ítems históricos, implícitamente 1u). Para un SOBRE: cuántos PACKS
   participaEnSorteo Boolean  @default(false) // SNAPSHOT del flag del Product al comprar (D2): mantiene K de tickets estable ante replay del webhook aunque el Organizador togglee el flag vivo
+  // SNAPSHOT de cuántos archivos del pool entrega UN pack de la opción comprada (F05/D3). Congelado
+  // al comprar porque de acá salen las DOS cosas que tienen que ser estables ante replay del webhook
+  // aunque el Organizador edite o BORRE la opción viva: la ASIGNACIÓN (`unidadesPorPack × cantidad`
+  // archivos, F08) y los TICKETS del sorteo (D6, que extiende el "1 ticket por unidad" de ADR-0012).
+  // NO es dinero y NO entra en ningún cálculo de plata (I3): el subtotal sigue siendo `precio ×
+  // cantidad` — multiplicar por `unidadesPorPack` ahí sería cobrar de más.
+  // `@default(1)` y NOT NULL a propósito, no nullable: para un producto ESTANDAR "1 unidad por pack"
+  // es un hecho VERDADERO (comprar 3 unidades = 3 tickets = 1×3), no una categoría que no aplica ⇒
+  // mismo criterio que `cantidad Int @default(1)`, y el CONTRARIO de `ProductFile.bytes Int?` (donde
+  // el 0 habría fabricado un hecho falso sobre un tamaño DESCONOCIDO). Consecuencia buscada: la
+  // fórmula `unidadesPorPack × cantidad` vale uniforme para estándar y sobre, sin `?? 1` en cada
+  // caller — un `??` olvidado son 0 tickets para alguien que YA PAGÓ. El default existe para que las
+  // filas HISTÓRICAS (y las que escriba el código VIEJO deployado contra esta misma DB, ADR-0015)
+  // sean verdaderas, NO para relevar al writer: el checkout de F07 lo escribe EXPLÍCITO en las dos
+  // modalidades (invariante de use case, testeado — mismo cuidado que RaffleEntry.numero sin default).
+  unidadesPorPack   Int      @default(1)
   createdAt         DateTime @default(now())
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  assignments PackAssignment[] // archivos del pool que le tocaron a esta línea (SOBRE); vacío en ESTANDAR, cuya entrega sale del DownloadGrant + su único ProductFile confirmado
 
-  @@unique([orderId, productId]) // 1 línea por producto por orden (orderId ya es tenant-bound); prefijo cubre el índice de orderId
+  // 1 línea por producto por orden (orderId ya es tenant-bound); prefijo cubre el índice de orderId.
+  // SE CONSERVA TAL CUAL en F05: ampliarlo a [orderId, productId, packOptionId] es DROP+CREATE de
+  // índice único ⇒ `--accept-data-loss` sobre tabla VIVA (prisma-conventions § Workflow), fuera del
+  // alcance aditivo de esta tanda. CONSECUENCIA DE PRODUCTO asumida: en UNA orden el Comprador lleva
+  // UNA sola opción de pack por sobre (1× o 4×, con `cantidad` packs), no "1 de 1× + 1 de 4×" del
+  // mismo sobre; el Zod del checkout ya refina `productId` único, así que el rechazo es un mensaje
+  // claro y no un P2002. Y no es una limitación de esta tabla sino de TODO el pipeline post-pago:
+  // `DownloadGrant` lleva el MISMO @@unique([orderId, productId]) ⇒ mezclar tamaños en una orden es
+  // un cambio de VARIAS tablas, no de un índice. Si alguna vez se hace: verificar 0 grupos duplicados
+  // y un solo `db push -- --accept-data-loss`, con el precedente de ADR-0012 (RaffleEntry).
+  @@unique([orderId, productId])
   @@index([tenantId])
   @@index([productId])
 }
@@ -314,6 +469,234 @@ enum RaffleStatus {
   CERRADO
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Archivo de producto (productos-tipos-digitales F01, D2/D7/D8/D9). Aprobado por
+// schema-guardian 2026-07-26 (REQUEST_CHANGES → aplicado tal cual el bloque final).
+//
+// El archivo vendible deja de ser una columna de Product y pasa a tabla: producto
+// ESTANDAR = 1 archivo; SOBRE = pool de M (fase 2, F05). Metadata de un objeto del
+// bucket R2 PRIVADO (ADR-0002/0009) — el acceso SIEMPRE sale de una URL prefirmada
+// corta autorizada por el Entitlement de una orden pagada; jamás enlace público.
+//
+// Migración EXPANDIR (DB compartida dev=prod, ADR-0015): esta tanda es ADITIVA PURA
+// (1 CREATE TABLE + 2 CREATE TYPE + 1 ADD COLUMN con default). `Product.pdfPath` NO se
+// dropea acá: el código viejo deployado lo lee y lo escribe. Su drop es un plan aparte.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ProductMode {
+  ESTANDAR
+  SOBRE
+}
+
+enum ProductFileType {
+  PDF
+  EPUB
+  IMAGEN
+  AUDIO
+  ZIP
+}
+
+model ProductFile {
+  id            String          @id @default(cuid())
+  tenantId      String
+  productId     String
+  // Key del objeto en R2, computada SIEMPRE server-side (I1/D9): `<tenantId>/<productId>/<id>.<ext>`
+  // con `ext` derivada del contentType validado contra la allowlist, JAMÁS del nombre del cliente.
+  // SE PERSISTE (a diferencia de PageAsset, que la recomputa) porque no es derivable: las filas del
+  // backfill llevan la key LEGACY `<tenantId>/<productId>.pdf`, de otra forma. Unique GLOBAL, no
+  // compuesto con tenantId: el bucket es UN namespace para toda la plataforma, así que dos filas de
+  // tenants distintos apuntando al mismo objeto es exactamente lo que hay que hacer imposible (mismo
+  // criterio que Payment.token / DownloadGrant.token). Además es la llave de idempotencia del backfill.
+  key           String          @unique
+  contentType   String // de la allowlist MIME cerrada (D1/I4); mismo nombre que PageAsset.contentType y que services/storage.ts
+  tipo          ProductFileType // bucket grueso DERIVADO del contentType server-side (D9); es el eje por el que ramifica la entrega (miniaturas solo IMAGEN, F09)
+  // Tamaño real del objeto, del headObject de la confirmación (Int, NO dinero). Alimenta la cuota
+  // futura del carril facturación (D8). NULLABLE a propósito: null = DESCONOCIDO, no cero — lo son las
+  // filas sin confirmar y las del backfill de `pdfPath` (que no le pega a R2). Un `@default(0)`
+  // fabricaría un hecho falso que esa cuota sumaría como 0 (mismo criterio que RaffleEntry.numero /
+  // Raffle.ganadorNumero: el backfill NO inventa lo que no sabe).
+  bytes         Int?
+  nombreArchivo String // nombre ORIGINAL saneado, base del Content-Disposition de la descarga; su extensión la fuerza el contentType validado, nunca el cliente
+  // Confirmación server-side: se escribe UNA vez, tras verificar el objeto con headObject (≤20 MB, D7).
+  // null = pendiente ⇒ el pipeline (entrega, gate de publicación, pool del sobre) IGNORA la fila.
+  // Timestamp y no Boolean: es un evento de una sola dirección, no un ajuste toggleable (mismo idioma
+  // que McpAuthCode.usedAt / Raffle.ejecutadoAt / StorefrontPage.publishedAt).
+  confirmadoAt  DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Cascade desde Product: composición intrínseca del agregado, sin vida propia (mismo criterio que
+  // OrderItem→Order). Nunca dispara sobre archivos comprometidos: Product ya es Restrict desde
+  // OrderItem/DownloadGrant ⇒ un producto vendido es indeleble, y en F05 la tabla de asignaciones suma
+  // Restrict hacia ESTA tabla (un RESTRICT nieto aborta el DELETE entero en Postgres, no lo saltea — I7/D4).
+  // Restrict hacia Tenant: espeja a su propio padre Product; no hace indeleble a ningún tenant que
+  // Product no bloquee ya (toda fila cuelga de un Product).
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignments PackAssignment[] // veces que este archivo del pool le tocó a una compra; su Restrict lo vuelve INDELEBLE (I7/D4)
+
+  @@index([productId, confirmadoAt]) // "archivos entregables de este producto" + gate de publicación (some: confirmadoAt != null); el prefijo cubre el FK productId
+  @@index([tenantId]) // cuota por tenant (D8) + chequeo del Restrict al borrar Tenant sin seq scan
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sobre sorpresa (productos-tipos-digitales F05, D3/D4/D6/D12 — I3/I7). Aprobado por
+// schema-guardian 2026-07-26 (REQUEST_CHANGES → este bloque es el final).
+//
+// La mecánica: un `Product` con `modalidad = SOBRE` tiene un POOL de archivos —que NO es tabla
+// nueva: el pool ES la relación `Product.files` filtrada por `confirmadoAt != null`— y un MENÚ de
+// OPCIONES DE PACK `{unidades, precio}`. El Comprador elige UNA opción y una `cantidad` de packs;
+// al pagarse la orden el server asigna al azar `unidades × cantidad` archivos del pool (sin repetir
+// DENTRO de un pack, packs independientes entre sí — D4) y materializa esa asignación como registro
+// auditable en `PackAssignment`.
+//
+// Lo que este bloque NO cambia, y es deliberado: la ARITMÉTICA DEL DINERO queda intacta (I3). Para
+// un SOBRE la "unidad" del `OrderItem` es UN PACK: `precio` = precio del pack completo, `cantidad` =
+// cuántos packs ⇒ subtotal = `precio × cantidad`, la misma fórmula de siempre. `unidadesPorPack` NO
+// entra en NINGÚN cálculo de plata: solo cuenta ARCHIVOS a asignar y TICKETS a emitir (D6).
+//
+// Push ADITIVO PURO (DB compartida dev=prod, ADR-0015): 2 CREATE TABLE + 1 ADD COLUMN NOT NULL con
+// default (metadata-only en PG11+). CERO drop, CERO ALTER de columna existente, CERO cambio de
+// índice único, CERO enum nuevo ⇒ sin `--accept-data-loss`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// DEPRECADA — el CONCEPTO murió el 2026-07-26 (ENMIENDA v2 de productos-tipos-digitales, E13/E14:
+// «un pack ES un producto»). La TABLA sigue en pie A PROPÓSITO; no es un olvido.
+//
+// Qué la reemplaza: un pack es hoy una fila de `Product` con `fuenteId` + `unidadesPorPack`. El menú
+// {unidades, precio} colgando de un SOBRE ya no existe en el producto.
+//
+// Estado: CERO lectores y CERO escritores (sus use cases, sus 4 procedures, su UI y sus tests de CRUD
+// se borraron en F11). No agregar ninguno. No escribir tests contra ella: testear schema muerto es
+// mentir cobertura. Las filas que hay son datos de prueba del tenant `prueba` — no hay producción.
+//
+// Por qué NO se dropea acá: la DB es COMPARTIDA dev=prod (ADR-0015) y el push de esta tanda es ADITIVO
+// PURO (V-I3). Un DROP TABLE es destructivo, pide `--accept-data-loss` y exige OK explícito del usuario.
+//
+// CONDICIÓN PARA DROPEARLA (plan aparte, no este): (1) ningún deploy vivo corriendo código que la lea o
+// escriba contra esta misma DB; (2) confirmado que no hay filas que alguien quiera conservar; (3) OK
+// explícito del usuario al push destructivo. El drop se lleva de paso las back-relations
+// `Tenant.packOptions` y `Product.packOptions` y este bloque entero.
+//
+// ── Documentación histórica del modelo (v1), conservada mientras la tabla exista ──
+// Opción de pack: una entrada del MENÚ DE PRECIOS de un Producto SOBRE —
+// "1 sticker $3.000", "4 stickers $10.000". Es CONFIGURACIÓN re-creable, no un hecho: el hecho lo
+// asienta el snapshot `{precio, unidadesPorPack}` del `OrderItem` al comprar (D3), que se lee solo.
+// Por eso la opción es libremente editable y borrable, y por eso NO hay FK desde `OrderItem` hacia
+// acá (ver el comentario de `OrderItem.unidadesPorPack`).
+//
+// onDelete: Product Cascade — composición intrínseca del agregado, sin vida propia (mismo criterio
+// que `ProductFile`, su tabla hermana). Nunca dispara sobre un sobre vendido: `Product` ya es
+// Restrict desde `OrderItem`/`DownloadGrant`, así que un producto con ventas es indeleble.
+// Tenant Restrict — espeja a su padre `Product` (toda fila cuelga de uno) ⇒ NO vuelve indeleble a
+// ningún tenant que `Product` no bloquee ya. Es la razón por la que acá no se aplica el corte
+// "configuración ⇒ Cascade hacia Tenant" de prisma-conventions: ese corte gobierna a los hijos
+// DIRECTOS de Tenant (`CheckoutField`, `FlowCredential`); romper el espejo con la tabla hermana
+// costaría más claridad de la que ahorra.
+model ProductPackOption {
+  id        String   @id @default(cuid())
+  tenantId  String
+  productId String
+  // Cuántos archivos del pool entrega UN pack de esta opción. `≥1` va en Zod: Prisma no expresa
+  // CHECK y uno a mano sería INVISIBLE al `db push` ⇒ prohibido (mismo criterio que la exclusión
+  // mutua de PlatformCoupon.porcentaje/montoDescuento).
+  unidades  Int
+  // Precio final al público del PACK COMPLETO, IVA incluido (I4) — NO por unidad: un pack de 4 a
+  // $10.000 guarda 10000, jamás 2500. `Decimal(15,2)`, nunca Float. Editable libre: la historia la
+  // protege el snapshot del OrderItem (mismo espíritu que CheckoutField.etiqueta).
+  precio    Decimal  @db.Decimal(15, 2)
+  // Kill switch reversible: saca la opción de la venta sin borrar la fila (precedente
+  // PlatformCoupon.activo / CheckoutField.activo). El checkout valida contra las opciones ACTIVAS
+  // del producto del tenant resuelto SERVER-SIDE (I1). El hard delete también está permitido: el
+  // snapshot del OrderItem sobrevive intacto (mismo ciclo de vida que CheckoutField, D5).
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Un tamaño de pack, un precio. Dos opciones de 4 unidades serían dos radio buttons
+  // INDISTINGUIBLES para el Comprador (y nadie elegiría el caro) ⇒ bug de UI silencioso; "cambiar el
+  // precio del pack de 4" es un UPDATE de esta fila, nunca una fila nueva. Hace además DOS trabajos
+  // que no son obvios:
+  //  1. Convierte `(productId, unidades)` en la CLAVE NATURAL de la opción ⇒ el snapshot
+  //     `(productId, unidadesPorPack)` del OrderItem identifica QUÉ opción se compró SIN FK, y
+  //     sobrevive a que la opción se borre y se recree (mismo argumento por el que `Raffle.
+  //     ganadorNumero` resuelve su RaffleEntry vía @@unique([raffleId, numero]) en vez de una 2ª FK).
+  //  2. Da un ORDEN TOTAL determinista al selector (`orderBy: { unidades: asc }`) ⇒ esta tabla NO
+  //     necesita columna `posicion`, a diferencia de CheckoutField (cuyas claves no ordenan nada).
+  // Sin `tenantId`: `productId` ya es tenant-bound y agregarlo DEBILITARÍA el constraint (mismo
+  // criterio que OrderItem/DownloadGrant/RaffleEntry). El prefijo cubre el FK `productId`.
+  // OJO, misma trampa que CheckoutField.@@unique([tenantId, clave]): el unique alcanza también a las
+  // INACTIVAS ⇒ crear "4 × $8.000" teniendo una opción de 4 desactivada tira P2002. El panel (F06)
+  // traduce ese P2002 a "ya tienes una opción de 4 unidades: editala o reactivala", nunca a un 500.
+  @@unique([productId, unidades])
+  @@index([tenantId]) // chequeo del Restrict al borrar Tenant sin seq scan + lecturas tenant-wide
+}
+
+// Asignación (CONTEXT § Asignación): el registro AUDITABLE de qué archivo del pool le tocó a quién —
+// una fila por ARCHIVO ENTREGADO, no una por pack ni una por orden (mismo idioma que `RaffleEntry`,
+// que es una fila por TICKET). La asignación persistida ES el hecho (D12): el RNG no se re-corre
+// NUNCA, ni para pintar la página de entrega ni para reenviar el correo. Inmutable ⇒ sin `updatedAt`.
+//
+// Se materializa DENTRO de la MISMA `$transaction` post-pago que `DownloadGrant`/`RaffleEntry`
+// (I3/D12), idempotente ante replay del webhook por sus uniques de coordenadas: un segundo intento
+// sortea otra muestra, choca con las MISMAS coordenadas y no cambia nada — la muestra ORIGINAL vale.
+//
+// onDelete: OrderItem Cascade — composición intrínseca del agregado Orden (mismo criterio que
+// `OrderItem → Order` y `CheckoutFieldResponse → Order`: una asignación colgando de una línea que ya
+// no existe es basura ilegible). No debilita nada: la Orden pagada ya es indeleble por sus
+// `Payment`/`DownloadGrant`/`RaffleEntry` Restrict.
+// ProductFile Restrict — I7/D4: un archivo con asignaciones NO se borra, porque la descarga del
+// Comprador ya es una promesa. ES el RESTRICT NIETO que el comentario de `ProductFile` anticipa: en
+// Postgres aborta el DELETE entero del Product, no lo saltea.
+// Tenant Restrict — asienta un HECHO ocurrido (qué recibió un tercero que pagó): mismo bucket que
+// Order/Payment/RaffleEntry/CheckoutFieldResponse, no configuración re-creable.
+model PackAssignment {
+  id            String   @id @default(cuid())
+  tenantId      String
+  orderItemId   String
+  productFileId String
+  // Coordenadas de la entrega. DOS ordinales y no uno solo (0..unidades×cantidad-1) a propósito: la
+  // regla de D4 —"sin duplicados DENTRO del pack"— es POR PACK, así que el pack tiene que ser
+  // coordenada de primera clase. Con un ordinal único habría que DERIVAR el límite del pack como
+  // `floor(ordinal / unidadesPorPack)`: la fila dejaría de leerse sola y un cambio del snapshot
+  // re-particionaría la historia en silencio. Con dos, "el pack 2 traía estos 4" es una query.
+  // Sin `@default` (a diferencia de RaffleEntry.ordinal, que lo tiene por su ampliación histórica):
+  // tabla nueva, cero filas viejas ⇒ cada writer los asigna explícitos.
+  packOrdinal   Int // 0..cantidad-1: cuál de los packs de la línea
+  unidadOrdinal Int // 0..unidadesPorPack-1: qué unidad dentro de ESE pack (la unidad de conteo de la mecánica se llama `unidades` en toda la feature; `slot` sería un sustantivo nuevo sin dominio detrás)
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orderItem   OrderItem   @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  productFile ProductFile @relation(fields: [productFileId], references: [id], onDelete: Restrict)
+
+  // Idempotencia exactly-once ante replay (mismo idioma que RaffleEntry.@@unique([raffleId, orderId,
+  // ordinal])): el conjunto de COORDENADAS es determinístico aunque la muestra no lo sea, así que el
+  // replay no puede agregar ni una fila. Sin `tenantId`: `orderItemId` ya es tenant-bound. Su prefijo
+  // `orderItemId` sirve las dos lecturas calientes ⇒ CERO índices extra: "asignaciones de esta línea"
+  // (corte de replay, F08) y "asignaciones de esta orden" (F09, `where orderItemId in (...)`).
+  @@unique([orderItemId, packOrdinal, unidadOrdinal])
+  // SEGUNDA capa: "sin duplicados DENTRO de un mismo pack" (D4/I7) SÍ es expresable en DB, y es esto.
+  // No es redundante con el unique de arriba: ese fija CUÁNTAS filas hay, este fija que las
+  // `unidades` de UN pack sean archivos DISTINTOS — la parte de la mecánica que el Comprador NOTA
+  // ("me tocaron 4 y dos son iguales") y la que más fácil rompe un bug de sampling. Deja el "sin
+  // reemplazo" garantizado por Postgres, no por el RNG. Permite a propósito el duplicado ENTRE packs
+  // (otro `packOrdinal` ⇒ otra fila): cada pack samplea independiente el pool completo (D4).
+  // Consecuencia asumida: fija D4 en DB. Si algún día se quisiera "pool corto ⇒ repetir archivos"
+  // en vez de rechazar la venta, habría que DROPEAR este unique (destructivo). Hoy la política es
+  // rechazar, así que el lock-in es el deseado.
+  // OJO al escribir: con dos uniques, un `createMany({ skipDuplicates: true })` de una muestra
+  // BUGGEADA insertaría MENOS filas EN SILENCIO en vez de fallar (el `ON CONFLICT DO NOTHING` de
+  // Prisma no lleva target ⇒ aplica a TODOS los uniques). Por eso el corte de replay va ANTES y el
+  // insert va SIN skipDuplicates: así una violación ABORTA la $tx y Flow reintenta (ver invariantes).
+  @@unique([orderItemId, packOrdinal, productFileId])
+  @@index([productFileId]) // NECESARIO por el Restrict (sin él, borrar un archivo = seq scan completo) y ES la query del bloqueo de borrado del panel (F06: "¿este archivo tiene asignaciones?"). Mismo rol doble que CheckoutFieldResponse.@@index([fieldId])
+  @@index([tenantId]) // chequeo del Restrict al borrar Tenant + lecturas tenant-wide
+}
+
 // El sorteo promocional de una Tienda (CONTEXT § Sorteo). Per-tenant (ADR-0005).
 // A lo sumo un Raffle ACTIVO por tenant (S5): invariante de sembrado/gestión (F05),
 // NO constraint de DB (Prisma no expresa unique parciales). El use case lo lee con
@@ -341,8 +724,28 @@ model Raffle {
   // null = no ejecutado; el guard es `WHERE ejecutadoAt IS NULL` — invariante de use
   // case, NO constraint de DB (mismo criterio que "1 Raffle ACTIVO por tenant", S5).
   ganadorEmail   String? // snapshot del correo del ganador (identidad = correo, ADR-0004); denormalizado, sin 2ª FK a RaffleEntry
+  // Snapshot del Número del sorteo GANADOR (ADR-0024 §5): hermano de `ganadorEmail`, escrito en el
+  // MISMO `updateMany WHERE ejecutadoAt IS NULL` (la tupla auditable no se parte). No es una
+  // denormalización con pérdida: es la CLAVE NATURAL del ticket — `(id, ganadorNumero)` resuelve la
+  // RaffleEntry exacta vía @@unique([raffleId, numero]). Por eso NO hay 2ª FK a RaffleEntry (sería
+  // una relación nombrada redundante, y un SetNull borraría un hecho auditado). Que apunte a una
+  // entry existente es invariante de USE CASE (igual que `ejecutadoAt`/1-ACTIVO), no constraint.
+  // null ⇒ SIN EJECUTAR. Ese es el único caso vivo: ningún sorteo llegó a ejecutarse antes de
+  // ADR-0024 (verificado en el push del 2026-07-26) y no hay compras reales en ningún entorno, así
+  // que el "ejecutado sin número" es un histórico que no existe. Aun así la UI trata el null como
+  // ausencia y degrada, en vez de imprimir un número inventado.
+  ganadorNumero  Int?
   ejecutadoAt    DateTime? // timestamp de ejecución; null hasta ejecutar (llave de idempotencia)
   ejecutadoPor   String? // snapshot del EMAIL del ejecutor (auditoría de "quién"; durable si el User se borra, ADR-0004)
+  // ── Numeración pública de tickets (ADR-0024 §2) ───────────────────────────────────
+  // HIGH-WATER MARK del Número del sorteo emitido en ESTE sorteo: monotónico, jamás decrece, y NO
+  // es el conteo de entries (para el total, contar `entries`). Una orden reclama su rango de K
+  // números con UN SOLO UPDATE atómico (`{ ultimoNumero: { increment: K } }` leyendo el valor
+  // nuevo) DENTRO de la $transaction post-pago — nunca leer-y-escribir (lost update bajo READ
+  // COMMITTED). El row-lock de esta fila serializa confirmaciones concurrentes del mismo sorteo sin
+  // locks distribuidos ni SERIALIZABLE. Números emitidos = ultimoNumero-K+1 .. ultimoNumero; si la
+  // $tx aborta, contador y entries revierten juntos (I4: nunca se reutiliza un número).
+  ultimoNumero   Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -361,6 +764,15 @@ model RaffleEntry {
   orderId   String
   email     String // snapshot de Order.email al crear la entry (I5)
   ordinal   Int      @default(0) // discriminador 0..K-1 del ticket dentro de la orden (D3); default 0 satisface el unique ampliado en entries históricas (cada (raffle,orden) tenía ≤1)
+  // Número del sorteo (ADR-0024, CONTEXT § Número del sorteo): la identidad PÚBLICA del ticket —
+  // correlativo por Raffle desde 1, inmutable y jamás reutilizado (I4: comunicado al Comprador es
+  // promesa pública). NO confundir con `ordinal`, que es plomería de idempotencia intra-orden y no
+  // se muestra nunca. SIN `@default` a propósito (a diferencia de `ordinal`): obliga a cada writer a
+  // asignarlo explícitamente — hoy DOS (`aplicarEfectosPostPago` y el arrastre D13 de `crearSorteo`);
+  // un default lo dejaría colarse. La columna nació nullable solo para abrir la ventana de migración
+  // (push en dos tiempos, prisma-conventions § Workflow); esa ventana CERRÓ el 2026-07-26 y el
+  // estado final es el de acá: NOT NULL + @@unique([raffleId, numero]). Un entorno nuevo nace así.
+  numero    Int
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
@@ -368,6 +780,11 @@ model RaffleEntry {
   order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@unique([raffleId, orderId, ordinal]) // idempotencia por-ticket: K filas 0..K-1 vía createMany(skipDuplicates); prefijo [raffleId, orderId] cubre lookups por raffle y por (raffle, orden)
+  // Capa FINAL de unicidad del Número del sorteo (ADR-0024 §3): jamás dos tickets con el mismo número
+  // en un sorteo. Sin `tenantId` a propósito — `raffleId` ya es tenant-bound, y agregarlo debilitaría
+  // el constraint en vez de reforzarlo (aprobado por schema-guardian 2026-07-26). Su prefijo
+  // `raffleId` sirve además el scan ordenado por número ⇒ CERO índices nuevos.
+  @@unique([raffleId, numero])
   @@index([tenantId])
   @@index([orderId])
 }
@@ -678,3 +1095,325 @@ model McpAuditLog {
   @@index([createdAt])
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturación de la PLATAFORMA (F01, ADR-0026). El OTRO mundo del dinero: acá la
+// Plataforma cobra SU mensualidad con SU cuenta de Flow (Flow Suscripciones). Las
+// FlowCredential BYO de un tenant JAMÁS participan (I1); las credenciales de plataforma
+// viven SOLO en env — NO hay modelo de credencial acá a propósito (I7).
+//
+// Entidades de PLATAFORMA (D14): NO llevan columna de scoping `tenantId` de dominio. Donde
+// hay FK a Tenant es IDENTIDAD (1-1 con la Tienda), no scoping — mismo criterio que
+// Tenant/FlowCredential/TenantMembership. Los uniques GLOBALES (`codigo`, `flow*Id`) son
+// legítimos: namespace de la Plataforma, no campos de negocio de un tenant.
+//
+// Dinero en Decimal(15,2), nunca Float (I2). Ledger de idempotencia del webhook =
+// PlatformInvoice.flowInvoiceId (I3). TenantStatus queda INTACTO (I6): el estado de
+// facturación es un eje separado y el gate de venta se DERIVA server-side (D5).
+// Aprobado por schema-guardian (APPROVE tras REQUEST_CHANGES; aplicado con db push aditivo).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PlatformPlan {
+  FULL // primera tienda activa del Pagador — $25.000 bruto
+  ADICIONAL // siguientes — $12.500 bruto
+}
+
+enum PlatformSubscriptionStatus {
+  AL_DIA
+  COBRO_PENDIENTE // invoice fallido, Flow reintentando (flag `morose`)
+  EN_PAUSA_POR_PAGO // dunning agotado: la tienda deja de vender (D4)
+  CANCELADA
+}
+
+enum PlatformInvoiceStatus {
+  PENDIENTE
+  PAGADA
+  FALLIDA // reintentos en curso
+  VENCIDA // dunning agotado / incobrable
+  ANULADA
+}
+
+enum PlatformExemptionReason {
+  CORTESIA
+  GRANDFATHER
+}
+
+enum PlatformCouponType {
+  PORCENTAJE
+  MONTO
+}
+
+// El Pagador (CONTEXT § Pagador): el User que pone la tarjeta y receptor ÚNICO de los 7 correos
+// de facturación (D10). 1-1 con el customer de Flow en la cuenta de la PLATAFORMA.
+//
+// onDelete: Restrict hacia User — EXCEPCIÓN DELIBERADA a "todo modelo de datos del usuario va
+// Cascade" (prisma-conventions § Dominio con dinero); la segunda del schema tras McpAuditLog. Esta
+// fila no es contenido del usuario: es un MANDATO FINANCIERO VIVO (tarjeta registrada en Flow +
+// cobros recurrentes corriendo) y el ancla del ledger de PlatformInvoice. Cascade sería además
+// ilusorio: chocaría igual contra PlatformSubscription.pagadorId (Restrict) con un error de FK de
+// NIETO, ilegible. El patrón "snapshot + FK nullable SetNull" NO aplica: se reserva para padres
+// BORRABLES POR DISEÑO (CheckoutField tiene botón de borrar; User no tiene superficie de borrado).
+// La erasure de una persona se resuelve ANONIMIZANDO el User (patrón de snapshots de email ya
+// ubicuo acá), no borrando la fila: primero se cancela el plan, después se borra la cuenta.
+model PlatformBillingCustomer {
+  id              String   @id @default(cuid())
+  userId          String   @unique // 1-1 con User (el @unique ya crea el índice)
+  flowCustomerId  String   @unique // customerId en la cuenta Flow de la PLATAFORMA (jamás de un tenant, I1)
+  email           String // snapshot del email con el que se creó el customer en Flow. ES el receptor de los 7 correos (D10): User.email puede divergir (cambio de cuenta Google) y Flow seguiría conociendo este
+  tarjetaMarca    String? // ej. "Visa" — dato NO sensible que devuelve getRegisterStatus
+  tarjetaUltimos4 String? // últimos 4 dígitos; JAMÁS el PAN, el token de tarjeta ni nada reversible (I7)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  subscriptions PlatformSubscription[]
+  redemptions   PlatformCouponRedemption[]
+}
+
+// La Suscripción de plataforma (CONTEXT § Suscripción de plataforma): 1-1 con Tenant (D1), anclada a
+// un Pagador. Nace al PUBLICAR (sin trial, D2) y muere solo por cancelación explícita (D6).
+//
+// SLOT, no historia: `tenantId @unique` es el guard de DB contra DOBLE COBRO de la misma Tienda (dos
+// suscripciones vivas = cobrarle dos veces al Organizador). Consecuencia de D6 (republicar tras
+// cancelar = re-suscribir): la fila se REUSA con un flowSubscriptionId nuevo. Por eso el LEDGER no
+// depende de ella — PlatformInvoice snapshotea `flowSubscriptionId` + `montoBruto` y se lee solo.
+//
+// El estado es DERIVADO (D15), nunca copiado: se computa del webhook VERIFICADO server-side contra la
+// API de Flow (I3), jamás del redirect del navegador. El gate de venta (`puedeVender` = PUBLICADA &&
+// (al día || exenta)) vive en dominio, no acá: TenantStatus queda intacto (I6/D5).
+model PlatformSubscription {
+  id                      String                     @id @default(cuid())
+  tenantId                String                     @unique // 1-1 con Tenant (D1); el @unique ya crea el índice
+  pagadorId               String
+  plan                    PlatformPlan // FULL/ADICIONAL resuelto SERVER-SIDE contando las activas del Pagador (I4/I8); jamás input del cliente
+  estado                  PlatformSubscriptionStatus @default(AL_DIA)
+  montoBruto              Decimal                    @db.Decimal(15, 2) // snapshot del precio vigente al crear, IVA incluido (I2). Cambiar el precio de los planes NO reescribe esta columna (out of scope)
+  flowSubscriptionId      String                     @unique // subscriptionId en Flow; ruta primaria del webhook a esta fila
+  flowPlanId              String // planId de Flow con el que se creó (bootstrap F02). Sin unique: N suscripciones comparten plan
+  periodoInicio           DateTime?
+  periodoFin              DateTime? // fin del período en curso; null hasta que Flow reporta el primer invoice
+  proximoCobroAt          DateTime? // next_invoice_date de Flow; lo lee el cron diario (F09/D11)
+  // Cancelación explícita (D6) = `cancel_at_period_end` de Flow: la tienda sigue vendiendo hasta el
+  // fin del período. Los dos campos son distintos a propósito: cuándo lo PIDIÓ vs cuándo SURTE EFECTO.
+  cancelacionSolicitadaAt DateTime?
+  cancelacionEfectivaAt   DateTime? // = periodoFin al momento de cancelar
+  // Recálculo del pricing del Pagador (D7/I8): changePlan PROGRAMADO en Flow, no inmediato.
+  planProgramado          PlatformPlan? // plan que regirá desde `planProgramadoDesde`; null = sin cambio programado
+  planProgramadoDesde     DateTime? // new_plan_scheduled_change_date de Flow: cuándo SURTE EFECTO (no cuándo se programó)
+  // Idempotencia del correo (7) "mañana se cobra tu plan" (F09/D11): la fecha de cobro para la cual YA
+  // se avisó. NO es un boolean a propósito — hay que re-avisar CADA período: el guard es
+  // `renovacionAvisadaPara != proximoCobroAt`. Mismo espíritu que Raffle.ejecutadoAt (la marca ES la llave).
+  renovacionAvisadaPara   DateTime?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  pagador    PlatformBillingCustomer   @relation(fields: [pagadorId], references: [id], onDelete: Restrict)
+  invoices   PlatformInvoice[]
+  redemption PlatformCouponRedemption?
+
+  @@index([pagadorId]) // pricing del Pagador (D1/I8): contar sus suscripciones activas
+  @@index([proximoCobroAt]) // única ruta del cron diario (F09), predicado de RANGO; la tabla crece con cada tienda publicada (misma justificación que McpAccessToken.expiresAt). Sin @@index([estado]) a propósito: enum de 4 valores con uno dominante sobre tabla acotada ⇒ el planner no lo usaría, y el gate lee el estado de la suscripción ya resuelta por tenantId
+}
+
+// Espejo del invoice de Flow y LEDGER DE IDEMPOTENCIA del webhook (I3): la fila se upsertea por
+// `flowInvoiceId` y su estado AVANZA con lo que Flow reporta (verificado server-side, nunca el body del
+// POST). Registro de plata ⇒ el upsert avanza estado/fechas/intentos y JAMÁS reescribe `montoBruto` de
+// un invoice ya PAGADA (guard del use case F04: append-only en espíritu).
+//
+// SIN `tenantId`: entidad de plataforma (D14); el tenant se alcanza por `subscription` (1-1 con Tenant)
+// y la página Plan (F10) ya resolvió la suscripción antes de listar el historial ⇒ el query es
+// `where: { subscriptionId }`, no un scan. Denormalizarlo sería 2ª fuente de verdad de una dependencia
+// funcional y, peor, una columna que PARECE scoping de dominio sin serlo.
+//
+// `flowSubscriptionId` SÍ se snapshotea: la fila PlatformSubscription es un SLOT reusable (D6,
+// re-suscribir) ⇒ sin este snapshot un invoice viejo quedaría atribuido a la suscripción Flow
+// equivocada y un webhook tardío de la anterior no tendría ruta local.
+model PlatformInvoice {
+  id                 String                @id @default(cuid())
+  subscriptionId     String
+  flowInvoiceId      String                @unique // LEDGER de idempotencia (I3): replay del webhook ⇒ mismo upsert, cero duplicados
+  flowSubscriptionId String // snapshot de QUÉ suscripción Flow lo generó (el slot local se reusa)
+  estado             PlatformInvoiceStatus // SIN @default a propósito: cada writer lo DERIVA de Flow explícitamente (mismo criterio que RaffleEntry.numero)
+  montoBruto         Decimal               @db.Decimal(15, 2) // monto efectivamente facturado, IVA incluido (I2). Inmutable una vez PAGADA
+  periodoInicio      DateTime?
+  periodoFin         DateTime?
+  emitidaAt          DateTime?
+  pagadaAt           DateTime?
+  proximoIntentoAt   DateTime? // next_attemp_date de Flow (sic, typo del proveedor); va en el correo (2) de cobro fallido
+  intentos           Int                   @default(0) // reintentos reportados por Flow (Int, NO dinero)
+  paymentLink        String? // link manual de pago que da Flow para regularizar (banner + correo (2), D4)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  subscription PlatformSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([subscriptionId]) // historial de cobros de la página Plan (F10)
+}
+
+// La Exención (CONTEXT § Exención): libera a UNA Tienda del cobro. 1-1 con Tenant (D8). Tienda exenta =
+// sin tarjeta ni suscripción Flow. Expiración por evaluación LAZY en el gate (sin cron para el corte).
+// Se administra por DB DIRECTA (D8/ADR-0023) ⇒ `nota` es el único rastro de por qué se otorgó.
+//
+// onDelete: Cascade — es CONFIGURACIÓN comercial re-creable, no un hecho. Test de prisma-conventions
+// ("¿perdí un hecho o un ajuste?"): acá no hay plata registrada (justamente: no se cobró), ni PII de
+// terceros, ni hijos colgando. Sin el Tenant la fila no significa nada — su valor es presente/futuro
+// (¿esta tienda vende sin pagar?). Restrict solo dejaría indeleble a un tenant exento que NUNCA vendió,
+// sin ganancia; el que sí vendió ya es indeleble por sus Order/Payment.
+model PlatformExemption {
+  id                       String                  @id @default(cuid())
+  tenantId                 String                  @unique // 1-1 con Tenant (el @unique ya crea el índice)
+  motivo                   PlatformExemptionReason
+  exentaHasta              DateTime? // null = PERPETUA (GRANDFATHER del despliegue, D3); con fecha ⇒ el gate compara lazy contra now()
+  nota                     String? // por qué se otorgó; se escribe a mano (D8)
+  avisoExpiracionEnviadoAt DateTime? // idempotencia del correo (6) de expiración (F09/D11)
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Sin @@index([exentaHasta]): las exenciones son un PUÑADO por decisión comercial (no crecen con el
+  // producto, a diferencia de las suscripciones) ⇒ el barrido del cron es gratis en heap.
+}
+
+// El Cupón de plataforma (CONTEXT § Cupón de plataforma): código REPARTIBLE espejo de un cupón de Flow.
+// Flow aporta el descuento (`couponId` en subscription/create) pero NO el concepto de código canjeable
+// ni la trazabilidad — eso es este modelo + PlatformCouponRedemption (D9). Se crea por script CLI.
+//
+// `porcentaje` y `montoDescuento` son mutuamente excluyentes según `tipo` y Prisma NO lo expresa (no hay
+// CHECK; uno a mano sería INVISIBLE al `db push` ⇒ prohibido). Se sostiene como invariante de código
+// (Zod discriminated union en el CLI + use case de canje), mismo patrón que las columnas "SOLO X" de
+// CheckoutField (`opciones`/`defaultMarcado`). REGLA DE LECTURA: el discriminante es `tipo`, JAMÁS "la
+// columna que no sea null" — el mapeo a Flow (percent_off vs amount) ramifica por `tipo`.
+model PlatformCoupon {
+  id             String             @id @default(cuid())
+  codigo         String             @unique // repartible; NORMALIZADO a MAYÚSCULAS sin espacios al escribir — el unique de Postgres es case-sensitive: sin normalizar, "army2026" y "ARMY2026" coexistirían. Unique GLOBAL legítimo: namespace de la Plataforma, no campo de negocio de un tenant
+  flowCouponId   String             @unique // espejo del cupón en la cuenta Flow de la plataforma
+  tipo           PlatformCouponType
+  porcentaje     Int? // SOLO PORCENTAJE: 1..100 (Zod) ⇒ percent_off de Flow
+  montoDescuento Decimal?           @db.Decimal(15, 2) // SOLO MONTO: descuento bruto en CLP (I2)
+  duracionMeses  Int? // null = para siempre; 1 = una vez; N = N períodos (duration/times de Flow)
+  expiraAt       DateTime? // hasta cuándo se puede CANJEAR (distinto de cuánto DURA el descuento)
+  maxCanjes      Int? // null = ilimitado; 1 = código personal (D9)
+  canjes         Int                @default(0) // contador SOLO para el guard atómico de la carrera: updateMany({ where: { id, activo: true, canjes: { lt: <maxCanjes literal> } }, data: { canjes: { increment: 1 } } }) exigiendo count === 1 (precedente Raffle.ultimoNumero / McpAuthCode.usedAt). Puede DIVERGIR: la fuente de verdad del reporte es `redemptions`
+  activo         Boolean            @default(true) // kill switch manual sin borrar la fila (los canjes le sobreviven)
+  nota           String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  redemptions PlatformCouponRedemption[]
+  // Sin back-relation a PlatformSubscription: el vínculo suscripción↔cupón vive UNA sola vez, en
+  // PlatformCouponRedemption (subscriptionId @unique). Una FK `cuponId` en la suscripción sería 2ª
+  // fuente de verdad de lo mismo, más un SetNull y un índice de más.
+}
+
+// Trazabilidad del canje (D9): quién / cuándo / qué Tienda / qué código — el reporte "quién entró por
+// cuál código". Inmutable ⇒ sin updatedAt; `createdAt` ES el instante del canje (mismo criterio que
+// StorefrontPageVersion.createdAt). `codigo` congelado: la fila se lee sola aunque el cupón cambie.
+//
+// `subscriptionId` es NULLABLE porque el canje se RESERVA antes de que exista la suscripción (validar +
+// reservar en la $tx → crear en Flow → crear la suscripción → ligar); @unique ⇒ a lo sumo un cupón por
+// suscripción. Todos los padres van Restrict: es un HECHO consumado con efecto económico (consumió un
+// canje del cupón) — con Cascade hacia Tenant, el contador `canjes` quedaría incrementado sin rastro
+// (contraste deliberado con PlatformExemption, que es config y va Cascade). La suscripción es el único
+// SetNull: es un slot reusable (D6), no una definición.
+model PlatformCouponRedemption {
+  id             String   @id @default(cuid())
+  couponId       String
+  tenantId       String
+  pagadorId      String
+  subscriptionId String?  @unique // el @unique ya crea el índice
+  codigo         String // snapshot congelado del código tal como se canjeó (mismo criterio que CheckoutFieldResponse.clave)
+  createdAt      DateTime @default(now()) // ES el instante del canje
+
+  coupon       PlatformCoupon          @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  pagador      PlatformBillingCustomer @relation(fields: [pagadorId], references: [id], onDelete: Restrict)
+  subscription PlatformSubscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@unique([couponId, tenantId]) // guard DURO: un canje del mismo código por Tienda, complementario al contador (que cubre la carrera ENTRE tenants). El prefijo cubre el listado por cupón del CLI
+  @@index([tenantId])
+  @@index([pagadorId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Máquina de correos al Comprador (F02, ADR-0027). El ledger es la FUENTE DE VERDAD
+// de qué correo salió y cuál falta: la fila se escribe ANTES de enviar, y la falla
+// segura es que el correo NO salga (recuperable), jamás que salga dos veces (I2 — el
+// dominio de envío `sorteatelo.cl` es reputación compartida por TODAS las Tiendas).
+// Aprobado por schema-guardian 2026-07-26 (REQUEST_CHANGES → los 4 cambios aplicados:
+// enums `ModelNameType/Status`, `updatedAt`, índices reducidos a 2, invariante de la
+// clave documentado). Push ADITIVO: 2 CREATE TYPE + 1 CREATE TABLE, cero ALTER.
+// Ver CONTEXT.md § Ledger de correos.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CorreoEnviadoType {
+  CONFIRMACION_COMPRA
+  RECORDATORIO_SORTEO
+  RESULTADO_GANADOR
+  RESULTADO_NO_GANADOR
+}
+
+enum CorreoEnviadoStatus {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+}
+
+model CorreoEnviado {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tipo        CorreoEnviadoType
+  // Clave natural DETERMINÍSTICA: la otra mitad del unique de idempotencia. INVARIANTE DURO
+  // que gobierna todo tipo futuro: la clave SIEMPRE empieza por un id de fila tenant-bound
+  // (cuid global) — `orderId` (CONFIRMACION_COMPRA), `raffleId` (RECORDATORIO/RESULTADO). Si un
+  // tipo nuevo no tuviera un padre así, se prefija con el `tenantId` DENTRO del string; lo que
+  // NO se hace nunca es meter tenantId en el @@unique (ver la nota del unique). El EMAIL que va
+  // dentro de la clave se NORMALIZA (trim + lowercase) antes de armarla: el unique de Postgres es
+  // case-sensitive y "Juan@x.cl" vs "juan@x.cl" serían dos filas ⇒ DOS correos a la misma persona
+  // (misma lección que PlatformCoupon.codigo). Por eso las claves las arman SOLO los constructores
+  // de `domain/correo/ledgerCorreos.ts`, nunca un template string suelto en el caller.
+  // Ojo al loguear: para RECORDATORIO/RESULTADO la clave CONTIENE PII (el email).
+  clave       String
+  // Snapshot del destinatario al encolar (ADR-0004: la identidad del Comprador es su correo).
+  // PII de terceros bajo custodia de la Tienda: jamás en logs ni en respuestas públicas.
+  email       String
+  // id que devuelve Resend. Alimenta el pull de entregabilidad (GET /emails/{id}), que va de la
+  // fila HACIA el proveedor ⇒ NO necesita índice hoy. El sentido inverso (webhook de rebotes, C8)
+  // está diferido a la tanda 2; cuando llegue, `@@index([proveedorId])` es un push aditivo.
+  proveedorId String?
+  estado      CorreoEnviadoStatus @default(PENDIENTE)
+  // Presupuesto de reintentos (ADR-0027 §5). El drenado lo incrementa como CLAIM (CAS optimista
+  // `where { id, estado: PENDIENTE, intentos: n }` ⇒ dos corridas concurrentes del cron no pueden
+  // ganar la misma fila, sin lease ni lock distribuido); a los 3 fallos REALES, FALLIDO visible.
+  // La CUOTA agotada del proveedor (429, Free = 100/día) NO es un fallo del correo (I9): esa vía
+  // DEVUELVE el intento y la fila espera a la corrida/día siguiente.
+  intentos    Int                 @default(0)
+  ultimoError String? // mensaje del adapter, TRUNCADO al escribir (patrón McpAuditLog.args); jamás la API key (I6)
+  enviadoAt   DateTime?
+  // La fila se escribe cuando el correo YA está vencido (el cron es reconciliation-based, no un
+  // scheduler) ⇒ `createdAt` ES el "vencido desde" y ordena el drenado FIFO. Por eso NO hay
+  // columna `programadoPara`: agregarla convertiría el cron en disparo puntual (ADR-0027 §4).
+  createdAt   DateTime            @default(now())
+  // A diferencia de los registros inmutables del schema (RaffleEntry, DownloadGrant…), esta fila
+  // es una MÁQUINA DE ESTADOS que muta en cada corrida. `updatedAt` = último toque de la máquina
+  // (no "última edición humana", mismo caveat que Raffle.updatedAt): es lo que distingue en el
+  // panel "esperando cuota desde hace 6 h" de "recién encolado".
+  updatedAt   DateTime            @updatedAt
+
+  // Restrict hacia Tenant: es un HECHO ocurrido + PII de terceros (mismo bucket que Order/Payment/
+  // RaffleEntry/CheckoutFieldResponse), no configuración re-creable. No vuelve indeleble a ningún
+  // tenant que no lo fuera ya: toda fila de acá implica un Order o un Raffle del mismo tenant.
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  // Llave de idempotencia. SIN tenantId a propósito: la clave ya está namespaceada por un cuid
+  // tenant-bound, y agregarlo DEBILITARÍA el constraint (permitiría la misma clave en dos tenants
+  // ⇒ correo duplicado ante un bug de scoping). Mismo criterio que RaffleEntry.@@unique([raffleId,
+  // numero]) y DownloadGrant.@@unique([orderId, productId]).
+  @@unique([tipo, clave])
+  // Ruta única del drenado y del sweeper: WHERE estado = PENDIENTE ORDER BY createdAt ASC. El
+  // `intentos < 3` se filtra sobre el resultado (un predicado de rango antes de la clave de orden
+  // rompería el ordenamiento) — son ≤100 filas.
+  @@index([estado, createdAt])
+  // Panel del Organizador: sus FALLIDO, más recientes primero. Su prefijo [tenantId] cubre además
+  // el chequeo del Restrict al borrar Tenant y cualquier lectura tenant-wide.
+  @@index([tenantId, estado, createdAt])
+}

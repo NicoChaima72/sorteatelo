@@ -37,6 +37,23 @@ export const env = createEnv({
     // FLOW_URL_CONFIRMATION apunta al webhook único /api/webhooks/flow.
     FLOW_URL_CONFIRMATION: z.string().url().optional(),
     FLOW_URL_RETURN: z.string().url().optional(),
+    // Flow SUSCRIPCIONES — cuenta PROPIA de la plataforma (ADR-0026, F02). El OTRO mundo
+    // del dinero: acá Sortéatelo le cobra SU mensualidad a los Organizadores. Separado por
+    // construcción del BYO-Flow de arriba (I1): estas credenciales JAMÁS cobran ventas de
+    // tiendas, y las `FlowCredential` de un tenant jamás participan del cobro de suscripción.
+    // Viven SOLO acá — nunca en DB, logs ni respuestas (I7, mismo estándar ADR-0006).
+    // Opcionales: la app arranca sin ellas; `crearFlowPlataformaDeEnv` hace fail-fast al
+    // ejecutar una llamada, nombrando la env var faltante y jamás su valor.
+    FLOW_PLATAFORMA_API_KEY: z.string().optional(),
+    FLOW_PLATAFORMA_SECRET_KEY: z.string().optional(),
+    // Ambiente de la cuenta de plataforma. String y no boolean porque las env vars son
+    // texto: SOLO el literal "false" activa producción (default sandbox — fallar hacia el
+    // ambiente de prueba nunca le saca plata a nadie por accidente).
+    FLOW_PLATAFORMA_SANDBOX: z.string().optional(),
+    // `urlCallback` que se registra en los planes de Flow (webhook de suscripciones, F04).
+    // En dev necesita un túnel público, igual que FLOW_URL_CONFIRMATION. Si falta, se deriva
+    // de APP_URL/NEXTAUTH_URL + /api/webhooks/flow-suscripciones.
+    FLOW_PLATAFORMA_URL_CALLBACK: z.string().url().optional(),
     // Storage de PDFs — Cloudflare R2, bucket privado S3-compatible (ADR-0002/0009, F03).
     // A diferencia de Flow (BYO por tenant, ADR-0006), el storage es de PLATAFORMA: una
     // sola cuenta R2 operada por el freelancer, un bucket con paths per-tenant. Opcionales:
@@ -65,10 +82,18 @@ export const env = createEnv({
     // Correo transaccional — Resend (ADR-0010, F04). API key SECRETA del proveedor de
     // correo (una cuenta de PLATAFORMA, como el storage — no BYO por tenant). Opcional:
     // la app arranca sin ella; la factory `crearCorreoService` hace fail-fast en runtime
-    // al enviar si falta. JAMÁS se loguea (I3). En el MVP se envía desde el remitente de
-    // prueba `onboarding@resend.dev` hasta que la decisión abierta #4 (dominio) habilite
-    // un dominio verificado.
+    // al enviar si falta. JAMÁS se loguea (I3). El remitente real es `no-reply@sorteatelo.cl`
+    // — dominio VERIFICADO en Resend (ADR-0014); la decisión #4 se cerró. Plan Free asumido
+    // como condición de diseño (100/día, 3.000/mes, 1 dominio): ver ADR-0027 §5 y su trigger
+    // de upgrade a Pro.
     RESEND_API_KEY: z.string().optional(),
+    // Secreto del cron horario de correos (F02, ADR-0027 §4). Vercel Cron lo manda como
+    // `Authorization: Bearer $CRON_SECRET` a `/api/cron/correos`. Opcional en el schema
+    // (la app arranca sin ella, igual que el resto de los secretos de feature) pero el
+    // endpoint falla CERRADO: sin la var responde 500 y no drena nada — una env olvidada
+    // no puede volverse un disparador público de correos a compradores. SECRETA: jamás en
+    // logs ni respuestas (I6). Distinta por entorno.
+    CRON_SECRET: z.string().optional(),
     // URL pública de la app para armar los enlaces de descarga del correo (D8/S5). El
     // endpoint `/api/descargas/<token>` es de PLATAFORMA (el token es unique global, no
     // resuelve tenant), así que el enlace NO lleva subdominio. Opcional: si falta, el
@@ -117,6 +142,10 @@ export const env = createEnv({
     CREDENTIALS_ENCRYPTION_KEY: process.env.CREDENTIALS_ENCRYPTION_KEY,
     FLOW_URL_CONFIRMATION: process.env.FLOW_URL_CONFIRMATION,
     FLOW_URL_RETURN: process.env.FLOW_URL_RETURN,
+    FLOW_PLATAFORMA_API_KEY: process.env.FLOW_PLATAFORMA_API_KEY,
+    FLOW_PLATAFORMA_SECRET_KEY: process.env.FLOW_PLATAFORMA_SECRET_KEY,
+    FLOW_PLATAFORMA_SANDBOX: process.env.FLOW_PLATAFORMA_SANDBOX,
+    FLOW_PLATAFORMA_URL_CALLBACK: process.env.FLOW_PLATAFORMA_URL_CALLBACK,
     R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
     R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
@@ -125,6 +154,7 @@ export const env = createEnv({
     R2_PUBLIC_BUCKET: process.env.R2_PUBLIC_BUCKET,
     R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
     APP_URL: process.env.APP_URL,
     STOREFRONT_PREVIEW_TOKEN: process.env.STOREFRONT_PREVIEW_TOKEN,
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,

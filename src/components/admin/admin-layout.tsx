@@ -26,6 +26,7 @@ import {
   IconAlertTriangle,
   IconBook,
   IconChevronDown,
+  IconCreditCard,
   IconExternalLink,
   IconLayoutDashboard,
   IconLogout2,
@@ -47,11 +48,13 @@ import {
   type ReactNode,
 } from "react";
 
+import { BannerFacturacion } from "~/components/admin/banner-facturacion";
 import { CrearTienda } from "~/components/admin/crear-tienda";
 import { PageHeader } from "~/components/admin/page-header";
 import { abrirEditor, abrirTienda } from "~/components/admin/url-tienda";
 import { Wordmark } from "~/components/marca/wordmark";
 import { hrefApex, hrefSubdominio } from "~/lib/urlApex";
+import { RUTA_PLAN } from "~/server/panel/restriccionFacturacion";
 import { APP_CONFIG } from "~/config/app";
 import { api, type RouterOutputs } from "~/utils/api";
 
@@ -84,12 +87,20 @@ const NAV: NavItem[] = [
   { label: "Productos", href: "/admin/productos", icon: IconBook },
   { label: "Ventas", href: "/admin/ventas", icon: IconShoppingCart },
   { label: "Sorteo", href: "/admin/sorteo", icon: IconTicket },
+  { label: "Plan", href: RUTA_PLAN, icon: IconCreditCard },
   { label: "Configuración", href: "/admin/configuracion", icon: IconSettings },
 ];
 
-/** Navegación operativa (arriba en el rail) vs. utilidades ancladas al pie (ajustes). */
-const NAV_PRINCIPAL = NAV.filter((i) => i.href !== "/admin/configuracion");
-const NAV_CONFIG = NAV.filter((i) => i.href === "/admin/configuracion");
+/**
+ * Utilidades ancladas al PIE del rail (jerarquía tipo Grillos: lo operativo arriba, los ajustes
+ * abajo). «Plan» vive acá con Configuración porque es administración de la cuenta, no operación
+ * diaria de la tienda.
+ */
+const HREFS_PIE = [RUTA_PLAN, "/admin/configuracion"];
+
+/** Navegación operativa (arriba en el rail) vs. utilidades ancladas al pie. */
+const NAV_PRINCIPAL = NAV.filter((i) => !HREFS_PIE.includes(i.href));
+const NAV_PIE = NAV.filter((i) => HREFS_PIE.includes(i.href));
 
 /** Breakpoint `lg` (75em) del theme, para saber si el rail está en modo desktop (no drawer). */
 const LG_QUERY = "(min-width: 75em)";
@@ -209,13 +220,24 @@ function NavbarContent({
   onNavigate,
   iconOnly,
   tiendaSlug,
+  enPausa,
 }: {
   pathname: string;
   onNavigate: () => void;
   iconOnly: boolean;
   /** Slug de la Tienda activa; `null` mientras carga o si el usuario no administra ninguna. */
   tiendaSlug: string | null;
+  /**
+   * Tienda en pausa por facturación (F05/D4): el rail se reduce a «Plan», la única página que el
+   * guard server-side deja responder. Es PRESENTACIÓN — la autoridad está en `guardPaginaAdmin`—,
+   * pero un rail que ofrece cinco destinos que van a rebotar es peor que un rail corto y honesto.
+   */
+  enPausa: boolean;
 }) {
+  // En pausa: ni navegación operativa ni el puente al editor. Queda «Plan» y nada más.
+  const navPrincipal = enPausa ? [] : NAV_PRINCIPAL;
+  const navPie = enPausa ? NAV_PIE.filter((i) => i.href === RUTA_PLAN) : NAV_PIE;
+
   return (
     <div
       className="flex h-full flex-col"
@@ -282,7 +304,7 @@ function NavbarContent({
 
       {/* Navegación principal (operativa): arriba, ocupa el alto disponible. */}
       <div className="flex-1 overflow-y-auto p-2">
-        {NAV_PRINCIPAL.map((item) => (
+        {navPrincipal.map((item) => (
           <RailNavLink
             key={item.href}
             item={item}
@@ -300,7 +322,7 @@ function NavbarContent({
         {/* Puente al EDITOR de la tienda (admin-bases-pdf F06/D7, opción D): hasta ahora el panel no
             enlazaba al editor por ningún lado. Es una ACCIÓN, no una ruta del panel: el editor vive
             en el subdominio de la Tienda. Sin tienda (o mientras carga) no se muestra. */}
-        {tiendaSlug && (
+        {tiendaSlug && !enPausa && (
           <RailNavLink
             item={{
               label: "Editor de la tienda",
@@ -315,7 +337,7 @@ function NavbarContent({
             onNavigate={onNavigate}
           />
         )}
-        {NAV_CONFIG.map((item) => (
+        {navPie.map((item) => (
           <RailNavLink
             key={item.href}
             item={item}
@@ -535,6 +557,15 @@ export function AdminLayout({
     staleTime: 60_000,
   });
 
+  // Aviso de facturación del chrome (F05/D4): decide el banner y si el rail se reduce a «Plan».
+  // `retry: false` + degradación a "nada que avisar" si falla: el panel NUNCA se cae por el banner, y
+  // un fallo de esta query no puede dejar a nadie encerrado (el gate real es server-side).
+  const avisoFacturacion = api.panel.getAvisoFacturacion.useQuery(undefined, {
+    retry: false,
+    staleTime: 60_000,
+  });
+  const enPausa = avisoFacturacion.data?.enPausa ?? false;
+
   const tiendas: TiendaAcceso[] = acceso.data?.tenants ?? [];
   // La tienda ACTIVA es la del SUBDOMINIO (ADR-0022), no `tenants[0]`: es la que el server opera,
   // así que es la que el chrome debe mostrar y a la que apuntan "Ver mi tienda" y el editor.
@@ -552,9 +583,10 @@ export function AdminLayout({
   const onHamburguesa = () =>
     esDesktop ? setColapsado((c) => !c) : toggle();
 
-  // Acciones del Spotlight (Cmd/Ctrl+K, F07): navegación del panel + "Ver mi tienda".
+  // Acciones del Spotlight (Cmd/Ctrl+K, F07): navegación del panel + "Ver mi tienda". En pausa se
+  // reduce igual que el rail: ofrecer un atajo a una ruta que el guard va a rebotar es una trampa.
   const spotlightActions: SpotlightActionData[] = [
-    ...NAV.map((item) => {
+    ...(enPausa ? NAV.filter((i) => i.href === RUTA_PLAN) : NAV).map((item) => {
       const Icon = item.icon;
       return {
         id: item.href,
@@ -565,6 +597,10 @@ export function AdminLayout({
     }),
     ...(tiendaSlug
       ? [
+          // «Ver mi tienda» sobrevive a la pausa a propósito: es una VENTANA, no una herramienta de
+          // trabajo — es la forma más rápida de que el Organizador vea con sus ojos qué están viendo
+          // sus visitantes. Lo que la pausa retira son las superficies de trabajo (el editor y la
+          // navegación operativa), no la posibilidad de mirar.
           {
             id: "ver-tienda",
             label: "Ver mi tienda",
@@ -574,13 +610,20 @@ export function AdminLayout({
             ),
             onClick: () => abrirTienda(tiendaSlug, tiendaSlug),
           },
-          {
-            id: "editor-tienda",
-            label: "Editor de la tienda",
-            description: "Edita el contenido de tu tienda (hero, textos, secciones)",
-            leftSection: <IconExternalLink className="size-[18px]" stroke={1.75} />,
-            onClick: () => abrirEditor(tiendaSlug, tiendaSlug),
-          },
+          ...(enPausa
+            ? []
+            : [
+                {
+                  id: "editor-tienda",
+                  label: "Editor de la tienda",
+                  description:
+                    "Edita el contenido de tu tienda (hero, textos, secciones)",
+                  leftSection: (
+                    <IconExternalLink className="size-[18px]" stroke={1.75} />
+                  ),
+                  onClick: () => abrirEditor(tiendaSlug, tiendaSlug),
+                },
+              ]),
         ]
       : []),
   ];
@@ -706,6 +749,7 @@ export function AdminLayout({
             onNavigate={close}
             iconOnly={iconOnly}
             tiendaSlug={tiendaSlug}
+            enPausa={enPausa}
           />
         </AppShell.Navbar>
 
@@ -723,6 +767,11 @@ export function AdminLayout({
               <CrearTienda />
             ) : (
               <>
+                {/* Banner de morosidad GLOBAL (F05/D4): va ARRIBA del header de la página, para que
+                    sea lo primero que se lee en cualquier pantalla del panel. */}
+                {avisoFacturacion.data && (
+                  <BannerFacturacion estado={avisoFacturacion.data} />
+                )}
                 <PageHeader
                   title={title}
                   description={description}

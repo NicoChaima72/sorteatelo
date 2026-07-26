@@ -2,10 +2,13 @@ import { type PrismaClient } from "@prisma/client";
 
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
+import { esActiva } from "~/server/domain/facturacion/_estadoSuscripcion";
+import { exencionVigente } from "~/server/domain/facturacion/_gateVenta";
 import {
   evaluarPublicacion,
   mensajeRequisitoFaltante,
 } from "~/server/domain/tenants/_publicacion";
+import { hayProductoEntregable } from "~/server/productos/productoEntregable";
 import { TOS_VERSION } from "~/server/tos/tos";
 
 /**
@@ -24,10 +27,13 @@ export async function publicarTienda({
   db,
   acceso,
   tosVersionVigente = TOS_VERSION,
+  ahora = new Date(),
 }: {
   db: PrismaClient;
   acceso: AccesoPanel;
   tosVersionVigente?: string;
+  /** Inyectable: la vigencia de la Exención se evalúa LAZY contra este instante (D8). */
+  ahora?: Date;
 }): Promise<{ estado: "PUBLICADA"; publicada: true; yaPublicada: boolean }> {
   const tenantId = resolverTenantDelPanel(acceso);
 
@@ -50,31 +56,44 @@ export async function publicarTienda({
       );
     }
 
-    const [flow, productoPublicable, raffleActivo] = await Promise.all([
-      tx.flowCredential.findUnique({
-        where: { tenantId },
-        select: { tenantId: true },
-      }),
-      tx.product.findFirst({
-        where: { tenantId, activo: true, pdfPath: { not: null } },
-        select: { id: true },
-      }),
-      // Bases del gate = `basesPdfUrl` del Raffle ACTIVO (admin-bases-pdf F03/D2/D3), leído DENTRO
-      // de la tx como el resto: el gate no puede quedar obsoleto entre el chequeo y el update (I3).
-      tx.raffle.findFirst({
-        where: { tenantId, estado: "ACTIVO" },
-        select: { id: true, basesPdfUrl: true },
-      }),
-    ]);
+    const [flow, tieneProductoPublicable, raffleActivo, suscripcion, exencion] =
+      await Promise.all([
+        tx.flowCredential.findUnique({
+          where: { tenantId },
+          select: { tenantId: true },
+        }),
+        // MISMA función que el checklist (I2: no hay dos definiciones del gate), leída con la `tx`
+        // para que el gate no pueda quedar obsoleto entre el chequeo y el update. Desde F06 incluye
+        // el pool ≥ pack más grande de los SOBRE (D4/I7).
+        hayProductoEntregable({ db: tx, tenantId }),
+        // Bases del gate = `basesPdfUrl` del Raffle ACTIVO (admin-bases-pdf F03/D2/D3), leído DENTRO
+        // de la tx como el resto: el gate no puede quedar obsoleto entre el chequeo y el update (I3).
+        tx.raffle.findFirst({
+          where: { tenantId, estado: "ACTIVO" },
+          select: { id: true, basesPdfUrl: true },
+        }),
+        // Facturación (ADR-0026, F03/D2): plan activo o Exención vigente, leídos DENTRO de la tx
+        // por la misma razón que el resto — entre el chequeo y el update nadie puede cancelar.
+        tx.platformSubscription.findUnique({
+          where: { tenantId },
+          select: { estado: true },
+        }),
+        tx.platformExemption.findUnique({
+          where: { tenantId },
+          select: { exentaHasta: true },
+        }),
+      ]);
 
     const { requisitos, puedePublicar } = evaluarPublicacion({
       estado: tenant.estado,
       tosVersion: tenant.tosVersion,
       tosVersionVigente,
       flowConfigurada: flow !== null,
-      tieneProductoPublicable: productoPublicable !== null,
+      tieneProductoPublicable,
       hayRaffleActivo: raffleActivo !== null,
       basesPdfDelRaffleActivo: raffleActivo?.basesPdfUrl ?? null,
+      suscripcionActiva: suscripcion !== null && esActiva(suscripcion.estado),
+      exentaVigente: exencionVigente(exencion, ahora),
     });
 
     if (!puedePublicar) {

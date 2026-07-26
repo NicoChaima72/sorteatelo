@@ -27,6 +27,7 @@ import {
 import Link from "next/link";
 import { type ReactNode } from "react";
 
+import { ActivarPlanModal } from "~/components/admin/activar-plan-modal";
 import { PanelCard } from "~/components/admin/panel-card";
 import { abrirTienda, urlDeTienda } from "~/components/admin/url-tienda";
 import { APP_CONFIG } from "~/config/app";
@@ -167,6 +168,7 @@ function TosModal({
 export function ChecklistPublicacion() {
   const utils = api.useUtils();
   const [tosOpen, tosHandlers] = useDisclosure(false);
+  const [planOpen, planHandlers] = useDisclosure(false);
   const estado = api.panel.getEstadoPublicacion.useQuery(undefined, {
     retry: false,
   });
@@ -389,7 +391,11 @@ export function ChecklistPublicacion() {
     {
       cumplido: requisitos.producto.cumplido,
       titulo: "Publica al menos un producto",
-      descripcion: "Un producto activo con su PDF subido.",
+      // "con su PDF subido" hasta productos-tipos-digitales F04: el requisito del gate dejó de ser
+      // la columna `pdfPath` y pasó a "≥1 archivo entregable" de cualquier tipo de la allowlist. El
+      // copy tiene que decir lo que el gate realmente exige, o el checklist manda a subir un PDF a
+      // quien vende stickers.
+      descripcion: "Un producto activo con su archivo subido.",
       accion: (
         <Button
           size="xs"
@@ -425,6 +431,25 @@ export function ChecklistPublicacion() {
       ),
     });
   }
+
+  // Facturación de la plataforma (F03/D12, ADR-0026): ÚLTIMO ítem del checklist a propósito — el
+  // compromiso económico se pide recién cuando el resto está listo, y el orden espeja el de
+  // `mensajeRequisitoFaltante` en el gate server-side. Una tienda exenta lo ve cumplido con la
+  // etiqueta de cortesía, sin pasar nunca por la tarjeta (D8).
+  items.push({
+    cumplido: requisitos.facturacion.cumplido,
+    titulo: requisitos.facturacion.exenta
+      ? "Tu plan es de cortesía"
+      : "Activa tu plan",
+    descripcion: requisitos.facturacion.exenta
+      ? "Tu tienda no paga mensualidad."
+      : "El plan corre cuando publicas, no antes.",
+    accion: (
+      <Button size="xs" variant="light" onClick={planHandlers.open}>
+        Ver el precio
+      </Button>
+    ),
+  });
 
   return (
     <>
@@ -468,6 +493,8 @@ export function ChecklistPublicacion() {
         onClose={tosHandlers.close}
         onAceptado={invalidar}
       />
+
+      <ActivarPlanModal opened={planOpen} onClose={planHandlers.close} />
     </>
   );
 }

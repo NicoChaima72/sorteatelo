@@ -37,6 +37,10 @@ export async function guardarConfiguracionTienda({
       // propio procedure (`pagebuilder.setColorAcento`, auto-guardado): dos superficies, UNA columna.
       colorPrimario: textoOpcionalANull(input.colorPrimario),
       colorAcento: textoOpcionalANull(input.colorAcento),
+      // Prefijo de los Números del sorteo (F08/D12). Llega ya en MAYÚSCULAS y sin el «-» (lo
+      // normaliza el esquema Zod compartido con la tool MCP). Vacío ⇒ null ⇒ los Números vuelven a
+      // mostrarse pelados. Es PRESENTACIÓN (I12): escribir acá no toca ni un `RaffleEntry.numero`.
+      prefijoTicket: textoOpcionalANull(input.prefijoTicket),
       // Redes y contacto del footer (plantilla-rica F02/F03/D2). Vacío ⇒ null (footer oculta, D7).
       instagramUrl: textoOpcionalANull(input.instagramUrl),
       tiktokUrl: textoOpcionalANull(input.tiktokUrl),

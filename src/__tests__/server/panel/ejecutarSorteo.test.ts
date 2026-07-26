@@ -26,13 +26,25 @@ interface RaffleState {
   estado: string;
   ejecutadoAt: Date | null;
   ganadorEmail: string | null;
+  /** Número del sorteo GANADOR (ADR-0024 §5): snapshot hermano de `ganadorEmail`. */
+  ganadorNumero: number | null;
   ejecutadoPor: string | null;
 }
 
+/**
+ * Entries del fake. `numero` (el Número del sorteo, ADR-0024) es OBLIGATORIO como en la DB: el
+ * ticket ganador se identifica por él. Se autonumeran 1..N si el test no le da importancia.
+ */
 function fakeDb(
   raffle: RaffleState,
-  entries: Array<{ raffleId: string; tenantId: string; email: string }>,
+  entriesInput: Array<{
+    raffleId: string;
+    tenantId: string;
+    email: string;
+    numero?: number;
+  }>,
 ) {
+  const entries = entriesInput.map((e, i) => ({ ...e, numero: e.numero ?? i + 1 }));
   const tx = {
     raffle: {
       findFirst: async ({ where }: { where: { id: string; tenantId: string } }) =>
@@ -74,7 +86,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
   // panel.sorteo.ejecutar.001 — ejecuta: elige ganador, marca quién/cuándo, cierra
   it("ejecuta el sorteo: ganador elegido, ejecutadoAt/ejecutadoPor registrados, estado CERRADO", async () => {
     const { db, raffle } = fakeDb(
-      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
       [
         { raffleId: "r1", tenantId: "A", email: "a@x.cl" },
         { raffleId: "r1", tenantId: "A", email: "b@x.cl" },
@@ -98,10 +110,59 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
     expect(raffle.estado).toBe("CERRADO");
   });
 
+  // panel.sorteo.ejecutar.008 — registra el NÚMERO DEL SORTEO ganador junto al correo (ADR-0024
+  //                              §5): "salió el 1057" tiene que ser un hecho auditable, no una
+  //                              deducción. Los dos snapshots se escriben en el MISMO update.
+  it("registra el Número del sorteo ganador además del correo (tupla auditable en un solo update)", async () => {
+    const { db, raffle } = fakeDb(
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
+      [
+        { raffleId: "r1", tenantId: "A", email: "a@x.cl", numero: 1041 },
+        { raffleId: "r1", tenantId: "A", email: "b@x.cl", numero: 1057 },
+        { raffleId: "r1", tenantId: "A", email: "a@x.cl", numero: 1092 },
+      ],
+    );
+    const res = await ejecutarSorteo({
+      db,
+      acceso: acceso(["A"], "org@x.cl"),
+      input: { raffleId: "r1" },
+      ahora: AHORA,
+      elegirIndice: () => 1, // el TICKET 1057 (de b@x.cl)
+    });
+
+    expect(res.ganadorEmail).toBe("b@x.cl");
+    expect(res.ganadorNumero).toBe(1057);
+    // Persistido: el ganador es un TICKET concreto, no solo un correo.
+    expect(raffle.ganadorEmail).toBe("b@x.cl");
+    expect(raffle.ganadorNumero).toBe(1057);
+    expect(raffle.ejecutadoAt).toEqual(AHORA);
+  });
+
+  // panel.sorteo.ejecutar.009 — el ganador es el TICKET sorteado, no "algún ticket del correo":
+  //                             con dos tickets del mismo correo, el número es el de la fila elegida
+  it("con dos tickets del MISMO correo registra el número del ticket sorteado, no el primero del correo", async () => {
+    const { db, raffle } = fakeDb(
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
+      [
+        { raffleId: "r1", tenantId: "A", email: "a@x.cl", numero: 7 },
+        { raffleId: "r1", tenantId: "A", email: "a@x.cl", numero: 8 },
+      ],
+    );
+    await ejecutarSorteo({
+      db,
+      acceso: acceso(["A"]),
+      input: { raffleId: "r1" },
+      ahora: AHORA,
+      elegirIndice: () => 1, // la SEGUNDA fila de a@x.cl
+    });
+    expect(raffle.ganadorEmail).toBe("a@x.cl");
+    expect(raffle.ganadorNumero).toBe(8);
+  });
+
   // panel.sorteo.ejecutar.002 — IDEMPOTENTE: re-ejecutar NO vuelve a sortear
   it("re-ejecutar devuelve el MISMO ganador sin volver a sortear (idempotente)", async () => {
     const { db } = fakeDb(
-      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
       [
         { raffleId: "r1", tenantId: "A", email: "a@x.cl" },
         { raffleId: "r1", tenantId: "A", email: "b@x.cl" },
@@ -141,7 +202,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
     ];
     const nuevoDb = () =>
       fakeDb(
-        { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+        { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
         entries,
       ).db;
 
@@ -172,6 +233,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
   it("bajo carrera (updateMany count 0) devuelve el ganador re-leído, descartando su propio sorteo", async () => {
     const ganadorConcurrente = {
       ganadorEmail: "concurrente@x.cl",
+      ganadorNumero: 4242,
       ejecutadoAt: new Date("2026-02-10T00:00:00Z"),
       ejecutadoPor: "otro@x.cl",
     };
@@ -183,6 +245,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
           id: "r1",
           ejecutadoAt: null,
           ganadorEmail: null,
+          ganadorNumero: null,
           ejecutadoPor: null,
         }),
         updateMany: async () => ({ count: 0 }),
@@ -190,8 +253,8 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
       },
       raffleEntry: {
         findMany: async () => [
-          { email: "a@x.cl" },
-          { email: "b@x.cl" },
+          { email: "a@x.cl", numero: 1 },
+          { email: "b@x.cl", numero: 2 },
         ],
       },
     };
@@ -210,6 +273,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
 
     // devuelve el ganador guardado por la ejecución que ganó la carrera, NO su propio pick
     expect(res.ganadorEmail).toBe("concurrente@x.cl");
+    expect(res.ganadorNumero).toBe(4242); // también el Número: la tupla auditable viaja entera
     expect(res.yaEjecutado).toBe(true);
     expect(res.ejecutadoAt).toEqual(ganadorConcurrente.ejecutadoAt);
   });
@@ -217,7 +281,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
   // panel.sorteo.ejecutar.003 — sin participantes ⇒ INVALID (no se puede sortear)
   it("un sorteo sin participantes ⇒ INVALID", async () => {
     const { db } = fakeDb(
-      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
       [],
     );
     await expect(
@@ -233,7 +297,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
   // panel.sorteo.ejecutar.004 — raffle de OTRA Tienda ⇒ NOT_FOUND
   it("un raffle de otra Tienda ⇒ NOT_FOUND", async () => {
     const { db } = fakeDb(
-      { id: "rB", tenantId: "B", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+      { id: "rB", tenantId: "B", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
       [{ raffleId: "rB", tenantId: "B", email: "x@x.cl" }],
     );
     await expect(
@@ -249,7 +313,7 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
   // panel.sorteo.ejecutar.005 — sin membresía ⇒ FORBIDDEN
   it("sin membresía ⇒ FORBIDDEN", async () => {
     const { db } = fakeDb(
-      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ejecutadoPor: null },
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
       [{ raffleId: "r1", tenantId: "A", email: "a@x.cl" }],
     );
     await expect(

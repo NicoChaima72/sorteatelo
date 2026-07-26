@@ -177,12 +177,28 @@ function CredencialFlowCard() {
  * en el estado feliz (admin-bases-pdf F06).
  */
 const DESCRIPCION_TU_TIENDA =
-  "La marca base de tu tienda: logo, color, redes y contacto. El contenido de la portada (hero, textos, avisos) se edita en el editor.";
+  "La marca base de tu tienda: logo, colores, el prefijo de tus números, redes y contacto. El contenido de la portada (hero, textos, avisos) se edita en el editor.";
+
+/**
+ * Normaliza lo tipeado hacia la forma canónica del prefijo de ticket (F08/D12): MAYÚSCULAS y solo
+ * alfanuméricos. NO decide validez —eso es del server, `guardarConfiguracionTiendaInput`, cuyo
+ * mensaje de error se muestra tal cual— sino que impide tipear lo imposible, exactamente como
+ * `normalizarSlug` en `crear-tienda.tsx`. Reimplementar el regex de validación acá sería la
+ * definición paralela que las conventions prohíben.
+ *
+ * El caso concreto que evita: alguien escribe `army-` esperando que el guion sea parte del prefijo
+ * y se entera recién al guardar. Acá el guion no llega a aparecer, que es la forma más corta de
+ * decir «el guion lo ponemos nosotros».
+ */
+function normalizarPrefijoTicket(valor: string): string {
+  return valor.toUpperCase().replace(/[^A-Z0-9]+/g, "");
+}
 
 interface ConfigTiendaForm {
   descripcion: string;
   colorPrimario: string;
   colorAcento: string;
+  prefijoTicket: string;
   instagramUrl: string;
   tiktokUrl: string;
   whatsappUrl: string;
@@ -202,6 +218,7 @@ function ConfiguracionTiendaCard() {
       descripcion: "",
       colorPrimario: "",
       colorAcento: "",
+      prefijoTicket: "",
       instagramUrl: "",
       tiktokUrl: "",
       whatsappUrl: "",
@@ -217,6 +234,7 @@ function ConfiguracionTiendaCard() {
       descripcion: config.data.descripcion ?? "",
       colorPrimario: config.data.colorPrimario ?? "",
       colorAcento: config.data.colorAcento ?? "",
+      prefijoTicket: config.data.prefijoTicket ?? "",
       instagramUrl: config.data.instagramUrl ?? "",
       tiktokUrl: config.data.tiktokUrl ?? "",
       whatsappUrl: config.data.whatsappUrl ?? "",
@@ -341,6 +359,38 @@ function ConfiguracionTiendaCard() {
                 {...form.getInputProps("colorAcento")}
               />
             </SimpleGrid>
+
+            {/*
+              Prefijo de los Números del sorteo (F08/D12). Va acá, junto al logo y los colores,
+              porque es identidad de la TIENDA y no de un sorteo puntual: la misma marca acompaña a
+              todos los sorteos que monte.
+
+              Queda a lo ancho de la card como sus hermanos de texto (Descripción, redes) y NO con
+              un `max-w`: en Mantine el `className` cae sobre el `Input.Wrapper` entero, así que
+              acotarlo angostaría también la `description` —que acá es de tres frases— y la partiría
+              en una columna de seis líneas al lado de campos full-width.
+
+              `maxLength` + la normalización al tipear espejan el schema Zod (el guion NO se
+              escribe: lo pone el formateador). Es el mismo patrón del slug en `crear-tienda.tsx`:
+              el campo impide tipear lo imposible y el SERVER sigue siendo la autoridad. La última
+              frase de la descripción existe porque el prefijo es PRESENTACIÓN (I12): cambiarlo
+              re-etiqueta también los números ya emitidos, y eso hay que decirlo antes y no
+              descubrirlo.
+            */}
+            <TextInput
+              label="Prefijo de los números del sorteo"
+              description="Se antepone a los números en tu panel y en los correos: ARMY-1043. Hasta 8 letras o números, sin el guion. Si lo cambias, los números que ya entregaste se muestran con el prefijo nuevo."
+              placeholder="Sin prefijo (ej. ARMY)"
+              maxLength={8}
+              autoComplete="off"
+              {...form.getInputProps("prefijoTicket")}
+              onChange={(e) =>
+                form.setFieldValue(
+                  "prefijoTicket",
+                  normalizarPrefijoTicket(e.currentTarget.value),
+                )
+              }
+            />
 
             <div
               className="pt-4"

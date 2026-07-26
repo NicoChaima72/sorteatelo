@@ -23,6 +23,8 @@ async function limpiar() {
   });
   const ids = tenants.map((t) => t.id);
   if (ids.length === 0) return;
+  // `CorreoEnviado` desde F03 (FK Restrict a Tenant): va antes que el borrado de tenants.
+  await db.correoEnviado.deleteMany({ where: { tenantId: { in: ids } } });
   await db.downloadGrant.deleteMany({ where: { tenantId: { in: ids } } });
   await db.raffleEntry.deleteMany({ where: { tenantId: { in: ids } } });
   await db.raffle.deleteMany({ where: { tenantId: { in: ids } } });
@@ -101,7 +103,7 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
 
 function correoFake() {
   const enviados: CorreoInput[] = [];
-  const service: CorreoService = {
+  const service: Pick<CorreoService, "enviarCorreo"> = {
     enviarCorreo: async (input) => {
       enviados.push(input);
       return { id: `fake-${enviados.length}` };
@@ -205,8 +207,8 @@ describe("domain/correo/reenviarCorreoDescargaDeOrden (DB-backed, panel)", () =>
 
     // El correo lleva el enlace NUEVO del regenerado y el enlace vigente sin cambios.
     expect(enviados).toHaveLength(1);
-    expect(enviados[0]!.text).toContain(`${BASE_URL}/api/descargas/tok-NUEVO-regenerado`);
-    expect(enviados[0]!.text).toContain(`${BASE_URL}/api/descargas/tok-vigente`);
+    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-NUEVO-regenerado`);
+    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-vigente`);
     // El token viejo expirado ya NO aparece (fue reemplazado).
     expect(enviados[0]!.text).not.toContain("tok-viejo-expirado");
   });
@@ -234,9 +236,111 @@ describe("domain/correo/reenviarCorreoDescargaDeOrden (DB-backed, panel)", () =>
     const enviado = enviados[0]!;
     expect(enviado.to).toBe("fan@a.cl");
     expect(enviado.from).toContain("mitienda");
-    expect(enviado.text).toContain(`${BASE_URL}/api/descargas/tok-1`);
-    expect(enviado.text).toContain(`${BASE_URL}/api/descargas/tok-2`);
+    expect(enviado.text).toContain(`${BASE_URL}/entrega/tok-1`);
+    expect(enviado.text).toContain(`${BASE_URL}/entrega/tok-2`);
     expect(enviado.text.toLowerCase()).toContain("responsable de la venta"); // disclaimer ADR-0008
     expect(enviado.text).not.toContain(".pdf"); // nunca la key del bucket
+  });
+
+  // reenvio.005 — F03: el reenvío manda la plantilla NUEVA (C1), no la vieja de solo enlaces. Sale
+  // gratis porque delega en el mismo use case, y por eso mismo hay que fijarlo: si alguien le
+  // pusiera al reenvío su propia derivación de contenido, el Organizador reenviaría un correo
+  // distinto del que el Comprador recibió al comprar, y nadie lo notaría hasta que alguien reclame.
+  it("reenvía la CONFIRMACIÓN completa: números del sorteo con prefijo, sorteo nombrado y resumen de la orden", async () => {
+    const t = await db.tenant.create({
+      data: {
+        slug: `${PREFIJO}conmarca`,
+        nombre: "conmarca",
+        estado: "PUBLICADA",
+        prefijoTicket: "ARMY",
+      },
+      select: { id: true },
+    });
+    const p = await crearProducto(t.id, "P1");
+    const raffle = await db.raffle.create({
+      data: {
+        tenantId: t.id,
+        nombre: "Sorteo Photocard Firmada",
+        premio: "Photocard",
+        estado: "ACTIVO",
+        fechaInicio: new Date("2026-01-01T00:00:00Z"),
+        fechaFin: new Date("2026-03-02T02:59:00Z"),
+      },
+      select: { id: true },
+    });
+    const orden = await crearOrdenConGrants(t.id, "fan@a.cl", "PAGADO", [
+      { productId: p.id, token: "tok-1", expiresAt: futuro() },
+    ]);
+    await db.raffleEntry.createMany({
+      data: [7, 8].map((numero, ordinal) => ({
+        tenantId: t.id,
+        raffleId: raffle.id,
+        orderId: orden,
+        email: "fan@a.cl",
+        ordinal,
+        numero,
+      })),
+    });
+
+    const { service, enviados } = correoFake();
+    await reenviarCorreoDescargaDeOrden({
+      db,
+      acceso: acceso([t.id]),
+      correo: service,
+      baseUrl: BASE_URL,
+      input: { orderId: orden },
+    });
+
+    const enviado = enviados[0]!;
+    expect(enviado.text).toContain("ARMY-7–8");
+    expect(enviado.text).toContain("Sorteo Photocard Firmada");
+    expect(enviado.text).toContain("hora de Chile");
+    expect(enviado.text).toContain(orden); // Nº de orden en el resumen
+  });
+
+  // reenvio.006 — el reenvío NO pasa por el ledger, a propósito. Es un «mandalo de nuevo» explícito
+  // del Organizador: si respetara el claim, una orden cuya fila ya está ENVIADO no reenviaría nada
+  // y el botón del panel mentiría. La fila queda como estaba, sin intentos gastados.
+  it("no toca el ledger: reenvía aunque la confirmación ya se haya enviado", async () => {
+    const t = await crearTenant("mitienda");
+    const p = await crearProducto(t.id, "P1");
+    const orden = await crearOrdenConGrants(t.id, "fan@a.cl", "PAGADO", [
+      { productId: p.id, token: "tok-1", expiresAt: futuro() },
+    ]);
+    const fila = await db.correoEnviado.create({
+      data: {
+        tenantId: t.id,
+        tipo: "CONFIRMACION_COMPRA",
+        clave: orden,
+        email: "fan@a.cl",
+        estado: "ENVIADO",
+        proveedorId: "resend-original",
+        intentos: 1,
+        enviadoAt: new Date(),
+      },
+      select: { id: true },
+    });
+
+    const { service, enviados } = correoFake();
+    await reenviarCorreoDescargaDeOrden({
+      db,
+      acceso: acceso([t.id]),
+      correo: service,
+      baseUrl: BASE_URL,
+      input: { orderId: orden },
+    });
+
+    expect(enviados).toHaveLength(1); // el reenvío SÍ salió
+    const despues = await db.correoEnviado.findUnique({ where: { id: fila.id } });
+    expect(despues?.estado).toBe("ENVIADO");
+    expect(despues?.intentos).toBe(1); // intacta: el reenvío no consume presupuesto del ledger
+    expect(despues?.proveedorId).toBe("resend-original");
+
+    // reenvio.007 — la MISMA propiedad un piso más abajo, y la que se nos había escapado: saltarse
+    // el ledger no alcanza si el correo igual sale con la `Idempotency-Key` del envío automático.
+    // Resend la honra 24 h, así que devolvería la respuesta cacheada de `resend-original` y el
+    // Comprador no recibiría nada, con el panel diciendo que sí. El reenvío va SIN clave: es un
+    // «mandalo de nuevo» deliberado, no un reintento.
+    expect(enviados[0]!.idempotencyKey).toBeUndefined();
   });
 });

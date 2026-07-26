@@ -187,6 +187,66 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
     ).toBe(true);
   });
 
+  // panel.config.guardar.007 — F08/D12: el prefijo de ticket es identidad de la TIENDA (como el
+  // logo y el color) y se edita acá. La normalización a MAYÚSCULAS vive en el SCHEMA y no en el
+  // form: las dos puertas a esta columna (el panel y la tool MCP `configurar_tienda`) lo comparten,
+  // así que un mismo tenant no puede terminar mostrando `ARMY-1043` o `army-1043` según por dónde se
+  // guardó. Y el «-» NO se guarda: lo pone el formateador (I12), por eso `ARMY-` es inválido.
+  it("guarda `prefijoTicket` en MAYÚSCULAS; vacío ⇒ null y el borde rechaza el formato inválido", async () => {
+    const base = {
+      descripcion: "",
+      colorPrimario: "",
+      instagramUrl: "",
+      tiktokUrl: "",
+      whatsappUrl: "",
+      contactoEmail: "",
+    };
+
+    // Se escribe como venga y se guarda canónico.
+    const parseado = guardarConfiguracionTiendaInput.parse({
+      ...base,
+      prefijoTicket: "army",
+    });
+    expect(parseado.prefijoTicket).toBe("ARMY");
+    const ok = fakeDb();
+    await guardarConfiguracionTienda({
+      db: ok.db,
+      acceso: acceso(["A"]),
+      input: parseado,
+    });
+    expect(ok.getUpdateArgs()!.data.prefijoTicket).toBe("ARMY");
+
+    // Vacío ⇒ null ⇒ los Números vuelven a mostrarse pelados, byte-idéntico a antes de F08.
+    const vacio = fakeDb();
+    await guardarConfiguracionTienda({
+      db: vacio.db,
+      acceso: acceso(["A"]),
+      input: { ...base, prefijoTicket: "" },
+    });
+    expect(vacio.getUpdateArgs()!.data.prefijoTicket).toBeNull();
+
+    for (const malo of [
+      "ARMY CHILE", // espacios
+      "ARMY-", // el separador es del formateador, no del dato
+      "TICKETSS9", // 9 caracteres
+      "ARMÝ", // tildes: el prefijo también viaja a `tags` de Resend y a cabeceras
+      "#ARMY", // símbolos
+    ]) {
+      expect(
+        guardarConfiguracionTiendaInput.safeParse({ ...base, prefijoTicket: malo })
+          .success,
+        malo,
+      ).toBe(false);
+    }
+    for (const bueno of ["A", "ARMY", "K2025", "12345678"]) {
+      expect(
+        guardarConfiguracionTiendaInput.safeParse({ ...base, prefijoTicket: bueno })
+          .success,
+        bueno,
+      ).toBe(true);
+    }
+  });
+
   // panel.config.guardar.005 — los 4 campos MUERTOS salieron del contrato (admin-bases-pdf F06/D7)
   // `heroTitulo`/`heroSubtitulo`/`heroImageUrl`/`avisoTexto` se editaban en la card «Tu tienda» y NO
   // hacían nada: el storefront lee todo del Documento de Página. Guardaban con toast de éxito y la
@@ -223,12 +283,26 @@ describe("domain/panel/guardarConfiguracionTienda (fake db)", () => {
 });
 
 describe("domain/panel/getConfiguracionTienda (fake db)", () => {
+  /**
+   * El fake PROYECTA por el `select`, no devuelve el objeto entero: sin eso, un campo olvidado en el
+   * `select` real pasaría el test y llegaría `undefined` a producción (misma lección que el fake de
+   * `getSorteoDelPanel` en F01). Acá duele especialmente porque el formulario rehidrata con lo que
+   * devuelve esta función: un campo que no se lee vuelve como `""` y el primer «Guardar» lo borra.
+   */
   function fakeDb(tenant: Record<string, unknown> | null) {
     return {
       tenant: {
-        findUniqueOrThrow: async ({ where }: { where: { id: string } }) => {
-          if (where.id === "A" && tenant) return tenant;
-          throw new Error("no encontrado");
+        findUniqueOrThrow: async ({
+          where,
+          select,
+        }: {
+          where: { id: string };
+          select: Record<string, true>;
+        }) => {
+          if (where.id !== "A" || !tenant) throw new Error("no encontrado");
+          return Object.fromEntries(
+            Object.keys(select).map((k) => [k, tenant[k]]),
+          );
         },
       },
     } as unknown as PrismaClient;
@@ -245,6 +319,7 @@ describe("domain/panel/getConfiguracionTienda (fake db)", () => {
         logoUrl: "https://pub.r2.dev/A/branding/logo?v=1",
         colorPrimario: "#4f46e5",
         colorAcento: "#ffc530",
+        prefijoTicket: "ARMY",
         instagramUrl: "https://instagram.com/a",
         tiktokUrl: null,
         whatsappUrl: null,
@@ -258,6 +333,10 @@ describe("domain/panel/getConfiguracionTienda (fake db)", () => {
       colorPrimario: "#4f46e5",
       // El form tiene que poder rehidratar el acento, si no «Guardar» lo pisaría con "" ⇒ null (D12).
       colorAcento: "#ffc530",
+      // Idem el prefijo (F08/D12): sin leerlo acá, cada «Guardar cambios» de Configuración lo
+      // borraría en silencio — y de paso la tool MCP `configurar_tienda`, que hace su merge sobre
+      // esta misma lectura.
+      prefijoTicket: "ARMY",
       instagramUrl: "https://instagram.com/a",
       contactoEmail: "hola@a.cl",
     });

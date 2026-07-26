@@ -38,7 +38,8 @@ export async function reenviarCorreoDescargaDeOrden({
 }: {
   db: PrismaClient;
   acceso: AccesoPanel;
-  correo: CorreoService;
+  /** Dependencia estrecha: el reenvío manda UN correo (ver `enviarCorreoDescargaDeOrden`). */
+  correo: Pick<CorreoService, "enviarCorreo">;
   baseUrl: string;
   input: { orderId: string };
   ahora?: Date;

@@ -24,11 +24,14 @@ import {
  * Tools de CONFIGURACIÓN de la Tienda (F05): identidad visual/contacto + los Campos de checkout.
  *
  * ⚠️ La decisión de diseño del archivo: **`configurar_tienda` hace merge, no reemplazo.**
- * `guardarConfiguracionTienda` es un save de FORMULARIO — escribe las 7 columnas y las que no
+ * `guardarConfiguracionTienda` es un save de FORMULARIO — escribe las 8 columnas y las que no
  * vengan quedan en `null`. En el panel eso es correcto (el form siempre manda todo). Con un agente
  * de por medio sería una trampa: "cámbiame el color a azul" mandaría solo `colorPrimario` y borraría
- * de paso la descripción, el Instagram, el TikTok, el WhatsApp y el correo de contacto — pérdida de
- * datos silenciosa, confirmada con un "listo, cambié el color".
+ * de paso la descripción, el Instagram, el TikTok, el WhatsApp, el correo de contacto y el prefijo
+ * de ticket — pérdida de datos silenciosa, confirmada con un "listo, cambié el color".
+ *
+ * Corolario para quien agregue una columna al formulario: **sumarla también a `CAMPOS_CONFIG`**. Si
+ * no, el merge no la re-manda y cada llamada de esta tool la borra (F08/D12 llegó justo así).
  *
  * Así que la tool lee la config actual, superpone SOLO los campos presentes y guarda el conjunto
  * completo. Para el agente la semántica es la que espera (parcial); para el dominio, el mismo save
@@ -38,7 +41,7 @@ import {
  * olvido.
  */
 
-/** Los 7 campos editables, todos opcionales: ausente = no tocar, `""` = borrar. */
+/** Los 8 campos editables, todos opcionales: ausente = no tocar, `""` = borrar. */
 const CAMPOS_CONFIG = {
   descripcion: z
     .string()
@@ -69,6 +72,12 @@ const CAMPOS_CONFIG = {
     .string()
     .optional()
     .describe('Correo de contacto público del footer. Manda "" para ocultarlo.'),
+  prefijoTicket: z
+    .string()
+    .optional()
+    .describe(
+      'Prefijo de los números del sorteo, 1 a 8 letras o números sin espacios (ej. "ARMY" hace que los números se muestren como ARMY-1043 en el panel y en los correos). No incluyas el guion. Manda "" para quitarlo.',
+    ),
 };
 
 /** Claves de `CAMPOS_CONFIG`: lo que se puede superponer sobre la config actual. */

@@ -21,6 +21,8 @@ export async function getConfiguracionTienda({
   logoUrl: string | null;
   colorPrimario: string | null;
   colorAcento: string | null;
+  /** Prefijo de los Números del sorteo (F08/D12): `ARMY` ⇒ el panel y los correos dicen `ARMY-1043`. */
+  prefijoTicket: string | null;
   instagramUrl: string | null;
   tiktokUrl: string | null;
   whatsappUrl: string | null;
@@ -43,6 +45,10 @@ export async function getConfiguracionTienda({
       // vacío y el primer «Guardar» lo borraría sin que el Organizador tocara nada.
       colorPrimario: true,
       colorAcento: true,
+      // Mismo motivo que `colorAcento` (F08/D12): si el form no puede rehidratar el prefijo, el
+      // primer «Guardar cambios» lo manda vacío y lo borra sin que nadie lo haya tocado. La tool MCP
+      // `configurar_tienda` arma su merge sobre esta misma lectura.
+      prefijoTicket: true,
       instagramUrl: true,
       tiktokUrl: true,
       whatsappUrl: true,

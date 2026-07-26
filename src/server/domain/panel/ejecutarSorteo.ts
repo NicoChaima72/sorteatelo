@@ -10,7 +10,14 @@ import { type EjecutarSorteoInput } from "~/server/domain/panel/schemas";
  * Use case del panel (F05 interna): ejecuta el sorteo de la Tienda de forma AUDITABLE e
  * IDEMPOTENTE (ADR-0008). Elige un ganador al azar (uniforme) entre las participaciones,
  * registra quién (email del ejecutor, snapshot) y cuándo (`ejecutadoAt`), y transiciona el
- * Raffle ACTIVO→CERRADO. MVP: UN ganador, criterio random uniforme (implícito).
+ * Raffle ACTIVO→CERRADO. UN ganador, criterio random uniforme (implícito).
+ *
+ * Lo que gana es un **TICKET**, no un correo: junto al `ganadorEmail` se registra el
+ * **[[Número del sorteo]] ganador** (`ganadorNumero`, ADR-0024 §5), para que «salió el 1057» sea un
+ * hecho auditable y comunicable en vez de una deducción. Los dos snapshots se escriben en el MISMO
+ * `updateMany` del guard atómico — la tupla auditable (`ganadorEmail`, `ganadorNumero`,
+ * `ejecutadoAt`, `ejecutadoPor`) no se parte. Sorteos ejecutados ANTES de ADR-0024 devuelven
+ * `ganadorNumero: null` (histórico irreconstruible; el backfill NO lo inventa).
  *
  * Idempotencia "una sola vez" en dos capas: (1) chequeo temprano `ejecutadoAt != null` ⇒
  * devuelve el ganador ya guardado sin re-sortear; (2) guard atómico `updateMany WHERE
@@ -33,6 +40,11 @@ export async function ejecutarSorteo({
   elegirIndice?: (n: number) => number;
 }): Promise<{
   ganadorEmail: string;
+  /**
+   * Número del sorteo del TICKET ganador (ADR-0024 §5). `null` solo en sorteos ejecutados ANTES de
+   * ADR-0024 (histórico irreconstruible: se sabe el correo, no cuál de sus tickets ganó).
+   */
+  ganadorNumero: number | null;
   ejecutadoAt: Date;
   ejecutadoPor: string | null;
   yaEjecutado: boolean;
@@ -47,6 +59,7 @@ export async function ejecutarSorteo({
         id: true,
         ejecutadoAt: true,
         ganadorEmail: true,
+        ganadorNumero: true,
         ejecutadoPor: true,
       },
     });
@@ -58,15 +71,19 @@ export async function ejecutarSorteo({
     if (raffle.ejecutadoAt) {
       return {
         ganadorEmail: raffle.ganadorEmail!,
+        ganadorNumero: raffle.ganadorNumero,
         ejecutadoAt: raffle.ejecutadoAt,
         ejecutadoPor: raffle.ejecutadoPor,
         yaEjecutado: true,
       };
     }
 
+    // El sorteo es entre TICKETS (ADR-0012): cada fila es una chance. Se lee también su Número del
+    // sorteo porque lo que gana es un TICKET CONCRETO, no "un correo" — dos tickets del mismo
+    // comprador son dos filas distintas con números distintos (ADR-0024 §5).
     const participaciones = await tx.raffleEntry.findMany({
       where: { raffleId: input.raffleId, tenantId },
-      select: { email: true },
+      select: { email: true, numero: true },
     });
     if (participaciones.length === 0) {
       throw new DomainError(
@@ -75,14 +92,17 @@ export async function ejecutarSorteo({
       );
     }
 
-    const ganadorEmail =
-      participaciones[elegirIndice(participaciones.length)]!.email;
+    const ganadora = participaciones[elegirIndice(participaciones.length)]!;
+    const ganadorEmail = ganadora.email;
+    const ganadorNumero = ganadora.numero;
 
-    // Guard atómico: solo marca si sigue sin ejecutar (evita doble sorteo bajo carrera).
+    // Guard atómico: solo marca si sigue sin ejecutar (evita doble sorteo bajo carrera). Los dos
+    // snapshots del ganador (correo + Número) se escriben acá JUNTOS: la tupla auditable no se parte.
     const { count } = await tx.raffle.updateMany({
       where: { id: input.raffleId, tenantId, ejecutadoAt: null },
       data: {
         ganadorEmail,
+        ganadorNumero,
         ejecutadoAt: ahora,
         ejecutadoPor,
         estado: "CERRADO",
@@ -93,16 +113,28 @@ export async function ejecutarSorteo({
       // Una ejecución concurrente ganó la carrera: el ganador autoritativo es el guardado.
       const actual = await tx.raffle.findFirstOrThrow({
         where: { id: input.raffleId, tenantId },
-        select: { ganadorEmail: true, ejecutadoAt: true, ejecutadoPor: true },
+        select: {
+          ganadorEmail: true,
+          ganadorNumero: true,
+          ejecutadoAt: true,
+          ejecutadoPor: true,
+        },
       });
       return {
         ganadorEmail: actual.ganadorEmail!,
+        ganadorNumero: actual.ganadorNumero,
         ejecutadoAt: actual.ejecutadoAt!,
         ejecutadoPor: actual.ejecutadoPor,
         yaEjecutado: true,
       };
     }
 
-    return { ganadorEmail, ejecutadoAt: ahora, ejecutadoPor, yaEjecutado: false };
+    return {
+      ganadorEmail,
+      ganadorNumero,
+      ejecutadoAt: ahora,
+      ejecutadoPor,
+      yaEjecutado: false,
+    };
   });
 }

@@ -31,8 +31,37 @@ interface FakeOpts {
   activo?: { id: string; tenantId: string } | null;
   /** Raffles buscables por id (para el origen del arrastre). */
   rafflesPorId?: Record<string, { id: string; tenantId: string }>;
-  /** Entries por raffleId (origen del arrastre). */
-  entriesPorRaffle?: Record<string, Array<{ orderId: string; email: string }>>;
+  /**
+   * Entries por raffleId (origen del arrastre). `createdAt`/`ordinal` son opcionales: por defecto
+   * se autogeneran crecientes en el orden dado (el caso simple). Los tests de NUMERACIÓN los
+   * declaran a mano para ejercer el desempate real —incluido el `createdAt` EMPATADO entre las K
+   * entries de una misma orden, que es como nacen en la DB (mismo createMany, misma $tx).
+   */
+  entriesPorRaffle?: Record<
+    string,
+    Array<{
+      orderId: string;
+      email: string;
+      createdAt?: Date;
+      ordinal?: number;
+    }>
+  >;
+}
+
+/** Comparador que replica el `orderBy` de Prisma (lista de claves, cada una asc/desc). */
+function compararPorOrderBy(
+  orderBy: Array<Record<string, "asc" | "desc">>,
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): number {
+  for (const clave of orderBy) {
+    const [campo, dir] = Object.entries(clave)[0]!;
+    const va = a[campo] as string | number | Date;
+    const vb = b[campo] as string | number | Date;
+    if (va < vb) return dir === "asc" ? -1 : 1;
+    if (va > vb) return dir === "asc" ? 1 : -1;
+  }
+  return 0;
 }
 
 function fakeDb({
@@ -66,8 +95,25 @@ function fakeDb({
       },
     },
     raffleEntry: {
-      findMany: async ({ where }: { where: { raffleId: string } }) =>
-        entriesPorRaffle[where.raffleId] ?? [],
+      // Fake FIEL: aplica el `orderBy` que le pase el use case, como haría Postgres. Sin esto el
+      // test no podría distinguir "numeración determinista" de "numeración en el orden en que la
+      // DB devolvió las filas" (que sin ORDER BY explícito no está garantizado).
+      findMany: async ({
+        where,
+        orderBy,
+      }: {
+        where: { raffleId: string };
+        orderBy?: Array<Record<string, "asc" | "desc">>;
+      }) => {
+        const filas = (entriesPorRaffle[where.raffleId] ?? []).map((e, i) => ({
+          ...e,
+          createdAt: e.createdAt ?? new Date(Date.UTC(2026, 0, 1 + i)),
+          ordinal: e.ordinal ?? 0,
+        }));
+        return orderBy
+          ? [...filas].sort((a, b) => compararPorOrderBy(orderBy, a, b))
+          : filas;
+      },
       createMany: async ({ data }: { data: Array<Record<string, unknown>> }) => {
         entriesCreadas.push(...data);
         return { count: data.length };
@@ -218,6 +264,68 @@ describe("domain/panel/crearSorteo (fake db stateful, secuencial 1-ACTIVO + arra
     expect(o1).toEqual([0, 1]);
     expect(copiadas.filter((e) => e.orderId === "o2").map((e) => e.ordinal)).toEqual([0]);
     expect(copiadas.filter((e) => e.orderId === "o3").map((e) => e.ordinal)).toEqual([0]);
+  });
+
+  // panel.sorteo.crear.009 — arrastre: los tickets copiados RENUMERAN 1..N en el sorteo nuevo
+  //                           (el Número del sorteo es un namespace POR RAFFLE, ADR-0024 §1) y el
+  //                           contador del raffle nuevo nace sembrado en N
+  it("con importarDesdeRaffleId RENUMERA los tickets copiados 1..N en el sorteo nuevo y siembra su contador en N", async () => {
+    const { db, getCreado, getEntriesCreadas } = fakeDb({
+      rafflesPorId: { viejo: { id: "viejo", tenantId: "A" } },
+      entriesPorRaffle: {
+        // Deliberadamente DESORDENADAS, y con las 2 entries de o1 empatadas en createdAt (así
+        // nacen en la DB: un solo createMany en una sola $tx) ⇒ el desempate es por ordinal.
+        viejo: [
+          { orderId: "o3", email: "a@x.cl", createdAt: new Date("2026-01-05"), ordinal: 0 },
+          { orderId: "o1", email: "a@x.cl", createdAt: new Date("2026-01-01"), ordinal: 1 },
+          { orderId: "o2", email: "b@x.cl", createdAt: new Date("2026-01-03"), ordinal: 0 },
+          { orderId: "o1", email: "a@x.cl", createdAt: new Date("2026-01-01"), ordinal: 0 },
+        ],
+      },
+    });
+    await crearSorteo({
+      db,
+      acceso: acceso(["A"]),
+      input: {
+        nombre: "Temporada 2",
+        premio: "Cámara",
+        fechaFin: FUTURO,
+        importarDesdeRaffleId: "viejo",
+      },
+      ahora: AHORA,
+    });
+
+    const copiadas = getEntriesCreadas();
+    // Numeración desde 1, sin huecos ni repetidos: el namespace es por Raffle (no se heredan los
+    // números del origen, que podrían venir con huecos).
+    expect(copiadas.map((e) => e.numero).sort((a, b) => (a as number) - (b as number))).toEqual([
+      1, 2, 3, 4,
+    ]);
+    // Bloque CONTIGUO por orden, en el orden determinista (o1 primero por createdAt, luego o2, o3),
+    // y dentro de o1 por ordinal ⇒ o1 = 1,2 | o2 = 3 | o3 = 4.
+    const numerosDe = (orderId: string) =>
+      copiadas
+        .filter((e) => e.orderId === orderId)
+        .sort((a, b) => (a.ordinal as number) - (b.ordinal as number))
+        .map((e) => e.numero);
+    expect(numerosDe("o1")).toEqual([1, 2]);
+    expect(numerosDe("o2")).toEqual([3]);
+    expect(numerosDe("o3")).toEqual([4]);
+    // El contador del sorteo NUEVO nace en N: la próxima compra sigue el correlativo en 5.
+    expect(getCreado()!.data.ultimoNumero).toBe(4);
+  });
+
+  // panel.sorteo.crear.010 — sin arrastre, el contador nace en 0 (el @default del schema): un
+  //                          sorteo vacío no siembra `ultimoNumero` a mano
+  it("sin arrastre no siembra el contador (queda en el @default(0) del schema)", async () => {
+    const { db, getCreado } = fakeDb();
+    await crearSorteo({
+      db,
+      acceso: acceso(["A"]),
+      input: { nombre: "S", premio: "P", fechaFin: FUTURO },
+      ahora: AHORA,
+    });
+    expect(getCreado()!.data.ultimoNumero).toBeUndefined();
   });
 
   // panel.sorteo.crear.008 — origen de otro tenant / inexistente ⇒ NOT_FOUND, no crea

@@ -44,6 +44,7 @@ import {
   useSubirBasesSorteo,
 } from "~/components/admin/use-subir-bases";
 import { fecha, fechaHora, num } from "~/lib/formato";
+import { formatearNumerosDelSorteo } from "~/lib/numerosDelSorteo";
 import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api, type RouterOutputs } from "~/utils/api";
 
@@ -340,13 +341,24 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
   });
 
   const ejecutar = api.panel.ejecutarSorteo.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (res) => {
       await Promise.all([
         utils.panel.getSorteo.invalidate(),
         utils.panel.listarSorteos.invalidate(),
       ]);
       notifications.show({
-        message: "Sorteo ejecutado. Ya hay un ganador.",
+        // El resultado se anuncia por el NÚMERO ganador (ADR-0024 §5) — es lo que el Organizador
+        // comunica hacia afuera. Sin número (sorteo histórico) se degrada al mensaje de siempre.
+        // El número pasa por el MISMO formateador que la tabla y que el correo (F08/D12/I12), así
+        // que el prefijo sale igual en las tres superficies y no hay una que diga «1057» mientras
+        // las otras dicen «ARMY-1057».
+        message:
+          res.ganadorNumero !== null
+            ? `Sorteo ejecutado. Ganó el número ${formatearNumerosDelSorteo(
+                [res.ganadorNumero],
+                sorteo.prefijoTicket,
+              )}.`
+            : "Sorteo ejecutado. Ya hay un ganador.",
         color: "green",
       });
     },
@@ -511,14 +523,15 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
         <div>
           <Text fw={600}>Participantes</Text>
           <Text size="sm" c="dimmed">
-            Quienes están dentro del sorteo y cuántos tickets tienen
+            Quienes están dentro del sorteo, sus números y cuántos tickets tienen
           </Text>
         </div>
-        <Table.ScrollContainer minWidth={360}>
+        <Table.ScrollContainer minWidth={480}>
           <Table verticalSpacing="sm" mt="md">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Cliente</Table.Th>
+                <Table.Th>Números</Table.Th>
                 <Table.Th className="text-right">Tickets</Table.Th>
                 <Table.Th className="text-right">Última participación</Table.Th>
               </Table.Tr>
@@ -526,7 +539,7 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
             <Table.Tbody>
               {sorteo.participantes.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={3}>
+                  <Table.Td colSpan={4}>
                     <EmptyState
                       icon={IconUsers}
                       title="Todavía no hay participantes"
@@ -538,6 +551,15 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
                 sorteo.participantes.map((p) => (
                   <Table.Tr key={p.email}>
                     <Table.Td c="dimmed">{p.email}</Table.Td>
+                    {/* Números del sorteo plegados en rangos (ADR-0024 §6): mono + tabular-nums,
+                        como todo número de la marca (design.md §3). Es lo que el Organizador le
+                        responde a un comprador que pregunta "¿cuál es mi número?". */}
+                    <Table.Td
+                      className="whitespace-nowrap tabular-nums"
+                      ff="monospace"
+                    >
+                      {formatearNumerosDelSorteo(p.numeros, sorteo.prefijoTicket)}
+                    </Table.Td>
                     <Table.Td className="text-right tabular-nums" c="dimmed">
                       {num(p.tickets)}
                     </Table.Td>
@@ -598,13 +620,37 @@ function HistorialSorteos({ cerrados }: { cerrados: SorteoDeLista[] }) {
                 </Table.Td>
                 <Table.Td>
                   {s.ganadorEmail ? (
-                    <Group gap={6} wrap="nowrap">
+                    <Group gap={6} wrap="nowrap" align="flex-start">
                       <IconTrophy
                         className="size-4 shrink-0"
                         stroke={1.75}
                         color="var(--mantine-color-premio-6)"
                       />
-                      <Text size="sm">{s.ganadorEmail}</Text>
+                      <div>
+                        <Text size="sm">{s.ganadorEmail}</Text>
+                        {/* El ganador es un TICKET, no un correo (ADR-0024 §5). El número es el
+                            CAPTION de la celda compuesta: si falta, la línea NO se renderiza —
+                            nada de «—», que acá no alinea ninguna columna (la alinea el correo
+                            de arriba) y solo agregaría ruido. El guard lo pide el tipo
+                            (`ganadorNumero` es null mientras el sorteo no se ejecuta). */}
+                        {s.ganadorNumero !== null && (
+                          <Text
+                            size="xs"
+                            c="dimmed"
+                            ff="monospace"
+                            className="tabular-nums"
+                          >
+                            {/* Un número suelto también pasa por el formateador (F08/D12/I12): es
+                                el único punto donde se aplica el prefijo de la Tienda, así que el
+                                Historial dice exactamente lo mismo que la tabla y que el correo. */}
+                            Nº{" "}
+                            {formatearNumerosDelSorteo(
+                              [s.ganadorNumero],
+                              s.prefijoTicket,
+                            )}
+                          </Text>
+                        )}
+                      </div>
                     </Group>
                   ) : (
                     <Text size="sm" c="dimmed">

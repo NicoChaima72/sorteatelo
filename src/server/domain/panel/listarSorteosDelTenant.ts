@@ -13,6 +13,18 @@ interface SorteoDeLista {
   basesPdfUrl: string | null;
   premioImageUrl: string | null;
   ganadorEmail: string | null;
+  /**
+   * Número del sorteo GANADOR (ADR-0024 §5): el Historial anuncia el TICKET que ganó, no solo el
+   * correo. `null` en sorteos ejecutados ANTES de ADR-0024 (histórico irreconstruible) ⇒ la UI
+   * muestra solo el correo.
+   */
+  ganadorNumero: number | null;
+  /**
+   * Prefijo con el que se PRESENTA el `ganadorNumero` en el Historial (F08/D12, I12): `ARMY` ⇒
+   * `Nº ARMY-1057`. Es el MISMO dato que devuelve `getSorteoDelPanel`, y llega por fila para que
+   * ningún consumidor tenga que cruzar dos queries para escribir un número.
+   */
+  prefijoTicket: string | null;
   ejecutadoAt: Date | null;
   ejecutadoPor: string | null;
   /** Total de TICKETS (nº de RaffleEntry) del sorteo — para el historial y el modal de arrastre. */
@@ -51,17 +63,23 @@ export async function listarSorteosDelTenant({
       basesPdfUrl: true,
       premioImageUrl: true,
       ganadorEmail: true,
+      ganadorNumero: true,
       ejecutadoAt: true,
       ejecutadoPor: true,
       createdAt: true,
       _count: { select: { entries: true } },
+      // Prefijo de presentación de los Números (F08/D12): se lee por la relación en la MISMA query
+      // (todas las filas son del mismo tenant, así que es el mismo valor repetido — barato al lado
+      // de un round trip extra contra el pooler).
+      tenant: { select: { prefijoTicket: true } },
     },
   });
 
   return {
-    sorteos: raffles.map(({ _count, ...resto }) => ({
+    sorteos: raffles.map(({ _count, tenant, ...resto }) => ({
       ...resto,
       totalParticipaciones: _count.entries,
+      prefijoTicket: tenant.prefijoTicket,
     })),
   };
 }

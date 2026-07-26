@@ -1,23 +1,34 @@
 import { type PrismaClient } from "@prisma/client";
 
+import { armarConfirmacionesDeCompra } from "~/server/domain/correo/confirmacionDeCompra";
 import { DomainError } from "~/server/domain/errors";
-import { GRANT_TTL_DIAS } from "~/server/domain/pago/aplicarEfectosPostPago";
-import { armarCorreoDescarga } from "~/server/domain/correo/plantillaDescarga";
 import { type CorreoService } from "~/server/services/correo";
 
 /**
- * Use case de dominio (F04/D3/D6/D7): envía UN correo con los enlaces de descarga de TODOS los
- * grants de una orden. Es la pieza compartida por el envío post-pago (decorator del webhook, F02)
- * y el reenvío del panel (F03) — una sola definición del contenido/derivación.
+ * Use case de dominio: envía UN correo de **confirmación de compra** con todo lo de una orden.
+ *
+ * Nació en F04 mandando solo los enlaces de descarga; F03 lo hizo crecer a C1 (números del sorteo,
+ * sorteo nombrado, cierre en hora de Chile, resumen de la compra) sin cambiar su firma ni su rol.
+ * El nombre se conserva a propósito: sus dos callers —el reenvío del panel y los tests del
+ * circuito— lo conocen así, y renombrarlo no agregaba nada. El CONTENIDO vive en
+ * `confirmacionDeCompra.ts`, compartido con el resolvedor del cron.
+ *
+ * ── Quién lo usa, y quién NO ───────────────────────────────────────────────────────────────────
+ * Lo usa el **reenvío del panel** (`reenviarCorreoDescargaDeOrden`), que es un «mandalo de nuevo»
+ * explícito del Organizador: por eso NO pasa por el ledger. La fila de esa orden ya está `ENVIADO`
+ * y hacerlo pasar por el claim significaría que el reenvío no manda nada, que es exactamente lo
+ * contrario de lo que el Organizador pidió.
+ *
+ * El envío **post-pago** NO usa este use case: usa `enviarConfirmacionDeCompra`, que reclama la
+ * fila del ledger antes de enviar (I2 — el correo automático jamás sale dos veces).
  *
  * Reglas duras:
- * - **I4 (tenancy / datos server-side)**: TODO el contenido (destino, nombre de Tienda, reply-to,
- *   títulos, tokens) se deriva de la ORDEN cargada por `db` a partir del `orderId` — jamás de un
- *   parámetro externo. El caller (webhook o reenvío) ya resolvió QUÉ orden es server-side.
- * - **D7 (reply-to)**: se usa el `User.email` de la `TenantMembership` MÁS ANTIGUA del tenant
- *   (`Tenant` no tiene campo de contacto — S4). Sin membresía ⇒ correo sin reply-to (válido).
- * - **D8 (enlace)**: `<baseUrl>/api/descargas/<token>` (endpoint de PLATAFORMA, token unique global
- *   ⇒ sin subdominio). `baseUrl` entra como argumento (el borde lee env).
+ * - **I4 (tenancy / datos server-side)**: TODO el contenido se deriva de la ORDEN cargada por `db`
+ *   a partir del `orderId` — jamás de un parámetro externo. El caller ya resolvió QUÉ orden es.
+ * - **D7 (reply-to)**: `User.email` de la `TenantMembership` MÁS ANTIGUA del tenant. Sin membresía
+ *   ⇒ correo sin reply-to (válido).
+ * - **D8 (enlace)**: `<baseUrl>/entrega/<token>` — la PÁGINA de entrega (productos-tipos-digitales
+ *   F09/D5). `baseUrl` entra como argumento (el borde lee env).
  * - **I3 (secretos/tokens)**: los tokens solo viajan en el correo al Comprador; este use case no los
  *   loguea. El `pdfPath`/keys del bucket NUNCA se cargan ni exponen — solo el token del grant.
  *
@@ -30,73 +41,36 @@ export async function enviarCorreoDescargaDeOrden({
   baseUrl,
 }: {
   db: PrismaClient;
-  correo: CorreoService;
+  // Solo el envío individual: este use case manda UN correo. Declarar la dependencia estrecha
+  // (y no el `CorreoService` entero) documenta que el batch no le compete y mantiene los fakes
+  // de sus tests mínimos.
+  correo: Pick<CorreoService, "enviarCorreo">;
   orderId: string;
   baseUrl: string;
 }): Promise<{ enviado: true; id: string; items: number }> {
-  const order = await db.order.findUnique({
-    where: { id: orderId },
-    select: {
-      email: true,
-      tenantId: true,
-      tenant: { select: { nombre: true } },
-      // Un ítem por grant (D3). `orderBy` estable para un correo reproducible. Solo el token
-      // (autoridad del enlace) y el título — NUNCA `pdfPath`/keys del bucket (I3).
-      downloadGrants: {
-        select: { token: true, product: { select: { titulo: true } } },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      },
-    },
+  const armadas = await armarConfirmacionesDeCompra({
+    db,
+    orderIds: [orderId],
+    baseUrl,
+    // Reenvío deliberado ⇒ SIN `Idempotency-Key`. Con la clave del envío automático, Resend
+    // trataría el reenvío como reintento del original dentro de sus 24 h de ventana y devolvería
+    // la respuesta cacheada: este use case devolvería `{ enviado: true }`, el panel diría
+    // «reenviado» y el buzón del Comprador seguiría vacío. Es la misma razón por la que este
+    // camino tampoco pasa por el claim del ledger.
+    idempotencia: "reenvio-manual",
   });
+  const armada = armadas.get(orderId);
 
-  if (!order) {
+  if (!armada) {
     // No debería ocurrir: el caller confirma/valida la orden antes de invocar. Si pasa, es una
     // violación de integridad, no una condición esperada del correo.
     throw new DomainError(
       "NOT_FOUND",
-      `Orden ${orderId} inexistente al enviar el correo de descarga`,
+      `Orden ${orderId} inexistente al enviar el correo de confirmación`,
     );
   }
 
-  const base = baseUrl.replace(/\/+$/, ""); // sin barra final (evita `//api/...`)
-  const items = order.downloadGrants.map((g) => ({
-    titulo: g.product.titulo,
-    enlace: `${base}/api/descargas/${g.token}`,
-  }));
+  const { id } = await correo.enviarCorreo(armada.correo);
 
-  const replyTo = await replyToDelOrganizador(db, order.tenantId);
-
-  const { from, subject, text, html } = armarCorreoDescarga({
-    nombreTienda: order.tenant.nombre,
-    items,
-    diasExpiracion: GRANT_TTL_DIAS,
-  });
-
-  const { id } = await correo.enviarCorreo({
-    from,
-    to: order.email,
-    replyTo,
-    subject,
-    text,
-    html,
-  });
-
-  return { enviado: true, id, items: items.length };
-}
-
-/**
- * Reply-to = email del Organizador (D7). Deriva del `User` de la `TenantMembership` MÁS ANTIGUA del
- * tenant (`orderBy createdAt asc`). Sin membresía ⇒ `undefined` (correo sin reply-to). Cuando F08
- * agregue un email de contacto por Tienda, se cambia SOLO acá la fuente.
- */
-async function replyToDelOrganizador(
-  db: PrismaClient,
-  tenantId: string,
-): Promise<string | undefined> {
-  const membresia = await db.tenantMembership.findFirst({
-    where: { tenantId },
-    orderBy: { createdAt: "asc" },
-    select: { user: { select: { email: true } } },
-  });
-  return membresia?.user.email ?? undefined;
+  return { enviado: true, id, items: armada.items };
 }

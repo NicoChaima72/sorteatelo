@@ -1,12 +1,12 @@
 ---
-description: Cerrar el trabajo terminado — gate + commit conventional + push a main (deploy real pendiente de decisión de hosting #5)
+description: Cerrar el trabajo terminado — gate + commit conventional + push a main (auto-deploy en Vercel, ADR-0015) + verificación post-deploy
 ---
 
 Cierre de trabajo: correr el gate, commitear la tarea terminada con conventional commit limpio y —si hay remoto— llevarla a `main`. libros-iselk es **una sola app T3** (no monorepo) y `main` es la única rama de integración. Invocar `/deploy` es la autorización explícita del usuario para commitear (y pushear si corresponde); no re-preguntes eso.
 
 Ejecutá los pasos EN ORDEN, verificando el output de cada uno. Ante cualquier ambigüedad o conflicto no trivial, PARÁ y preguntá.
 
-> **Hosting es decisión ABIERTA (`docs/decisiones-abiertas.md` #5).** No hay proveedor de deploy conectado todavía (el stack encaja con Vercel, pero no está cerrado). Hoy `/deploy` llega hasta commit + push a `main`; el disparador y la verificación del deploy real se completan cuando #5 se resuelva y se promueva a ADR (ver paso 5). No cierres esa decisión por tu cuenta.
+> **Hosting RESUELTO (ADR-0015): Vercel (proyecto `sorteatelo`, team personal) + Supabase PostgreSQL.** El push a `main` **auto-deploya a PRODUCCIÓN** — cada push es un deploy real a `sorteatelo.cl` y todos sus subdominios. Dos consecuencias duras: (1) **`next build` COMPLETO verde LOCAL antes de pushear** — `npm run check` NO basta, el build de Vercel corre lint+types+page-data sobre TODO el árbol commiteado (lección 0c76842: 9 deploys rotos por un commit partido; reincidencia 2026-07-25: commit parcial dejó imports a módulos sin commitear); (2) **la DB es COMPARTIDA dev=prod** (transitorio del ADR-0015, separar antes de F10) — un `db push` con DDL destructivo rompe el deployment corriente EN VIVO al instante (incidente 2026-07-25: drop de columnas dejó todas las tiendas 500 hasta deployar el código nuevo). Ver paso 5.
 
 ## 0. Sincronizar con el remoto (ANTES de tocar nada)
 
@@ -45,12 +45,13 @@ Ejemplos: `feat(catalogo): listar libros con portada y precio` · `fix(checkout)
 - Verificá al final: `git rev-list --left-right --count origin/main...main` = `0 0`.
 - **Sin remoto**: el commit quedó local. Avisá que falta configurar el remoto (y el hosting, #5) para que el push tenga efecto.
 
-## 5. Deploy real — PENDIENTE (decisión abierta #5)
+## 5. Deploy real — Vercel auto-deploy desde `main` (ADR-0015)
 
-Todavía no hay proveedor de deploy conectado, así que el push a `main` **no dispara nada automático** por ahora.
+El push a `main` dispara el build de producción en Vercel automáticamente. **El deploy no está cerrado hasta verificarlo**:
 
-- Cuando se cierre el hosting (#5) y se promueva a ADR, completar acá: el disparador (p. ej. si es Vercel, el push a `main` auto-deploya) y la **verificación post-deploy** (deployment nuevo con el `commitHash` pusheado + estado SUCCESS + URL responde).
-- **Schema / DB**: si el commit toca `prisma/schema.prisma`, coordinar el `prisma db push` contra la base del entorno destino. Un DDL **incompatible hacia atrás** rompe el código que está corriendo → **expandir → deployar → contraer** (primero el código que tolera el cambio, después el DDL restrictivo). Crítico: es un dominio con plata.
+- **Verificación post-deploy OBLIGATORIA**: con el MCP de Vercel (`list_deployments` del proyecto `sorteatelo`, team personal `team_ZJrFMNfMDxMTX56ik1zPzqeA`), confirmar que el deployment del `commitHash` pusheado llega a **READY** (no ERROR). Después, smoke por HTTP: apex `https://sorteatelo.cl` 200 **y al menos una tienda** (`https://autora.sorteatelo.cl`) 200 — la landing puede sobrevivir mientras las tiendas están 500 (visto 2026-07-25). Si el build queda en ERROR: `get_deployment_build_logs` con `errorsOnly` y arreglar ANTES de seguir con otra cosa (producción sigue sirviendo el deploy anterior, que puede estar INCONSISTENTE con la DB si hubo cambio de schema).
+- **Schema / DB — CRÍTICO con DB compartida dev=prod**: si el commit toca `prisma/schema.prisma`, el `db push` que se corrió en "dev" YA pegó a la base que sirve producción. Un DDL **incompatible hacia atrás** (drop/rename) rompe el deployment corriente al instante → **expandir → deployar → contraer** (primero el código que tolera ambos estados, deploy verificado READY, y recién entonces el DDL restrictivo). Es un dominio con plata; hasta separar las DBs (pre-F10), tratá TODO `db push` como una operación de producción.
+- **Env vars**: viven en el proyecto Vercel; cambiarlas requiere redeploy (las `NEXT_PUBLIC_*` se hornean al build). El webhook de Flow en prod usa el dominio real, no el túnel de dev.
 
 ## Notas
 

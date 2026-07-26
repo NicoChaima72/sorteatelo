@@ -142,23 +142,23 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     const filas = lineas(contenido);
 
     // Las columnas FIJAS son el PREFIJO del encabezado, en el orden en que se leen en el panel
-    // (las dinámicas se agregan después, siempre a la derecha).
+    // (las dinámicas se agregan después, siempre a la derecha). Separadas por `;` — ver csv.010.
     expect(
       filas[0]!.startsWith(
-        "Fecha,Correo,Total,Comisión,Te queda,Estado,Productos",
+        "Fecha;Correo;Total;Comisión;Te queda;Estado;Productos",
       ),
     ).toBe(true);
     // La venta pagada, con sus montos CRUDOS (sin `$` ni separador de miles: la planilla los tiene
     // que poder sumar), el estado canónico y la fecha en la hora de Chile.
     expect(
       filas[1]!.startsWith(
-        "2026-01-05 15:30,compradora@x.cl,5000,160,4840,PAGADO,",
+        "2026-01-05 15:30;compradora@x.cl;5000;160;4840;PAGADO;",
       ),
     ).toBe(true);
     // La PENDIENTE no tiene comisión ni neto: celdas VACÍAS, no un «—» (eso es relleno de columna
     // en la pantalla; en una planilla un guion es un dato que rompe cualquier fórmula).
     expect(
-      filas[2]!.startsWith("2026-01-04 09:05,otra@x.cl,3000,,,PENDIENTE,"),
+      filas[2]!.startsWith("2026-01-04 09:05;otra@x.cl;3000;;;PENDIENTE;"),
     ).toBe(true);
 
     // Una fila por orden de la Tienda A (encabezado + 2), ni una de la Tienda B.
@@ -183,18 +183,20 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     // Las dinámicas van a la derecha de las fijas, con la ETIQUETA congelada como encabezado (que
     // es lo que el Organizador reconoce; la `clave` es identidad interna).
     expect(filas[0]).toBe(
-      "Fecha,Correo,Total,Comisión,Te queda,Estado,Productos,Teléfono,Talla",
+      "Fecha;Correo;Total;Comisión;Te queda;Estado;Productos;Teléfono;Talla",
     );
     // El `'` del teléfono es la neutralización de fórmula, que tiene su propio test (csv.006).
-    expect(filas[1]!.endsWith(",'+56912345678,M")).toBe(true);
+    expect(filas[1]!.endsWith(";'+56912345678;M")).toBe(true);
     // I9 — la venta previa a la feature no tiene respuestas: las dos celdas quedan VACÍAS y la fila
     // conserva el mismo número de columnas (una planilla con filas de largo distinto no se abre).
-    expect(filas[2]!.endsWith(",,")).toBe(true);
-    expect(filas.every((f) => f.split(",").length === 9)).toBe(true);
+    expect(filas[2]!.endsWith(";;")).toBe(true);
+    // 9 columnas contando a lo BRUTO, partiendo por `;` sin mirar comillas: la venta de dos
+    // productos NO puede meter el separador del archivo dentro de una celda (ver csv.010).
+    expect(filas.every((f) => f.split(";").length === 9)).toBe(true);
   });
 
-  // panel.ventas.csv.003 — escapado RFC 4180: comas, comillas y saltos de línea
-  it("entrecomilla y escapa las celdas con coma, comilla o salto de línea", async () => {
+  // panel.ventas.csv.003 — escapado RFC 4180: separador, comillas y saltos de línea
+  it("entrecomilla y escapa las celdas con `;`, comilla o salto de línea — y deja la coma pelada", async () => {
     const { db } = fakeDb([
       {
         id: "o9",
@@ -203,7 +205,7 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
         estado: "PAGADO",
         total: dec("5000"),
         createdAt: new Date("2026-01-05T15:30:00-03:00"),
-        items: [item('Pack "Todo en 1", edición 2026', 1, "5000")],
+        items: [item('Pack "Todo en 1"; edición 2026', 1, "5000")],
         payment: { fee: dec("160"), estado: "PAGADO" },
         checkoutResponses: [
           {
@@ -211,6 +213,12 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
             etiqueta: "Dirección",
             tipo: "TEXTO",
             valor: "Depto 402\nTorre B",
+          },
+          {
+            clave: "ciudad",
+            etiqueta: "Ciudad",
+            tipo: "TEXTO",
+            valor: "Ñuñoa, Santiago",
           },
           { clave: "talla", etiqueta: "Talla", tipo: "SELECT", valor: "M" },
         ],
@@ -222,14 +230,18 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
       acceso: acceso(["A"]),
     });
 
-    // Comilla → se DUPLICA, y el campo entero va entre comillas por la coma del título.
-    expect(contenido).toContain('"1 × Pack ""Todo en 1"", edición 2026"');
+    // Comilla → se DUPLICA, y el campo entero va entre comillas por el `;` del título.
+    expect(contenido).toContain('"1 × Pack ""Todo en 1""; edición 2026"');
     // Un salto de línea dentro de una celda es legal en CSV, pero SOLO entrecomillado (si no,
     // parte la fila en dos y la planilla queda corrida).
     expect(contenido).toContain('"Depto 402\nTorre B"');
+    // La coma ya NO es el separador (csv.010): una celda con coma viaja PELADA. Entrecomillarla
+    // sería ruido —«"Ñuñoa, Santiago"» con comillas a la vista en cualquier lector que no
+    // desescape— y en Excel es-CL la celda queda entera igual.
+    expect(contenido).toContain(";Ñuñoa, Santiago;");
     // Y no se entrecomilla de más: un valor limpio viaja pelado (si no, la planilla lee `"M"`
     // como texto con comillas en las herramientas que no desescapan).
-    expect(contenido.trimEnd().endsWith(",M")).toBe(true);
+    expect(contenido.trimEnd().endsWith(";M")).toBe(true);
   });
 
   // panel.ventas.csv.004 — el archivo que Excel abre bien: BOM UTF-8 + CRLF + nombre con fecha
@@ -244,7 +256,7 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
 
     // Sin BOM, Excel abre el archivo en la codificación del sistema y «Teléfono» sale «TelÃ©fono».
     expect(contenido.startsWith("﻿")).toBe(true);
-    expect(contenido.startsWith("﻿Fecha,Correo,")).toBe(true);
+    expect(contenido.startsWith("﻿Fecha;Correo;")).toBe(true);
     // Un solo BOM, al principio: repetirlo por fila metería basura en cada celda de la 1ª columna.
     expect(contenido.split("﻿")).toHaveLength(2);
     // CRLF entre filas (RFC 4180), no `\n` suelto.
@@ -292,7 +304,7 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     // El panel muestra «Sí» (`valorDeRespuesta`); el archivo NO — `true`/`false` es lo que Excel
     // filtra y cuenta. Son las dos caras de la Opción A del usuario (F01): el valor se guarda
     // canónico y cada superficie decide.
-    expect(fila.endsWith(",true,8320000")).toBe(true);
+    expect(fila.endsWith(";true;8320000")).toBe(true);
     expect(contenido).not.toContain("Sí");
     // Y el número CRUDO, igual que en el detalle: es un código postal, no una cantidad. Con
     // separador de miles Excel lo leería como texto y se acabó la fórmula.
@@ -333,16 +345,17 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
       acceso: acceso(["A"]),
     });
 
-    // El teléfono se congela con `+` adelante (F05). Sin neutralizar, Excel lee `+56912345678`
-    // como una SUMA y muestra 56912345678: el `+` desaparece y el dato queda mal. Con el prefijo
-    // de texto, la celda se lee tal cual se respondió.
+    // El teléfono se congela con `+` adelante (F05). Sin neutralizar, Excel 16 es-CL muestra
+    // `5,6911E+10` —el `+` se pierde y el teléfono queda irrecuperable— y `=Perez` se ejecuta
+    // hasta `#NOMBRE?`; medido, no supuesto (`panel.ventas.csv.002`). El apóstrofo SÍ se ve en la
+    // celda (`'+56912345678`) y entrecomillar no sustituye a la guarda: es el costo asumido.
     expect(contenido).toContain("'+56912345678");
     // Y el texto libre del Comprador no puede ejecutarse en la planilla del Organizador: es dato
     // de un desconocido llegando a un Excel ajeno (I7).
     expect(contenido).toContain("'=HYPERLINK");
     // Lo que SÍ es número sigue siendo número: montos y NUMERO no llevan prefijo (arrancan con
     // dígito) — si lo llevaran, se acabarían las fórmulas, que es el punto del export.
-    expect(contenido).toContain(",5000,160,4840,PAGADO,");
+    expect(contenido).toContain(";5000;160;4840;PAGADO;");
     expect(contenido).not.toContain("'5000");
   });
 
@@ -397,11 +410,11 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     // Renombrado: UNA sola columna, titulada como el campo se llama HOY (que es como el
     // Organizador lo va a buscar). Las dos respuestas caen en ella, cada una en su fila.
     expect(filas[0]).toBe(
-      "Fecha,Correo,Total,Comisión,Te queda,Estado,Productos,Teléfono,Talla (talla_2),Talla (talla)",
+      "Fecha;Correo;Total;Comisión;Te queda;Estado;Productos;Teléfono;Talla (talla_2);Talla (talla)",
     );
-    expect(filas[0]).not.toContain("Fono,");
-    expect(filas[1]!.endsWith(",56911112222,L,")).toBe(true);
-    expect(filas[2]!.endsWith(",56933334444,,M")).toBe(true);
+    expect(filas[0]).not.toContain("Fono;");
+    expect(filas[1]!.endsWith(";56911112222;L;")).toBe(true);
+    expect(filas[2]!.endsWith(";56933334444;;M")).toBe(true);
   });
 
   // panel.ventas.csv.008 — fail-closed: sin membresía no hay archivo (I1/I7)
@@ -431,5 +444,64 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     // Y la query no lleva `take` ni `cursor`: la ausencia es el mecanismo, no una casualidad.
     expect(args[0]).not.toHaveProperty("take");
     expect(args[0]).not.toHaveProperty("cursor");
+  });
+
+  // panel.ventas.csv.010 — el separador es `;`, el de lista de un Windows es-CL
+  it("delimita con `;` para que el doble clic en Excel es-CL abra columnas y no una sola", async () => {
+    const { db } = fakeDb([
+      {
+        id: "o9",
+        tenantId: "A",
+        email: "compradora@x.cl",
+        estado: "PAGADO",
+        total: dec("5000"),
+        createdAt: new Date("2026-01-05T15:30:00-03:00"),
+        // Dos productos: la celda más larga y variable del archivo, la que decide si una fila se
+        // puede partir a lo bruto.
+        items: [item("Libro 5", 2, "2000"), item("Libro 4", 1, "1000")],
+        payment: { fee: dec("160"), estado: "PAGADO" },
+        checkoutResponses: [
+          {
+            clave: "nombre",
+            etiqueta: "Nombre completo",
+            tipo: "TEXTO",
+            valor: "Pérez, Ana",
+          },
+        ],
+      },
+    ]);
+
+    const { contenido } = await exportarVentasCsv({
+      db,
+      acceso: acceso(["A"]),
+    });
+    const [encabezado, fila] = lineas(contenido) as [string, string];
+
+    // Excel NO autodetecta el separador: al abrir un `.csv` con doble clic usa el separador de
+    // lista del sistema, que en es-CL es `;`. Con coma, las 8 filas del archivo caían enteras en
+    // la columna A (medido en Excel 16 real — `panel.ventas.csv.002`).
+    expect(encabezado.split(";")).toEqual([
+      "Fecha",
+      "Correo",
+      "Total",
+      "Comisión",
+      "Te queda",
+      "Estado",
+      "Productos",
+      "Nombre completo",
+    ]);
+    // La fila se parte en las MISMAS 8 columnas partiendo a lo bruto por `;`: ni los dos productos
+    // ni la coma del nombre inventan una columna, y ninguna celda viaja entrecomillada.
+    expect(fila.split(";")).toEqual([
+      "2026-01-05 15:30",
+      "compradora@x.cl",
+      "5000",
+      "160",
+      "4840",
+      "PAGADO",
+      "2 × Libro 5, 1 × Libro 4",
+      "Pérez, Ana",
+    ]);
+    expect(contenido).not.toContain('"');
   });
 });

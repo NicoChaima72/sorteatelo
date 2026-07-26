@@ -87,6 +87,14 @@ function CampoCheckout({
           // D3: NUMERO es ENTERO. El rango lo acota el server; acá solo se impide el decimal, que
           // es la única regla del tipo que el Comprador puede corregir mientras escribe.
           allowDecimal={false}
+          // Sin spinners: las flechitas de Mantine dejan CAMINAR hasta un negativo con el mouse
+          // (desde 0 hacia abajo) en un campo donde el negativo nunca es un dato — un `-5` es un
+          // typo (`validarRespuestas.ts`). El fix es quitar la ESCALERA, no poner `min={0}`: el
+          // `clampBehavior` default de Mantine es `"blur"`, o sea que `min` reescribiría en
+          // SILENCIO lo que el Comprador tipeó (frontend-conventions § Formularios), y un `min`
+          // acá además sería espejar en el cliente un rango que vive en el server. Tipear el
+          // guión a mano sigue siendo posible y lo rechaza el server, que es quien manda.
+          hideControls
           {...form.getInputProps(ruta)}
         />
       );

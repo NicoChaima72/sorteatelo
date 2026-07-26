@@ -91,12 +91,16 @@ const COLUMNAS_FIJAS = [
  * Celda «Productos» de una venta. **Criterio DISTINTO del de la tabla del panel** —que hace
  * `items.map(titulo).join(", ")`— y a propósito: en la pantalla el título alcanza porque el
  * Organizador puede abrir el Drawer y ver las cantidades; en la planilla no hay Drawer, así que la
- * celda tiene que bastarse sola. Va `cantidad × título`, separado por `; ` (la coma ya es el
- * separador del archivo: usarla acá obligaría a leer un campo entrecomillado para distinguir dos
- * productos de un producto con coma en el título).
+ * celda tiene que bastarse sola.
+ *
+ * Va `cantidad × título` separado por `, `. La regla que manda es «el separador de adentro no puede
+ * ser el separador del archivo»: mientras el archivo delimitó con coma esto se juntaba con `; `, y
+ * cuando el archivo pasó a `;` (2026-07-25, decisión del usuario) hubo que darlo vuelta. Si no, la
+ * celda de toda venta con dos productos viaja entrecomillada y cualquier lector que parta por `;`
+ * sin honrar comillas —que los hay— corre la fila entera.
  */
 function productosDeCelda(venta: VentaDelPanel): string {
-  return venta.items.map((it) => `${it.cantidad} × ${it.titulo}`).join("; ");
+  return venta.items.map((it) => `${it.cantidad} × ${it.titulo}`).join(", ");
 }
 
 /** Una columna dinámica del CSV: la identidad es la `clave`, el encabezado es la `etiqueta`. */

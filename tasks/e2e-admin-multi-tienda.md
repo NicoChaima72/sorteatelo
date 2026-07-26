@@ -72,27 +72,47 @@ el plan referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tes
 
 ## F05 — Switcher y URLs cross-tienda
 
-- [ ] ⏭️ **admin.multitienda.005** — **PARCIAL**: los datos que alimentan el switcher están verdes; falta
-  el click en un browser (ambos carriles MCP ocupados por agentes paralelos, ver nota al pie).
+- [x] **admin.multitienda.005** ✅ 2026-07-25 — **CERRADO EN BROWSER REAL** por la **sesión principal** vía
+  carril **claude-in-chrome** (Chrome del usuario con la extensión — el único libre; los dos carriles MCP
+  siguieron ocupados por agentes paralelos en las 3 corridas del `feature-tester`).
+  > **Evidencia DOM (sesión principal, 2026-07-25)**: en `autora.localhost:3001/admin`, el menú
+  > «Cambiar de tienda» renderiza la activa como `<button>` («Tienda de la Autora (piloto) · Actual») y las
+  > otras **4** como `<a>` REALES: `href="http://bcac.localhost:3001/admin"`,
+  > `http://demo-dreamy.localhost:3001/admin`, `http://demo-noche.localhost:3001/admin`,
+  > `http://demo-editorial.localhost:3001/admin` — **siempre al dashboard `/admin`** (D4: no preserva
+  > subruta) y **jamás** una URL anidada `<otra>.<tienda>.host`. **Click** en «BCAC · Ediciones» ⇒
+  > navegación en la **MISMA pestaña** a `http://bcac.localhost:3001/admin`, y el panel de BCAC renderiza
+  > con el chip «BCAC · Ediciones» activo ⇒ guard + `panelProcedure` sirviendo la tienda del host DESTINO.
+  > Con esto muere formalmente el `Menu.Item` sin `onClick` (UI decorativa) que motivó la feature.
   Verificado server-side con la cuenta real (5 membresías, no 2): `getAccesoActual` devuelve `tenants`
   SIEMPRE en orden canónico (`autora, bcac, demo-dreamy, demo-noche, demo-editorial` = `createdAt asc`)
   y `tiendaActiva` = **la tienda del HOST** (en `bcac.localhost` ⇒ `bcac`, no `tenants[0]`=autora) — que
   es justo el bug de orden que la feature mata. Y `listarProductos` devuelve datos DISTINTOS por host.
   Falta confirmar en DOM: que el `Menu.Item component="a"` navegue en la misma pestaña al dashboard de B.
+  > **3er intento fallido (feature-tester 2026-07-25 21:35)**: los dos carriles MCP tomados por sesiones
+  > ajenas (verificado por PID, ver Bitácora) **y además** el dev server sirviendo `500` en toda ruta SSR
+  > (un `next build` pisó los chunks de `.next` del `next dev -p 3001`) ⇒ no había ni navegador ni app.
   Texto original: El switcher cambia de tienda de verdad. Con una cuenta de 2
   membresías, en `http://<A>.lvh.me:3001/admin`: abrir el chip del header ⇒ lista las 2 tiendas en
   orden canónico (la más antigua primero) con la activa marcada ⇒ elegir la otra ⇒ navega en la MISMA
   pestaña a `http://<B>.lvh.me:3001/admin` (el dashboard, D4: no preserva la ruta) ⇒ el chip y los
   datos (productos, ventas, sorteo) son los de B.
 
-- [ ] ⏭️ **admin.multitienda.006** — **PENDIENTE DE BROWSER** (carriles ocupados en las DOS corridas). El helper puro que
-  construye estas URLs está cubierto por Vitest (`urlApex.test.ts`, `page.subdominio.001..003`, 7/7),
-  pero el `href` renderizado en el DOM no se inspeccionó.
+- [x] **admin.multitienda.006** ✅ 2026-07-25 — **CERRADO EN BROWSER REAL** por la **sesión principal** vía
+  carril **claude-in-chrome**. El helper puro ya estaba cubierto por Vitest (`urlApex.test.ts`,
+  `page.subdominio.001..003`, 7/7); lo que faltaba —la URL que el componente arma en runtime— quedó visto.
+  > **Evidencia (sesión principal, 2026-07-25)**: desde el panel de `bcac.localhost:3001/admin`, con
+  > `window.open` stubeado para capturar el destino: «Ver mi tienda» ⇒ `http://bcac.localhost:3001` y
+  > «Editor de la tienda» ⇒ `http://bcac.localhost:3001/editor`. **Cero** `<slug>.<tienda>.host` — el bug
+  > de `url-tienda.ts` que la feature arregla está muerto también en runtime, no solo en el helper puro.
   > **Intentado por HTTP y NO alcanzable (feature-tester 2026-07-25 19:30)**: el chrome del panel es
   > CSR — `api` de tRPC corre con `ssr: false`, así que `getAccesoActual` nunca resuelve en SSR y el
   > header no se renderiza. El SSR de `autora.localhost:3001/admin` (35.435 bytes, `200`) trae **cero**
   > ocurrencias de `Cambiar de tienda`, `Ver mi tienda`, `Editor de la tienda` y `href="http`. El `href`
   > solo existe tras hidratar ⇒ **este check requiere un navegador de verdad, no hay sustituto por HTTP**.
+  > **3er intento fallido (feature-tester 2026-07-25 21:35)**: ídem 005 — carriles ocupados + dev server
+  > en `500`. Sí se re-verificó por código, post-merge (HEAD `1920fec`), que `url-tienda.ts` sigue
+  > derivando el apex con `hrefSubdominio({ slug, slugActual, path })` y no cuelga el slug del host actual.
   Texto original:
   "Ver mi tienda" y "Editor de la tienda" apuntan bien DESDE el
   subdominio. En `http://autora.lvh.me:3001/admin`, el botón "Ver mi tienda" abre
@@ -163,3 +183,20 @@ Eso desbloqueó **002** sin crear ningún `User` en la DB del usuario.
 **Ambos carriles de navegador seguían ocupados** (`chrome-devtools-mcp\chrome-profile` con 11 procesos
 y `ms-playwright-mcp\mcp-chrome-12f6c4f` con 12, los dos devolviendo profile-lock). Per `browser-verify`
 §0/§5 no se mató ninguno. **005** y **006** quedan como el único hueco real de la feature.
+
+## Nota de método — cierre de 005/006 en browser real (sesión principal, 2026-07-25 ~21:40)
+
+Los dos últimos checks los ejerció la **sesión principal**, no el `feature-tester`, y por el **tercer
+carril** de `browser-verify` §0: **claude-in-chrome** (el Chrome del usuario con la extensión), que era el
+único libre — los carriles Playwright y chrome-devtools estuvieron tomados por agentes paralelos vivos en
+las **tres** corridas del tester (evidencia por PID y por escrituras de perfil en la Bitácora del plan).
+
+- **Sesión**: misma técnica que las corridas por HTTP — la cookie `next-auth.session-token` de una
+  `Session` VIGENTE de la DB, no forjada.
+- **Detalle del perfil**: en ese Chrome las escrituras de `document.cookie` sobre `localhost` (el apex)
+  están bloqueadas, pero sobre `<slug>.localhost` funcionan ⇒ la cookie se plantó **por subdominio**
+  (`autora` y `bcac`, host-only). No cambia lo que estos checks prueban (el `href` renderizado y el click
+  cross-host), pero **no** ejerce el compartir-cookie entre subdominios: el wildcard `.localhost` no es
+  válido en Chrome y el flujo dev real usa `lvh.me` (ADR-0019, infra que esta feature consume sin tocar).
+- **Bonus re-confirmado en browser real**: sin sesión, `autora.localhost:3001/admin` ⇒ login DEL APEX con
+  `callbackUrl=http%3A%2F%2Fautora.localhost%3A3001%2Fadmin` (refuerza **003**, antes visto solo por curl).

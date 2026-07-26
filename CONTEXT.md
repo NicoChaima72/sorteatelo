@@ -159,9 +159,42 @@ no reconoce no se guarda ni se renderiza. _Evitar_: whitelist informal, lista de
 El primer editor de la [[Página de tienda]]: una superficie de herramientas tipadas que editaba el
 [[Borrador]] por operaciones sobre [[Sección]]es — nunca HTML, nunca publicaba por sí solo.
 **Se retiró entero el 2026-07-25** (ADR-0023) porque su auth era un token god-mode compartido. El
-término queda para leer código e historia; su reemplazo —un MCP con tokens per-usuario scopeados a
-la membresía— es una decisión **diferida**. Hoy el Borrador se edita desde el **editor visual** del
-panel y su **asistente de IA**. _Evitar_: usarlo en presente.
+término queda para leer código e historia; su reemplazo es el [[MCP del Organizador]] (ADR-0025),
+que invierte el modelo: tokens per-usuario scopeados a la membresía, no un secreto de entorno.
+Hoy el Borrador se edita desde el **editor visual** del panel, su **asistente de IA**, o las tools
+de página del [[MCP del Organizador]]. _Evitar_: usarlo en presente.
+
+---
+
+## MCP del Organizador
+
+> **Aceptado 2026-07-26** (plan `tasks/26-07-26-mcp-organizador.md`, ADR-0025) — retoma la
+> decisión diferida de ADR-0023. Patrón espejo del MCP de terranova_ADMIN (su ADR-0009).
+
+### MCP del Organizador
+El borde MCP remoto de la [[Plataforma]] (apex, un solo endpoint) al que un [[Organizador]] conecta
+su **cliente de IA** (Claude Code, Claude Desktop, etc.) para operar su cuenta por chat: configurar
+sus [[Tienda]]s, productos, sorteo, [[Borrador]] de página, y crear otra Tienda. La autorización de
+CADA llamada sale de la `TenantMembership` viva del usuario dueño del token — el argumento de tienda
+de una tool **selecciona, jamás autoriza** (ADR-0022/0025). No publica, no ejecuta sorteos, no borra
+y no lee secretos. Es un borde hermano del panel: invoca los mismos use cases de `domain/`. El MCP
+de administración de plataforma es OTRA superficie, diferida con el superadmin (ADR-0023). _Evitar_:
+"el MCP" a secas cuando pueda confundirse con el [[Editor MCP (RETIRADO)]], y god-mode/token de
+entorno (modelo muerto).
+
+### Conexión MCP (`McpClient`)
+Un cliente de IA registrado ante el AS OAuth propio de la Plataforma vía Dynamic Client Registration
+(RFC 7591). El [[Organizador]] la autoriza en la **pantalla de consentimiento** del apex (con su
+sesión NextAuth) y la ve/revoca desde su panel ("Conexiones IA"). _Evitar_: "integración" (vago),
+confundir el cliente OAuth con el [[Token MCP]] que se le emite.
+
+### Token MCP (`McpAccessToken` / `McpRefreshToken`)
+La credencial **opaca y per-usuario** que el AS emite a una [[Conexión MCP]] tras el consentimiento
+(Authorization Code + PKCE S256). En DB vive **solo su hash SHA-256** — el token plano no es
+recuperable. Access corto (1 h) renovable por refresh; revocable individualmente. El token porta la
+**identidad** (`User.id`); la **capacidad** se recalcula contra la membresía en cada llamada — sacar
+a alguien de una Tienda lo desarma al instante sin tocar el token. _Evitar_: API key / PAT (modelo
+descartado en el grill), guardar o loguear el token plano.
 
 ---
 

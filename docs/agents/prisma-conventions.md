@@ -32,6 +32,7 @@ Convenciones de evolución del schema (`prisma/schema.prisma`). PostgreSQL con F
 - **Dinero: `Decimal @db.Decimal(15, 2)`** (o precisión acordada). **NUNCA `Float`**. Los errores de redondeo en finanzas no son aceptables.
 - Modelos que registran plata (pagos, órdenes) son **append-only** por diseño: preferir reversión (registro espejo) sobre delete/update destructivo. Discutir excepciones en el grill.
 - Todo modelo de datos del usuario tiene FK a `User` con `onDelete: Cascade` y `@@index([userId])`.
+  - La otra vía de escape del Cascade es **no tener FK**: `McpAuditLog` guarda `userId String?` SIN relación + `userEmail` snapshot, porque una bitácora de auditoría tiene que seguir legible después de que el `User` se fue (ADR-0025). Cómo elegir entre las dos: si la fila debe **sobrevivir** al borrado ⇒ sin FK + columnas snapshot; si el borrado debe **fallar** hasta que alguien limpie ⇒ `Restrict`.
 
 ## Frontera NextAuth
 

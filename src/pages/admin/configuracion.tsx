@@ -29,6 +29,7 @@ import { useEffect } from "react";
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { AssetUploader } from "~/components/admin/asset-uploader";
 import { CamposCheckoutCard } from "~/components/admin/campos-checkout";
+import { ConexionesIaCard } from "~/components/admin/conexiones-ia";
 import { SettingCard } from "~/components/admin/setting-card";
 import { SWATCHES_MARCA } from "~/lib/coloresMarca";
 import { fechaHora } from "~/lib/formato";
@@ -406,6 +407,9 @@ export default function ConfiguracionPage() {
         <CredencialFlowCard />
         <ConfiguracionTiendaCard />
         <CamposCheckoutCard />
+        {/* Es la única card de esta pantalla que es de la PERSONA y no de la Tienda (una Conexión
+            MCP cruza sus tiendas); vive acá porque es donde la va a buscar. */}
+        <ConexionesIaCard />
       </SimpleGrid>
     </AdminLayout>
   );

@@ -18,6 +18,27 @@ const config = {
     defaultLocale: "en",
   },
   transpilePackages: ["geist"],
+
+  /**
+   * Discovery OAuth del MCP del Organizador (ADR-0025 F02). Los clientes de IA piden estas dos
+   * rutas EXACTAS (RFC 8414 / RFC 9728) para descubrir el AS sin configuración manual — es lo
+   * que hace que `claude mcp add <url>` funcione solo.
+   *
+   * Hace falta un rewrite porque el pages router **no puede servir un directorio que empieza con
+   * punto**: `src/pages/.well-known/` no se rutea. Los handlers viven en `api/well-known/*`.
+   */
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/oauth-authorization-server",
+        destination: "/api/well-known/oauth-authorization-server",
+      },
+      {
+        source: "/.well-known/oauth-protected-resource",
+        destination: "/api/well-known/oauth-protected-resource",
+      },
+    ];
+  },
 };
 
 export default config;

@@ -1,4 +1,5 @@
 import { checkoutRouter } from "~/server/api/routers/checkout";
+import { mcpRouter } from "~/server/api/routers/mcp";
 import { pagebuilderRouter } from "~/server/api/routers/pagebuilder";
 import { panelRouter } from "~/server/api/routers/panel";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
@@ -12,6 +13,8 @@ export const appRouter = createTRPCRouter({
   checkout: checkoutRouter,
   panel: panelRouter,
   pagebuilder: pagebuilderRouter,
+  // Conexiones MCP del usuario logueado (F09, ADR-0025): per-usuario, no per-Tienda.
+  mcp: mcpRouter,
 });
 
 // export type definition of API

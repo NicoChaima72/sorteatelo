@@ -65,6 +65,12 @@ model User {
   sessions      Session[]
   posts         Post[]
   memberships   TenantMembership[] // Tiendas que este Organizador administra (F05, S6)
+  // Conexiones MCP del Organizador (ADR-0025): codes del dance OAuth + tokens vivos. Cascade
+  // desde el hijo ⇒ borrar el User desarma sus Tokens MCP al instante. La AUDITORÍA
+  // (`McpAuditLog`) NO cuelga de acá a propósito: es append-only y sobrevive al borrado (I7).
+  mcpAuthCodes            McpAuthCode[]
+  mcpAccessTokens         McpAccessToken[]
+  mcpRefreshTokens        McpRefreshToken[]
 }
 
 model VerificationToken {
@@ -550,3 +556,125 @@ model CheckoutFieldResponse {
   @@index([tenantId]) // lecturas tenant-wide del export (F07: claves distintas del conjunto); esta tabla crece con las órdenes de TODA la plataforma
   @@index([fieldId]) // NECESARIO por el SetNull: sin él, borrar una definición (D5) obliga a Postgres a un seq scan completo para el chequeo de integridad referencial
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCP del Organizador — Authorization Server OAuth 2.1 propio (ADR-0025, F01).
+// Modelos de PLATAFORMA/acceso (como los de NextAuth y TenantMembership): NO llevan
+// `tenantId` — un Token MCP es per-USUARIO y cruza sus Tiendas. El scoping por tenant
+// lo hace `resolverTenantAutorizado` en CADA llamada de tool (D4/I1): el argumento de
+// tienda SELECCIONA, la membresía viva AUTORIZA. Cero dinero acá.
+//
+// Aprobado por schema-guardian (2026-07-26) con 3 correcciones aplicadas: enum para
+// `result`, `String[]` para `redirectUris` (precedente `CheckoutField.opciones`) y
+// snapshot `userEmail` en la auditoría. Aditivo puro (5 CREATE TABLE + 1 CREATE TYPE).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum McpAuditLogResult {
+  OK
+  ERROR
+}
+
+// Conexión MCP (CONTEXT § Conexión MCP): cliente de IA registrado por DCR (RFC 7591).
+// Registrar NO otorga nada: sin consentimiento de un User logueado no hay token (ADR-0025).
+model McpClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique // identificador OAuth PÚBLICO (viaja en cada request del dance); es el target de los FK de codes/tokens
+  clientName   String // lo elige el cliente en el DCR ⇒ dato NO confiable: la consent page lo escapa y lo muestra JUNTO al redirect_uri (F02)
+  redirectUris String[] // URIs permitidas, exact-match (loopback + allowlist D9). text[] nativo, NO Json: el tipo del elemento lo garantiza la DB y la validación exact-match (I5) no castea un JsonValue (mismo criterio que CheckoutField.opciones)
+  scopes       String   @default("mcp") // space-separated RFC 6749; scope único "mcp" en v1 (D10)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  authCodes     McpAuthCode[]
+  accessTokens  McpAccessToken[]
+  refreshTokens McpRefreshToken[]
+}
+
+// Authorization Code del dance (RFC 6749 §4.1). PK natural = el code (32 bytes base64url).
+// Se guarda EN CLARO a propósito, a diferencia de los tokens: vida ~10 min, single-use, y por sí solo
+// NO es canjeable — el canje exige el `code_verifier` de PKCE, que JAMÁS se persiste (solo su
+// `codeChallenge`). Ese es exactamente el ataque que PKCE S256 cierra (I5). No tocar esto sin leer I5.
+model McpAuthCode {
+  code                String    @id
+  clientId            String
+  userId              String
+  scopes              String
+  redirectUri         String // el del /authorize; el token endpoint exige coincidencia exacta (RFC 6749 §4.1.3)
+  codeChallenge       String // S256 del verifier; el verifier nunca toca la DB
+  codeChallengeMethod String    @default("S256") // PKCE S256 obligatorio (I5): la columna existe para RECHAZAR explícitamente cualquier otro método
+  expiresAt           DateTime
+  usedAt              DateTime? // single-use ATÓMICO: updateMany({ where: { code, usedAt: null } }) exigiendo count === 1. Única mutación de la fila ⇒ sin updatedAt
+  createdAt           DateTime  @default(now())
+
+  client McpClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([expiresAt]) // lo paga el cleanup perezoso de codes vencidos de `initiateAuthorization`
+}
+
+// Token MCP de acceso (CONTEXT § Token MCP). En DB vive SOLO el hash: el token opaco se compara,
+// nunca se usa contra un tercero ⇒ hash irrecuperable, a diferencia de FlowCredential (cifrada
+// reversible porque se USA contra Flow, ADR-0006). El plano se devuelve UNA vez en /token (I2).
+model McpAccessToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique // SHA-256 hex del token raw; el raw JAMÁS se persiste (I2). El unique ES el índice del lookup por request
+  clientId   String
+  userId     String // identidad del token; la CAPACIDAD se recalcula contra TenantMembership en cada llamada (ADR-0025)
+  scopes     String
+  expiresAt  DateTime
+  lastUsedAt DateTime? // "último uso" del panel Conexiones IA (F09); se escribe best-effort por request
+  revokedAt  DateTime? // revocación individual desde el panel; se chequea en CADA validación (I5)
+  createdAt  DateTime  @default(now())
+
+  client McpClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId]) // panel Conexiones IA: los tokens del usuario de la sesión (F09); cubre también el revoke por (userId, clientId)
+  @@index([expiresAt])
+}
+
+// Token MCP de refresco. Mismo criterio de hash que McpAccessToken. La rotación (OAuth 2.1 §4.3.1)
+// se expresa como revokedAt + fila nueva — no necesita columna extra.
+model McpRefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  clientId  String
+  userId    String
+  scopes    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  client McpClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Auditoría APPEND-ONLY de invocaciones de tool (D11/I7): sin updatedAt, sin soft-delete y SIN FK.
+// La ausencia de FK es una EXCEPCIÓN DELIBERADA a "todo modelo de datos del usuario tiene FK a User
+// con Cascade" (prisma-conventions § Dominio con dinero): con Cascade, borrar un User borraría su
+// rastro — justo lo que la auditoría existe para conservar. Por eso la fila es un SNAPSHOT
+// AUTOCONTENIDO (mismo criterio que Raffle.ejecutadoPor / Tenant.tosAceptadoPor /
+// StorefrontPageVersion.publishedBy, ADR-0004): guarda `userEmail` además del `userId`, para seguir
+// siendo LEGIBLE cuando la fila User ya no exista. Un cuid colgante no preserva historial: preserva bytes.
+model McpAuditLog {
+  id        String            @id @default(cuid())
+  userId    String? // dueño del token; String puro, sin FK (ver arriba)
+  userEmail String? // snapshot del correo AL MOMENTO de la llamada: es lo que hace legible la fila si el User se borra
+  clientId  String? // clientId público de la Conexión MCP; String puro, sin FK
+  tool      String?
+  args      String? // JSON sanitizado y TRUNCADO ⇒ String y no Json: un blob truncado no es JSON válido y jsonb lo rechazaría. JAMÁS secretos (credencial Flow, D8/I2) ni PII extensa
+  result    McpAuditLogResult
+  errorCode String? // código de error de dominio: conjunto ABIERTO, por eso String y no enum
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+

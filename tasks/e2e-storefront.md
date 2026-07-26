@@ -142,19 +142,29 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   *implementer verificó vía curl: 401 sin Bearer, `initialize` OK (serverInfo sorteatelo-pagebuilder),
   `tools/list` devuelve las 10 tools. Falta el round-trip mutar→publicar→ver-en-subdominio con browser-verify.*
 
-- [ ] **storefront.campos.render.001** — (checkout-campos-configurables F04) Con campos creados en
+- [x] **storefront.campos.render.001** — ✅ 2026-07-26 (feature-tester, Playwright, `autora`; el sub-punto
+  «un campo desactivado desaparece tras recargar» quedó sin ejercer en vivo — cubierto por
+  `camposActivos.test.ts::campos.storefront.001` + la desactivación verificada en el panel.
+  **El sub-punto «el NUMERO no muestra spinners» es POSTERIOR a esta corrida**: sale del fix
+  `hideControls` del 2026-07-25 —el design finding de la propia corrida era que las flechitas
+  dejaban caminar a negativo— y no se ejerció en vivo; se ve de un vistazo en el próximo run) —
+  (checkout-campos-configurables F04) Con campos creados en
   `/admin/configuracion` § «Campos del checkout» de `autora` (uno de CADA tipo: TEXTO, TELEFONO, NUMERO,
   SELECT con 2+ opciones, CHECKBOX con default marcado), agregar un producto al carrito en
   `autora.localhost:3001` e ir a `/checkout`: el form muestra **«Tu correo» PRIMERO** y debajo los campos
   **en el orden del panel** (el mismo que fijaron las flechas ↑/↓). Cada uno con su etiqueta; el
   `placeholder` aparece dentro del input vacío y el `textoAyuda` como línea bajo el control. El SELECT
   ofrece exactamente las opciones definidas; el CHECKBOX aparece **ya marcado** si el Organizador puso
-  «Viene marcada por defecto» (D4); el NUMERO no acepta decimales. Los campos **opcionales** dicen
+  «Viene marcada por defecto» (D4); el NUMERO no acepta decimales **ni muestra los spinners ▲▼**
+  (`hideControls`: sin escalera no hay forma de caminar hasta un negativo con el mouse; tipear el
+  guión a mano sí se puede y lo rechaza el server). Los campos **opcionales** dicen
   «(opcional)» en la etiqueta y los obligatorios NO llevan asterisco (el correo tampoco). Un campo
   **desactivado** en el panel desaparece del checkout tras recargar (D5). Sin sesión (el checkout es
   público; la configuración previa sí requiere sesión).
 
-- [ ] **storefront.campos.obligatorio.001** — (F04) En el mismo checkout, apretar **«Ir a pagar»** con un
+- [x] **storefront.campos.obligatorio.001** — ✅ 2026-07-26 (feature-tester; INCLUYE el sub-paso browser-only
+  de F05: el Select deseleccionado dio error INLINE, sin notificación del server) —
+  (F04) En el mismo checkout, apretar **«Ir a pagar»** con un
   campo OBLIGATORIO vacío ⇒ el form marca ESE campo con el error bajo su control y **no** dispara la
   mutation (no hay redirect a Flow). Completarlo destraba el submit. Un CHECKBOX desmarcado y un NUMERO
   en `0` **NO** cuentan como vacíos (D4). Este es el espejo de cliente; la validación que manda es la del
@@ -165,17 +175,30 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   volver **inline bajo el control**, NO como notificación roja del server: si aparece la notificación,
   el espejo de cliente se quedó sin cubrir el `null` (bug de F04 corregido en F05).
 
-- [ ] **storefront.campos.vacio.001** — (F04/I9) En un tenant SIN campos configurados
+- [x] **storefront.campos.vacio.001** — ✅ 2026-07-26 (feature-tester; `prueba.localhost:3001/checkout` con
+  el producto en el carrito: el `<form>` tiene UN solo hijo directo —el `Stack`— y UN solo input, «Tu correo»
+  `type=email`; el texto completo del form es «Tu correo / Te enviaremos la descarga… / Pagas de forma segura
+  en Flow… / Ir a pagar». Cero separadores, cero títulos de sección, cero huecos) — (F04/I9) En un tenant SIN campos configurados
   (`prueba.localhost:3001`), el checkout se ve **exactamente como antes de la feature**: solo «Tu correo»,
   el aviso de Flow y «Ir a pagar» — ni un separador, ni un hueco, ni un título de sección extra. La compra
   arranca igual.
 
-- [ ] **storefront.campos.aislamiento.001** — (F04/I1) Los campos de `autora` **NO** aparecen en el
+- [x] **storefront.campos.aislamiento.001** — ✅ 2026-07-26 (feature-tester; por la vía que el propio check
+  prescribe: curl al SSR de cada subdominio — `autora/checkout` trae las 5 etiquetas + las 3 opciones del
+  SELECT, `prueba/checkout` trae CERO) — (F04/I1) Los campos de `autora` **NO** aparecen en el
   checkout de `prueba.localhost:3001` (ni al revés): cada subdominio muestra solo los suyos, porque la
   Tienda se resuelve del host server-side. Verificar también en el **HTML del SSR** (curl a
   `/checkout` de cada subdominio): las etiquetas de un tenant no están en el HTML del otro.
 
-- [ ] **storefront.campos.servidor.001** — (checkout-campos-configurables F05/I3, extra no planeado)
+- [x] **storefront.campos.servidor.001** — ✅ 2026-07-26 (feature-tester; ejercido tal cual lo prescribe el
+  check: checkout de `autora` completo y SIN recargar, «Teléfono de contacto» desactivado desde la 2ª pestaña
+  del panel. «Ir a pagar» ⇒ POST `checkout.iniciarCheckout` **400**, notificación Mantine con
+  `--notification-color: #c03e2e` y el texto EXACTO «El formulario de esta tienda cambió mientras completabas
+  la compra. Recarga la página e inténtalo de nuevo.», **sin** redirect (la URL siguió en `/checkout`) y
+  **sin** Orden: 4 submits rechazados dejaron el conteo de órdenes de la Tienda intacto en 5, y `/admin/ventas`
+  no ganó ninguna fila. Recargar `/checkout` mostró el form ya sin ese campo: `[Tu correo, Nombre completo,
+  Código postal (opcional), Sucursal de retiro, Quiero recibir novedades]`. Campo reactivado al cerrar)
+  — (checkout-campos-configurables F05/I3, extra no planeado)
   La validación que MANDA es la del server, no el espejo del form — y se verifica SIN Flow porque
   corre antes de crear el pago. En `autora.localhost:3001` con un campo OBLIGATORIO configurado:
   abrir `/checkout` con el carrito cargado y completar todo; **sin recargar**, en otra pestaña del
@@ -198,7 +221,19 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   correo (NO es prueba de pago, ADR-0001). La orden queda bajo el tenant correcto; la URL de retorno es
   del subdominio de la Tienda (`autora.localhost:3001/checkout/retorno`), no el apex ni la env global. (Plan F04 E2E)
 
-- [ ] **storefront.campos.persistencia.001** — (checkout-campos-configurables F05) Compra completa en
+- [x] **storefront.campos.persistencia.001** — ✅ 2026-07-26 CON SALVEDAD (feature-tester; **el snapshot se
+  verificó sin Flow**, que es donde de verdad vive el check: `iniciarCheckout` congela las respuestas en la
+  MISMA `$tx` que la Order y ANTES de la red a Flow, así que el submit basta. Dos compras reales por el form:
+  (A) teléfono tipeado `+56 9 1234 5678` ⇒ guardado `+56912345678`, SELECT `Ñuñoa` exacto, NUMERO `8320000`
+  base 10, CHECKBOX no tocado ⇒ fila `"true"` (nunca «Sí»), 5 filas, `createdAt` idéntico al de la Order y
+  `tenantId` correcto; (B) opcional en blanco ⇒ **sin fila** (4 filas, «sin respuesta» ≠ «respuesta vacía») y
+  CHECKBOX desmarcado ⇒ `"false"`. Después, desde el panel: **renombrar** «Sucursal de retiro» ⇒ las 2 filas
+  ya guardadas siguen diciendo la etiqueta vieja (D5/I4), y **borrar** «Quiero recibir novedades» ⇒ sus 2 filas
+  siguen vivas con `fieldId: null`, etiqueta y valor intactos. **Salvedad**: el pago sandbox NO se ejerció —
+  Flow devolvió 400 en `payment/create` porque sin túnel no hay `urlConfirmation` pública, así que ambas
+  órdenes nacieron PENDIENTE; el estado PAGADO de (A) se puso directo en DB (Order + Payment.fee) con permiso
+  del usuario para poder verificar el Drawer. El leg de pago real sigue siendo de la tanda con túnel)
+  — (checkout-campos-configurables F05) Compra completa en
   `autora.localhost:3001` **respondiendo los campos** (uno de cada tipo, con el CHECKBOX dejado en su
   default y sin tocar): tras el pago sandbox, la Orden queda con sus **Respuestas de checkout**
   congeladas. Verificar en DB (o en el detalle de venta de F06) que hay **una fila por campo

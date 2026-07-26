@@ -1,21 +1,38 @@
 # E2E run — feature-tester
-modo: feature (slug=checkout-campos-configurables)
-scope: F01–F07 (Validaciones del task file) + E2E declarados
-server: http://localhost:3001 (sorteatelo; :3000 es OTRO proyecto)
-carril: Playwright MCP (chrome-devtools OCUPADO por otro agente/lock)
-inicio: 2026-07-26 01:07
+modo: feature (slug=checkout-campos-configurables) — LEG DE CIERRE (re-corrida del rojo)
+scope: Vitest del area del fix + panel.ventas.csv.002 (criterio ACTUALIZADO) + re-verificacion de csv.001
+server: http://localhost:3001 (sorteatelo; :3000 es grillos-ai)
+carril: Playwright MCP (libre, sesion NextAuth viva de la corrida anterior)
+inicio: 2026-07-26 22:17
 ---
-[vitest] 19 archivos / 104 tests — 104 PASS, 0 FAIL (area de la feature)
-[curl] SSR autora/checkout: las 5 etiquetas + opciones del SELECT presentes
-[curl] SSR prueba/checkout: 0 etiquetas de campos (aislamiento OK)
-[E2E] panel.campos.crud.001 ✅ — lista con fila «Correo»+badge Fijo sin switch; creados los 5 tipos
-      (Texto/Teléfono/Número/Lista de opciones/Casilla sí-no) con clave derivada (tester_texto…);
-      2º «Tester texto» ⇒ clave anti-colisión `tester_texto_2`; ↑/↓ reordena y el server reasigna
-      posicion (verificado en DB); switch ⇒ badge «Inactivo» y reactivación con cupo; tacho ⇒ modal
-      «Eliminar campo» con «Las respuestas que ya te dejaron se conservan en tus ventas.».
-      Estado restaurado a los 5 campos originales.
-[E2E] panel.campos.candado.001 ✅ — guardrail anti-consentimiento en la lista Y en el modal;
-      al editar: «Tipo» disabled con candado + «Nombre interno» disabled con la clave en mono;
-      al crear: Tipo editable y sin campo de clave; con 10 activos «Agregar campo» disabled,
-      «10 de 10 campos activos» + aviso, y el switch del campo INACTIVO queda disabled (D6/I6).
-      CHECKBOX en el modal: NO muestra «Es obligatorio», muestra «Viene marcada por defecto» (D4).
+[vitest] src/__tests__/server/panel -> 22 archivos / 119 tests - 119 PASS, 0 FAIL (area del fix)
+[vitest] camposCheckout + checkout + components + schema/checkoutFields -> 27 archivos / 142 tests - 142 PASS
+[vitest] TOTAL area de la feature: 49 archivos / 261 tests verdes, 0 fallos
+---
+[reloj] la maquina esta en hora de CHILE (Pacific SA Standard Time, UTC-4): local 2026-07-25 22:22,
+      UTC 2026-07-26 02:22. Las entradas previas de esta feature fechadas "2026-07-26" usaron el dia UTC.
+[E2E] panel.ventas.csv.002 ✅ VERDE (era el unico rojo) - descarga FRESCA desde el boton del panel
+      (.playwright-mcp/ventas-2026-07-25.csv, 1027 bytes) abierta con Workbooks.Open en Excel 16.0 real,
+      Windows es-CL (sList=';'): (a) 8 filas x 12 COLUMNAS (era 1 columna) y acentos perfectos por el BOM
+      -Comision, Telefono de contacto, Codigo postal, Maria Ñuñoa Perez, Maipu, Ñuñoa, ×-; (b) la celda con
+      coma Y comillas cae entera y desescapada en R2C8; (c) telefono = '+56912345678 CON apostrofo visible
+      (criterio actualizado) y PrefixCharacter vacio => el apostrofo es parte del valor, no la marca de texto;
+      '=Perez, "Ana" B NO se ejecuta; (d) SUM(Total C2:C8)=27000 y COUNT=7 => las 7 son Double de verdad;
+      bonus: Codigo postal Double (SUM=8320000) y Fecha parseada como fecha real (dd-mm-yyyy h:mm).
+      Barrido WorksheetFunction.IsError sobre todo el UsedRange: 0 celdas con error real (los ########## de
+      la col A eran ANCHO de columna, no #NOMBRE?: tras AutoFit muestran 25-07-2026 21:45).
+[E2E] panel.ventas.csv.001 ✅ RE-VERIFICADO con el criterio NUEVO de bytes en la misma descarga:
+      encabezado Fecha;Correo;Total;Comision;Te queda;Estado;Productos + las 5 dinamicas; BOM 1 vez; CRLF;
+      sin salto final; 7 filas de venta; montos crudos; casilla true/false; numero sin separador; PENDIENTE
+      con Comision/Te queda vacias; celdas dinamicas vacias en las 4 ventas previas a la feature.
+      PRUEBA CLAVE del fix: split A LO BRUTO por ';' (lector que NO honra comillas) => las 8 filas dan
+      12 campos exactas, ninguna se corre.
+      NO ejercitable en vivo: la celda de DOS PRODUCTOS distintos unidos por ", " -- la tienda `autora`
+      tiene UN solo producto y `prueba` no tiene membresia en esta sesion (no se forzo login). Queda
+      cubierto por exportarVentasCsv.test.ts::panel.ventas.csv.010. Idem el sub-punto de >15 ventas (hay 7)
+      y el `disabled` con lista vacia.
+---
+data: CERO escrituras en DB en este leg (solo lectura + una descarga). Las 2 ordenes de prueba previas siguen.
+browser: Playwright abierto, sesion NextAuth intacta, tab en autora.localhost:3001/admin/ventas. 0 errores de consola.
+RESUMEN FINAL: Vitest 261/261 (49 archivos) | E2E 12 verdes / 0 rojos | design findings 1 (previo, no bloqueante)
+fin: 2026-07-25 22:25

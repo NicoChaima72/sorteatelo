@@ -218,7 +218,7 @@ requieren OAuth (el login es público); los del panel sí requieren sesión con 
   (d) vaciar el campo + «Guardar» ⇒ la tienda vuelve a derivar todo del color de marca;
   (e) el mismo valor se ve reflejado en el panel **Tema del editor** (es la misma columna, no dos ajustes).
   Requiere sesión.
-- [ ] **panel.campos.crud.001** (checkout-campos-configurables F03) — En `/admin/configuracion`, la sección
+- [x] **panel.campos.crud.001** (checkout-campos-configurables F03) — ✅ 2026-07-26 (feature-tester, Playwright, `autora`) — En `/admin/configuracion`, la sección
   **«Campos del checkout»** administra los datos extra que la Tienda le pide al Comprador: (a) la lista
   arranca con la fila **«Correo»** con badge **«Fijo»** y candado, SIN switch ni acciones (I2/ADR-0004: el
   correo no es un campo configurable), y con el estado vacío «Por ahora solo pides el correo»; (b) «Agregar
@@ -229,7 +229,7 @@ requieren OAuth (el login es público); los del panel sí requieren sesión con 
   (d) el switch de una fila la desactiva ⇒ badge **«Inactivo»**, y se puede volver a activar;
   (e) el tacho abre la confirmación «Eliminar campo» que avisa que **las respuestas ya recibidas se
   conservan**, y al confirmar el campo desaparece de la lista. Requiere sesión.
-- [ ] **panel.campos.candado.001** (checkout-campos-configurables F03, D4/D5) — Los dos guardrails de la
+- [x] **panel.campos.candado.001** (checkout-campos-configurables F03, D4/D5) — ✅ 2026-07-26 (feature-tester; screenshot `tmp/e2e-candado-editar.png`) — Los dos guardrails de la
   sección son visibles: (a) el **texto anti-consentimiento** («No los uses para que acepten términos o
   condiciones: eso ya va en las bases de tu sorteo y en los términos de la plataforma») aparece tanto en la
   lista como dentro del modal de crear/editar; (b) al **editar** un campo existente, «Tipo» está
@@ -238,7 +238,16 @@ requieren OAuth (el login es público); los del panel sí requieren sesión con 
   cambio, «Tipo» es editable y no hay campo de clave; (c) con **10 campos activos** el botón «Agregar campo»
   queda deshabilitado, el contador dice «10 de 10 campos activos» y aparece el aviso de que hay que desactivar
   uno; los switches de los campos inactivos quedan apagados hasta liberar cupo (D6/I6). Requiere sesión.
-- [ ] **panel.ventas.detalle.001** (checkout-campos-configurables F06, D8/I7/I9) — En `/admin/ventas`, cada fila
+- [x] **panel.ventas.detalle.001** — ✅ 2026-07-26 (feature-tester; las 7 filas de `/admin/ventas` traen «Detalle»,
+  también las PENDIENTE. Drawer de la venta PAGADA con respuestas: correo + badge «Pagado» + «25-jul, 09:44 p. m.»;
+  «Lo que compró» con `2 × $3.000`, **Total $6.000 / Comisión −$192 / Te queda $5.808**; «Respuestas del checkout»
+  con `Nombre completo → María Ñuñoa Pérez`, `Teléfono de contacto → +56912345678`, **`Código postal → 8320000`
+  CRUDO** (no `8.320.000`), `Sucursal de retiro → Ñuñoa` y **`Quiero recibir novedades → Sí`** (no `true`).
+  En la PENDIENTE: **solo Total**, sin Comisión ni «Te queda», con SUS respuestas (`→ No` para la casilla
+  desmarcada) y sin la línea del opcional no respondido. Escape cierra el Drawer sin tocar la tabla (7 filas
+  antes y después) y reabrir otra venta muestra los datos de ESA venta. Bonus: la casilla se sigue mostrando
+  con su etiqueta congelada aunque su definición estaba BORRADA — snapshot autocontenido. Screenshot
+  `tmp/e2e-drawer-pagada.png`) — (checkout-campos-configurables F06, D8/I7/I9) En `/admin/ventas`, cada fila
   tiene el botón **«Detalle»** (también en las órdenes NO pagadas, donde antes había un «—») que abre un
   **Drawer** por la derecha: (a) arriba, el correo del Comprador, la fecha y el badge de estado;
   (b) **«Lo que compró»** con una línea por producto en `cantidad × precio unitario` y, abajo, el **Total**,
@@ -250,26 +259,92 @@ requieren OAuth (el login es público); los del panel sí requieren sesión con 
   `8320000` se lee `8320000`, no `8.320.000`); (d) el Drawer cierra sin dejar la tabla alterada, y
   reabrir otra venta muestra los datos de ESA venta. Requiere sesión + al menos una compra con campos
   respondidos (la deja `storefront.campos.persistencia.001`).
-- [ ] **panel.ventas.detalle.002** (checkout-campos-configurables F06, I9) — **Degradación limpia**: una venta
+- [x] **panel.ventas.detalle.002** — ✅ 2026-07-26 (feature-tester; la venta del 17-jul —anterior a la feature—
+  abre el mismo Drawer y su texto COMPLETO es «nikochaima72@gmail.com / Pagado / 17-jul, 03:40 a. m. / Lo que
+  compró / Cómo enriquecer a tu idol favorito / 1 × $3.000 / Total $3.000 / Comisión −$96 / Te queda $2.904»:
+  la sección «Respuestas del checkout» **no existe** —ni vacía ni con «—»— y el resto del detalle va igual)
+  — (checkout-campos-configurables F06, I9) — **Degradación limpia**: una venta
   ANTERIOR a la feature (o de una Tienda que nunca configuró campos) abre el mismo Drawer **sin la sección
   «Respuestas del checkout»** — no un bloque vacío ni un «—», directamente no está. El resto del detalle
   (compra + total) se ve igual. Requiere sesión.
 
-- [ ] **panel.ventas.csv.001** (checkout-campos-configurables F07, D9/I7) — En `/admin/ventas`, el header de la
+- [x] **panel.ventas.csv.001** — ✅ 2026-07-26 (feature-tester; el botón está en el header con
+  `data-variant="default"`, ícono + `<span class="hidden sm:inline">` (icon-only bajo `sm`). El click descargó
+  **`ventas-2026-07-25.csv`** —el día en CHILE, no el 26 UTC del server—. Parseado con un lector RFC 4180:
+  (a) encabezado `Fecha,Correo,Total,Comisión,Te queda,Estado,Productos` + las 5 dinámicas tituladas con su
+  etiqueta (`Nombre completo`, `Teléfono de contacto`, `Sucursal de retiro`, `Quiero recibir novedades`,
+  `Código postal`); (b) 7 filas para las 7 ventas de la Tienda; (c) montos crudos (`6000`, no `$6.000`),
+  casilla `true`/`false`, número `8320000` sin separador, y las dos PENDIENTE con Comisión y «Te queda»
+  **vacías**; (d) las 4 ventas previas a la feature dejan sus 5 celdas dinámicas vacías y **las 8 filas tienen
+  12 columnas exactas**. Celda «Productos» = `2 × Cómo enriquecer a tu idol favorito`. Bonus: la columna
+  «Quiero recibir novedades» sobrevive al BORRADO de su definición. NO ejercido en vivo: el sub-punto de
+  «más de 15 ventas» (la Tienda tiene 7) —cubierto por `exportarVentasCsv.test.ts::panel.ventas.csv.009`— y
+  el `disabled` con lista vacía.
+  **RE-VERIFICADO 2026-07-25 22:22 bajo el criterio NUEVO de bytes** —el de esta entrada cambió con el fix del
+  separador, así que la marca vieja no alcanzaba—, gratis en la misma descarga de `csv.002`: encabezado
+  `Fecha;Correo;Total;Comisión;Te queda;Estado;Productos` + las 5 dinámicas, **BOM una sola vez**, CRLF, sin
+  salto final, 7 filas de venta, montos crudos, casilla `true`/`false`, número sin separador, las PENDIENTE
+  con Comisión y «Te queda» vacías, y las 4 ventas previas a la feature con sus 5 celdas dinámicas vacías.
+  La propiedad que el fix persigue, medida: partiendo **a lo bruto por `;`** las **8 filas dan 12 campos
+  exactos**. Sigue SIN ejercerse en vivo la celda de **dos productos distintos** unidos por `, `: la Tienda
+  `autora` tiene UN solo producto y `prueba` no tiene membresía en esta sesión (no se forzó login) ⇒ queda
+  en `exportarVentasCsv.test.ts::panel.ventas.csv.010`, que la parte a lo bruto y la exige pelada)
+  — (checkout-campos-configurables F07, D9/I7) En `/admin/ventas`, el header de la
   página tiene el botón **«Exportar CSV»** (solo el ícono bajo `sm`), habilitado únicamente si hay ventas.
   Al hacer click **se descarga un archivo `ventas-<AAAA-MM-DD>.csv`** (el día de hoy en Chile). Abriéndolo
-  con un editor de texto: (a) la **primera fila** es `Fecha,Correo,Total,Comisión,Te queda,Estado,Productos`
-  seguida de **una columna por cada campo de checkout respondido**, titulada con su etiqueta; (b) hay **una
+  con un editor de texto: (a) la **primera fila** es `Fecha;Correo;Total;Comisión;Te queda;Estado;Productos`
+  seguida de **una columna por cada campo de checkout respondido**, titulada con su etiqueta —el separador
+  es **`;`**, no la coma, desde 2026-07-26 (decisión del usuario; ver `csv.002`)—; (b) hay **una
   fila por venta**, TODAS las de la tienda y no solo las 15 de la primera página (si hay más de 15, cargar
   más en la pantalla NO cambia el archivo); (c) los montos van **crudos** (`5000`, no `$5.000`), una casilla
   va `true`/`false` (no «Sí») y un Número va sin separador de miles; una venta pendiente deja **vacías** las
   celdas de Comisión y Te queda; (d) la venta que no respondió un campo deja esa celda vacía, y todas las
-  filas tienen la misma cantidad de columnas. Requiere sesión + al menos una compra con campos respondidos.
-- [ ] **panel.ventas.csv.002** (checkout-campos-configurables F07, D9) — **El archivo abre bien en Excel**:
-  abrir el CSV descargado con Excel/LibreOffice y verificar que (a) los **acentos** se ven correctos
-  («Teléfono», «Comisión» — si sale «TelÃ©fono» falta el BOM); (b) un título de producto con **coma o
-  comillas** queda en UNA sola celda; (c) un **teléfono con `+`** se lee completo (`+56912345678`) y NO
-  convertido en número, y una respuesta de texto que empiece con `=` se muestra como texto **sin
-  ejecutarse**; (d) la columna **Total suma** con una fórmula (`=SUMA(...)`) — o sea que Excel la reconoció
+  filas tienen la misma cantidad de columnas — una venta de **dos productos** los junta en UNA celda
+  separados por `, ` (la celda no lleva `;` adentro, así que ni un lector que parta a lo bruto corre la
+  fila). Requiere sesión + al menos una compra con campos respondidos.
+- [x] **panel.ventas.csv.002** — ✅ 2026-07-25 22:22 hora de Chile (feature-tester, leg de cierre — la
+  **RE-CORRIDA end-to-end está al final de esta entrada**; el fix del separador lo puso verde). Historia del
+  rojo que lo originó, que se conserva porque el hallazgo vale: ROJO (abierto en **Excel 16.0 real** vía COM,
+  sobre Windows **es-CL**). Lo que SÍ pasa, importando con delimitador coma explícito («Datos → Desde texto»):
+  (a) acentos perfectos gracias al BOM (`Comisión`, `Teléfono de contacto`, `María Ñuñoa Pérez`, `Maipú`, `×`);
+  (b) `=Pérez, "Ana" B` —coma Y comillas— cae en UNA sola celda, desescapada bien; (d) `Total` entra como
+  `Double`, `=SUMA(C2:C8)` da **27000** y `=CONTAR(C2:C8)` da **7** ⇒ las 7 son números de verdad; el NUMERO
+  `8320000` también es `Double`. **Los dos defectos**: (1) **doble clic ⇒ una sola columna**. El archivo usa
+  `,` (`_csv.ts:78`) y el separador de lista de un Windows es-CL es `;`, así que `Workbooks.Open` mete las 8
+  filas en la columna A (`columnas=1`) y (b)/(c)/(d) ni siquiera aplican: no hay columnas. Es el locale del
+  MERCADO del producto, no un rincón. (2) **la guarda anti-fórmula SE VE**: `_csv.ts:38` afirma que el
+  apóstrofo «en la celda no se ve», y Excel **sí lo muestra** al IMPORTAR (solo lo esconde cuando lo tipea una
+  persona) ⇒ el teléfono se lee `'+56912345678`, no `+56912345678` como pide el check — y como TODO teléfono
+  empieza con `+`, le pasa a la columna estrella de la feature. Control ejecutado con un gemelo `;` sin guarda:
+  sin ella Excel convierte `+56911112222` en `5,6911E+10` y ejecuta `=Perez` hasta `#NOMBRE?` ⇒ **la guarda
+  hace falta**; el rojo es del artefacto visible, no de quitarla).
+  **FIX 2026-07-26 (feature-implementer, decisión del usuario)**: el archivo pasó a delimitar con **`;`** y
+  el criterio (c) se corrigió a la verdad medida —el apóstrofo de la guarda **se ve** y así se queda—.
+  Verificado sobre bytes del módulo real abiertos con `Workbooks.Open` (la vía del doble clic): 11 columnas,
+  acentos OK, celda de productos con coma+comillas entera, `=SUM` de Total = 27000 / `=COUNT` = 3, teléfono y
+  texto con `=` NO ejecutados.
+  **RE-CORRIDA END-TO-END 2026-07-25 22:22 (feature-tester) ⇒ VERDE, los 4 sub-puntos.** Ya no sobre bytes
+  del módulo sino sobre el **archivo que descarga el botón del panel** (`ventas-2026-07-25.csv`, 1027 B),
+  abierto con `Workbooks.Open` —la vía del doble clic— en Excel 16.0 sobre este mismo Windows es-CL
+  (`sList` = `;`): **(a)** 8 filas × **12 columnas** (antes 1) y acentos perfectos por el BOM —`Comisión`,
+  `Teléfono de contacto`, `Código postal`, `María Ñuñoa Pérez`, `Maipú`, `Ñuñoa`, `×`—; **(b)** la celda con
+  **coma Y comillas** (`'=Pérez, "Ana" B`) cae ENTERA y desescapada en una sola celda (R2C8); **(c)** el
+  teléfono se lee **`'+56912345678`, con el apóstrofo A LA VISTA** —el criterio corregido— y `PrefixCharacter`
+  **vacío**, o sea que el apóstrofo es un carácter del valor y no la marca de texto que Excel esconde; el
+  texto que empieza con `=` **no se ejecuta**; **(d)** `=SUM(C2:C8)` = **27000** y `=COUNT(C2:C8)` = **7** ⇒
+  las 7 son `Double` de verdad. Bonus: `Código postal` también `Double` (`SUM` = 8320000) y la **Fecha entra
+  como fecha real** (`NumberFormat` `dd-mm-yyyy h:mm`). Barrido `WorksheetFunction.IsError` sobre todo el
+  `UsedRange`: **0 celdas con error real** —los `##########` de la columna A eran ANCHO de columna, no
+  `#NOMBRE?`: tras `AutoFit` muestran `25-07-2026 21:45`—. Prueba extra del fix, fuera de Excel: partiendo el
+  archivo **a lo BRUTO por `;`** (un lector que NO honra comillas) las 8 filas dan **12 campos exactos**,
+  ninguna se corre — (checkout-campos-configurables F07, D9) — **El archivo abre bien en Excel**:
+  abrir el CSV descargado **con doble clic** (no importándolo: el doble clic es lo que hace un Organizador)
+  en Excel sobre Windows es-CL y verificar que (a) las **columnas se separan** —cada dato en su columna, no
+  todo en la A— y los **acentos** se ven correctos («Teléfono», «Comisión» — si sale «TelÃ©fono» falta el
+  BOM); (b) un título de producto con **coma o comillas** queda en UNA sola celda, y una venta de dos
+  productos también; (c) un **teléfono con `+`** se lee `'+56912345678` —con el apóstrofo de la guarda
+  anti-fórmula A LA VISTA, que es lo esperado— y **no** convertido a `5,69E+10`, y una respuesta de texto que
+  empiece con `=` se muestra como texto **sin ejecutarse** (nada de `#NOMBRE?`); (d) la columna **Total suma**
+  con una fórmula (`=SUMA(...)`) — o sea que Excel la reconoció
   como números y no como texto. Requiere sesión + una compra con esos datos (se puede sembrar respondiendo
   el checkout con un `+569…` y un producto con coma en el título).

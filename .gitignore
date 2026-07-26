@@ -48,3 +48,5 @@ yarn-error.log*
 # browser verification (skill: browser-verify) — screenshots y snapshots
 /tmp
 /.playwright-mcp
+.vercel
+.env*

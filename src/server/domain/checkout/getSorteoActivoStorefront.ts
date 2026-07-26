@@ -7,9 +7,10 @@ import { type PrismaClient } from "@prisma/client";
  * participantes): esta vista es del STOREFRONT y devuelve SOLO datos públicos —
  * nombre/premio/fechas/bases + un CONTEO de participaciones—, NUNCA correos ni identidades
  * (privacidad, ADR-0004). El conteo es de TICKETS (`RaffleEntry` de grano fino, ADR-0012), no de
- * órdenes. Tenant-scoped por el contexto (subdominio), jamás por input (I1). El texto de las bases
- * sale del `Tenant` (`basesSorteo`, borrador del Organizador, ADR-0008); el `basesUrl` es el enlace
- * al archivo de bases (si lo hay). Sin sorteo ACTIVO ⇒ null (no hay sección).
+ * órdenes. Tenant-scoped por el contexto (subdominio), jamás por input (I1). Las BASES ya NO viajan
+ * acá (admin-bases-pdf F07/D3): eran un texto del Tenant (`basesSorteo`) y un enlace externo del
+ * Raffle (`basesUrl`), ambos dropeados. Hoy son un PDF por Sorteo que la página `/bases` sirve desde
+ * su propio loader (`storefront/basesDelSorteo`). Sin sorteo ACTIVO ⇒ null (no hay sección).
  */
 export async function getSorteoActivoStorefront({
   db,
@@ -23,8 +24,6 @@ export async function getSorteoActivoStorefront({
   premio: string;
   fechaInicio: Date;
   fechaFin: Date;
-  basesUrl: string | null;
-  basesTexto: string | null;
   premioImageUrl: string | null;
   totalParticipaciones: number;
 } | null> {
@@ -37,13 +36,10 @@ export async function getSorteoActivoStorefront({
       premio: true,
       fechaInicio: true,
       fechaFin: true,
-      basesUrl: true,
       // URL pública de la imagen del premio (bucket público, ADR-0013); null ⇒ gradiente temático (D7).
       premioImageUrl: true,
       // Solo el CONTEO de tickets — nunca los correos de las entries (privacidad, ADR-0004).
       _count: { select: { entries: true } },
-      // Texto de las bases del Organizador (a nivel Tienda, ADR-0008).
-      tenant: { select: { basesSorteo: true } },
     },
   });
 
@@ -55,8 +51,6 @@ export async function getSorteoActivoStorefront({
     premio: raffle.premio,
     fechaInicio: raffle.fechaInicio,
     fechaFin: raffle.fechaFin,
-    basesUrl: raffle.basesUrl,
-    basesTexto: raffle.tenant.basesSorteo,
     premioImageUrl: raffle.premioImageUrl,
     totalParticipaciones: raffle._count.entries,
   };

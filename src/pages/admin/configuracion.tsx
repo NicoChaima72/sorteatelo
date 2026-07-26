@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  ColorInput,
   Group,
   Paper,
   Select,
@@ -18,54 +19,29 @@ import {
   IconBrandTiktok,
   IconBrandWhatsapp,
   IconCreditCard,
-  IconLayoutNavbar,
   IconMail,
   IconPalette,
   IconPhoto,
-  IconTicket,
 } from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
-import { type ComponentType, type ReactNode, useEffect } from "react";
+import { useEffect } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { AssetUploader } from "~/components/admin/asset-uploader";
-import { PanelCard } from "~/components/admin/panel-card";
+import { CamposCheckoutCard } from "~/components/admin/campos-checkout";
+import { SettingCard } from "~/components/admin/setting-card";
+import { SWATCHES_MARCA } from "~/lib/coloresMarca";
 import { fechaHora } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
-
-type IconCmp = ComponentType<{ className?: string; stroke?: number | string }>;
-
-function SettingCard({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: IconCmp;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <PanelCard>
-      <Group gap="xs" mb={4}>
-        <Icon className="size-[18px]" stroke={1.75} />
-        <Text fw={600}>{title}</Text>
-      </Group>
-      <Text size="sm" c="dimmed" mb="md">
-        {description}
-      </Text>
-      {children}
-    </PanelCard>
-  );
-}
 
 /** Card de credenciales Flow: WRITE-ONLY (nunca precarga secretos; solo muestra el estado). */
 function CredencialFlowCard() {
@@ -194,20 +170,26 @@ function CredencialFlowCard() {
   );
 }
 
+/**
+ * Descripción de la card «Tu tienda», en UNA constante: los tres estados (loading / error / éxito)
+ * deben decir lo MISMO. Antes divergían y el copy honesto sobre dónde se edita el hero solo aparecía
+ * en el estado feliz (admin-bases-pdf F06).
+ */
+const DESCRIPCION_TU_TIENDA =
+  "La marca base de tu tienda: logo, color, redes y contacto. El contenido de la portada (hero, textos, avisos) se edita en el editor.";
+
 interface ConfigTiendaForm {
   descripcion: string;
   colorPrimario: string;
-  heroTitulo: string;
-  heroSubtitulo: string;
-  avisoTexto: string;
-  basesSorteo: string;
+  colorAcento: string;
   instagramUrl: string;
   tiktokUrl: string;
   whatsappUrl: string;
   contactoEmail: string;
 }
 
-/** Card de config de tienda: descripción, marca (logo/hero/color), redes/contacto, bases (texto). */
+/** Card de config de tienda: descripción, marca (logo/hero/color) y redes/contacto. Las BASES del
+ *  sorteo ya NO viven acá (admin-bases-pdf F03/D2/D3): son el PDF del Sorteo, en `/admin/sorteo`. */
 function ConfiguracionTiendaCard() {
   const utils = api.useUtils();
   const config = api.panel.getConfiguracionTienda.useQuery(undefined, {
@@ -218,10 +200,7 @@ function ConfiguracionTiendaCard() {
     initialValues: {
       descripcion: "",
       colorPrimario: "",
-      heroTitulo: "",
-      heroSubtitulo: "",
-      avisoTexto: "",
-      basesSorteo: "",
+      colorAcento: "",
       instagramUrl: "",
       tiktokUrl: "",
       whatsappUrl: "",
@@ -236,10 +215,7 @@ function ConfiguracionTiendaCard() {
     form.setValues({
       descripcion: config.data.descripcion ?? "",
       colorPrimario: config.data.colorPrimario ?? "",
-      heroTitulo: config.data.heroTitulo ?? "",
-      heroSubtitulo: config.data.heroSubtitulo ?? "",
-      avisoTexto: config.data.avisoTexto ?? "",
-      basesSorteo: config.data.basesSorteo ?? "",
+      colorAcento: config.data.colorAcento ?? "",
       instagramUrl: config.data.instagramUrl ?? "",
       tiktokUrl: config.data.tiktokUrl ?? "",
       whatsappUrl: config.data.whatsappUrl ?? "",
@@ -264,7 +240,7 @@ function ConfiguracionTiendaCard() {
       <SettingCard
         icon={IconPalette}
         title="Tu tienda"
-        description="La descripción, el logo y el color de tu tienda."
+        description={DESCRIPCION_TU_TIENDA}
       >
         <Stack gap="sm">
           <Skeleton height={80} />
@@ -275,13 +251,13 @@ function ConfiguracionTiendaCard() {
   }
 
   // Error: NO renderizar el form editable (evita que un fetch fallido muestre campos en
-  // blanco y que "Guardar" pise la config real —incluidas las bases— con strings vacíos).
+  // blanco y que "Guardar" pise la config real con strings vacíos).
   if (config.isError || !config.data) {
     return (
       <SettingCard
         icon={IconPalette}
         title="Tu tienda"
-        description="La descripción, el logo y el color de tu tienda."
+        description={DESCRIPCION_TU_TIENDA}
       >
         <Stack align="center" py="lg" gap="sm">
           <Text size="sm" c="red">
@@ -305,7 +281,7 @@ function ConfiguracionTiendaCard() {
     <SettingCard
       icon={IconPalette}
       title="Tu tienda"
-      description="La marca de tu tienda: logo, imagen de hero, color, textos, redes y contacto."
+      description={DESCRIPCION_TU_TIENDA}
     >
       <Stack gap="md">
         {/* Assets de marca — se suben al instante (independiente del botón Guardar). */}
@@ -316,7 +292,7 @@ function ConfiguracionTiendaCard() {
           <Group gap="xs" mb="xs">
             <IconPhoto className="size-[18px]" stroke={1.75} />
             <Text size="sm" fw={500}>
-              Logo e imagen de portada
+              Logo de la tienda
             </Text>
           </Group>
           <Stack gap="md">
@@ -325,13 +301,6 @@ function ConfiguracionTiendaCard() {
               urlActual={config.data.logoUrl}
               label="Logo de la tienda"
               description="Aparece en el encabezado. Si no subes uno, se muestra el nombre de tu tienda."
-              onSubido={invalidarConfig}
-            />
-            <AssetUploader
-              destino={{ destino: "hero" }}
-              urlActual={config.data.heroImageUrl}
-              label="Imagen de hero"
-              description="La imagen grande de la portada. Si no subes una, se usa un degradado con tu color."
               onSubido={invalidarConfig}
             />
           </Stack>
@@ -346,46 +315,31 @@ function ConfiguracionTiendaCard() {
               autosize
               {...form.getInputProps("descripcion")}
             />
-            <TextInput
-              label="Color de marca (hex)"
-              placeholder="#4f46e5"
-              className="sm:max-w-52"
-              {...form.getInputProps("colorPrimario")}
-            />
-
-            <div
-              className="pt-4"
-              style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
-            >
-              <Group gap="xs" mb="xs">
-                <IconLayoutNavbar className="size-[18px]" stroke={1.75} />
-                <Text size="sm" fw={500}>
-                  Textos del storefront
-                </Text>
-              </Group>
-              <Stack gap="md">
-                <TextInput
-                  label="Título del hero"
-                  placeholder="Bienvenido a mi tienda"
-                  description="Si lo dejas vacío, se usa el nombre de tu tienda."
-                  {...form.getInputProps("heroTitulo")}
-                />
-                <TextInput
-                  label="Subtítulo del hero"
-                  placeholder="Una frase corta que enganche."
-                  description="Si lo dejas vacío, se usa la descripción."
-                  {...form.getInputProps("heroSubtitulo")}
-                />
-                <Textarea
-                  label="Aviso (banner)"
-                  placeholder="Un aviso opcional que aparece arriba de tu tienda."
-                  description="Opcional. Si lo dejas vacío, no se muestra el banner."
-                  minRows={2}
-                  autosize
-                  {...form.getInputProps("avisoTexto")}
-                />
-              </Stack>
-            </div>
+            {/*
+              Los DOS colores de marca, juntos y gemelos (admin-bases-pdf F06/D7/D12): cierra la
+              deuda de builder-tanda-1, donde el primario vivía acá y el acento SOLO en el editor.
+              Ambos son columnas del Tenant que el storefront lee por request ⇒ guardar es aplicar,
+              sin publicar nada. Mismo control que el panel de Tema del editor (ColorInput + la
+              paleta compartida): el mismo campo no puede verse distinto según por dónde se entre.
+            */}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+              <ColorInput
+                label="Color de marca"
+                description="El color principal de tu tienda."
+                placeholder="#4f46e5"
+                format="hex"
+                swatches={[...SWATCHES_MARCA]}
+                {...form.getInputProps("colorPrimario")}
+              />
+              <ColorInput
+                label="Color de acento"
+                description="Un 2º color para fondos, títulos y detalles."
+                placeholder="Sin acento (usa el color de marca)"
+                format="hex"
+                swatches={[...SWATCHES_MARCA]}
+                {...form.getInputProps("colorAcento")}
+              />
+            </SimpleGrid>
 
             <div
               className="pt-4"
@@ -428,27 +382,6 @@ function ConfiguracionTiendaCard() {
               </Stack>
             </div>
 
-            <div
-              className="pt-4"
-              style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
-            >
-              <Group gap="xs" mb="xs">
-                <IconTicket className="size-[18px]" stroke={1.75} />
-                <Text size="sm" fw={500}>
-                  Bases del sorteo
-                </Text>
-              </Group>
-              <Textarea
-                placeholder="Escribe aquí las bases legales del sorteo. Tú eres responsable de su contenido."
-                minRows={6}
-                autosize
-                {...form.getInputProps("basesSorteo")}
-              />
-              <Text size="xs" c="dimmed" mt={6}>
-                El texto de las bases. La responsabilidad legal del sorteo es tuya.
-              </Text>
-            </div>
-
             <Button
               type="submit"
               loading={guardar.isPending}
@@ -467,11 +400,12 @@ export default function ConfiguracionPage() {
   return (
     <AdminLayout
       title="Configuración"
-      description="Los ajustes de tu tienda: pagos, marca y bases del sorteo."
+      description="Los ajustes de tu tienda: pagos, marca y checkout."
     >
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md" style={{ alignItems: "start" }}>
         <CredencialFlowCard />
         <ConfiguracionTiendaCard />
+        <CamposCheckoutCard />
       </SimpleGrid>
     </AdminLayout>
   );

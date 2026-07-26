@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
 import {
   evaluarPublicacion,
@@ -29,15 +29,12 @@ export async function publicarTienda({
   acceso: AccesoPanel;
   tosVersionVigente?: string;
 }): Promise<{ estado: "PUBLICADA"; publicada: true; yaPublicada: boolean }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   return db.$transaction(async (tx) => {
     const tenant = await tx.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { estado: true, tosVersion: true, basesSorteo: true },
+      select: { estado: true, tosVersion: true },
     });
 
     // Idempotente: ya publicada ⇒ no re-evalúa el gate ni rompe.
@@ -61,9 +58,11 @@ export async function publicarTienda({
         where: { tenantId, activo: true, pdfPath: { not: null } },
         select: { id: true },
       }),
+      // Bases del gate = `basesPdfUrl` del Raffle ACTIVO (admin-bases-pdf F03/D2/D3), leído DENTRO
+      // de la tx como el resto: el gate no puede quedar obsoleto entre el chequeo y el update (I3).
       tx.raffle.findFirst({
         where: { tenantId, estado: "ACTIVO" },
-        select: { id: true },
+        select: { id: true, basesPdfUrl: true },
       }),
     ]);
 
@@ -74,7 +73,7 @@ export async function publicarTienda({
       flowConfigurada: flow !== null,
       tieneProductoPublicable: productoPublicable !== null,
       hayRaffleActivo: raffleActivo !== null,
-      basesSorteo: tenant.basesSorteo,
+      basesPdfDelRaffleActivo: raffleActivo?.basesPdfUrl ?? null,
     });
 
     if (!puedePublicar) {

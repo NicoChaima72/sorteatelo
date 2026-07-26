@@ -8,7 +8,8 @@ import { crearSorteo } from "~/server/domain/panel/crearSorteo";
  * Tests del use case `crearSorteo` (F01) con `db` FAKE STATEFUL. Claves: nace ACTIVO con
  * `fechaInicio = ahora` (inyectable); SECUENCIAL — guard atómico 1-ACTIVO en la $tx (CONFLICT si ya
  * hay uno); `fechaFin` futura server-side (INVALID); scoped por tenant (FORBIDDEN sin membresía, el
- * `tenantId` jamás del input); `basesUrl` vacío ⇒ null; arrastre de participantes de un sorteo
+ * `tenantId` jamás del input); las BASES no son campo de creación (admin-bases-pdf F02/D2: el PDF se
+ * sube aparte con key per-raffle, y `basesUrl` externo murió con D3); arrastre de participantes de un sorteo
  * pasado del MISMO tenant (copia re-ordinalada; origen ajeno ⇒ NOT_FOUND).
  */
 
@@ -17,6 +18,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   email: "org@x.cl",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 const AHORA = new Date("2026-02-15T12:00:00Z");
@@ -97,7 +101,10 @@ describe("domain/panel/crearSorteo (fake db stateful, secuencial 1-ACTIVO + arra
     expect(data.estado).toBe("ACTIVO");
     expect(data.fechaInicio).toEqual(AHORA);
     expect(data.fechaFin).toEqual(FUTURO);
-    expect(data.basesUrl).toBeNull(); // sin basesUrl ⇒ null
+    // Las BASES no son campo de creación (admin-bases-pdf F02/D2/I2): el Raffle nace sin ellas y
+    // el PDF se sube después (key per-raffle, necesita el id). `crearSorteo` no escribe la columna.
+    expect(data.basesPdfUrl).toBeUndefined();
+    expect(data.basesUrl).toBeUndefined(); // el enlace externo legacy salió del input (D3)
   });
 
   // panel.sorteo.crear.002 — SECUENCIAL: ya hay un ACTIVO ⇒ CONFLICT, sin crear un segundo
@@ -156,30 +163,22 @@ describe("domain/panel/crearSorteo (fake db stateful, secuencial 1-ACTIVO + arra
     expect(getCreado()).toBeNull();
   });
 
-  // panel.sorteo.crear.006 — basesUrl vacío ⇒ null; una URL válida se persiste
-  it("basesUrl: vacío persiste null; una URL válida se persiste tal cual", async () => {
-    const vacio = fakeDb();
-    await crearSorteo({
-      db: vacio.db,
+  // panel.sorteo.crear.006 — las BASES son OPCIONALES al crear (el gate las exige recién al publicar)
+  // Reescrito de "basesUrl vacío ⇒ null" al comportamiento nuevo (admin-bases-pdf F02/D2/D3): el
+  // enlace externo `basesUrl` YA NO es input, y `crearSorteo` no escribe ninguna columna de bases —
+  // el PDF entra SOLO por `confirmarBasesSubidas` tras el presigned PUT (I2/I6).
+  it("crea sin bases: el sorteo nace válido y `crearSorteo` no escribe ninguna columna de bases", async () => {
+    const { db, getCreado } = fakeDb();
+    const res = await crearSorteo({
+      db,
       acceso: acceso(["A"]),
-      input: { nombre: "S", premio: "P", fechaFin: FUTURO, basesUrl: "" },
+      input: { nombre: "S", premio: "P", fechaFin: FUTURO },
       ahora: AHORA,
     });
-    expect(vacio.getCreado()!.data.basesUrl).toBeNull();
-
-    const conUrl = fakeDb();
-    await crearSorteo({
-      db: conUrl.db,
-      acceso: acceso(["A"]),
-      input: {
-        nombre: "S",
-        premio: "P",
-        fechaFin: FUTURO,
-        basesUrl: "https://bases.cl/sorteo",
-      },
-      ahora: AHORA,
-    });
-    expect(conUrl.getCreado()!.data.basesUrl).toBe("https://bases.cl/sorteo");
+    expect(res.id).toBe("nuevo-0");
+    const data = getCreado()!.data;
+    expect(Object.keys(data)).not.toContain("basesPdfUrl");
+    expect(Object.keys(data)).not.toContain("basesUrl");
   });
 
   // panel.sorteo.crear.007 — arrastre: replica los tickets del origen re-ordinalados por orden

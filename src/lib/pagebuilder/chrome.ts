@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { hrefDeAncla } from "~/lib/pagebuilder/nav";
 import { DestinoLinkSchema, type DestinoLink } from "~/lib/pagebuilder/widgets";
 
 /**
@@ -22,8 +23,10 @@ export const CHROME_SCHEMA_VERSION = 1;
 
 /** Fondo del header (enum táctico REVISABLE). `vidrio` (DEFAULT) = el blur translúcido ACTUAL
  *  (byte-idéntico null ⇒ no-op, I-U8); `superficie` = sólido del body; `transparente` para overlay sobre
- *  un hero de imagen. Los sólidos de marca/tinta quedan fuera del MVP (piden pairing de contraste). Cero hex. */
-export const FONDO_HEADER = ["vidrio", "superficie", "transparente"] as const;
+ *  un hero de imagen; `pagina` = el MISMO color del `fondoPagina` (el header se FUNDE con el fondo de la
+ *  página + un borde inferior sutil — para tiendas con un fondo de página distinto del body, ej. morado).
+ *  Los sólidos de marca/tinta quedan fuera del MVP (piden pairing de contraste). Cero hex. */
+export const FONDO_HEADER = ["vidrio", "superficie", "transparente", "pagina"] as const;
 export type FondoHeader = (typeof FONDO_HEADER)[number];
 
 /** Posición del logo/marca en el header. `izquierda` (DEFAULT) = layout actual. */
@@ -58,6 +61,13 @@ export const ChromeHeaderSchema = z
     transparenteSobreHero: z.boolean().default(false),
     fondo: z.enum(FONDO_HEADER).default("vidrio"),
     menu: z.array(MenuItemSchema).max(8).default([]),
+    // Enlace a las BASES del sorteo como item FIJO del navbar (ADR-0008 — las bases dejan de ir como
+    // sección inline y viven SIEMPRE como un PDF/enlace en el header). Se AGREGA al final del nav (derivado
+    // o `menu`), no lo reemplaza. Destino tipado (`ancla`/`pagina`/`url` https). Un `ancla:"bases"` YA NO
+    // es un placeholder inerte que scrollea: `hrefMenuItem` lo normaliza a la ruta `/bases` (D13), que es
+    // el visor del PDF del sorteo activo y resuelve sola el caso "sin PDF todavía" con un vacío neutral
+    // (D5). Ausente ⇒ sin item extra (no-op, I-U8). Etiqueta fija "Bases".
+    basesPdf: DestinoLinkSchema.optional(),
   })
   .strict();
 export type ChromeHeader = z.infer<typeof ChromeHeaderSchema>;
@@ -102,11 +112,19 @@ export function chromeDefault(): Chrome {
   return ChromeSchema.parse({});
 }
 
-/** Resuelve un `MenuItem` a un href (mismo criterio que los links de runs). PURO. */
+/**
+ * Resuelve un `MenuItem` a un href (mismo criterio que los links de runs). PURO.
+ *
+ * Un ancla de RUTA (hoy solo `bases`, admin-bases-pdf D13) se normaliza a su ruta de plataforma vía
+ * `hrefDeAncla` — el MISMO resolver que usan `derivarNav` y los CTA de los widgets (D14). Va acá, en
+ * el resolver del chrome, y no en cada call site: por este helper pasan los DOS caminos que esquivaban
+ * D13 (`header.basesPdf` y un `header.menu` configurado, ambos ganándole al nav derivado) más los
+ * links del footer. Con la regla en un solo lugar, «Bases» abre el PDF venga de donde venga.
+ */
 export function hrefMenuItem(destino: DestinoLink): string {
   switch (destino.tipo) {
     case "ancla":
-      return `#${destino.ancla}`;
+      return hrefDeAncla(destino.ancla);
     case "pagina":
       return `/${destino.slug}`;
     case "url":

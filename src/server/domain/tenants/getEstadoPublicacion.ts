@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import {
   type EstadoPublicacion,
   evaluarPublicacion,
@@ -25,15 +25,12 @@ export async function getEstadoPublicacion({
   acceso: AccesoPanel;
   tosVersionVigente?: string;
 }): Promise<EstadoPublicacion & { slug: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const [tenant, flow, productoPublicable, raffleActivo] = await Promise.all([
     db.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { slug: true, estado: true, tosVersion: true, basesSorteo: true },
+      select: { slug: true, estado: true, tosVersion: true },
     }),
     // Solo si existe: NUNCA se traen las columnas cifradas (I6/ADR-0006).
     db.flowCredential.findUnique({
@@ -45,9 +42,11 @@ export async function getEstadoPublicacion({
       where: { tenantId, activo: true, pdfPath: { not: null } },
       select: { id: true },
     }),
+    // Las BASES del gate salen del Raffle ACTIVO (admin-bases-pdf F03/D2/D3): se trae su
+    // `basesPdfUrl` en la MISMA query que ya resolvía "hay sorteo activo".
     db.raffle.findFirst({
       where: { tenantId, estado: "ACTIVO" },
-      select: { id: true },
+      select: { id: true, basesPdfUrl: true },
     }),
   ]);
 
@@ -58,7 +57,7 @@ export async function getEstadoPublicacion({
     flowConfigurada: flow !== null,
     tieneProductoPublicable: productoPublicable !== null,
     hayRaffleActivo: raffleActivo !== null,
-    basesSorteo: tenant.basesSorteo,
+    basesPdfDelRaffleActivo: raffleActivo?.basesPdfUrl ?? null,
   });
 
   return { slug: tenant.slug, ...evaluado };

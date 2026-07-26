@@ -18,8 +18,6 @@
     "seed:tenants": "tsx scripts/seed-tenants.ts",
     "otorgar:membresia": "tsx scripts/otorgar-membresia.ts",
     "seed:raffles": "tsx scripts/seed-raffles.ts",
-    "backfill:pages": "tsx scripts/backfill-storefront-pages.ts",
-    "migrar:aviso": "tsx scripts/migrar-aviso-a-overlay.ts",
     "cors:r2": "tsx scripts/configurar-cors-r2.ts",
     "lint": "next lint",
     "start": "next start",

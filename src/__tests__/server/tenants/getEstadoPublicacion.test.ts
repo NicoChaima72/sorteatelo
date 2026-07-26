@@ -15,12 +15,16 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   email: "org@x.cl",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 interface Escenario {
   estado?: string;
   tosVersion?: string | null;
-  basesSorteo?: string | null;
+  /** `Raffle.basesPdfUrl` del sorteo ACTIVO (admin-bases-pdf F03/D2): null ⇒ sin bases subidas. */
+  basesPdf?: string | null;
   flowConfigurada?: boolean;
   productoPublicable?: boolean;
   raffleActivo?: boolean;
@@ -38,7 +42,6 @@ function fakeDb(s: Escenario) {
           slug: "mi-tienda",
           estado: s.estado ?? "CONFIGURACION",
           tosVersion: s.tosVersion === undefined ? VIGENTE : s.tosVersion,
-          basesSorteo: s.basesSorteo ?? null,
         };
       },
     },
@@ -51,7 +54,10 @@ function fakeDb(s: Escenario) {
         (s.productoPublicable ?? true) ? { id: "p1" } : null,
     },
     raffle: {
-      findFirst: async () => ((s.raffleActivo ?? false) ? { id: "r1" } : null),
+      findFirst: async () =>
+        (s.raffleActivo ?? false)
+          ? { id: "r1", basesPdfUrl: s.basesPdf ?? null }
+          : null,
     },
   } as unknown as PrismaClient;
 }
@@ -113,7 +119,7 @@ describe("domain/tenants/getEstadoPublicacion (fake db, tenant-scoped)", () => {
   // tenants.publicacion.bases.001 — bases aplica SOLO con raffle activo
   it("bases aplica solo si hay un sorteo activo", async () => {
     const sinSorteo = await getEstadoPublicacion({
-      db: fakeDb({ raffleActivo: false, basesSorteo: null }),
+      db: fakeDb({ raffleActivo: false, basesPdf: null }),
       acceso: acceso(["A"]),
       tosVersionVigente: VIGENTE,
     });
@@ -121,7 +127,7 @@ describe("domain/tenants/getEstadoPublicacion (fake db, tenant-scoped)", () => {
     expect(sinSorteo.requisitos.bases.cumplido).toBe(true); // no aplica ⇒ no bloquea
 
     const conSorteoSinBases = await getEstadoPublicacion({
-      db: fakeDb({ raffleActivo: true, basesSorteo: null }),
+      db: fakeDb({ raffleActivo: true, basesPdf: null }),
       acceso: acceso(["A"]),
       tosVersionVigente: VIGENTE,
     });

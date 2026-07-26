@@ -17,6 +17,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   email: "org@x.cl",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 const VIGENTE = "2026-07-17";
@@ -24,7 +27,8 @@ const VIGENTE = "2026-07-17";
 interface Escenario {
   estado?: string;
   tosVersion?: string | null;
-  basesSorteo?: string | null;
+  /** `Raffle.basesPdfUrl` del sorteo ACTIVO (admin-bases-pdf F03/D2): null ⇒ sin bases subidas. */
+  basesPdf?: string | null;
   flowConfigurada?: boolean;
   productoPublicable?: boolean;
   raffleActivo?: boolean;
@@ -38,7 +42,6 @@ function fakePublicar(s: Escenario) {
       findUniqueOrThrow: async () => ({
         estado: estadoRef.valor,
         tosVersion: s.tosVersion === undefined ? VIGENTE : s.tosVersion,
-        basesSorteo: s.basesSorteo ?? null,
       }),
       update: async ({ data }: { data: { estado: string } }) => {
         estadoRef.valor = data.estado;
@@ -54,7 +57,10 @@ function fakePublicar(s: Escenario) {
         (s.productoPublicable ?? true) ? { id: "p1" } : null,
     },
     raffle: {
-      findFirst: async () => ((s.raffleActivo ?? false) ? { id: "r1" } : null),
+      findFirst: async () =>
+        (s.raffleActivo ?? false)
+          ? { id: "r1", basesPdfUrl: s.basesPdf ?? null }
+          : null,
     },
   };
   const db = {
@@ -85,9 +91,11 @@ describe("domain/tenants/publicarTienda (fake db stateful, gate recomputado)", (
     expect(estadoRef.valor).toBe("CONFIGURACION"); // no transicionó
   });
 
-  // tenants.publicacion.003 — raffle activo + bases vacías ⇒ falla (ADR-0008); sin sorteo ⇒ publica
-  it("con sorteo activo sin bases falla; sin sorteo activo publica igual", async () => {
-    const bloqueado = fakePublicar({ raffleActivo: true, basesSorteo: "" });
+  // tenants.publicacion.003 — raffle activo SIN PDF de bases ⇒ falla (ADR-0008); sin sorteo ⇒ publica
+  // Reescrito (admin-bases-pdf F03/D2/D3): el gate recomputado server-side ahora exige el
+  // `basesPdfUrl` del Raffle ACTIVO, no el texto `Tenant.basesSorteo`.
+  it("con sorteo activo sin el PDF de bases falla; sin sorteo activo publica igual", async () => {
+    const bloqueado = fakePublicar({ raffleActivo: true, basesPdf: null });
     await expect(
       publicarTienda({
         db: bloqueado.db,
@@ -104,6 +112,22 @@ describe("domain/tenants/publicarTienda (fake db stateful, gate recomputado)", (
       tosVersionVigente: VIGENTE,
     });
     expect(res.estado).toBe("PUBLICADA");
+  });
+
+  // tenants.publicacion.003b — sorteo activo CON el PDF de bases ⇒ el gate DESBLOQUEA y publica
+  // La otra mitad de la validación: subir el PDF tiene que dejar publicar, no solo dejar de bloquear.
+  it("con sorteo activo y el PDF de bases subido, publica", async () => {
+    const { db, estadoRef } = fakePublicar({
+      raffleActivo: true,
+      basesPdf: "https://pub.r2.dev/A/sorteo/r1/bases.pdf?v=1",
+    });
+    const res = await publicarTienda({
+      db,
+      acceso: acceso(["A"]),
+      tosVersionVigente: VIGENTE,
+    });
+    expect(res.estado).toBe("PUBLICADA");
+    expect(estadoRef.valor).toBe("PUBLICADA");
   });
 
   // tenants.publicacion.002c — ya PUBLICADA ⇒ idempotente (no re-evalúa el gate ni rompe)

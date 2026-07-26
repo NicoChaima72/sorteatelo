@@ -28,9 +28,21 @@ import { type TenantBranding } from "~/styles/tenantTheme";
  * translúcido ACTUAL (byte-idéntico, I-U8); `superficie` = sólido del body; `transparente` = sin fondo
  * (overlay sobre hero). Cero hex (I-A). `transparenteSobreHero` fuerza transparente sin borde.
  */
-function estiloFondoHeader(fondo: FondoHeader, transparenteSobreHero: boolean): CSSProperties {
+function estiloFondoHeader(
+  fondo: FondoHeader,
+  transparenteSobreHero: boolean,
+  colorPagina?: string,
+): CSSProperties {
   if (transparenteSobreHero || fondo === "transparente") {
     return { background: "transparent" };
+  }
+  if (fondo === "pagina") {
+    // El header se FUNDE con el fondo de la página (mismo color) + un borde inferior sutil que lo delinea
+    // al hacer scroll — para tiendas con un `fondoPagina` distinto del body (ej. morado). Fallback al body.
+    return {
+      background: colorPagina ?? "var(--mantine-color-body)",
+      borderBottom: "1px solid color-mix(in srgb, var(--mantine-color-white) 10%, transparent)",
+    };
   }
   if (fondo === "superficie") {
     return {
@@ -66,11 +78,14 @@ export function StorefrontLayout({
   navItems,
   avisoSobreNav,
   chrome,
+  colorPagina,
   children,
 }: {
   branding: TenantBranding;
   /** Fondo del shell derivado del TemaPagina (catálogo-v2 F02); ausente ⇒ fondo por defecto. */
   estiloShell?: CSSProperties;
+  /** Color SÓLIDO del `fondoPagina` (para el header `fondo:"pagina"` que se funde con el fondo). */
+  colorPagina?: string;
   /** Chrome GLOBAL del tenant (Tanda 3 F06/D10); `null`/ausente ⇒ header/footer actuales (byte-idéntico). */
   chrome?: Chrome | null;
   /** Fondo del LIENZO EXTERIOR (Tanda 2 F15): el área fuera de la columna estrecha (un pelo más oscura que
@@ -96,7 +111,7 @@ export function StorefrontLayout({
       {/* Cinta SOBRE el nav (F13): en el tope absoluto, antes del header sticky. Al hacer scroll la cinta
           se va y el header queda pegado a top:0 (el ticker "sobre el nav" del mockup). */}
       {avisoSobreNav}
-      <Header branding={branding} navItems={navItems} chrome={chrome} onAbrirCarrito={drawer.open} />
+      <Header branding={branding} navItems={navItems} chrome={chrome} colorPagina={colorPagina} onAbrirCarrito={drawer.open} />
 
       <Box component="main" className="flex-1">
         {children}
@@ -149,11 +164,13 @@ function Header({
   branding,
   navItems,
   chrome,
+  colorPagina,
   onAbrirCarrito,
 }: {
   branding: TenantBranding;
   navItems?: NavItem[];
   chrome?: Chrome | null;
+  colorPagina?: string;
   onAbrirCarrito: () => void;
 }) {
   const sorteo = useSorteoActivo();
@@ -165,7 +182,7 @@ function Header({
   // NOTA (REVISABLE): `layout:"centro"` aún no cambia el DOM (centrarlo desalinea los pinned carrito/sesión;
   // pide una grilla de 3 columnas) ⇒ por ahora renderiza como `izquierda`. El schema ya lo soporta.
   const h = chrome?.header;
-  const estiloFondo = estiloFondoHeader(h?.fondo ?? "vidrio", h?.transparenteSobreHero ?? false);
+  const estiloFondo = estiloFondoHeader(h?.fondo ?? "vidrio", h?.transparenteSobreHero ?? false, colorPagina);
   const esFijo = (h?.sticky ?? "fijo") === "fijo";
 
   return (
@@ -241,7 +258,6 @@ function NavAncla({ href, children }: { href: string; children: ReactNode }) {
 
 function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrome | null }) {
   const sorteo = useSorteoActivo();
-  const basesUrl = sorteo.data?.basesUrl ?? null;
   // Chrome footer (Tanda 3 F06/D10): `texto` editorial + `links` de menú. La atribución neutral y el
   // enlace a Bases (abajo) son PINNED (I-U2/ADR-0008): se renderizan SIEMPRE, no salen del chrome.
   const chromeLinks = chrome?.footer.links ?? [];
@@ -280,14 +296,11 @@ function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrom
                   </Group>
                 </Anchor>
               )}
+              {/* Enlace PINNED a las bases (ADR-0008). Desde admin-bases-pdf F04/D4/D5 apunta SIEMPRE
+                  a `/bases` —la página con el PDF del sorteo ACTIVO—, no a la URL externa del raffle
+                  ni al ancla `#sorteo`. Es navegación interna: sin `target="_blank"`. */}
               {sorteo.data && (
-                <Anchor
-                  href={basesUrl ?? "#sorteo"}
-                  target={basesUrl ? "_blank" : undefined}
-                  rel={basesUrl ? "noreferrer" : undefined}
-                  c="dimmed"
-                  size="sm"
-                >
+                <Anchor href="/bases" c="dimmed" size="sm">
                   Bases del sorteo
                 </Anchor>
               )}

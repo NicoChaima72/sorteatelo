@@ -16,7 +16,7 @@ import { esSlugReservado } from "~/server/tenancy/slugTienda";
  *
  * Aislamiento (I1/ADR-0005): el `userId` de la membresía sale del `acceso` resuelto
  * SERVER-SIDE en `panelProcedure`, NUNCA del input (el input solo trae slug + nombre). Este
- * es el ÚNICO use case del panel que no pasa por `resolverTenantAutorizado`: precede a la
+ * es el ÚNICO use case del panel que no pasa por `resolverTenantDelPanel`: precede a la
  * primera membresía del usuario (crearla es su razón de ser).
  *
  * Backstops de las dos invariantes, dentro de la $transaction:
@@ -105,11 +105,10 @@ export async function crearTienda({
     // documento inicial (una Tienda nueva no tiene branding aún ⇒ hero sin overrides). En la MISMA
     // $transaction: sin Tienda sin Página. El storefront público lee `publishedJson` (F05), así que
     // se publica el documento inicial de una vez (equivalente a la plantilla vacía actual).
-    const doc = documentoInicial({
-      heroTitulo: null,
-      heroSubtitulo: null,
-      heroImageUrl: null,
-    });
+    // Sin overrides de hero: una Tienda nueva no tiene branding y el render degrada a su
+    // `nombre`/`descripcion` (admin-bases-pdf F07 — antes se pasaban 3 nulls explícitos porque el
+    // seam venía de columnas del Tenant que ya no existen).
+    const doc = documentoInicial({});
     await tx.storefrontPage.create({
       data: {
         tenantId: tenant.id,

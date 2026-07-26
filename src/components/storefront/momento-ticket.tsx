@@ -2,6 +2,7 @@ import { Box, Button, Stack, Text } from "@mantine/core";
 import { IconConfetti } from "@tabler/icons-react";
 
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { hrefDeAncla } from "~/lib/pagebuilder/nav";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
 /**
@@ -66,7 +67,7 @@ export function MomentoTicket({
           {props.ctaTexto && (
             <Button
               component="a"
-              href={`#${props.ctaAncla}`}
+              href={hrefDeAncla(props.ctaAncla)}
               fullWidth
               mt="xs"
               radius="md"

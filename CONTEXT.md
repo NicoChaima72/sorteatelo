@@ -60,7 +60,7 @@ por el host del request (ADR-0007). El apex (`dominio` / `www`) queda reservado 
 ### Plantilla (tema configurable)
 El **único** tema de storefront que ofrece la Plataforma: el [[Organizador]] configura logo, colores,
 textos e **imágenes** ([[Asset de marca]]) **sobre** la plantilla existente. NO es un editor visual: un
-builder drag-and-drop queda explícitamente fuera del MVP. La plantilla es **estructura rica, no estética
+builder drag-and-drop queda explícitamente fuera del alcance actual. La plantilla es **estructura rica, no estética
 fija**: un skin neutro-profesional de secciones (header con countdown, hero a 2 columnas, catálogo con
 portadas, vitrina del sorteo/premio, cómo funciona, footer con redes) que **cada Tienda tematiza** con su
 `colorPrimario` (que se expande a una escala de 10 tonos) y sus assets. Sirve igual a una tienda de fandom
@@ -68,7 +68,7 @@ o a una sobria. Regla dura de la plantilla: **degradación elegante** — todo d
 si falta, la sección degrada limpio (sin imagen ⇒ gradiente temático, nunca un hueco; sin redes ⇒ se
 oculta el ícono; sin sorteo ⇒ no aparece la sección), nunca un `<img>` roto ni un campo vacío. La
 estructura oficial vive en `docs/design.md` §5 (fuente de verdad visual). _Evitar_: builder, editor,
-tema custom, "múltiples plantillas" (hoy hay UNA; que sean varias seleccionables es puerta abierta post-MVP).
+tema custom, "múltiples plantillas" (hoy hay UNA; que sean varias seleccionables es puerta abierta a futuro).
 **Evolución aceptada (2026-07-17, page builder — visto bueno del usuario):** la Plantilla pasa a ser
 la **semilla** de la [[Página de tienda]]: el documento inicial con las secciones actuales, que después
 se edita por [[Sección]]es sobre un catálogo cerrado de [[Widget]]s. Sigue SIN ser un builder visual
@@ -80,7 +80,9 @@ Una **imagen pública** que personaliza el storefront de una [[Tienda]]: **logo*
 por CDN, y **categóricamente distinta del PDF** vendido: viven en un **bucket R2 público** separado del
 bucket privado gated por [[Entitlement]] (ADR-0013). Las sube el [[Organizador]] desde su panel (presigned
 PUT + confirmación, mismo patrón que el PDF de F03) y son **opcionales** (ver degradación elegante en
-[[Plantilla]]). _Evitar_: confundirlas con el PDF/archivo del producto (privado, nunca público, ADR-0002).
+[[Plantilla]]). El bucket público admite un único PDF: el de las [[Bases del sorteo]] (destino `bases`,
+addendum ADR-0013) — el invariante es «jamás un PDF de PRODUCTO». _Evitar_: confundirlas con el
+PDF/archivo del producto (privado, nunca público, ADR-0002).
 
 ### CredencialFlow (`FlowCredential`)
 Las credenciales (apiKey / secretKey) de la **cuenta Flow propia** del [[Organizador]], almacenadas
@@ -156,7 +158,7 @@ El primer editor de la [[Página de tienda]]: una superficie de herramientas tip
 ## Producto y catálogo
 
 ### Producto (`Product`)
-Un producto digital descargable (MVP: **PDF**) que una [[Tienda]] vende. Atributos: título,
+Un producto digital descargable (hoy: **PDF**) que una [[Tienda]] vende. Atributos: título,
 descripción, precio (`Decimal`, CLP), portada, referencia al archivo en **storage privado**, flag de
 activo, **flag `participaEnSorteo`** (ver [[Producto participante]]), y su `tenantId`. El archivo
 **nunca** se expone por enlace público (ver [[Entitlement]] y ADR-0002). _Evitar_: Libro, `Book`,
@@ -181,6 +183,31 @@ un mismo checkout. No cruza tiendas ni requiere cuenta (ver [[Comprador]]).
 ---
 
 ## Compra y pago
+
+### Campo de checkout (`CheckoutField`)
+Un dato ADICIONAL que una [[Tienda]] decide solicitarle al [[Comprador]] en su checkout (ej.
+teléfono), definido por el [[Organizador]] en su panel: clave estable, etiqueta visible, tipo,
+obligatorio u opcional, orden. Es **dato del dominio** (define qué PII se recolecta y qué valida el
+server), tenant-scoped como todo el dominio comercial. El **correo NO es un Campo de checkout**: es
+fijo y obligatorio siempre (identidad del comprador y vía de entrega, ADR-0004) — no configurable.
+Las respuestas del Comprador se congelan como **snapshot en la [[Orden]]** (etiqueta incluida, mismo
+espíritu que el precio del [[ÍtemDeOrden]]): renombrar o borrar un campo no altera órdenes
+históricas. La validación de lo que el Comprador envía es server-side contra la definición vigente
+del tenant resuelto por subdominio (I1/ADR-0005), nunca contra lo que diga el cliente. _Evitar_:
+"campo custom", "campo extra del form" (informales), y confundirlo con la respuesta (el snapshot en
+la Orden).
+
+### Respuesta de checkout (`CheckoutFieldResponse`)
+El valor que el [[Comprador]] entregó para un [[Campo de checkout]] en una [[Orden]] concreta:
+**una fila por campo respondido**, snapshot **autocontenido** (`clave` + `etiqueta` + `tipo` + `valor`
+congelados al comprar — el `tipo` viaja en la fila para renderizar el `valor` canónico sin consultar
+la definición, que puede estar borrada o recreada con otro tipo; referencia `fieldId` nullable que
+sobrevive si la definición se borra). El `valor` se guarda **canónico, sin humanizar** (`true`/`false`,
+entero base 10, la opción exacta del SELECT); la presentación (`Sí`/`No`, formato) es de la UI/CSV.
+Inmutable — sin `updatedAt`, como el [[ÍtemDeOrden]]. Se crea dentro de la **misma `$transaction`**
+que la Orden en el checkout, tras validar server-side contra la definición vigente. Es **PII del
+Comprador bajo custodia de la [[Tienda]]**: se muestra solo al [[Organizador]] dueño del tenant.
+_Evitar_: "datos extra", "metadata de la orden" (esconden que es PII con snapshot).
 
 ### Orden (`Order`)
 Una compra dentro de una [[Tienda]]. Registra el **correo** del comprador, el estado
@@ -218,7 +245,7 @@ por enlace público (ADR-0002).
 ### Sorteo (`Raffle`)
 La promoción que una [[Tienda]] monta sobre su venta: entre quienes compran productos participantes se
 sortea un premio definido por el [[Organizador]] (piloto: 2 entradas a un recital de BTS). Atributos:
-nombre, premio, fechas, estado, referencia a las **bases**, `tenantId`. Cada compra genera cero o más
+nombre, premio, fechas, estado, el PDF de sus [[Bases del sorteo]] (`basesPdfUrl`), `tenantId`. Cada compra genera cero o más
 [[Ticket]]s. El ganador se elige **entre tickets** (más tickets = más chance), de forma auditable
 (ganador, fecha, quién ejecutó). A lo sumo un Sorteo ACTIVO por Tienda (S5).
 
@@ -241,9 +268,17 @@ Participación = un ticket", NO "una por orden" (semántica pre-ADR-0012, ya obs
 
 ### Bases del sorteo
 El documento legal del [[Sorteo]] (quiénes participan, cómo se elige, fechas, premio). Son
-**del [[Organizador]]**: él las redacta/protocoliza y las sube a su Tienda; la Plataforma las
-publica y exige que existan para publicar un sorteo, pero no las redacta ni responde por ellas
-(ADR-0008). **No es código.**
+**del [[Organizador]]** y son **SIEMPRE un PDF**: él las redacta/protocoliza y las sube **al
+Sorteo** (`Raffle.basesPdfUrl` — una por sorteo) desde el form de crear/editar sorteo del panel.
+El PDF vive en el **bucket público** (la única excepción de PDF admitida ahí — addendum de
+ADR-0013; las bases son un documento legal público por naturaleza, NO un producto). El **gate de
+publicación** exige el PDF del sorteo **ACTIVO** (ADR-0008). El [[Comprador]] las ve **embebidas
+en la página `/bases`** del storefront — siempre las del sorteo activo; sin sorteo activo o sin
+PDF, la página muestra un estado vacío neutral. La palabra «Bases» en navbar/chrome/CTAs navega
+**SIEMPRE a `/bases`** (nunca scroll a un ancla de la home). La Plataforma las publica y exige que
+existan, pero no las redacta ni responde por ellas (ADR-0008). **No es código ni texto libre**
+(el modelo viejo — texto en `Tenant.basesSorteo` o URL externa en `Raffle.basesUrl` — fue
+eliminado el 2026-07-25, plan `admin-bases-pdf-y-limpieza`).
 
 ---
 

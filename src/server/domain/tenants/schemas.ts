@@ -4,7 +4,7 @@ import { z } from "zod";
  * Inputs del dominio de Tiendas (self-service del Organizador, F08). Como en `panel/schemas.ts`,
  * NINGUNO lleva `tenantId`/`userId`: el alta liga al `userId` del acceso server-side (I1) y el
  * resto de los use cases (aceptarTos/publicar/despublicar) resuelven su Tienda con
- * `resolverTenantAutorizado(ctx.acceso, …)`. La validación fina del slug (formato + reservados)
+ * `resolverTenantDelPanel(ctx.acceso)`. La validación fina del slug (formato + reservados)
  * vive en el use case `crearTienda` (reusa `esSlugValido` + `esSlugReservado`), no acá — así el
  * error de negocio es específico y la definición del subdominio no se duplica (D7).
  */

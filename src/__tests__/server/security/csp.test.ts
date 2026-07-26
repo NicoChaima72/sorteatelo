@@ -50,3 +50,39 @@ describe("security/csp — construirCSP", () => {
     expect(prod).toContain("frame-ancestors 'none'");
   });
 });
+
+describe("security/csp — origen del bucket público en frame-src (admin-bases-pdf F04/D6)", () => {
+  // page.csp.005 — el visor de `/bases` embebe el PDF del bucket público en un <iframe>
+  // Sin este origen en `frame-src`, la CSP (hoy Report-Only, mañana enforcing) mataría el visor.
+  it("agrega el ORIGEN del bucket público a frame-src, sin la key ni el path", () => {
+    const csp = construirCSP({
+      esDev: false,
+      baseUrlAssetsPublicos: "https://pub-abc123.r2.dev",
+    });
+    expect(csp).toContain("frame-src 'self' https://pub-abc123.r2.dev");
+    // Sigue siendo una allowlist: los embeds no se pierden.
+    for (const origen of ORIGENES_EMBED) {
+      expect(csp).toContain(origen);
+    }
+    // `object-src 'none'` NO se afloja: el visor usa <iframe>, no <object>.
+    expect(csp).toContain("object-src 'none'");
+  });
+
+  // page.csp.006 — solo el ORIGEN, aunque la base venga con path/barra final
+  it("normaliza la base a su origen (descarta path, barra final y query)", () => {
+    const conPath = construirCSP({
+      esDev: false,
+      baseUrlAssetsPublicos: "https://pub-abc123.r2.dev/algo/mas/",
+    });
+    expect(conPath).toContain("https://pub-abc123.r2.dev");
+    expect(conPath).not.toContain("/algo/mas");
+  });
+
+  // page.csp.007 — sin la env (o con basura) la CSP queda IGUAL que antes (no se rompe ni se afloja)
+  it("sin base configurada o con un valor inválido, frame-src queda como antes", () => {
+    const base = construirCSP({ esDev: false });
+    expect(construirCSP({ esDev: false, baseUrlAssetsPublicos: undefined })).toBe(base);
+    expect(construirCSP({ esDev: false, baseUrlAssetsPublicos: "" })).toBe(base);
+    expect(construirCSP({ esDev: false, baseUrlAssetsPublicos: "no-es-una-url" })).toBe(base);
+  });
+});

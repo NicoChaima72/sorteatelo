@@ -1,8 +1,7 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
-import { textoOpcionalANull } from "~/server/domain/panel/_internal";
 import { type CrearSorteoInput } from "~/server/domain/panel/schemas";
 
 /**
@@ -15,9 +14,11 @@ import { type CrearSorteoInput } from "~/server/domain/panel/schemas";
  *
  * Scopeado por el `tenantId` resuelto SERVER-SIDE (I1/I2/ADR-0005); el `tenantId` JAMÁS del input.
  * `fechaInicio = ahora` (inyectable para testear sin reloj, D3); `fechaFin` se valida futura con un
- * mensaje humano (no solo Zod). `basesUrl` es un enlace INFORMATIVO opcional (distinto del
- * `Tenant.basesSorteo` legal del gate de publicación, D7). La imagen del premio NO va acá: se sube
- * tras crear con el `AssetUploader` que exige el `raffleId` (D5).
+ * mensaje humano (no solo Zod). Los ASSETS del sorteo NO van acá y este use case NO escribe sus
+ * columnas: la imagen del premio y el **PDF de bases** (admin-bases-pdf F02/D2) se suben TRAS crear,
+ * porque su key es per-raffle y necesita el id — y sus columnas las escribe solo la confirmación
+ * server-side tras `headObject` (I2/I6). El sorteo nace VÁLIDO sin bases: el gate de publicación las
+ * exige recién al publicar con un sorteo ACTIVO (F03/ADR-0008).
  *
  * ARRASTRE de participantes (D13): si `importarDesdeRaffleId` viene, DENTRO de la $tx se verifica
  * que el raffle origen sea del MISMO tenant (fail-closed ⇒ NOT_FOUND), se leen sus `RaffleEntry` y
@@ -37,10 +38,7 @@ export async function crearSorteo({
   input: CrearSorteoInput;
   ahora?: Date;
 }): Promise<{ id: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   // Validación de fecha (pura, previa a la tx): fechaFin > ahora, con mensaje humano.
   if (input.fechaFin.getTime() <= ahora.getTime()) {
@@ -49,8 +47,6 @@ export async function crearSorteo({
       "La fecha de cierre debe ser posterior a ahora.",
     );
   }
-
-  const basesUrl = textoOpcionalANull(input.basesUrl);
 
   return db.$transaction(async (tx) => {
     // Guard atómico 1-ACTIVO (D2/I3): recontar el ACTIVO del tenant DENTRO de la tx.
@@ -92,7 +88,6 @@ export async function crearSorteo({
         estado: "ACTIVO",
         fechaInicio: ahora,
         fechaFin: input.fechaFin,
-        basesUrl,
       },
       select: { id: true },
     });

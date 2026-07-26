@@ -1,6 +1,7 @@
 import { Button, Stack, Text, Title } from "@mantine/core";
 
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
+import { hrefDeAncla } from "~/lib/pagebuilder/nav";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 
@@ -50,7 +51,7 @@ export function BannerCta({
         )}
         <Button
           component="a"
-          href={`#${props.ctaAncla}`}
+          href={hrefDeAncla(props.ctaAncla)}
           variant="white"
           size="lg"
           radius="xl"

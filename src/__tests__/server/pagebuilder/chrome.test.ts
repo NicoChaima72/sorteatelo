@@ -101,4 +101,21 @@ describe("pagebuilder/chrome — hrefMenuItem (resolución de destino)", () => {
     expect(hrefMenuItem({ tipo: "pagina", slug: "sobre-mi" })).toBe("/sobre-mi");
     expect(hrefMenuItem({ tipo: "url", url: "https://x.cl" })).toBe("https://x.cl");
   });
+
+  /**
+   * D13 (admin-bases-pdf): «Bases» en el navbar abre SIEMPRE el PDF. `derivarNav` ya lo cumplía, pero
+   * el chrome resuelve sus destinos por ACÁ — y los dos caminos que pasan por este helper
+   * (`header.basesPdf` y un `header.menu` configurado) esquivaban la regla, así que en la data real el
+   * ítem seguía haciendo scroll. La normalización vive en el resolver, no en cada call site.
+   */
+  // page.chrome.007 — un destino `ancla:"bases"` es la RUTA `/bases`, venga del menú o de `basesPdf`
+  it("un ancla `bases` resuelve a la RUTA `/bases`, nunca al scroll `#bases` (D13)", () => {
+    expect(hrefMenuItem({ tipo: "ancla", ancla: "bases" })).toBe("/bases");
+  });
+
+  // page.chrome.008 — la excepción es SOLO `bases`: las demás anclas siguen siendo scroll
+  it("no afecta a las otras anclas del chrome (siguen con scroll `#ancla`)", () => {
+    expect(hrefMenuItem({ tipo: "ancla", ancla: "catalogo" })).toBe("#catalogo");
+    expect(hrefMenuItem({ tipo: "ancla", ancla: "como-funciona" })).toBe("#como-funciona");
+  });
 });

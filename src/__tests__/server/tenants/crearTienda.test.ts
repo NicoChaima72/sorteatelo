@@ -21,6 +21,8 @@ const acceso = (
   email,
   esOperador: false,
   tenantIds,
+  // `crearTienda` es el alta: corre en el APEX, donde todavía no hay subdominio de tienda.
+  tenantIdDelHost: null,
 });
 
 interface CreadoTenant {

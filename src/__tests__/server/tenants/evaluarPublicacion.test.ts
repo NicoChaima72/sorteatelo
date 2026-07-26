@@ -9,7 +9,7 @@ import {
 /**
  * Tests del núcleo PURO del gate de publicación (F08/F03, D4/D5). `evaluarPublicacion` es la
  * ÚNICA fuente de verdad del checklist Y del gate: computa cada requisito (ToS + Flow + ≥1
- * producto publicable + bases si hay sorteo activo, ADR-0008) y `puedePublicar`. Se testea
+ * producto publicable + el PDF de bases del sorteo ACTIVO si lo hay, ADR-0008) y `puedePublicar`. Se testea
  * puro (sin DB) para cubrir la matriz completa; getEstadoPublicacion y publicarTienda lo reusan.
  */
 
@@ -20,7 +20,7 @@ const base: DatosGate = {
   flowConfigurada: true,
   tieneProductoPublicable: true,
   hayRaffleActivo: false,
-  basesSorteo: null,
+  basesPdfDelRaffleActivo: null,
 };
 
 describe("domain/tenants/evaluarPublicacion (núcleo puro del gate)", () => {
@@ -60,12 +60,14 @@ describe("domain/tenants/evaluarPublicacion (núcleo puro del gate)", () => {
     expect(r.puedePublicar).toBe(false);
   });
 
-  // tenants.publicacion.eval.005 — bases: aplica SOLO con sorteo activo; vacías ⇒ bloquea (ADR-0008)
-  it("con sorteo activo, las bases vacías bloquean; con bases cargadas, publica", () => {
+  // tenants.publicacion.eval.005 — bases: aplica SOLO con sorteo activo; sin PDF ⇒ bloquea (ADR-0008)
+  // Reescrito (admin-bases-pdf F03/D2/D3): las bases YA NO son texto en el Tenant sino el PDF del
+  // Raffle ACTIVO. El requisito sigue aplicando solo con sorteo activo; lo que cambió es la fuente.
+  it("con sorteo activo, sin PDF de bases bloquea; con el PDF cargado, publica", () => {
     const conSorteoSinBases = evaluarPublicacion({
       ...base,
       hayRaffleActivo: true,
-      basesSorteo: "   ", // solo espacios ⇒ vacío
+      basesPdfDelRaffleActivo: null, // el sorteo activo no tiene bases subidas
     });
     expect(conSorteoSinBases.requisitos.bases.aplica).toBe(true);
     expect(conSorteoSinBases.requisitos.bases.cumplido).toBe(false);
@@ -74,10 +76,26 @@ describe("domain/tenants/evaluarPublicacion (núcleo puro del gate)", () => {
     const conSorteoConBases = evaluarPublicacion({
       ...base,
       hayRaffleActivo: true,
-      basesSorteo: "Bases del sorteo: participan las compras pagadas.",
+      basesPdfDelRaffleActivo: "https://pub.r2.dev/A/sorteo/r1/bases.pdf?v=1",
     });
     expect(conSorteoConBases.requisitos.bases.cumplido).toBe(true);
     expect(conSorteoConBases.puedePublicar).toBe(true);
+  });
+
+  // tenants.publicacion.eval.005b — una URL VACÍA/en blanco no es "bases cargadas" (ADR-0008)
+  // Edge case textual del gate LEGAL: la columna existe pero con `""` o espacios (dato corrupto, una
+  // escritura a medias). Debe bloquear igual que `null` — publicar un sorteo activo sin bases reales
+  // es exactamente lo que ADR-0008 prohíbe. Explícito para que nadie lo "optimice" a un `!= null`.
+  it("con sorteo activo, un `basesPdfUrl` vacío o en blanco bloquea igual que ausente", () => {
+    for (const vacio of ["", "   "]) {
+      const r = evaluarPublicacion({
+        ...base,
+        hayRaffleActivo: true,
+        basesPdfDelRaffleActivo: vacio,
+      });
+      expect(r.requisitos.bases.cumplido).toBe(false);
+      expect(r.puedePublicar).toBe(false);
+    }
   });
 
   // tenants.publicacion.eval.006 — mensaje del requisito faltante nombra el PRIMER incumplido

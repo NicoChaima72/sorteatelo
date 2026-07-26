@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { anclasSemanticas, derivarNav, humanizarSlug } from "~/lib/pagebuilder/nav";
+import {
+  ANCLAS_QUE_SON_RUTA,
+  anclasSemanticas,
+  derivarNav,
+  hrefDeAncla,
+  humanizarSlug,
+} from "~/lib/pagebuilder/nav";
 import {
   OverlayNodeSchema,
   SeccionNodeSchema,
@@ -40,7 +46,8 @@ describe("nav — derivarNav (F05/D8)", () => {
       sec("garantias_sorteo", "g", { incluir: true }), // default "Bases"
     ]);
     expect(nav.map((i) => i.label)).toEqual(["El libro", "Sorteo", "Autora", "Bases"]);
-    expect(nav.map((i) => i.href)).toEqual(["#h", "#sorteo", "#autora", "#bases"]);
+    // `bases` es RUTA, no ancla de scroll (admin-bases-pdf D13): el ítem legal abre el PDF.
+    expect(nav.map((i) => i.href)).toEqual(["#h", "#sorteo", "#autora", "/bases"]);
   });
 
   // nav.derive.003 — la 1ª sección de un tipo apunta al ancla semántica; la 2ª del mismo tipo, a su id.
@@ -94,7 +101,8 @@ describe("nav — anclasSemanticas (F05/D8)", () => {
     ]);
     expect(nav).toEqual([
       { label: "El libro", href: "#beneficios" },
-      { label: "Bases", href: "#bases" },
+      // `bases` deriva a la RUTA `/bases` (D13), aunque su ancla DOM siga existiendo (arriba).
+      { label: "Bases", href: "/bases" },
     ]);
   });
 });
@@ -154,5 +162,62 @@ describe("nav — humanizarSlug (multi-página F04/D9)", () => {
     expect(humanizarSlug("sobre-mi")).toBe("Sobre mi");
     expect(humanizarSlug("preguntas-frecuentes")).toBe("Preguntas frecuentes");
     expect(humanizarSlug("bases")).toBe("Bases");
+  });
+});
+
+describe("nav — el ítem «Bases» abre SIEMPRE el PDF (admin-bases-pdf D13)", () => {
+  // nav.bases.001 — la sección de bases navega a la RUTA `/bases`, no al ancla `#bases`
+  // Decisión del usuario (D13): «Bases» del navbar debe abrir el PDF del sorteo activo, nunca
+  // hacer scroll a una sección de la home. Es un enlace LEGAL (ADR-0008): tiene que llevar al
+  // documento, no a un bloque de texto que el Organizador editó.
+  it("`garantias_sorteo` y `texto_rico` marcados en el nav apuntan a `/bases`, no a `#bases`", () => {
+    const nav = derivarNav([
+      sec("garantias_sorteo", "g", { incluir: true }),
+      sec("texto_rico", "t", { incluir: true }),
+    ]);
+    expect(nav).toEqual([
+      { label: "Bases", href: "/bases" },
+      { label: "Bases", href: "/bases" },
+    ]);
+  });
+
+  // nav.bases.002 — una etiqueta personalizada no cambia el DESTINO (sigue siendo el PDF)
+  it("con etiqueta propia conserva el destino `/bases` (el destino es de plataforma, no del texto)", () => {
+    const nav = derivarNav([
+      sec("garantias_sorteo", "g", { incluir: true, etiqueta: "Legal" }),
+    ]);
+    expect(nav).toEqual([{ label: "Legal", href: "/bases" }]);
+  });
+
+  // nav.bases.003 — el resto del nav NO se toca: las demás secciones siguen con scroll `#ancla`
+  it("no afecta a las otras secciones (siguen con ancla de scroll)", () => {
+    const nav = derivarNav([
+      sec("catalogo", "c", { incluir: true }),
+      sec("garantias_sorteo", "g", { incluir: true }),
+      sec("como_funciona", "cf", { incluir: true }),
+    ]);
+    expect(nav).toEqual([
+      { label: "Catálogo", href: "#catalogo" },
+      { label: "Bases", href: "/bases" },
+      { label: "Cómo funciona", href: "#como-funciona" },
+    ]);
+  });
+
+  // nav.bases.004 — el ancla DOM `#bases` sigue emitiéndose (no rompe targets existentes)
+  it("`anclasSemanticas` sigue emitiendo el ancla `bases` de la sección (target DOM intacto)", () => {
+    expect(anclasSemanticas([sec("garantias_sorteo", "g")])).toEqual({ g: "bases" });
+  });
+
+  // nav.bases.005 — `hrefDeAncla` es la FUENTE ÚNICA de la regla (D14): la comparten el nav derivado,
+  // el chrome (`hrefMenuItem`) y los CTA de los widgets. Antes cada superficie armaba `#${ancla}` por
+  // su cuenta y «Bases» terminó con dos destinos distintos en la misma tienda.
+  it("`hrefDeAncla` resuelve `bases` a la ruta y el resto al ancla de scroll", () => {
+    expect(hrefDeAncla("bases")).toBe("/bases");
+    expect(hrefDeAncla("catalogo")).toBe("#catalogo");
+    expect(hrefDeAncla("sorteo")).toBe("#sorteo");
+    // ancla desconocida (id de nodo, sección sin ancla semántica) ⇒ scroll, nunca una ruta inventada
+    expect(hrefDeAncla("no-existe")).toBe("#no-existe");
+    // la tabla es la MISMA que consume `derivarNav` (una sola entrada hoy)
+    expect(Object.keys(ANCLAS_QUE_SON_RUTA)).toEqual(["bases"]);
   });
 });

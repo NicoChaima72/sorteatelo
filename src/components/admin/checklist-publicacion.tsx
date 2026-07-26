@@ -222,7 +222,8 @@ export function ChecklistPublicacion() {
 
   // Abrir el storefront en su subdominio (helper compartido con el chrome del admin, D6).
   const verTienda = () => {
-    if (estado.data) abrirTienda(estado.data.slug);
+    // El panel corre en el subdominio de ESTA tienda (ADR-0022): slug destino = slug actual.
+    if (estado.data) abrirTienda(estado.data.slug, estado.data.slug);
   };
 
   if (estado.isLoading) {
@@ -259,7 +260,7 @@ export function ChecklistPublicacion() {
   // el ancho mostrando el LINK PÚBLICO copiable (lo primero que un Organizador quiere compartir) +
   // acciones a la derecha. Gramática del panel: `PanelCard` sin borde (§4), no `Card withBorder`.
   if (estadoTienda === "PUBLICADA") {
-    const url = urlDeTienda(estado.data.slug);
+    const url = urlDeTienda(estado.data.slug, estado.data.slug);
     const display = url ? url.replace(/^https?:\/\//, "") : estado.data.slug;
     const copiarLink = async () => {
       if (!url) return;
@@ -396,21 +397,23 @@ export function ChecklistPublicacion() {
     },
   ];
 
-  // El requisito de bases solo se muestra si hay un sorteo activo (ADR-0008).
+  // El requisito de bases solo se muestra si hay un sorteo activo (ADR-0008). Desde
+  // admin-bases-pdf F03 (D2/D3) las bases son el PDF del SORTEO, así que el ítem manda al Sorteo,
+  // no a Configuración (donde el textarea legacy ya no existe).
   if (requisitos.bases.aplica) {
     items.push({
       cumplido: requisitos.bases.cumplido,
-      titulo: "Carga las bases de tu sorteo",
-      descripcion: "Tu sorteo está activo: sus bases son obligatorias.",
+      titulo: "Sube las bases de tu sorteo",
+      descripcion: "Tu sorteo está activo: su PDF de bases es obligatorio.",
       accion: (
         <Button
           size="xs"
           variant="light"
           component={Link}
-          href="/admin/configuracion"
+          href="/admin/sorteo"
           rightSection={<IconArrowRight className="size-3.5" />}
         >
-          Cargar bases
+          Ir al sorteo
         </Button>
       ),
     });

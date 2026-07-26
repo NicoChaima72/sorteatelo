@@ -1,6 +1,6 @@
 import { type PrismaClient, type TenantStatus } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 
 /**
  * Use case del panel (F04, D8): lee la config editable de la Tienda para poblar el formulario
@@ -20,23 +20,17 @@ export async function getConfiguracionTienda({
   descripcion: string | null;
   logoUrl: string | null;
   colorPrimario: string | null;
-  basesSorteo: string | null;
-  heroTitulo: string | null;
-  heroSubtitulo: string | null;
-  heroImageUrl: string | null;
-  avisoTexto: string | null;
+  colorAcento: string | null;
   instagramUrl: string | null;
   tiktokUrl: string | null;
   whatsappUrl: string | null;
   contactoEmail: string | null;
 }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
-  // `logoUrl`/`heroImageUrl` se DEVUELVEN (para mostrar el asset actual en el uploader) pero se
-  // ESCRIBEN por el flujo de subida, no por guardarConfiguracionTienda (D4/I6). Jamás secretos.
+  // `logoUrl` se DEVUELVE (para mostrar el asset actual en el uploader) pero se ESCRIBE por el flujo
+  // de subida, no por guardarConfiguracionTienda (D4/I6). Jamás secretos. El hero/aviso ya no se leen
+  // acá (admin-bases-pdf F06/D7): son del Documento de Página, no de la card «Tu tienda».
   const tienda = await db.tenant.findUniqueOrThrow({
     where: { id: tenantId },
     select: {
@@ -45,12 +39,10 @@ export async function getConfiguracionTienda({
       estado: true,
       descripcion: true,
       logoUrl: true,
+      // Los dos colores de marca (admin-bases-pdf F06/D12): sin leer el acento, el form arrancaría
+      // vacío y el primer «Guardar» lo borraría sin que el Organizador tocara nada.
       colorPrimario: true,
-      basesSorteo: true,
-      heroTitulo: true,
-      heroSubtitulo: true,
-      heroImageUrl: true,
-      avisoTexto: true,
+      colorAcento: true,
       instagramUrl: true,
       tiktokUrl: true,
       whatsappUrl: true,

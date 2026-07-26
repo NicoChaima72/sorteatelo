@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   componerUrlPublica,
   crearStoragePublicoService,
+  keyBasesSorteo,
   keyHeroTenant,
   keyLogoTenant,
   keyPortadaProducto,
@@ -40,6 +41,13 @@ describe("services/storagePublico — keys per-destino (helpers puros)", () => {
     expect(keyHeroTenant("T1")).toBe("T1/branding/hero");
     expect(keyPortadaProducto("T1", "p9")).toBe("T1/productos/p9/portada");
     expect(keyPremioSorteo("T1", "r5")).toBe("T1/sorteo/r5/premio");
+  });
+
+  // storagePublico.key.002 — bases: única key del bucket público CON extensión (patrón keyDePdfProducto)
+  it("computa la key del PDF de bases del sorteo, con extensión .pdf (admin-bases-pdf F01/D1)", () => {
+    expect(keyBasesSorteo("T1", "r5")).toBe("T1/sorteo/r5/bases.pdf");
+    // Namespace compartido con el premio del MISMO sorteo, sin colisionar.
+    expect(keyBasesSorteo("T1", "r5")).not.toBe(keyPremioSorteo("T1", "r5"));
   });
 });
 
@@ -96,6 +104,58 @@ describe("services/storagePublico — presignarSubidaImagen (PUT)", () => {
       // @ts-expect-error — probamos a propósito un tipo fuera del union (llegaría por un caller roto)
       service.presignarSubidaImagen({ key: "T1/branding/logo", contentType: "image/gif" }),
     ).rejects.toThrow(/no permitido/i);
+  });
+
+  // storagePublico.presign.003 — `application/pdf` NO entra por la puerta de las IMÁGENES (I1)
+  // La excepción del bucket público es SOLO el destino `bases`: logo/hero/portada/premio siguen
+  // cerrados a PDF, así que ningún PDF de PRODUCTO puede colarse por esos destinos.
+  it("rechaza `application/pdf` en la puerta de imágenes (logo/hero/portada/premio) — I1", async () => {
+    const service = crearStoragePublicoService(configFake);
+    for (const key of [
+      keyLogoTenant("T1"),
+      keyHeroTenant("T1"),
+      keyPortadaProducto("T1", "p9"),
+      keyPremioSorteo("T1", "r5"),
+    ]) {
+      await expect(
+        // @ts-expect-error — a propósito fuera del union de imagen (llegaría por un caller roto)
+        service.presignarSubidaImagen({ key, contentType: "application/pdf" }),
+      ).rejects.toThrow(/no permitido/i);
+    }
+  });
+});
+
+describe("services/storagePublico — presignarSubidaBases (PUT del PDF de bases)", () => {
+  // storagePublico.bases.001 — firma application/pdf para la key de bases del sorteo
+  it("firma un PUT `application/pdf` para la key de bases (SignedHeaders incluye content-type)", async () => {
+    const service = crearStoragePublicoService(configFake);
+    const url = await service.presignarSubidaBases({
+      key: keyBasesSorteo("T1", "r5"),
+      contentType: "application/pdf",
+      expiresEnSegundos: 600,
+    });
+
+    expect(url.startsWith(ENDPOINT)).toBe(true);
+    expect(decodeURIComponent(url)).toContain("T1/sorteo/r5/bases.pdf");
+    expect(url).toContain("X-Amz-Signature=");
+    expect(url).toContain("X-Amz-Expires=600");
+    // El content-type va FIRMADO: la URL solo vale para `application/pdf`.
+    const signedHeaders = decodeURIComponent(
+      new URL(url).searchParams.get("X-Amz-SignedHeaders") ?? "",
+    );
+    expect(signedHeaders).toContain("content-type");
+    // La secretKey NUNCA aparece en la URL firmada (I5).
+    expect(url).not.toContain(SECRET);
+  });
+
+  // storagePublico.bases.002 — el destino `bases` NO es una puerta genérica: solo PDF
+  it("rechaza un content-type que no sea application/pdf en el destino bases (defensa en profundidad I6)", async () => {
+    const service = crearStoragePublicoService(configFake);
+    for (const contentType of ["image/png", "text/html", "application/octet-stream"]) {
+      await expect(
+        service.presignarSubidaBases({ key: keyBasesSorteo("T1", "r5"), contentType }),
+      ).rejects.toThrow(/no permitido/i);
+    }
   });
 });
 

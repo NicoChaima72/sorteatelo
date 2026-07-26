@@ -116,72 +116,66 @@ enum PaymentStatus {
 // Una Tienda: la unidad de aislamiento del SaaS (ADR-0005). Vive en su subdominio
 // (slug, ADR-0007). Entidad de plataforma — NO lleva tenantId. Ver CONTEXT.md § Tienda.
 model Tenant {
-  id            String       @id @default(cuid())
-  slug          String       @unique // subdominio, único a nivel plataforma (S3); inmutable tras publicar
-  nombre        String
-  estado        TenantStatus @default(ALTA) // ciclo de vida (S9): solo PUBLICADA resuelve storefront
+  id             String       @id @default(cuid())
+  slug           String       @unique // subdominio, único a nivel plataforma (S3); inmutable tras publicar
+  nombre         String
+  estado         TenantStatus @default(ALTA) // ciclo de vida (S9): solo PUBLICADA resuelve storefront
   // Config básica de plantilla (F05/D8, S4): el Organizador la carga en el panel;
   // el theming real del storefront sobre estos valores lo hace F06 (solo persiste acá).
-  descripcion   String? // texto breve de la tienda (marketing)
-  logoUrl       String? // ref al logo (F06 define su storage/tratamiento real)
-  colorPrimario String? // color de marca del tenant (hex/HSL; F06 lo aplica al tema)
+  descripcion    String? // texto breve de la tienda (marketing)
+  logoUrl        String? // ref al logo (F06 define su storage/tratamiento real)
+  colorPrimario  String? // color de marca del tenant (hex/HSL; F06 lo aplica al tema)
   // Segundo color de marca (builder-tanda-1 F01, ADR-0016). Tratamiento ESPEJO de colorPrimario:
   // hex validado con esHex ⇒ generarEscalaColor deriva 10 tonos ⇒ overrideDesdeBranding agrega
   // colors.acento al theme (CSS vars --mantine-color-acento-*). null ⇒ los esquemas/tonos `acento*`
   // del documento degradan a la escala de MARCA (nunca error ni sección ilegible, I-T2). Vive fuera
   // del Documento de Página (I-T1); se edita en el panel Tema del EDITOR, no en el admin. No queriable
   // (se lee por el tenant ya resuelto) ⇒ sin @@index.
-  colorAcento   String? // segundo color de marca del tenant (hex); null = degrada a la escala de marca
+  colorAcento    String? // segundo color de marca del tenant (hex); null = degrada a la escala de marca
   // Chrome GLOBAL de la Tienda (Tanda 3 F06/D10, ADR propuesto). Header/footer configurable transversal a
   // TODAS las páginas (validado por `ChromeSchema` al escribir; menú discriminado ancla|pagina|url). null ⇒
   // el header/footer ACTUALES byte-idénticos (no-op, I-U8/I-H). Los nodos PINNED (carrito/sesión/atribución/
   // Bases ADR-0008) se renderizan por plataforma FUERA de este JSON ⇒ no-borrables por construcción (I-U2).
   // No queriable (se lee por el tenant ya resuelto por id/slug) ⇒ sin @@index.
-  chromeJson    Json? // config del chrome; null = header/footer default (actuales)
-  // ── Textos del storefront (F06/D4, schema-guardian APPROVE). El Organizador los edita en el
-  // panel (guardarConfiguracionTienda); el render del hero/aviso los consume con fallback. NO
-  // queriables (se leen por el tenant ya resuelto por id/slug) ⇒ sin @@index.
-  // OJO: `avisoTexto` es un banner promocional OPCIONAL — NO es el Disclaimer del sorteo
-  // (ADR-0008/D7), que es obligatorio, fijo de plataforma y se muestra siempre con sorteo activo.
-  heroTitulo    String? // título del hero del storefront; fallback a `nombre`
-  heroSubtitulo String? // subtítulo del hero; fallback a `descripcion`
-  heroImageUrl  String? // URL PÚBLICA (bucket R2 público, ADR-0013) de la imagen del hero, con cache-buster ?v= (plantilla-rica F02/D2); null ⇒ gradiente temático (degradación elegante D7). No queriable ⇒ sin @@index
-  avisoTexto    String? // banner de aviso opcional; null = no se muestra
+  chromeJson     Json? // config del chrome; null = header/footer default (actuales)
   // ── Redes y contacto público del footer (plantilla-rica F02/D2, ADR-0013). Editables por el
   // Organizador en Configuración (guardarConfiguracionTienda); el footer las consume con degradación
   // elegante (D7: red faltante ⇒ se oculta el ícono). No queriables (se leen por el tenant ya
   // resuelto) ⇒ sin @@index.
-  instagramUrl  String? // URL del perfil de Instagram; null = ícono oculto
-  tiktokUrl     String? // URL del perfil de TikTok; null = ícono oculto
-  whatsappUrl   String? // enlace de WhatsApp; null = ícono oculto
-  contactoEmail String? // email de contacto PÚBLICO del Organizador (footer). Distinto de Order.email (identidad del comprador, ADR-0004)
-  // Bases del sorteo como TEXTO borrador del Organizador (F05/D8, ADR-0008). Distinto de
-  // `Raffle.basesUrl` (F02), que es el enlace al ARCHIVO de bases (lo sube F03). Coexisten a
-  // propósito: acá vive el borrador editable a nivel Tienda; el archivo final vive en el Sorteo.
-  basesSorteo   String?
+  instagramUrl   String? // URL del perfil de Instagram; null = ícono oculto
+  tiktokUrl      String? // URL del perfil de TikTok; null = ícono oculto
+  whatsappUrl    String? // enlace de WhatsApp; null = ícono oculto
+  contactoEmail  String? // email de contacto PÚBLICO del Organizador (footer). Distinto de Order.email (identidad del comprador, ADR-0004)
+  // ── Lo que NO vive en Tenant (admin-bases-pdf F07/D3/D8) ─────────────────────────────
+  // Hero (título/subtítulo/imagen) y aviso: viven en el Documento de Página (`StorefrontPage`,
+  // ADR-0016) y se editan en el EDITOR. Las columnas homónimas existieron hasta F07 y se
+  // dropearon con su contenido ya representado en el Documento (script F05: 0 pendientes).
+  // Bases legales del sorteo: `Raffle.basesPdfUrl` — PDF por Sorteo (D2/ADR-0008), no texto acá.
   // ── Aceptación de los Términos de Servicio (F08/D2, ADR-0008). Los 3 se escriben JUNTOS en
   // aceptarTos. Espejan el patrón de auditoría de Raffle (ejecutadoAt/ejecutadoPor), con una
   // diferencia: acá es write-MANY (se sobrescriben al re-aceptar una versión nueva del ToS) — el
   // historial legal completo se difiere a un modelo TosAcceptance en F10. El gate de publicación
   // exige tosVersion === TOS_VERSION vigente. No queriables (se leen por el tenant ya resuelto) ⇒ sin @@index.
-  tosVersion     String?   // versión del ToS aceptada (ej. "2026-07-17"); null = nunca aceptó
+  tosVersion     String? // versión del ToS aceptada (ej. "2026-07-17"); null = nunca aceptó
   tosAceptadoAt  DateTime? // timestamp de la última aceptación; null hasta aceptar
-  tosAceptadoPor String?   // snapshot del EMAIL del aceptante (durable si el User se borra, ADR-0004)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  tosAceptadoPor String? // snapshot del EMAIL del aceptante (durable si el User se borra, ADR-0004)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  flowCredential FlowCredential?
-  products       Product[]
-  orders         Order[]
-  orderItems     OrderItem[]
-  payments       Payment[]
-  raffles        Raffle[] // efectos post-pago F02
-  raffleEntries  RaffleEntry[] // efectos post-pago F02
-  downloadGrants DownloadGrant[] // efectos post-pago F02
-  memberships    TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
-  storefrontPages StorefrontPage[] // Página(s) de tienda del page builder (ADR-0016)
+  flowCredential         FlowCredential?
+  products               Product[]
+  orders                 Order[]
+  orderItems             OrderItem[]
+  payments               Payment[]
+  raffles                Raffle[] // efectos post-pago F02
+  raffleEntries          RaffleEntry[] // efectos post-pago F02
+  downloadGrants         DownloadGrant[] // efectos post-pago F02
+  memberships            TenantMembership[] // Organizadores que administran esta Tienda (F05, S6)
+  checkoutFields         CheckoutField[] // definiciones de Campos de checkout de esta Tienda (F01)
+  checkoutFieldResponses CheckoutFieldResponse[] // Respuestas de checkout snapshot de sus compras (F01)
+  storefrontPages        StorefrontPage[] // Página(s) de tienda del page builder (ADR-0016)
   storefrontPageVersions StorefrontPageVersion[] // Snapshots de publicación (F12, ADR-0016)
-  pageAssets      PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
+  pageAssets             PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
 }
 
 // Credenciales Flow propias del Organizador (BYO-Flow, ADR-0006). 1-1 con Tenant.
@@ -221,38 +215,39 @@ model TenantMembership {
 // Un producto digital descargable (MVP: PDF) que una Tienda vende. Ver CONTEXT.md § Producto.
 // (rename de Book — D3/S5). Pertenece a exactamente una Tienda (tenantId).
 model Product {
-  id             String          @id @default(cuid())
-  tenantId       String
-  titulo         String
-  descripcion    String
-  precio         Decimal         @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
-  portadaUrl     String?
-  pdfPath        String? // null = PDF pendiente; NO-null = key determinística `<tenantId>/<productId>.pdf` verificada en R2 privado (ADR-0002/0009), la escribe SOLO confirmarPdfProducto tras headObject; nunca enlace público
-  activo         Boolean         @default(true)
-  participaEnSorteo Boolean      @default(false) // opt-in al Sorteo (ADR-0012/D1): comprarlo genera Tickets en el Raffle ACTIVO del tenant. Se snapshotea en OrderItem al comprar. No queriable por sí solo (se lee por el Product ya scopeado) ⇒ sin @@index
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  orderItems     OrderItem[]
-  downloadGrants DownloadGrant[] // efectos post-pago F02
+  id                String          @id @default(cuid())
+  tenantId          String
+  titulo            String
+  descripcion       String
+  precio            Decimal         @db.Decimal(15, 2) // precio final al público, IVA incluido (I4)
+  portadaUrl        String?
+  pdfPath           String? // null = PDF pendiente; NO-null = key determinística `<tenantId>/<productId>.pdf` verificada en R2 privado (ADR-0002/0009), la escribe SOLO confirmarPdfProducto tras headObject; nunca enlace público
+  activo            Boolean         @default(true)
+  participaEnSorteo Boolean         @default(false) // opt-in al Sorteo (ADR-0012/D1): comprarlo genera Tickets en el Raffle ACTIVO del tenant. Se snapshotea en OrderItem al comprar. No queriable por sí solo (se lee por el Product ya scopeado) ⇒ sin @@index
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  orderItems        OrderItem[]
+  downloadGrants    DownloadGrant[] // efectos post-pago F02
 
   @@index([tenantId, activo]) // el catálogo consulta WHERE tenantId = ? AND activo = true; sirve tenant-only por prefijo
 }
 
 // Una compra dentro de una Tienda. Identidad del comprador = su correo (ADR-0004). Ver CONTEXT.md § Orden.
 model Order {
-  id             String          @id @default(cuid())
-  tenantId       String
-  email          String // identidad del comprador (ADR-0004)
-  estado         OrderStatus     @default(PENDIENTE)
-  total          Decimal         @db.Decimal(15, 2) // suma de precios de ítems (I4)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  items          OrderItem[]
-  payment        Payment?
-  downloadGrants DownloadGrant[] // efectos post-pago F02
-  raffleEntries  RaffleEntry[] // efectos post-pago F02
+  id                String                  @id @default(cuid())
+  tenantId          String
+  email             String // identidad del comprador (ADR-0004)
+  estado            OrderStatus             @default(PENDIENTE)
+  total             Decimal                 @db.Decimal(15, 2) // suma de precios de ítems (I4)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  items             OrderItem[]
+  payment           Payment?
+  downloadGrants    DownloadGrant[] // efectos post-pago F02
+  raffleEntries     RaffleEntry[] // efectos post-pago F02
+  checkoutResponses CheckoutFieldResponse[] // Respuestas de checkout congeladas al comprar (F01)
 
   @@index([tenantId, email]) // búsquedas siempre tenant-scoped; sirve tenant-only por prefijo
   @@index([tenantId, estado])
@@ -318,25 +313,32 @@ enum RaffleStatus {
 // NO constraint de DB (Prisma no expresa unique parciales). El use case lo lee con
 // `findFirst` scoped al tenantId de la orden. Ver CONTEXT.md § Sorteo.
 model Raffle {
-  id           String       @id @default(cuid())
-  tenantId     String
-  nombre       String
-  premio       String
-  estado       RaffleStatus @default(ACTIVO)
-  fechaInicio  DateTime
-  fechaFin     DateTime
-  basesUrl       String? // bases del sorteo (del Organizador, ADR-0008); carga real en F05
+  id             String       @id @default(cuid())
+  tenantId       String
+  nombre         String
+  premio         String
+  estado         RaffleStatus @default(ACTIVO)
+  fechaInicio    DateTime
+  fechaFin       DateTime
+  // ── Bases legales del sorteo (ADR-0008): PDF por Sorteo (admin-bases-pdf F01/F02, D2) ────
+  // URL PÚBLICA (bucket R2 público, ADR-0013 + destino nuevo `bases`) del PDF de bases, con
+  // cache-buster ?v=. La escribe SOLO la confirmación server-side (presigned PUT + headObject)
+  // sobre la key derivada server-side `<tenantId>/sorteo/<raffleId>/bases.pdf` — el cliente nunca
+  // manda key ni URL (I2/I6). Único PDF admitido en el bucket público (I1: jamás un PDF de
+  // PRODUCTO). null ⇒ sin bases cargadas ⇒ bloquea el gate de publicación con Raffle ACTIVO (F03).
+  // No queriable (se lee por el Raffle ya resuelto vía @@index([tenantId, estado])) ⇒ sin @@index.
+  basesPdfUrl    String?
   premioImageUrl String? // URL PÚBLICA (bucket R2 público, ADR-0013) de la imagen del premio, con cache-buster ?v= (plantilla-rica F02/D5); null ⇒ gradiente temático (D7). No queriable ⇒ sin @@index
   // ── Ejecución auditable del sorteo (F05, aditivo sobre el modelo de F02). ──────────
   // Los tres campos se escriben JUNTOS, UNA sola vez, en el use case que ejecuta el
   // sorteo (transición ACTIVO→CERRADO). `ejecutadoAt` es la llave de idempotencia:
   // null = no ejecutado; el guard es `WHERE ejecutadoAt IS NULL` — invariante de use
   // case, NO constraint de DB (mismo criterio que "1 Raffle ACTIVO por tenant", S5).
-  ganadorEmail String? // snapshot del correo del ganador (identidad = correo, ADR-0004); denormalizado, sin 2ª FK a RaffleEntry
-  ejecutadoAt  DateTime? // timestamp de ejecución; null hasta ejecutar (llave de idempotencia)
-  ejecutadoPor String? // snapshot del EMAIL del ejecutor (auditoría de "quién"; durable si el User se borra, ADR-0004)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  ganadorEmail   String? // snapshot del correo del ganador (identidad = correo, ADR-0004); denormalizado, sin 2ª FK a RaffleEntry
+  ejecutadoAt    DateTime? // timestamp de ejecución; null hasta ejecutar (llave de idempotencia)
+  ejecutadoPor   String? // snapshot del EMAIL del ejecutor (auditoría de "quién"; durable si el User se borra, ADR-0004)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   entries RaffleEntry[]
@@ -462,4 +464,89 @@ model PageAsset {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId]) // listar + contar (cuota) por tenant; ambos WHERE tenantId = ?
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Campos de checkout configurables por tenant (F01, tasks/26-07-25-checkout-campos-configurables).
+// Aprobado por schema-guardian (REQUEST_CHANGES → resuelto; aplicado con db push ADITIVO).
+// ADITIVO: 1 enum + 2 tablas nuevas + back-relations (sin DDL sobre modelos existentes).
+// Aplicaciones locales de ADR-0004 (identidad = correo, NO configurable), ADR-0005 (tenancy) y
+// ADR-0012 (snapshot al comprar). El dinero no se toca (I8): total/precios/Payment idénticos.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CheckoutFieldType {
+  TEXTO
+  TELEFONO
+  NUMERO
+  SELECT
+  CHECKBOX
+}
+
+// Definición de un dato ADICIONAL que una Tienda le pide al Comprador en su checkout (D1/D7).
+// El correo NO es un CheckoutField: es fijo, obligatorio y primero (Order.email, ADR-0004/I2);
+// `email`/`correo` son claves RESERVADAS (guard de use case, D7). Ver CONTEXT.md § Campo de checkout.
+//
+// onDelete: Cascade — es CONFIGURACIÓN del checkout de SU Tienda (define qué se PREGUNTA), sin vida
+// propia fuera de ella y sin registrar ningún hecho: mismo criterio que FlowCredential/StorefrontPage/
+// PageAsset. El Restrict del dominio comercial protege REGISTROS (plata, compras, PII de terceros) —
+// acá ese blindaje lo aporta CheckoutFieldResponse, que sí es registro y sí va Restrict. Con Restrict
+// acá, un tenant que solo configuró campos y nunca vendió quedaría indeleble sin ganancia alguna.
+//
+// Ciclo de vida (D5): `clave` y `tipo` INMUTABLES tras crear; el resto editable libre (la historia la
+// protege el snapshot); `activo=false` reversible saca el campo del checkout; hard delete permitido
+// (las respuestas le sobreviven, fieldId → SetNull). Máx. 10 ACTIVOS por tenant (D6/I6): invariante de
+// use case recontado dentro de la $tx, NO constraint de DB (Prisma no expresa unique parciales — mismo
+// criterio que "1 Raffle ACTIVO por tenant", S5).
+model CheckoutField {
+  id             String            @id @default(cuid())
+  tenantId       String
+  clave          String // slug estable derivado de la etiqueta al crear, con sufijo anti-colisión (D7); INMUTABLE después. Es la llave del snapshot y el encabezado de columna del CSV (D9)
+  etiqueta       String // texto visible en el checkout; editable libre (el snapshot congela la vigente al comprar)
+  tipo           CheckoutFieldType // INMUTABLE tras crear (D5): cambiar de tipo ⇒ desactivar/borrar y crear un campo nuevo
+  obligatorio    Boolean           @default(false) // NO aplica a CHECKBOX (D4/I5): el use case lo NORMALIZA a false al escribir un CHECKBOX, así ninguna capa de render necesita el caso especial
+  placeholder    String? // texto guía dentro del input; null = sin placeholder
+  textoAyuda     String? // ayuda breve bajo el input; null = sin ayuda
+  posicion       Int               @default(0) // orden en el form; SIN unique a propósito (reordenar contra un unique exige swaps temporales). Empates ⇒ el use case ordena [posicion asc, createdAt asc] para un orden TOTAL determinista
+  activo         Boolean           @default(true) // false = fuera del checkout, reversible (D5); los inactivos no cuentan para el límite de 10
+  opciones       String[]          @default([]) // SOLO SELECT: valores admitidos en orden de render; el server valida PERTENENCIA (D3). Vacío en el resto. text[] nativo, no Json: el tipo del elemento lo garantiza la DB
+  defaultMarcado Boolean           @default(false) // SOLO CHECKBOX: valor con el que se materializa la respuesta si el input no la trae (D4)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  responses CheckoutFieldResponse[]
+
+  @@unique([tenantId, clave]) // una clave por Tienda; el prefijo [tenantId] cubre el listado tenant-scoped (panel y checkout) ⇒ sin @@index extra: con ≤10 activos, filtrar `activo` y ordenar `posicion` en heap es gratis. OJO: el unique alcanza también a los INACTIVOS ⇒ la derivación de clave (D7) debe desambiguar contra ellos
+}
+
+// Snapshot AUTOCONTENIDO de lo que el Comprador respondió en UNA Orden (D2/I4). Una fila por campo
+// respondido, congelada al comprar dentro de la MISMA $transaction que la Order (mismo espíritu que
+// OrderItem.precio, ADR-0012). Autocontenido = clave + etiqueta + tipo + valor: el panel de ventas (F06)
+// y el CSV (F07) la renderizan SIN leer la definición, que puede estar borrada (D5) o recreada con otro
+// tipo bajo la misma clave. Inmutable ⇒ sin updatedAt. Es PII del Comprador bajo custodia de la Tienda
+// (I7): se expone solo al Organizador con membresía del tenant dueño; jamás en endpoints públicos ni logs.
+// Ver CONTEXT.md § Respuesta de checkout.
+//
+// onDelete: Order Cascade (composición intrínseca del agregado Order, igual que OrderItem — y PII
+// colgando de una orden inexistente sería lo peor de los dos mundos); Tenant Restrict (registro de una
+// compra: una Tienda se SUSPENDE, no se borra — S9/ADR-0005); CheckoutField SetNull (la definición es
+// borrable por diseño y la respuesta le sobrevive intacta, D5).
+model CheckoutFieldResponse {
+  id        String            @id @default(cuid())
+  tenantId  String
+  orderId   String
+  fieldId   String? // definición vigente al comprar; null si esa definición se borró después (D5)
+  clave     String // snapshot congelado: llave estable de la respuesta y encabezado de columna del CSV (D9)
+  etiqueta  String // snapshot congelado: lo que el Comprador LEYÓ al responder (renombrar el campo no reescribe la historia)
+  tipo      CheckoutFieldType // snapshot congelado: cómo se RENDERIZA el valor sin la definición. Sin esta columna la fila NO sería autocontenida (F06/F07 mostrarían "true" crudo)
+  valor     String // valor CANÓNICO serializado, NUNCA humanizado: CHECKBOX ⇒ "true"|"false"; NUMERO ⇒ entero base 10 sin separadores; SELECT ⇒ la opción exacta; TELEFONO ⇒ normalizado; TEXTO ⇒ trim (largo acotado en Zod). El formato de presentación vive en la UI y en el armado del CSV, no en la columna
+  createdAt DateTime          @default(now())
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order  Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  field  CheckoutField? @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, clave]) // una respuesta por (orden, campo); orderId ya es tenant-bound ⇒ sin tenantId redundante (mismo criterio que OrderItem). El prefijo cubre el detalle de venta (F06)
+  @@index([tenantId]) // lecturas tenant-wide del export (F07: claves distintas del conjunto); esta tabla crece con las órdenes de TODA la plataforma
+  @@index([fieldId]) // NECESARIO por el SetNull: sin él, borrar una definición (D5) obliga a Postgres a un seq scan completo para el chequeo de integridad referencial
 }

@@ -7,6 +7,7 @@ import {
   useCountdown,
 } from "~/components/storefront/use-countdown";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
+import { ANCLAS_QUE_SON_RUTA } from "~/lib/pagebuilder/nav";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 
@@ -54,7 +55,12 @@ function UrgenciaInner({
   if (t.terminado) return null; // auto-oculto al vencer
 
   const fuerte = props.intensidad === "fuerte";
-  const ctaHref = props.ctaAncla === "sorteo" ? "#sorteo" : "#catalogo";
+  // Un ancla de RUTA (hoy solo `bases` ⇒ `/bases`, D14) gana: es el enlace LEGAL al PDF del sorteo,
+  // no un target de scroll. El resto del enum sigue colapsando a los dos destinos históricos de este
+  // widget (sorteo/catálogo) — ese colapso es previo a este plan y no se toca acá.
+  const ctaHref =
+    ANCLAS_QUE_SON_RUTA[props.ctaAncla] ??
+    (props.ctaAncla === "sorteo" ? "#sorteo" : "#catalogo");
   const estilo =
     nodo.estilo ?? (fuerte ? ESTILO_FUERTE_DEFAULT : ESTILO_SUAVE_DEFAULT);
 

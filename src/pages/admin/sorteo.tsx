@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Divider,
+  FileInput,
   Group,
   Modal,
   Radio,
@@ -18,6 +19,7 @@ import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import {
   IconCalendarEvent,
+  IconFileText,
   IconHistory,
   IconPencil,
   IconPlayerPlay,
@@ -33,16 +35,23 @@ import { useState } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
 import { AssetUploader } from "~/components/admin/asset-uploader";
+import { BasesUploader } from "~/components/admin/bases-uploader";
 import { EmptyState } from "~/components/admin/empty-state";
 import { PanelCard } from "~/components/admin/panel-card";
 import { StatCard } from "~/components/admin/stat-card";
+import {
+  ACCEPT_BASES,
+  useSubirBasesSorteo,
+} from "~/components/admin/use-subir-bases";
 import { fecha, fechaHora, num } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api, type RouterOutputs } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
 
@@ -54,7 +63,6 @@ interface SorteoFormValues {
   nombre: string;
   premio: string;
   fechaFin: string;
-  basesUrl: string;
 }
 
 /** Reglas de validación compartidas por el form de crear y el de editar (Mantine `useForm`). */
@@ -68,10 +76,6 @@ const VALIDACION_SORTEO = {
     if (d.getTime() <= Date.now()) return "La fecha de cierre debe ser futura";
     return null;
   },
-  basesUrl: (v: string) =>
-    v && !/^https?:\/\//i.test(v.trim())
-      ? "Ingresa un enlace válido (empieza con http)"
-      : null,
 };
 
 /** `Date` → valor de un `<input type="datetime-local">` (`YYYY-MM-DDTHH:mm`, hora LOCAL). */
@@ -80,7 +84,9 @@ function aInputDateTime(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** Campos comunes de un form de sorteo (nombre, premio, fechaFin, basesUrl). */
+/** Campos comunes de un form de sorteo (nombre, premio, fechaFin). Las BASES no son un campo del
+ *  form: son un PDF que se SUBE (admin-bases-pdf F02/D2) — al crear, diferido tras `crearSorteo`;
+ *  en el sorteo activo, con el `BasesUploader` inmediato. */
 function CamposSorteo({ form }: { form: UseFormReturnType<SorteoFormValues> }) {
   return (
     <Stack gap="md">
@@ -104,12 +110,6 @@ function CamposSorteo({ form }: { form: UseFormReturnType<SorteoFormValues> }) {
         min={aInputDateTime(new Date())}
         {...form.getInputProps("fechaFin")}
       />
-      <TextInput
-        label="Enlace a las bases (opcional)"
-        description="Enlace informativo del sorteo. Las bases legales para publicar se cargan en Configuración."
-        placeholder="https://…"
-        {...form.getInputProps("basesUrl")}
-      />
     </Stack>
   );
 }
@@ -122,36 +122,52 @@ function FormularioCrearSorteo({ pasados }: { pasados: SorteoDeLista[] }) {
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
   const form = useForm({
-    initialValues: { nombre: "", premio: "", fechaFin: "", basesUrl: "" },
+    initialValues: { nombre: "", premio: "", fechaFin: "" },
     validate: VALIDACION_SORTEO,
   });
 
-  const crear = api.panel.crearSorteo.useMutation({
-    onSuccess: async () => {
+  // Las bases se suben DIFERIDO (admin-bases-pdf F02/D2): la key es per-raffle, así que el PDF
+  // adjuntado acá se sube DESPUÉS de `crearSorteo`, con el id recién creado. Mismo modo que la
+  // portada de un producto nuevo (frontend-conventions § Subida de imágenes de marca).
+  const [basesFile, setBasesFile] = useState<File | null>(null);
+  const { subir: subirBases, subiendo: subiendoBases } = useSubirBasesSorteo();
+
+  const crear = api.panel.crearSorteo.useMutation();
+
+  const onSubmit = form.onSubmit(async (values) => {
+    try {
+      const creado = await crear.mutateAsync({
+        nombre: values.nombre.trim(),
+        premio: values.premio.trim(),
+        fechaFin: new Date(values.fechaFin),
+        importarDesdeRaffleId: importarDesde ?? undefined,
+      });
+      // Si se adjuntaron bases, subirlas con el id recién creado (presigned PUT + confirmación).
+      if (basesFile) await subirBases(creado.id, basesFile);
       await Promise.all([
         utils.panel.getSorteo.invalidate(),
         utils.panel.listarSorteos.invalidate(),
       ]);
       form.reset();
       setImportarDesde(null);
+      setBasesFile(null);
       notifications.show({
-        message: "Sorteo creado. Ya está activo.",
+        message: basesFile
+          ? "Sorteo creado con sus bases. Ya está activo."
+          : "Sorteo creado. Ya está activo.",
         color: "green",
       });
-    },
-    onError: (error) => {
-      notifications.show({ message: error.message, color: "red" });
-    },
-  });
-
-  const onSubmit = form.onSubmit((values) => {
-    crear.mutate({
-      nombre: values.nombre.trim(),
-      premio: values.premio.trim(),
-      fechaFin: new Date(values.fechaFin),
-      basesUrl: values.basesUrl.trim() || undefined,
-      importarDesdeRaffleId: importarDesde ?? undefined,
-    });
+    } catch (e) {
+      notifications.show({
+        message: e instanceof Error ? e.message : "No pudimos crear el sorteo.",
+        color: "red",
+      });
+      // El sorteo pudo crearse y fallar solo la subida: refrescar para no dejar la UI mintiendo.
+      await Promise.all([
+        utils.panel.getSorteo.invalidate(),
+        utils.panel.listarSorteos.invalidate(),
+      ]);
+    }
   });
 
   const origen = pasados.find((s) => s.id === importarDesde) ?? null;
@@ -174,6 +190,19 @@ function FormularioCrearSorteo({ pasados }: { pasados: SorteoDeLista[] }) {
 
       <form onSubmit={onSubmit}>
         <CamposSorteo form={form} />
+
+        <Divider my="md" label="Bases del sorteo" labelPosition="left" />
+        <FileInput
+          label="Bases del sorteo (PDF)"
+          description="Obligatorias para publicar tu tienda con el sorteo activo. Puedes adjuntarlas ahora o subirlas después. La responsabilidad legal de su contenido es tuya."
+          placeholder="Elegir el archivo PDF"
+          accept={ACCEPT_BASES}
+          clearable
+          value={basesFile}
+          onChange={setBasesFile}
+          disabled={crear.isPending || subiendoBases}
+          leftSection={<IconFileText className="size-4" />}
+        />
 
         {pasados.length > 0 && (
           <>
@@ -223,7 +252,7 @@ function FormularioCrearSorteo({ pasados }: { pasados: SorteoDeLista[] }) {
         <Group mt="lg">
           <Button
             type="submit"
-            loading={crear.isPending}
+            loading={crear.isPending || subiendoBases}
             leftSection={<IconPlus className="size-4" />}
           >
             Crear sorteo
@@ -281,19 +310,18 @@ function FormularioCrearSorteo({ pasados }: { pasados: SorteoDeLista[] }) {
   );
 }
 
-/** Panel del sorteo ACTIVO: stats + edición + imagen del premio + ejecución + participantes (F01/F02). */
-function PanelSorteoActivo({
-  sorteo,
-  enLista,
-}: {
-  sorteo: SorteoActual;
-  enLista: SorteoDeLista | undefined;
-}) {
+/**
+ * Panel del sorteo ACTIVO: stats + edición + imagen del premio + BASES (PDF) + ejecución +
+ * participantes (F01/F02; bases en admin-bases-pdf F02). Se alimenta SOLO de `getSorteo`: desde que
+ * las bases dejaron de ser un enlace de texto, el form de edición ya no necesita nada de
+ * `listarSorteos` para hidratarse (esa query queda para el Historial y el arrastre).
+ */
+function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
   const utils = api.useUtils();
   const [editando, setEditando] = useState(false);
 
   const form = useForm({
-    initialValues: { nombre: "", premio: "", fechaFin: "", basesUrl: "" },
+    initialValues: { nombre: "", premio: "", fechaFin: "" },
     validate: VALIDACION_SORTEO,
   });
 
@@ -332,7 +360,6 @@ function PanelSorteoActivo({
       nombre: sorteo.nombre,
       premio: sorteo.premio,
       fechaFin: aInputDateTime(sorteo.fechaFin),
-      basesUrl: enLista?.basesUrl ?? "",
     });
     setEditando(true);
   };
@@ -343,7 +370,6 @@ function PanelSorteoActivo({
       nombre: values.nombre.trim(),
       premio: values.premio.trim(),
       fechaFin: new Date(values.fechaFin),
-      basesUrl: values.basesUrl.trim() || undefined,
     });
   });
 
@@ -423,7 +449,6 @@ function PanelSorteoActivo({
                   size="xs"
                   leftSection={<IconPencil className="size-3.5" />}
                   onClick={abrirEdicion}
-                  disabled={!enLista}
                 >
                   Editar
                 </Button>
@@ -445,9 +470,22 @@ function PanelSorteoActivo({
               }}
             />
 
-            <Text size="xs" c="dimmed" mt="md">
-              Para publicar tu tienda con un sorteo activo, carga las bases legales en Configuración.
-            </Text>
+            <Divider my="md" />
+            {/* Bases del sorteo como PDF (admin-bases-pdf F02/D2, ADR-0008): viven en el SORTEO, no
+                en Configuración. Subida inmediata sobre el sorteo ya creado; reemplazar = re-subir. */}
+            <BasesUploader
+              raffleId={sorteo.id}
+              urlActual={sorteo.basesPdfUrl}
+              onSubido={async () => {
+                // Invalidar ambas: `listarSorteos` también proyecta `basesPdfUrl`, y el checklist de
+                // publicación depende de esta columna (el gate se recomputa server-side igual).
+                await Promise.all([
+                  utils.panel.getSorteo.invalidate(),
+                  utils.panel.listarSorteos.invalidate(),
+                  utils.panel.getEstadoPublicacion.invalidate(),
+                ]);
+              }}
+            />
 
             <div className="mt-4">
               <Group gap="sm" wrap="wrap">
@@ -590,7 +628,6 @@ export default function SorteoPage() {
   const sorteo = sorteoQuery.data?.sorteo ?? null;
   const hayActivo = sorteo?.estado === "ACTIVO";
   const lista = listaQuery.data?.sorteos ?? [];
-  const activoEnLista = lista.find((s) => s.estado === "ACTIVO");
   const cerrados = lista.filter((s) => s.ejecutadoAt != null);
   // Al no haber ACTIVO, todos los raffles listados son pasados: fuente del arrastre.
   const pasados = lista.filter((s) => s.estado !== "ACTIVO");
@@ -631,7 +668,7 @@ export default function SorteoPage() {
       ) : (
         <>
           {hayActivo && sorteo ? (
-            <PanelSorteoActivo sorteo={sorteo} enLista={activoEnLista} />
+            <PanelSorteoActivo sorteo={sorteo} />
           ) : (
             <FormularioCrearSorteo pasados={pasados} />
           )}

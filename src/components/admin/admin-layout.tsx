@@ -44,28 +44,45 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { signOut, useSession } from "next-auth/react";
-import { type ComponentType, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { CrearTienda } from "~/components/admin/crear-tienda";
 import { PageHeader } from "~/components/admin/page-header";
-import { abrirTienda } from "~/components/admin/url-tienda";
+import { abrirEditor, abrirTienda } from "~/components/admin/url-tienda";
 import { Wordmark } from "~/components/marca/wordmark";
+import { hrefApex, hrefSubdominio } from "~/lib/urlApex";
 import { APP_CONFIG } from "~/config/app";
-import { api } from "~/utils/api";
+import { api, type RouterOutputs } from "~/utils/api";
 
 type IconCmp = ComponentType<{ className?: string; stroke?: number | string }>;
 
 interface NavItem {
   label: string;
+  /** Ruta interna del panel. Ignorado cuando el item es una ACCIÓN (`onSelect`). */
   href: string;
   icon: IconCmp;
+  /**
+   * Acción en vez de navegación interna (admin-bases-pdf F06/D7): el ítem «Editor de la tienda» abre
+   * `<slug>.<apex>/editor` en otra pestaña — otra zona de la app, y con el Operador puede ser incluso
+   * otra tienda ⇒ no se navega con `next/link`. Con `onSelect` el rail renderiza un botón en vez de
+   * un `Link`. (Desde ADR-0022 el panel también vive en el subdominio, pero la salida sigue siendo
+   * navegación dura: el editor no comparte el router del panel.)
+   */
+  onSelect?: () => void;
 }
 
-interface TiendaAcceso {
-  nombre: string;
-  slug: string;
-  colorPrimario: string | null;
-}
+/**
+ * Una Tienda tal como la devuelve `getAccesoActual`. Se DERIVA del router (no se redeclara a mano):
+ * si el server cambia el shape, el compilador avisa acá (frontend-conventions § Tipos).
+ */
+type TiendaAcceso =
+  RouterOutputs["panel"]["getAccesoActual"]["tenants"][number];
 
 const NAV: NavItem[] = [
   { label: "Resumen", href: "/admin", icon: IconLayoutDashboard },
@@ -121,6 +138,30 @@ function RailNavLink({
   // SUAVE del cobalto (`sorteatelo-light`, dark-scheme-aware) + **barra de acento de 3px** al
   // borde del rail; inactivo = texto gris tenue; icono fino 17/1.7; texto 13px. `variant="subtle"`
   // (no `filled`) para que Mantine dé el hover suave sin el bloque pesado.
+  const propsVisuales = {
+    label: iconOnly ? undefined : item.label,
+    "aria-label": iconOnly ? item.label : undefined,
+    leftSection: <Icon className="size-[17px]" stroke={1.7} />,
+    active,
+    variant: "subtle" as const,
+    color: "sorteatelo",
+    styles: {
+      root: {
+        borderRadius: 8,
+        padding: iconOnly ? "8px 0" : "7px 10px",
+        justifyContent: iconOnly ? "center" : undefined,
+        background: active ? "var(--mantine-color-sorteatelo-light)" : undefined,
+        color: active
+          ? "var(--mantine-color-white)"
+          : "var(--mantine-color-gray-4)",
+      },
+      // Colapsado: sin body ⇒ el section (ícono) queda solo y se centra con el justify del root.
+      body: iconOnly ? { display: "none" } : undefined,
+      section: iconOnly ? { marginInlineEnd: 0 } : undefined,
+      label: { fontSize: 13, fontWeight: active ? 600 : 400 },
+    },
+  };
+
   const nav = (
     <div className="relative mb-0.5">
       {active && (
@@ -130,34 +171,27 @@ function RailNavLink({
           style={{ background: "var(--mantine-color-sorteatelo-4)" }}
         />
       )}
-      <NavLink
-        component={Link}
-        href={item.href}
-        label={iconOnly ? undefined : item.label}
-        aria-label={iconOnly ? item.label : undefined}
-        leftSection={<Icon className="size-[17px]" stroke={1.7} />}
-        active={active}
-        onClick={onNavigate}
-        variant="subtle"
-        color="sorteatelo"
-        styles={{
-          root: {
-            borderRadius: 8,
-            padding: iconOnly ? "8px 0" : "7px 10px",
-            justifyContent: iconOnly ? "center" : undefined,
-            background: active
-              ? "var(--mantine-color-sorteatelo-light)"
-              : undefined,
-            color: active
-              ? "var(--mantine-color-white)"
-              : "var(--mantine-color-gray-4)",
-          },
-          // Colapsado: sin body ⇒ el section (ícono) queda solo y se centra con el justify del root.
-          body: iconOnly ? { display: "none" } : undefined,
-          section: iconOnly ? { marginInlineEnd: 0 } : undefined,
-          label: { fontSize: 13, fontWeight: active ? 600 : 400 },
-        }}
-      />
+      {/* Un item es LINK (ruta del panel) o ACCIÓN (abre otro host). Se renderizan en dos ramas
+          explícitas en vez de spreadear la unión de props: el `component` polimórfico de Mantine no
+          estrecha bien un spread condicional. Los props visuales son los MISMOS objetos. */}
+      {item.onSelect ? (
+        <NavLink
+          component="button"
+          type="button"
+          onClick={() => {
+            item.onSelect?.();
+            onNavigate();
+          }}
+          {...propsVisuales}
+        />
+      ) : (
+        <NavLink
+          component={Link}
+          href={item.href}
+          onClick={onNavigate}
+          {...propsVisuales}
+        />
+      )}
     </div>
   );
   return iconOnly ? (
@@ -180,11 +214,14 @@ function NavbarContent({
   onNavigate,
   esOperador,
   iconOnly,
+  tiendaSlug,
 }: {
   pathname: string;
   onNavigate: () => void;
   esOperador: boolean;
   iconOnly: boolean;
+  /** Slug de la Tienda activa; `null` mientras carga o si el usuario no administra ninguna. */
+  tiendaSlug: string | null;
 }) {
   return (
     <div
@@ -267,6 +304,24 @@ function NavbarContent({
           Grillos (Canales/Equipo/Ajustes al pie). */}
       <div className="p-2">
         <Divider color="dark.5" mb={6} />
+        {/* Puente al EDITOR de la tienda (admin-bases-pdf F06/D7, opción D): hasta ahora el panel no
+            enlazaba al editor por ningún lado. Es una ACCIÓN, no una ruta del panel: el editor vive
+            en el subdominio de la Tienda. Sin tienda (o mientras carga) no se muestra. */}
+        {tiendaSlug && (
+          <RailNavLink
+            item={{
+              label: "Editor de la tienda",
+              href: "#",
+              // `IconExternalLink` como en «Ver mi tienda»: los dos abren OTRO host en pestaña nueva,
+              // así que comparten la señal visual de salida (consistencia interna del rail).
+              icon: IconExternalLink,
+              onSelect: () => abrirEditor(tiendaSlug, tiendaSlug),
+            }}
+            active={false}
+            iconOnly={iconOnly}
+            onNavigate={onNavigate}
+          />
+        )}
         {NAV_CONFIG.map((item) => (
           <RailNavLink
             key={item.href}
@@ -295,14 +350,28 @@ function NavbarContent({
 }
 
 /**
- * Selector de tienda en el HEADER (D6 revisado): muestra la tienda activa con su swatch de
- * `colorPrimario` (único color-desde-dato del admin, I4). Con UNA sola tienda es un chip estático;
- * con más de una es un `Menu` para cambiar. (El cambio efectivo de tienda —resolver otro tenantId
- * server-side— es feature de multi-tienda post-MVP; acá va la UI del switch.)
+ * Selector de tienda en el HEADER (D6 revisado; funcional desde admin-multi-tienda F05/D4).
+ *
+ * Muestra la tienda ACTIVA —la del subdominio donde corre el panel, no `tiendas[0]`— con su swatch
+ * de `colorPrimario` (único color-desde-dato del admin, §2/§9 de design.md). Con una sola membresía
+ * y sin otra tienda a la que ir, es un chip estático; si hay más, es un `Menu` de navegación REAL:
+ * cada ítem es un `<a href>` absoluto al `/admin` de esa tienda (D4: siempre el dashboard, no la
+ * ruta actual). Cambiar de tienda es cambiar de HOST ⇒ navegación dura, jamás `next/link`.
+ *
+ * El href se calcula solo tras montar (`window.location`); hasta entonces el ítem no navega.
  */
-function TiendaSwitcher({ tiendas }: { tiendas: TiendaAcceso[] }) {
-  const activa = tiendas[0];
-  if (!activa) return null;
+function TiendaSwitcher({
+  tiendas,
+  activa,
+}: {
+  tiendas: TiendaAcceso[];
+  activa: TiendaAcceso;
+}) {
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
+  // Las OTRAS tiendas del usuario (a la activa ya se está adentro).
+  const otras = tiendas.filter((t) => t.slug !== activa.slug);
 
   const contenido = (
     <Group gap={8} wrap="nowrap">
@@ -314,7 +383,7 @@ function TiendaSwitcher({ tiendas }: { tiendas: TiendaAcceso[] }) {
       <Text size="sm" fw={500} truncate maw={160}>
         {activa.nombre}
       </Text>
-      {tiendas.length > 1 && (
+      {otras.length > 0 && (
         <IconChevronDown className="size-3.5 opacity-60" stroke={2} />
       )}
     </Group>
@@ -332,7 +401,7 @@ function TiendaSwitcher({ tiendas }: { tiendas: TiendaAcceso[] }) {
     </Paper>
   );
 
-  if (tiendas.length <= 1) return chip;
+  if (otras.length === 0) return chip;
 
   return (
     <Menu position="bottom-start" width={240} withArrow shadow="md">
@@ -341,29 +410,68 @@ function TiendaSwitcher({ tiendas }: { tiendas: TiendaAcceso[] }) {
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Cambiar de tienda</Menu.Label>
-        {tiendas.map((t) => (
-          <Menu.Item
-            key={t.slug}
-            leftSection={
-              <ColorSwatch
-                color={t.colorPrimario ?? "var(--mantine-color-gray-4)"}
-                size={12}
-                withShadow={false}
-              />
-            }
-          >
-            {t.nombre}
-          </Menu.Item>
-        ))}
+        {tiendas.map((t) => {
+          const esActiva = t.slug === activa.slug;
+          return (
+            <Menu.Item
+              key={t.slug}
+              // Navegación CROSS-HOST: `component="a"` con href absoluto. La activa no lleva
+              // href (ya estás ahí) y queda marcada.
+              component={esActiva || !montado ? "button" : "a"}
+              href={
+                esActiva || !montado
+                  ? undefined
+                  : hrefSubdominio({
+                      slug: t.slug,
+                      slugActual: activa.slug,
+                      path: "/admin",
+                    })
+              }
+              disabled={esActiva}
+              leftSection={
+                <ColorSwatch
+                  color={t.colorPrimario ?? "var(--mantine-color-gray-4)"}
+                  size={12}
+                  withShadow={false}
+                />
+              }
+              rightSection={
+                esActiva ? (
+                  <Text size="xs" c="dimmed">
+                    Actual
+                  </Text>
+                ) : undefined
+              }
+            >
+              {t.nombre}
+            </Menu.Item>
+          );
+        })}
       </Menu.Dropdown>
     </Menu>
   );
 }
 
 /** Menú de cuenta del header (D6): avatar de la sesión, nombre/email, rol y cerrar sesión. */
-function MenuCuenta({ esOperador }: { esOperador: boolean }) {
+function MenuCuenta({
+  esOperador,
+  slugActual,
+}: {
+  esOperador: boolean;
+  /** Tienda del host, para volver al login DEL APEX al cerrar sesión. `null` en el apex. */
+  slugActual: string | null;
+}) {
   const { data: session } = useSession();
   const user = session?.user;
+
+  // Cerrar sesión desde el subdominio devuelve al login del APEX, que es donde se entra
+  // (ADR-0019: el OAuth dance vive ahí). En el apex, la ruta relativa ya es la correcta.
+  const cerrarSesion = () =>
+    void signOut({
+      callbackUrl: slugActual
+        ? hrefApex({ path: "/login", slug: slugActual })
+        : "/login",
+    });
 
   return (
     <Menu position="bottom-end" width={248} withArrow shadow="md">
@@ -405,7 +513,7 @@ function MenuCuenta({ esOperador }: { esOperador: boolean }) {
         <Menu.Divider />
         <Menu.Item
           leftSection={<IconLogout2 className="size-4" />}
-          onClick={() => void signOut({ callbackUrl: "/login" })}
+          onClick={cerrarSesion}
         >
           Cerrar sesión
         </Menu.Item>
@@ -491,11 +599,19 @@ export function AdminLayout({
     staleTime: 60_000,
   });
 
-  const tiendas = (acceso.data?.tenants ?? []) as TiendaAcceso[];
-  const tiendaSlug = tiendas[0]?.slug ?? null;
+  const tiendas: TiendaAcceso[] = acceso.data?.tenants ?? [];
+  // La tienda ACTIVA es la del SUBDOMINIO (ADR-0022), no `tenants[0]`: es la que el server opera,
+  // así que es la que el chrome debe mostrar y a la que apuntan "Ver mi tienda" y el editor.
+  const tiendaActiva: TiendaAcceso | null = acceso.data?.tiendaActiva ?? null;
+  const tiendaSlug = tiendaActiva?.slug ?? null;
   const esOperador = acceso.data?.esOperador ?? false;
+  // "Sin tienda" = la puerta del apex (alta de Tienda). Dentro del subdominio de una tienda que se
+  // administra SIEMPRE hay tienda activa (el guard de la página ya rebotó a quien no es miembro,
+  // D11), así que el panel se renderiza.
   const sinTienda =
-    acceso.data !== undefined && acceso.data.tenants.length === 0;
+    acceso.data !== undefined &&
+    acceso.data.tenants.length === 0 &&
+    tiendaActiva === null;
 
   // El botón hamburguesa del header: en desktop colapsa/expande el rail; en móvil abre/cierra el Drawer.
   const onHamburguesa = () =>
@@ -534,7 +650,14 @@ export function AdminLayout({
             leftSection: (
               <IconExternalLink className="size-[18px]" stroke={1.75} />
             ),
-            onClick: () => abrirTienda(tiendaSlug),
+            onClick: () => abrirTienda(tiendaSlug, tiendaSlug),
+          },
+          {
+            id: "editor-tienda",
+            label: "Editor de la tienda",
+            description: "Edita el contenido de tu tienda (hero, textos, secciones)",
+            leftSection: <IconExternalLink className="size-[18px]" stroke={1.75} />,
+            onClick: () => abrirEditor(tiendaSlug, tiendaSlug),
           },
         ]
       : []),
@@ -604,10 +727,10 @@ export function AdminLayout({
               <Wordmark size={18} />
             </Group>
 
-            {tiendas.length > 0 && (
-              <div className="hidden sm:block">
-                <TiendaSwitcher tiendas={tiendas} />
-              </div>
+            {tiendaActiva && (
+              <Group visibleFrom="sm">
+                <TiendaSwitcher tiendas={tiendas} activa={tiendaActiva} />
+              </Group>
             )}
 
             <Group ml="auto" gap="sm" wrap="nowrap">
@@ -635,14 +758,14 @@ export function AdminLayout({
                     variant="light"
                     size="xs"
                     leftSection={<IconExternalLink className="size-3.5" />}
-                    onClick={() => abrirTienda(tiendaSlug)}
+                    onClick={() => abrirTienda(tiendaSlug, tiendaSlug)}
                     visibleFrom="sm"
                   >
                     Ver mi tienda
                   </Button>
                   <ActionIcon
                     variant="light"
-                    onClick={() => abrirTienda(tiendaSlug)}
+                    onClick={() => abrirTienda(tiendaSlug, tiendaSlug)}
                     hiddenFrom="sm"
                     aria-label="Ver mi tienda"
                   >
@@ -650,7 +773,7 @@ export function AdminLayout({
                   </ActionIcon>
                 </>
               )}
-              <MenuCuenta esOperador={esOperador} />
+              <MenuCuenta esOperador={esOperador} slugActual={tiendaSlug} />
             </Group>
           </Group>
         </AppShell.Header>
@@ -661,6 +784,7 @@ export function AdminLayout({
             onNavigate={close}
             esOperador={esOperador}
             iconOnly={iconOnly}
+            tiendaSlug={tiendaSlug}
           />
         </AppShell.Navbar>
 

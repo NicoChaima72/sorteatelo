@@ -1,16 +1,32 @@
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, panelProcedure } from "~/server/api/trpc";
 import { baseUrlApp, crearCorreoDeEnv } from "~/server/correo/correoDeEnv";
+import { borrarCampoCheckout } from "~/server/domain/camposCheckout/borrarCampoCheckout";
+import { cambiarActivoCampoCheckout } from "~/server/domain/camposCheckout/cambiarActivoCampoCheckout";
+import { crearCampoCheckout } from "~/server/domain/camposCheckout/crearCampoCheckout";
+import { editarCampoCheckout } from "~/server/domain/camposCheckout/editarCampoCheckout";
+import { listarCamposCheckout } from "~/server/domain/camposCheckout/listarCamposCheckout";
+import { reordenarCamposCheckout } from "~/server/domain/camposCheckout/reordenarCamposCheckout";
+import {
+  borrarCampoCheckoutInput,
+  cambiarActivoCampoCheckoutInput,
+  crearCampoCheckoutInput,
+  editarCampoCheckoutInput,
+  reordenarCamposCheckoutInput,
+} from "~/server/domain/camposCheckout/schemas";
 import { reenviarCorreoDescargaDeOrden } from "~/server/domain/correo/reenviarCorreoDescargaDeOrden";
 import { actualizarProducto } from "~/server/domain/panel/actualizarProducto";
+import { confirmarBasesSubidas } from "~/server/domain/panel/confirmarBasesSubidas";
 import { confirmarImagenSubida } from "~/server/domain/panel/confirmarImagenSubida";
 import { confirmarPdfProducto } from "~/server/domain/panel/confirmarPdfProducto";
 import { crearProducto } from "~/server/domain/panel/crearProducto";
 import { crearSorteo } from "~/server/domain/panel/crearSorteo";
+import { crearUrlSubidaBases } from "~/server/domain/panel/crearUrlSubidaBases";
 import { crearUrlSubidaImagen } from "~/server/domain/panel/crearUrlSubidaImagen";
 import { crearUrlSubidaPdf } from "~/server/domain/panel/crearUrlSubidaPdf";
 import { editarSorteo } from "~/server/domain/panel/editarSorteo";
 import { ejecutarSorteo } from "~/server/domain/panel/ejecutarSorteo";
+import { exportarVentasCsv } from "~/server/domain/panel/exportarVentasCsv";
 import { getAccesoActual } from "~/server/domain/panel/getAccesoActual";
 import { getConfiguracionTienda } from "~/server/domain/panel/getConfiguracionTienda";
 import { getEstadoCredencialFlow } from "~/server/domain/panel/getEstadoCredencialFlow";
@@ -31,10 +47,12 @@ import { crearTiendaInput } from "~/server/domain/tenants/schemas";
 import { TOS_TEXTO, TOS_VERSION } from "~/server/tos/tos";
 import {
   actualizarProductoInput,
+  confirmarBasesSubidasInput,
   confirmarImagenSubidaInput,
   confirmarPdfProductoInput,
   crearProductoInput,
   crearSorteoInput,
+  crearUrlSubidaBasesInput,
   crearUrlSubidaImagenInput,
   crearUrlSubidaPdfInput,
   editarSorteoInput,
@@ -180,12 +198,51 @@ export const panelRouter = createTRPCRouter({
       ),
     ),
 
+  // ── Subida del PDF de BASES del sorteo al bucket PÚBLICO (admin-bases-pdf F01/D1, ADR-0008) ──
+  // MISMO patrón presigned PUT + confirmación server-side que las imágenes, contra el MISMO bucket
+  // público, pero firmando `application/pdf` — la ÚNICA excepción de esa allowlist (I1: ahí jamás va
+  // un PDF de PRODUCTO, que sigue en el bucket privado gated por Entitlement). El cliente NUNCA elige
+  // la key (la computa el server con `keyBasesSorteo`, I6) y el Raffle se valida contra el tenant del
+  // acceso (I1/I2). La confirmación persiste `Raffle.basesPdfUrl`, que alimenta el gate de F03.
+  crearUrlSubidaBases: panelProcedure
+    .input(crearUrlSubidaBasesInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        crearUrlSubidaBases({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          input,
+          storage: crearStoragePublicoDeEnv(),
+        }),
+      ),
+    ),
+
+  confirmarBasesSubidas: panelProcedure
+    .input(confirmarBasesSubidasInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        confirmarBasesSubidas({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          input,
+          storage: crearStoragePublicoDeEnv(),
+        }),
+      ),
+    ),
+
   // ── Ventas + dashboard (F03) ─────────────────────────────────────────────
   listarVentas: panelProcedure
     .input(listarVentasInput)
     .query(({ ctx, input }) =>
       runDomain(() => listarVentas({ db: ctx.db, acceso: ctx.acceso, input })),
     ),
+
+  // Export CSV de TODAS las ventas de la Tienda (F07 de checkout-campos-configurables, D9). Sin
+  // input: no hay nada que el cliente pueda elegir — el tenant sale de `acceso` (I1) y el archivo
+  // exporta el listado completo, no la página que se está viendo.
+  exportarVentasCsv: panelProcedure.query(({ ctx }) =>
+    runDomain(() => exportarVentasCsv({ db: ctx.db, acceso: ctx.acceso })),
+  ),
 
   getResumenTienda: panelProcedure.query(({ ctx }) =>
     runDomain(() => getResumenTienda({ db: ctx.db, acceso: ctx.acceso })),
@@ -281,6 +338,59 @@ export const panelRouter = createTRPCRouter({
     .mutation(({ ctx, input }) =>
       runDomain(() =>
         ejecutarSorteo({ db: ctx.db, acceso: ctx.acceso, input }),
+      ),
+    ),
+
+  // ── Campos del checkout (checkout-campos-configurables F02, D5/D6/D7) ────
+  // Los datos ADICIONALES que cada Tienda le pide al Comprador. El módulo de dominio es propio
+  // (`domain/camposCheckout/`) pero sus procedures viven acá, en el borde del panel — mismo criterio
+  // que `domain/tenants/` (crearTienda/aceptarTos/publicarTienda): el módulo agrupa la lógica, el
+  // router agrupa la SUPERFICIE, y esta es la del Organizador administrando su Tienda.
+  // El correo NO se administra acá: es el dato fijo del checkout (ADR-0004/I2).
+  listarCamposCheckout: panelProcedure.query(({ ctx }) =>
+    runDomain(() => listarCamposCheckout({ db: ctx.db, acceso: ctx.acceso })),
+  ),
+
+  // La `clave` NO viaja en el input: se deriva de la etiqueta server-side y queda inmutable (D7).
+  crearCampoCheckout: panelProcedure
+    .input(crearCampoCheckoutInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        crearCampoCheckout({ db: ctx.db, acceso: ctx.acceso, input }),
+      ),
+    ),
+
+  // Solo cosméticos: `clave` y `tipo` son inmutables tras crear (D5) y no están en el input.
+  editarCampoCheckout: panelProcedure
+    .input(editarCampoCheckoutInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        editarCampoCheckout({ db: ctx.db, acceso: ctx.acceso, input }),
+      ),
+    ),
+
+  cambiarActivoCampoCheckout: panelProcedure
+    .input(cambiarActivoCampoCheckoutInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        cambiarActivoCampoCheckout({ db: ctx.db, acceso: ctx.acceso, input }),
+      ),
+    ),
+
+  // Hard delete (D5): las respuestas ya guardadas sobreviven autocontenidas (`fieldId` SetNull).
+  borrarCampoCheckout: panelProcedure
+    .input(borrarCampoCheckoutInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        borrarCampoCheckout({ db: ctx.db, acceso: ctx.acceso, input }),
+      ),
+    ),
+
+  reordenarCamposCheckout: panelProcedure
+    .input(reordenarCamposCheckoutInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        reordenarCamposCheckout({ db: ctx.db, acceso: ctx.acceso, input }),
       ),
     ),
 });

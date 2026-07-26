@@ -27,6 +27,7 @@ import { RunsTexto } from "~/components/storefront/runs-texto";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { TituloHero } from "~/components/storefront/titulo-hero";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
+import { hrefDeAncla } from "~/lib/pagebuilder/nav";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import {
   EstiloSeccionSchema,
@@ -60,13 +61,6 @@ const BADGES_CONFIANZA = [
   { icon: IconTicket, texto: "Tu ticket al toque" },
 ] as const;
 
-// Cada valor de `CTA_ANCLAS` (catalogo/sorteo/como-funciona/autora/bases/preguntas, F05/D8) resuelve
-// directo a su target de scroll `#<ancla>` emitido por `render-pagina` (nav.ts). Enum cerrado ⇒ nunca
-// URL libre (I-A).
-function anclaHref(ancla: string): string {
-  return `#${ancla}`;
-}
-
 /**
  * `fz` responsive del título del hero por `tituloTamano` (Tanda 2 F15/fidelidad concert). `normal` ⇒
  * `null` (el caller usa el fz por-variante de siempre, no-op I-H). `grande`/`enorme` escalan a un poster de
@@ -80,6 +74,10 @@ function fzTituloHero(
       return { base: 40, sm: 56 };
     case "enorme":
       return { base: 44, sm: 60, md: 72 };
+    case "poster":
+      // Poster de recital full-width (fidelidad landing_idol): el título GIGANTE de ~96px del mockup
+      // (clamp(52px, 8vw, 96px)). Solo para hero `centrado`/`imagen_fondo` — en `split` no cabe.
+      return { base: 46, sm: 76, md: 96 };
     default:
       return null; // normal ⇒ el fz por-variante de siempre
   }
@@ -191,13 +189,19 @@ function HeroEyebrow({ props }: { props: HeroProps }) {
   return <EyebrowSorteo mostrar={props.mostrarBadgeSorteo} />;
 }
 
+/**
+ * CTA principal + secundario. Cada valor de `CTA_ANCLAS` (catalogo/sorteo/como-funciona/autora/bases/
+ * preguntas, F05/D8) lo resuelve `hrefDeAncla` (nav.ts): target de scroll `#<ancla>` emitido por
+ * `render-pagina`, salvo las anclas que son RUTA de plataforma (`bases` ⇒ `/bases`, D14 — el botón
+ * «Ver bases del sorteo» abre el PDF legal). Enum cerrado ⇒ nunca URL libre (I-A).
+ */
 function Ctas({ props, oscuro }: { props: HeroProps; oscuro?: boolean }) {
   const ctaTexto = props.ctaTexto ?? "Ver el catálogo";
   return (
     <Group gap="sm" align="center">
       <Button
         component="a"
-        href={anclaHref(props.ctaAncla)}
+        href={hrefDeAncla(props.ctaAncla)}
         size="md"
         radius="md"
         variant={oscuro ? "white" : "filled"}
@@ -210,7 +214,7 @@ function Ctas({ props, oscuro }: { props: HeroProps; oscuro?: boolean }) {
           // Estilo enlace (F03/D6): texto con subrayado + flecha, sin caja de botón.
           <Anchor
             component="a"
-            href={anclaHref(props.ctaSecundario.ancla)}
+            href={hrefDeAncla(props.ctaSecundario.ancla)}
             fw={600}
             underline="always"
             c={oscuro ? "white" : undefined}
@@ -223,7 +227,7 @@ function Ctas({ props, oscuro }: { props: HeroProps; oscuro?: boolean }) {
         ) : (
           <Button
             component="a"
-            href={anclaHref(props.ctaSecundario.ancla)}
+            href={hrefDeAncla(props.ctaSecundario.ancla)}
             size="md"
             radius="md"
             variant={oscuro ? "outline" : "default"}
@@ -417,6 +421,10 @@ function TarjetaVisual({
 }) {
   const Icono = visual.icono ? iconoBeneficio(visual.icono) : null;
   const suave = visual.estilo === "suave";
+  // `cristal` (fidelidad tienda-libro bcac): INTERIOR OSCURO de la holographic idol card — radial
+  // dark→negro (tokens de la escala `dark`, cero hex I-A) + scanlines de luz. El interior NO se rellena
+  // con el gradiente de marca (eso es el look `plano`/`suave`); acá el color vive en el BORDE holo.
+  const cristal = visual.estilo === "cristal";
   // Contenido de la tarjeta (Tanda 2 F16): `emblema` = holocard DECORATIVA (ícono grande arriba + glow
   // inferior + motivo, SIN texto) = el heroviz del prototipo dreamy; `texto` (default) = ícono-círculo +
   // título + subtítulo (no-op I-H). En `emblema` el marco pasa a landscape (4:3, el ancho del heroviz).
@@ -426,9 +434,11 @@ function TarjetaVisual({
   // = un "stage" oscuro (marca-9 → negro) con los blur-blobs blancos como haces de luz (el escenario del
   // recital del prototipo concert, no una tarjeta clara sobre fondo oscuro). `plano` conserva el gradiente
   // tematico sólido. Cero hex (I-A).
-  const fondoTarjeta = suave
-    ? "linear-gradient(135deg, light-dark(var(--mantine-primary-color-5), var(--mantine-primary-color-9)), light-dark(var(--mantine-primary-color-8), var(--mantine-color-black)))"
-    : gradienteTematico(colorPrimario);
+  const fondoTarjeta = cristal
+    ? "radial-gradient(120% 100% at 30% 0%, var(--mantine-color-dark-6), var(--mantine-color-black) 72%)"
+    : suave
+      ? "linear-gradient(135deg, light-dark(var(--mantine-primary-color-5), var(--mantine-primary-color-9)), light-dark(var(--mantine-primary-color-8), var(--mantine-color-black)))"
+      : gradienteTematico(colorPrimario);
   return (
     <AspectRatio ratio={emblema ? 4 / 3 : 3 / 4}>
       <Box
@@ -459,6 +469,22 @@ function TarjetaVisual({
               pointerEvents: "none",
               background:
                 "radial-gradient(80% 120% at 50% 118%, color-mix(in srgb, var(--mantine-color-white) 55%, transparent), transparent 60%)",
+            }}
+          />
+        )}
+        {/* Scanlines de la holographic idol card (`cristal`, fidelidad tienda-libro bcac): líneas de luz
+            diagonales muy tenues en overlay — el `repeating-linear-gradient` + mix-blend del mockup. CSS
+            estático, cero hex (color-mix de white), aria-hidden, no anima (I-C). */}
+        {cristal && (
+          <Box
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background:
+                "repeating-linear-gradient(115deg, color-mix(in srgb, var(--mantine-color-white) 5%, transparent) 0 2px, transparent 2px 6px)",
+              mixBlendMode: "overlay",
             }}
           />
         )}
@@ -494,11 +520,26 @@ function TarjetaVisual({
           )
         ) : (
           <Box style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--mantine-spacing-md)" }}>
-            {Icono && (
-              <ThemeIcon variant="white" size={64} radius="xl">
-                <Icono className="size-8" stroke={1.5} />
-              </ThemeIcon>
-            )}
+            {Icono &&
+              (cristal ? (
+                // `cristal`: ícono flotante con glow iridiscente (el 🎤 con drop-shadow del mockup), SIN el
+                // círculo blanco — sobre el interior oscuro el círculo blanco tapaba el efecto holográfico.
+                <Icono
+                  aria-hidden
+                  stroke={1.5}
+                  style={{
+                    width: 56,
+                    height: 56,
+                    color: "var(--mantine-color-white)",
+                    filter:
+                      "drop-shadow(0 0 18px color-mix(in srgb, var(--mantine-primary-color-4) 70%, transparent))",
+                  }}
+                />
+              ) : (
+                <ThemeIcon variant="white" size={64} radius="xl">
+                  <Icono className="size-8" stroke={1.5} />
+                </ThemeIcon>
+              ))}
             <Text fw={800} fz={{ base: 24, sm: 30 }} lh={1.15} c="white">
               {visual.titulo}
             </Text>
@@ -547,7 +588,16 @@ function HeroVisualConfigurable({
       <TarjetaVisual visual={visual} colorPrimario={colorPrimario} />
     );
 
-  return visual.holo ? <MarcoHolo>{cuerpo}</MarcoHolo> : cuerpo;
+  // La idol card `cristal` (tienda-libro bcac) suma el borde iridiscente arcoíris + el tilt de reposo -4°
+  // del mockup. Los demás holo (concert) conservan el borde de marca sin tilt de reposo (no-op I-H).
+  const cristal = visual.tipo === "tarjeta" && visual.estilo === "cristal";
+  return visual.holo ? (
+    <MarcoHolo iris={cristal} tilt={cristal ? -4 : 0}>
+      {cuerpo}
+    </MarcoHolo>
+  ) : (
+    cuerpo
+  );
 }
 
 // ── Variantes ───────────────────────────────────────────────────────────────
@@ -626,7 +676,7 @@ function HeroCentrado({
         <Title
           order={1}
           fz={fzTituloHero(props.tituloTamano) ?? { base: minimal ? 28 : 34, sm: minimal ? 40 : 48 }}
-          lh={props.tituloMayusculas && props.tituloTamano === "enorme" ? 0.95 : 1.1}
+          lh={props.tituloTamano === "poster" || (props.tituloMayusculas && props.tituloTamano === "enorme") ? 0.95 : 1.1}
           fw={800}
           tt={props.tituloMayusculas ? "uppercase" : undefined}
         >

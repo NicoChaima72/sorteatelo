@@ -1,8 +1,8 @@
 import {
   Alert,
-  Anchor,
   Badge,
   Box,
+  Button,
   Group,
   SimpleGrid,
   Stack,
@@ -11,7 +11,8 @@ import {
   ThemeIcon,
   Title,
 } from "@mantine/core";
-import { IconGift, IconScale, IconTicket } from "@tabler/icons-react";
+import { IconFileText, IconGift, IconScale, IconTicket } from "@tabler/icons-react";
+import Link from "next/link";
 import { type CSSProperties, type ReactNode } from "react";
 
 import {
@@ -20,6 +21,7 @@ import {
 } from "~/components/storefront/use-countdown";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
+import { DISCLAIMER_SORTEO } from "~/lib/disclaimerSorteo";
 import { fecha, num } from "~/lib/formato";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
@@ -35,7 +37,8 @@ import { gradienteTematico } from "~/styles/tenantTheme";
  * Vitrina del sorteo (widget `sorteo_vitrina`, F05/ADR-0016; plantilla-rica F04, design.md §5.1 pto
  * 4; ADR-0008). Aparece SOLO si hay un sorteo ACTIVO (auto-oculto §5.2: sin sorteo ⇒ sin sección). El
  * premio/nombre/fechas/conteo se resuelven server-side (NO en el documento, I2). Las props del
- * documento controlan `mostrarBases` (texto de bases del Organizador) y `estiloConteo`. El conteo es
+ * documento controlan `mostrarBases` (el ENLACE a `/bases`, admin-bases-pdf F04 — antes era el texto
+ * de bases volcado inline) y `estiloConteo`. El conteo es
  * de TICKETS (sin correos — privacidad ADR-0004). El DISCLAIMER (I8/ADR-0008) NO es configurable: se
  * muestra SIEMPRE con sorteo activo, sin importar las props.
  *
@@ -45,12 +48,6 @@ import { gradienteTematico } from "~/styles/tenantTheme";
  * wrapper ya fijó (currentColor) ⇒ legibles sobre cualquier esquema. Sobre fondo claro se conserva el
  * `dimmed`/`gray` byte-idéntico (no-op, I-H) — las tiendas claras existentes no cambian.
  */
-
-/** Disclaimer FIJO de plataforma (redacción legal fina se ajusta con abogado en F10, ADR-0008). */
-const DISCLAIMER_SORTEO =
-  "Este sorteo es organizado y ejecutado exclusivamente por quien opera esta tienda, único " +
-  "responsable de sus bases, premios y resultado. La plataforma solo provee la tecnología: no " +
-  "organiza el sorteo ni responde por su ejecución. Revisa las bases antes de participar.";
 
 /**
  * Estilo por defecto de la vitrina (catálogo-v2 F02): la sección deja de HARDCODEAR su fondo y usa
@@ -76,18 +73,17 @@ export function SorteoStorefront({
   const estilo = nodo.estilo ?? ESTILO_SORTEO_DEFAULT;
   // Contraste (F12): sobre fondo oscuro los sub-textos derivan su tenue de currentColor (no `dimmed`).
   const oscuro = esFondoOscuro(estilo.fondo);
+  // `banner` (fidelidad landing_idol prueba): banner CENTRADO sin la imagen del premio (el "2 ENTRADAS
+  // PARA BTS" del mockup); `split` (default) = premio a la izq + info a la der (no-op I-H).
+  const banner = props.variante === "banner";
 
   // Sección opcional/decorativa: si falla o no hay sorteo, no se renderiza (no rompe la home, §5.2).
   if (sorteo.isError || !sorteo.data) return null;
   const s = sorteo.data;
 
-  return (
-    <SeccionWrapper id={nodo.id} estilo={estilo} divisorColor={divisorColor}>
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "lg", md: 48 }} style={{ alignItems: "center" }}>
-          <PremioVisual url={s.premioImageUrl} colorPrimario={colorPrimario} />
-
-          <Stack gap="md">
-            <Group gap="xs">
+  const info = (
+          <Stack gap="md" align={banner ? "center" : undefined} ta={banner ? "center" : undefined} maw={banner ? 680 : undefined} mx={banner ? "auto" : undefined}>
+            <Group gap="xs" justify={banner ? "center" : undefined}>
               <ThemeIcon
                 variant={oscuro ? "default" : "light"}
                 size="lg"
@@ -101,14 +97,14 @@ export function SorteoStorefront({
               </TextoTenue>
             </Group>
 
-            <Title order={2} fz={{ base: 26, sm: 34 }} fw={800} lh={1.15}>
+            <Title order={2} fz={banner ? { base: 44, sm: 64, md: 78 } : { base: 26, sm: 34 }} fw={800} lh={banner ? 1 : 1.15}>
               {s.premio}
             </Title>
 
             <TextoTenue oscuro={oscuro}>{s.nombre}</TextoTenue>
 
             {props.estiloConteo === "destacado" && (
-              <Group gap={8} align="baseline">
+              <Group gap={8} align="baseline" justify={banner ? "center" : undefined}>
                 <Text fz={{ base: 32, sm: 40 }} fw={800} className="tabular-nums">
                   {num(s.totalParticipaciones)}
                 </Text>
@@ -118,7 +114,7 @@ export function SorteoStorefront({
               </Group>
             )}
 
-            <Group gap="xs" wrap="wrap">
+            <Group gap="xs" wrap="wrap" justify={banner ? "center" : undefined}>
               {props.estiloConteo === "badge" && (
                 <BadgeTenue oscuro={oscuro}>
                   {num(s.totalParticipaciones)}{" "}
@@ -131,7 +127,7 @@ export function SorteoStorefront({
               <CierreBadge fechaFin={s.fechaFin} oscuro={oscuro} />
             </Group>
 
-            <Group gap={8} wrap="nowrap">
+            <Group gap={8} wrap="nowrap" justify={banner ? "center" : undefined}>
               <IconTicket
                 className="size-4"
                 stroke={1.75}
@@ -142,22 +138,23 @@ export function SorteoStorefront({
               </Text>
             </Group>
 
-            {props.mostrarBases && s.basesTexto && (
-              <TextoTenue oscuro={oscuro} size="sm" style={{ whiteSpace: "pre-wrap" }}>
-                {s.basesTexto}
-              </TextoTenue>
-            )}
-            {props.mostrarBases && s.basesUrl && (
-              <Anchor
-                href={s.basesUrl}
-                target="_blank"
-                rel="noreferrer"
-                size="sm"
-                c={oscuro ? "inherit" : undefined}
-                style={oscuro ? { textDecoration: "underline" } : undefined}
-              >
-                Ver las bases completas
-              </Anchor>
+            {/* Bases del sorteo (admin-bases-pdf F04/D4/D5, ADR-0008): antes acá se volcaba el TEXTO
+                borrador del Tenant en pre-wrap + un Anchor externo opcional. Ahora las bases son un
+                PDF y viven en `/bases` (siempre las del sorteo ACTIVO), así que la vitrina solo
+                LINKEA — un botón, no un muro de texto legal en medio de la propaganda. `mostrarBases`
+                sigue gobernando si el enlace aparece; el DISCLAIMER de abajo no es configurable (I4). */}
+            {props.mostrarBases && (
+              <Group gap="xs" justify={banner ? "center" : undefined}>
+                <Button
+                  component={Link}
+                  href="/bases"
+                  variant={oscuro ? "white" : "light"}
+                  size="sm"
+                  leftSection={<IconFileText className="size-4" />}
+                >
+                  Ver bases del sorteo
+                </Button>
+              </Group>
             )}
 
             <Alert
@@ -185,7 +182,18 @@ export function SorteoStorefront({
               <Text size="xs">{DISCLAIMER_SORTEO}</Text>
             </Alert>
           </Stack>
+  );
+
+  return (
+    <SeccionWrapper id={nodo.id} estilo={estilo} divisorColor={divisorColor}>
+      {banner ? (
+        info
+      ) : (
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "lg", md: 48 }} style={{ alignItems: "center" }}>
+          <PremioVisual url={s.premioImageUrl} colorPrimario={colorPrimario} />
+          {info}
         </SimpleGrid>
+      )}
     </SeccionWrapper>
   );
 }

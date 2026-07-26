@@ -3,6 +3,7 @@ import { IconArrowRight, IconGift, IconShoppingBag, IconTicket } from "@tabler/i
 
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
+import { ANCLAS_QUE_SON_RUTA } from "~/lib/pagebuilder/nav";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
 
 /** Los 3 pasos FIJOS de la mecánica (producto → ticket → sorteo). Íconos internos (enum-libre acá). */
@@ -28,9 +29,22 @@ export function BloqueTicketPromo({
   const props = nodo.props;
   const sorteo = useSorteoActivo();
   const hayCta = Boolean(props.ctaTexto);
+  // Un ancla de RUTA (hoy solo `bases` ⇒ `/bases`, D14) gana: es el enlace LEGAL al PDF del sorteo,
+  // no un target de scroll. El resto del enum sigue colapsando a los dos destinos históricos de este
+  // widget (sorteo/catálogo) — ese colapso es previo a este plan y no se toca acá.
+  const ctaHref =
+    ANCLAS_QUE_SON_RUTA[props.ctaAncla] ??
+    (props.ctaAncla === "sorteo" ? "#sorteo" : "#catalogo");
+  const izq = props.alineacion === "izquierda";
   return (
     <SeccionWrapper id={nodo.id} estilo={nodo.estilo} divisorColor={divisorColor}>
-      <Stack gap="lg" align="center" ta="center" maw={820} mx="auto">
+      <Stack
+        gap="lg"
+        align={izq ? "flex-start" : "center"}
+        ta={izq ? "left" : "center"}
+        maw={izq ? undefined : 820}
+        mx={izq ? undefined : "auto"}
+      >
         {props.mostrarSorteoActivo && sorteo.data && (
           <Badge
             variant="light"
@@ -86,7 +100,7 @@ export function BloqueTicketPromo({
         {hayCta && (
           <Button
             component="a"
-            href={props.ctaAncla === "sorteo" ? "#sorteo" : "#catalogo"}
+            href={ctaHref}
             size="md"
             radius="md"
             mt="xs"

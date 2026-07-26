@@ -137,3 +137,139 @@ requieren OAuth (el login es público); los del panel sí requieren sesión con 
   > ✅ [feature-tester 2026-07-18] Ctrl+K abre el dialog «Buscar en el panel…» con 7 acciones (5 rutas + Operador
   > + Ver mi tienda); click «Ventas» navegó a `/admin/ventas`. Dark toggle conmuta a `scheme=dark`; navbar/main
   > oscuros con wordmark/chip/nav/KPIs/badges legibles (rama dark de `light-dark()` RESUELTA). Fondo hundido, no crema.
+- [x] **panel.bases.subir.001** (admin-bases-pdf F02) — ✅ 2026-07-25 (parcial: ver ⏭️). En el sorteo **ACTIVO**
+  de `autora`, el `BasesUploader` arranca con badge **«Bases pendientes»** («Te las pediremos antes de
+  publicar») y un `FileInput` «Elegir el archivo PDF» con `accept="application/pdf"`. Subido un PDF real
+  ⇒ badge **«Bases cargadas»** + enlace **«Ver el PDF»** (`target=_blank`) a
+  `…r2.dev/<tenantId>/sorteo/<raffleId>/bases.pdf?v=<ts>` — key per-tenant/per-raffle generada server-side;
+  `curl` al objeto ⇒ **200 `application/pdf`**. (b) Re-subir otro PDF **REEMPLAZA** sobre la MISMA key con
+  `?v=` nuevo (la DB y el bucket sirven el 2º archivo — el visor de `/bases` muestra «BASES REEMPLAZADAS -
+  VERSION 2») y el badge sigue «Bases cargadas». (c) El form de **EDICIÓN** del sorteo tiene exactamente 3
+  campos (Nombre, Premio, Fecha de cierre): **ningún** campo de bases ni «Enlace a las bases», 0 `input[type=file]`.
+  ⏭️ Caso (a) «form de CREACIÓN» NO ejercitable: `autora` (y los otros 5 tenants) ya tiene sorteo ACTIVO, así
+  que el form de creación no se renderiza; cerrarlo para verlo sería destructivo. Cubierto por Vitest
+  `panel.sorteo.crear.006`. — En `/admin/sorteo`, las **bases del sorteo son un PDF
+  que se SUBE**, no un enlace de texto: (a) el form de creación ya NO muestra «Enlace a las bases» sino un
+  `FileInput` «Bases del sorteo (PDF)»; adjuntar un PDF real al crear lo sube tras crear el sorteo (diferido,
+  key per-raffle) y el panel del sorteo activo queda con el badge **«Bases cargadas»** + enlace «Ver el PDF»
+  que abre el PDF servido por el bucket público; (b) en el sorteo ACTIVO, re-subir otro PDF lo REEMPLAZA
+  (misma key, `?v=` distinto) y el badge sigue en «Bases cargadas»; (c) el form de EDICIÓN del sorteo no tiene
+  ningún campo de bases. Requiere sesión + bucket público R2 configurado (CORS del subdominio).
+- [x] **panel.bases.gate.001** (admin-bases-pdf F03, ADR-0008) — ✅ **2026-07-25 (2ª pasada, CERRADO)**. La
+  1ª pasada quedó PARCIAL porque `autora` tenía `tosAceptadoAt: null` y el gate frenaba en el requisito
+  ANTERIOR; con los ToS aceptados en la DB dev (autorización explícita del usuario, espejando `aceptarTos`)
+  el requisito de bases quedó **aislado** como único blocker posible, que es una verificación más fuerte que
+  la original. Despubliqué `autora` por la UI y la dejé **PUBLICADA** al terminar.
+  (a) ✅ Con el PDF quitado del Raffle ACTIVO —y **todo lo demás cumplido**— el checklist muestra «Sube las
+  bases de tu sorteo» («Tu sorteo está activo: su PDF de bases es obligatorio») como **único** ítem pendiente,
+  con botón **«Ir al sorteo»** → `/admin/sorteo` (NO Configuración), «Publicar mi tienda» **`disabled`** y
+  «Completa los pasos pendientes para poder publicar». **Gate real (I3) probado en vivo**: disparando
+  `panel.publicarTienda` por HTTP con la sesión viva —esquivando el botón deshabilitado— el server responde
+  **400** con «Tu sorteo está activo: antes de publicar debes subir el PDF con sus bases.» y la Tienda **no**
+  transiciona (sigue `CONFIGURACION`). (b) ✅ Restaurado el PDF, los **4 ítems** quedan en `circle-check` teal
+  (`#1d7a70`, token `exito`), el botón se habilita y **«Publicar mi tienda» FUNCIONA**: toast «¡Tu tienda está
+  publicada!», badge «Publicada», `estado: PUBLICADA` en DB y storefront + `/bases` en 200.
+  (c) ⏭️ «sin sorteo activo» sigue sin ser ejercitable (los 6 tenants tienen sorteo ACTIVO) ⇒ cubierto por
+  Vitest `tenants.publicacion.001`. (d) ✅ `/admin/configuracion` ya **no** tiene el textarea «Bases del
+  sorteo». — El **gate de publicación** exige el PDF de
+  bases del sorteo ACTIVO, ya no un texto en Configuración: (a) con un sorteo activo SIN bases, el checklist
+  de `/admin` muestra el ítem **«Sube las bases de tu sorteo»** en rojo con el botón **«Ir al sorteo»** (que
+  navega a `/admin/sorteo`, NO a Configuración) y **Publicar falla** con «antes de publicar debes subir el PDF
+  con sus bases»; (b) tras subir el PDF, el ítem queda verde y **Publicar funciona**; (c) sin sorteo activo el
+  ítem de bases no aparece y publicar funciona igual; (d) `/admin/configuracion` ya **no** tiene el textarea
+  «Bases del sorteo». Requiere sesión.
+- [x] **panel.admin.limpio.001** (admin-bases-pdf F06) — ✅ 2026-07-25. (a) La card «Tu tienda» tiene solo
+  Logo / Descripción / **Color de marca** / **Color de acento** / Redes y contacto: **cero** «Título del hero»,
+  «Subtítulo del hero», «Aviso (banner)» e «Imagen de hero», y el copy dice «El contenido de la portada (hero,
+  textos, avisos) se edita en el editor». (b) El rail muestra **«Editor de la tienda»** al pie (arriba de
+  Configuración, con `IconExternalLink`); el click abrió una **pestaña nueva** en
+  `autora.localhost:3001/editor` y el panel se quedó en `/admin/configuracion` (no navega adentro). Es un
+  `<button>` con `window.open(…, "_blank", "noopener")`, no un `<a href>` — decisión declarada en
+  `admin-layout.tsx:70-77`. (c) **Ctrl+K** también ofrece «Editor de la tienda» («Edita el contenido de tu
+  tienda (hero, textos, secciones)») con el MISMO handler `abrirEditor` (su click sintético lo frena el
+  bloqueador de popups por falta de user-activation, artefacto de automatización, no del producto).
+  ⏭️ (d) «sin tienda» no ejercitable con esta sesión (el usuario tiene membresía); guardado por
+  `{tiendaSlug && …}` en `admin-layout.tsx:310`. — El admin deja de mentir y gana puente al editor:
+  (a) `/admin/configuracion` → la card «Tu tienda» ya **NO** muestra «Título del hero», «Subtítulo del hero»,
+  «Aviso (banner)» ni el uploader «Imagen de hero» (los 4 campos que guardaban con toast de éxito sin
+  efecto); sí siguen logo, color de marca, descripción y redes/contacto, y el texto de la card explica que
+  el contenido de la portada se edita en el editor (mismo copy en loading, error y éxito);
+  (b) el rail del admin muestra **«Editor de la tienda»** al pie (junto a Configuración) con ícono de enlace
+  externo, y al hacer click abre `<slug>.<host>/editor` en una **pestaña nueva** (no navega dentro del panel);
+  (c) **Cmd/Ctrl+K** también ofrece «Editor de la tienda» y hace lo mismo;
+  (d) sin tienda (usuario sin membresía) el ítem no aparece. Requiere sesión.
+- [x] **panel.admin.color-acento.001** (admin-bases-pdf F06/D12) — ✅ 2026-07-25. (a) «Color de marca» y «Color
+  de acento» salen **lado a lado** en la misma fila (`y=518`, `x=1032` / `x=1386`), los dos como
+  `mantine-ColorInput-input` con **la misma paleta de 7 swatches** (`SWATCHES_MARCA`); el acento trae
+  placeholder «Sin acento (usa el color de marca)». (b) Precargado: tras un reload, el input rehidrató
+  `#00b8d9` desde la columna (`getConfiguracionTienda`). (c) Acento nuevo + «Guardar» ⇒ toast **«Cambios
+  guardados.»** y, recargando el **storefront publicado** de `autora` (sin tocar el editor ni «Publicar»),
+  `--mantine-color-acento-6: #00b8d9` con su rampa de 10 tonos derivada. (d) Vaciar + «Guardar» ⇒ desaparecen
+  las vars `--mantine-color-acento-*` y **cero** rastro de `#00b8d9`: la tienda vuelve a derivar todo de
+  `colorPrimario` (`#e11d48`). (e) El panel **Tema del editor** mostró el MISMO `#00b8d9` con el mismo
+  placeholder — una sola columna, no dos ajustes.
+  ↩️ Branding de `autora` **RESTAURADO** al valor original (`colorPrimario #e11d48`, `colorAcento null`).
+  — Los DOS colores de marca se editan juntos en
+  la card «Tu tienda» y **aplican al instante** (sin publicar nada): (a) `/admin/configuracion` muestra «Color
+  de marca» y **«Color de acento»** lado a lado, ambos como selector de color con la misma paleta de atajos;
+  (b) el acento llega **precargado** con el valor que la tienda ya tenía (si se había puesto desde el editor);
+  (c) elegir un acento nuevo + «Guardar» ⇒ toast «Cambios guardados.» y al recargar el **storefront publicado**
+  (no solo la preview del editor) el acento nuevo ya se ve — sin pasar por el editor ni por «Publicar»;
+  (d) vaciar el campo + «Guardar» ⇒ la tienda vuelve a derivar todo del color de marca;
+  (e) el mismo valor se ve reflejado en el panel **Tema del editor** (es la misma columna, no dos ajustes).
+  Requiere sesión.
+- [ ] **panel.campos.crud.001** (checkout-campos-configurables F03) — En `/admin/configuracion`, la sección
+  **«Campos del checkout»** administra los datos extra que la Tienda le pide al Comprador: (a) la lista
+  arranca con la fila **«Correo»** con badge **«Fijo»** y candado, SIN switch ni acciones (I2/ADR-0004: el
+  correo no es un campo configurable), y con el estado vacío «Por ahora solo pides el correo»; (b) «Agregar
+  campo» crea **uno de cada tipo** — Texto, Teléfono, Número, Lista de opciones (el form muestra el
+  `TagsInput` «Opciones` solo para este tipo) y Casilla sí/no (muestra «Viene marcada por defecto» y **NO**
+  muestra «Es obligatorio», D4/I5) — y cada uno aparece en la lista con su tipo y su clave en mono;
+  (c) las flechas ↑/↓ reordenan y el nuevo orden **persiste al recargar** (el server reasigna `posicion`);
+  (d) el switch de una fila la desactiva ⇒ badge **«Inactivo»**, y se puede volver a activar;
+  (e) el tacho abre la confirmación «Eliminar campo» que avisa que **las respuestas ya recibidas se
+  conservan**, y al confirmar el campo desaparece de la lista. Requiere sesión.
+- [ ] **panel.campos.candado.001** (checkout-campos-configurables F03, D4/D5) — Los dos guardrails de la
+  sección son visibles: (a) el **texto anti-consentimiento** («No los uses para que acepten términos o
+  condiciones: eso ya va en las bases de tu sorteo y en los términos de la plataforma») aparece tanto en la
+  lista como dentro del modal de crear/editar; (b) al **editar** un campo existente, «Tipo» está
+  **deshabilitado** con candado y explica que hay que borrar y crear de nuevo, y aparece «Nombre interno»
+  **deshabilitado** con la clave en mono (D5: `clave` y `tipo` inmutables tras crear); al **crear**, en
+  cambio, «Tipo» es editable y no hay campo de clave; (c) con **10 campos activos** el botón «Agregar campo»
+  queda deshabilitado, el contador dice «10 de 10 campos activos» y aparece el aviso de que hay que desactivar
+  uno; los switches de los campos inactivos quedan apagados hasta liberar cupo (D6/I6). Requiere sesión.
+- [ ] **panel.ventas.detalle.001** (checkout-campos-configurables F06, D8/I7/I9) — En `/admin/ventas`, cada fila
+  tiene el botón **«Detalle»** (también en las órdenes NO pagadas, donde antes había un «—») que abre un
+  **Drawer** por la derecha: (a) arriba, el correo del Comprador, la fecha y el badge de estado;
+  (b) **«Lo que compró»** con una línea por producto en `cantidad × precio unitario` y, abajo, el **Total**,
+  la **Comisión** (con su signo −) y **«Te queda»** — los tres en CLP, y los dos últimos SOLO si la venta
+  está pagada (en una PENDIENTE aparece únicamente el Total). Esta es la única vía para ver comisión y neto
+  en un teléfono: en la tabla esa columna se esconde bajo `md`; (c) **«Respuestas del checkout»** con la
+  **etiqueta congelada → valor** de cada campo que el Comprador respondió — una Casilla sí/no se lee
+  **«Sí»/«No»** (nunca `true`/`false`) y un Número se muestra **CRUDO, sin separador de miles** (un
+  `8320000` se lee `8320000`, no `8.320.000`); (d) el Drawer cierra sin dejar la tabla alterada, y
+  reabrir otra venta muestra los datos de ESA venta. Requiere sesión + al menos una compra con campos
+  respondidos (la deja `storefront.campos.persistencia.001`).
+- [ ] **panel.ventas.detalle.002** (checkout-campos-configurables F06, I9) — **Degradación limpia**: una venta
+  ANTERIOR a la feature (o de una Tienda que nunca configuró campos) abre el mismo Drawer **sin la sección
+  «Respuestas del checkout»** — no un bloque vacío ni un «—», directamente no está. El resto del detalle
+  (compra + total) se ve igual. Requiere sesión.
+
+- [ ] **panel.ventas.csv.001** (checkout-campos-configurables F07, D9/I7) — En `/admin/ventas`, el header de la
+  página tiene el botón **«Exportar CSV»** (solo el ícono bajo `sm`), habilitado únicamente si hay ventas.
+  Al hacer click **se descarga un archivo `ventas-<AAAA-MM-DD>.csv`** (el día de hoy en Chile). Abriéndolo
+  con un editor de texto: (a) la **primera fila** es `Fecha,Correo,Total,Comisión,Te queda,Estado,Productos`
+  seguida de **una columna por cada campo de checkout respondido**, titulada con su etiqueta; (b) hay **una
+  fila por venta**, TODAS las de la tienda y no solo las 15 de la primera página (si hay más de 15, cargar
+  más en la pantalla NO cambia el archivo); (c) los montos van **crudos** (`5000`, no `$5.000`), una casilla
+  va `true`/`false` (no «Sí») y un Número va sin separador de miles; una venta pendiente deja **vacías** las
+  celdas de Comisión y Te queda; (d) la venta que no respondió un campo deja esa celda vacía, y todas las
+  filas tienen la misma cantidad de columnas. Requiere sesión + al menos una compra con campos respondidos.
+- [ ] **panel.ventas.csv.002** (checkout-campos-configurables F07, D9) — **El archivo abre bien en Excel**:
+  abrir el CSV descargado con Excel/LibreOffice y verificar que (a) los **acentos** se ven correctos
+  («Teléfono», «Comisión» — si sale «TelÃ©fono» falta el BOM); (b) un título de producto con **coma o
+  comillas** queda en UNA sola celda; (c) un **teléfono con `+`** se lee completo (`+56912345678`) y NO
+  convertido en número, y una respuesta de texto que empiece con `=` se muestra como texto **sin
+  ejecutarse**; (d) la columna **Total suma** con una fórmula (`=SUMA(...)`) — o sea que Excel la reconoció
+  como números y no como texto. Requiere sesión + una compra con esos datos (se puede sembrar respondiendo
+  el checkout con un `+569…` y un producto con coma en el título).

@@ -142,6 +142,49 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   *implementer verificó vía curl: 401 sin Bearer, `initialize` OK (serverInfo sorteatelo-pagebuilder),
   `tools/list` devuelve las 10 tools. Falta el round-trip mutar→publicar→ver-en-subdominio con browser-verify.*
 
+- [ ] **storefront.campos.render.001** — (checkout-campos-configurables F04) Con campos creados en
+  `/admin/configuracion` § «Campos del checkout» de `autora` (uno de CADA tipo: TEXTO, TELEFONO, NUMERO,
+  SELECT con 2+ opciones, CHECKBOX con default marcado), agregar un producto al carrito en
+  `autora.localhost:3001` e ir a `/checkout`: el form muestra **«Tu correo» PRIMERO** y debajo los campos
+  **en el orden del panel** (el mismo que fijaron las flechas ↑/↓). Cada uno con su etiqueta; el
+  `placeholder` aparece dentro del input vacío y el `textoAyuda` como línea bajo el control. El SELECT
+  ofrece exactamente las opciones definidas; el CHECKBOX aparece **ya marcado** si el Organizador puso
+  «Viene marcada por defecto» (D4); el NUMERO no acepta decimales. Los campos **opcionales** dicen
+  «(opcional)» en la etiqueta y los obligatorios NO llevan asterisco (el correo tampoco). Un campo
+  **desactivado** en el panel desaparece del checkout tras recargar (D5). Sin sesión (el checkout es
+  público; la configuración previa sí requiere sesión).
+
+- [ ] **storefront.campos.obligatorio.001** — (F04) En el mismo checkout, apretar **«Ir a pagar»** con un
+  campo OBLIGATORIO vacío ⇒ el form marca ESE campo con el error bajo su control y **no** dispara la
+  mutation (no hay redirect a Flow). Completarlo destraba el submit. Un CHECKBOX desmarcado y un NUMERO
+  en `0` **NO** cuentan como vacíos (D4). Este es el espejo de cliente; la validación que manda es la del
+  server (F05).
+  **Sub-paso agregado en F05 (browser-only, no lo puede cubrir ningún unit test)**: en el SELECT
+  obligatorio, elegir una opción y volver a hacer **clic sobre la MISMA opción** — eso es una
+  *deselección* (`allowDeselect` es default en Mantine 7) y deja el valor en `null`. El error debe
+  volver **inline bajo el control**, NO como notificación roja del server: si aparece la notificación,
+  el espejo de cliente se quedó sin cubrir el `null` (bug de F04 corregido en F05).
+
+- [ ] **storefront.campos.vacio.001** — (F04/I9) En un tenant SIN campos configurados
+  (`prueba.localhost:3001`), el checkout se ve **exactamente como antes de la feature**: solo «Tu correo»,
+  el aviso de Flow y «Ir a pagar» — ni un separador, ni un hueco, ni un título de sección extra. La compra
+  arranca igual.
+
+- [ ] **storefront.campos.aislamiento.001** — (F04/I1) Los campos de `autora` **NO** aparecen en el
+  checkout de `prueba.localhost:3001` (ni al revés): cada subdominio muestra solo los suyos, porque la
+  Tienda se resuelve del host server-side. Verificar también en el **HTML del SSR** (curl a
+  `/checkout` de cada subdominio): las etiquetas de un tenant no están en el HTML del otro.
+
+- [ ] **storefront.campos.servidor.001** — (checkout-campos-configurables F05/I3, extra no planeado)
+  La validación que MANDA es la del server, no el espejo del form — y se verifica SIN Flow porque
+  corre antes de crear el pago. En `autora.localhost:3001` con un campo OBLIGATORIO configurado:
+  abrir `/checkout` con el carrito cargado y completar todo; **sin recargar**, en otra pestaña del
+  panel BORRAR (o desactivar) ese campo en § «Campos del checkout»; volver al checkout y apretar
+  «Ir a pagar» ⇒ el form pasa su propia validación pero el server responde con la notificación roja
+  **«El formulario de esta tienda cambió mientras completabas la compra…»**, **no** hay redirect a
+  Flow y **no** se crea la Orden (verificar en `\admin\ventas`). Recargar `/checkout` muestra el
+  form ya sin ese campo.
+
 ## Requiere Flow (credenciales sandbox reales por tenant + túnel del webhook)
 
 - [ ] **storefront.cantidad.001** — En `autora.localhost:3001`, agregar un producto al carrito y subir la
@@ -155,7 +198,68 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   correo (NO es prueba de pago, ADR-0001). La orden queda bajo el tenant correcto; la URL de retorno es
   del subdominio de la Tienda (`autora.localhost:3001/checkout/retorno`), no el apex ni la env global. (Plan F04 E2E)
 
+- [ ] **storefront.campos.persistencia.001** — (checkout-campos-configurables F05) Compra completa en
+  `autora.localhost:3001` **respondiendo los campos** (uno de cada tipo, con el CHECKBOX dejado en su
+  default y sin tocar): tras el pago sandbox, la Orden queda con sus **Respuestas de checkout**
+  congeladas. Verificar en DB (o en el detalle de venta de F06) que hay **una fila por campo
+  respondido** con `clave` + `etiqueta` + `tipo` + `valor` **canónico**: el TELEFONO guardado solo
+  con dígitos (`+56912345678` aunque se haya tipeado `+56 9 1234 5678`), el CHECKBOX como
+  `"true"`/`"false"` (nunca «Sí»/«No»), el SELECT con la opción exacta y el NUMERO en base 10. Un
+  campo OPCIONAL dejado en blanco **no** genera fila; el CHECKBOX no tocado **sí** (D4). Después,
+  **renombrar la etiqueta** de un campo en el panel ⇒ la fila ya guardada sigue mostrando la etiqueta
+  vieja (D5/I4), y **borrar** ese campo tampoco borra la respuesta.
+
 - [ ] **sorteo.tickets.e2e.001** — Comprar en `autora.localhost:3001` un producto participante con
   cantidad N (pago sandbox + webhook con túnel) ⇒ en `/admin/sorteo` aparecen **N participaciones/tickets**
   para ese correo (agrupados por correo con su conteo de tickets); un replay del webhook deja las N intactas
   (no 2N). Un producto NO participante ×M no suma tickets. (Plan F03 E2E — sorteo-por-producto, ADR-0012)
+- [x] **storefront.bases.001** (admin-bases-pdf F04, ADR-0008) — ✅ 2026-07-25 (re-verificado tras el fix del
+  BLOCKER 1): los 6 tenants dan **200** en `/bases`. (a) En `autora` (con PDF subido en esta corrida) el enlace
+  «Bases del sorteo» del footer y el botón «Ver bases del sorteo» de la vitrina navegan a `/bases`, el PDF se ve
+  **embebido en el iframe** (visor nativo de Chrome, 1/1 página) y «Descargar PDF» apunta al objeto real del
+  bucket (`curl` ⇒ 200 `application/pdf`). (b) Disclaimer ADR-0008 presente. (c) En `bcac`/`prueba` (sorteo
+  activo SIN PDF) sale «Las bases todavía no están publicadas» — sin 500 ni iframe roto. (e) Consola limpia:
+  cero violación de CSP (`frame-src` incluye el origen del bucket, `object-src 'none'` intacto). La línea del
+  sorteo formatea la fecha bien (`vigente hasta el 14 oct 2026`) ⇒ el `Date` sobrevive el borde SSR.
+  ⏭️ Caso (d) «sin sorteo activo» NO ejercitable: los 6 tenants de la DB dev tienen sorteo ACTIVO (cubierto por
+  Vitest `storefront.bases.002`). — La página **`/bases`** muestra el PDF de bases
+  del sorteo **ACTIVO** de la tienda: (a) en un tenant con sorteo activo y PDF subido, el enlace **«Bases del
+  sorteo»** del footer y el botón **«Ver bases del sorteo»** de la vitrina navegan a `/bases`, donde se ve el
+  PDF embebido en el `<iframe>` y el botón **«Descargar PDF»** abre el archivo real del bucket público;
+  (b) el **disclaimer de responsabilidad** (ADR-0008) aparece en la página; (c) en un tenant con sorteo activo
+  SIN PDF se ve el estado vacío neutral («Las bases todavía no están publicadas»), **nunca un 500 ni un iframe
+  roto**; (d) sin sorteo activo, `/bases` responde igual con el vacío neutral («Ahora mismo no hay un sorteo
+  activo»); (e) la consola no reporta una violación de CSP por el iframe del PDF. Sin sesión.
+- [x] **storefront.bases.002** (admin-bases-pdf D13) — ✅ 2026-07-25 (re-verificado tras el fix del BLOCKER 2):
+  (a) en `prueba` el ítem «Bases» del navbar renderiza `href="/bases"` y **el click cambia la URL** a
+  `prueba.localhost:3001/bases` (`location.hash` vacío, no se queda en la home); ídem en `bcac`. (b) mismo
+  destino que «Bases del sorteo» del footer y que el botón de la vitrina — un solo lugar para el documento
+  legal. (d) el resto del nav sigue con scroll (`#beneficios`, `#sorteo`, `#autora` en `prueba`; `#proximos`,
+  `#sorteo`, `#catalogo` en `bcac`) y la home emite **0** `href="#bases"` en los 6 tenants.
+  ⏭️ Caso (c) «etiqueta propia» NO ejercitable: ningún tenant tiene `garantias_sorteo`/`texto_rico` marcado
+  `enNav` (cubierto por Vitest `nav.bases.002`). — El ítem **«Bases» del navbar abre SIEMPRE el PDF**, nunca
+  hace scroll: en una tienda cuyo documento tiene una sección `garantias_sorteo` (o `texto_rico`) marcada para
+  el nav, (a) el ítem «Bases» del encabezado navega a **`/bases`** (cambia la URL; no queda en la home con un
+  `#bases`); (b) el destino es el mismo al que lleva «Bases del sorteo» del footer — un solo lugar para el
+  documento legal; (c) si el Organizador le puso una **etiqueta propia** a esa sección, el texto del ítem
+  cambia pero el destino sigue siendo `/bases`; (d) el resto de los ítems del nav siguen haciendo scroll
+  dentro de la página (`#catalogo`, `#autora`, …). Sin sesión.
+- [x] **storefront.bases.003** (admin-bases-pdf D14) — ✅ 2026-07-25: (a) en `bcac` el botón «Ver bases del
+  sorteo» del **hero** (primera sección, y=591) renderiza `href="/bases"` y el click navegó a
+  `bcac.localhost:3001/bases`, que mostró el visor; (b) la home de `bcac` tiene **0** `href="#bases"` y sus 4
+  enlaces «bases» (navbar, hero, vitrina, footer) coinciden en `/bases`; (c) los demás CTA siguen scrolleando
+  (`#proximos`, `#sorteo`, `#catalogo` intactos). — Los **CTA de contenido** con ancla «bases» abren el PDF, no
+  scrollean: (a) en **`bcac`**, el botón **«Ver bases del sorteo»** del hero (que la seed configura con
+  `ancla:"bases"`) navega a **`/bases`** y muestra el visor — antes era un enlace legal a ninguna parte, porque
+  esa home no emite ningún target `#bases`; (b) la home de `bcac` no contiene **ni un solo** `href="#bases"`
+  (navbar, hero y footer coinciden en el mismo destino); (c) los demás CTA del documento siguen scrolleando
+  dentro de la página (`#catalogo`, `#sorteo`, …) — el cambio es solo para «bases». Sin sesión.
+- [x] **storefront.postdrop.001** (admin-bases-pdf F07) — ✅ 2026-07-25: los 6 verdes tras el restart (cliente Prisma
+  nuevo). `autora` «Historias que enamoran», `prueba` «¿Cómo enriquecer a tu idol?», `bcac` «Cómo Enriquecer a tu
+  Artista Favorito», `demo-noche`/`demo-editorial`/`demo-dreamy` «Compra el libro. Anda a ver a BTS.» — hero,
+  catálogo, vitrina, footer y branding intactos; ningún 500; cero errores de consola. — Tras el DROP de las 6 columnas legacy, los storefronts
+  existentes (`autora`, `prueba`, `bcac`, `demo-noche`, `demo-editorial`, `demo-dreamy`) **renderizan igual
+  que antes**: hero con su título/subtítulo/imagen, aviso si lo tenían, catálogo, vitrina del sorteo y footer
+  — todo servido desde el Documento de Página, que ya era la única fuente. Ninguno 500ea (el `select` del
+  branding y el del sorteo ya no piden columnas inexistentes) y ninguno pierde contenido visible.
+  **Requiere restart del dev server** (cliente Prisma nuevo). Sin sesión.

@@ -18,13 +18,12 @@ interface RaffleFake {
   premio: string;
   fechaInicio: Date;
   fechaFin: Date;
-  basesUrl: string | null;
   premioImageUrl: string | null;
-  basesSorteo: string | null; // del Tenant
   totalEntries: number;
 }
 
-/** Fake que emula el `findFirst` con select (`_count.entries` + `tenant.basesSorteo`). */
+/** Fake que emula el `findFirst` con select (`_count.entries`). Las BASES ya no viajan por acá
+ *  (admin-bases-pdf F07/D3): son un PDF por Sorteo que sirve `storefront/basesDelSorteo`. */
 function fakeDb(raffles: RaffleFake[]) {
   return {
     raffle: {
@@ -43,10 +42,8 @@ function fakeDb(raffles: RaffleFake[]) {
           premio: r.premio,
           fechaInicio: r.fechaInicio,
           fechaFin: r.fechaFin,
-          basesUrl: r.basesUrl,
           premioImageUrl: r.premioImageUrl,
           _count: { entries: r.totalEntries },
-          tenant: { basesSorteo: r.basesSorteo },
         };
       },
     },
@@ -61,16 +58,14 @@ const raffle = (over: Partial<RaffleFake>): RaffleFake => ({
   premio: "Un ejemplar firmado",
   fechaInicio: new Date("2026-07-01"),
   fechaFin: new Date("2026-08-01"),
-  basesUrl: null,
   premioImageUrl: null,
-  basesSorteo: "Participan las compras pagadas…",
   totalEntries: 3,
   ...over,
 });
 
 describe("domain/checkout/getSorteoActivoStorefront (fake db, público, tenant-scoped)", () => {
   // checkout.sorteo.storefront.001 — devuelve el ACTIVO del contexto con conteo, SIN correos
-  it("devuelve el Raffle ACTIVO del tenant (nombre/premio/fechas/bases + conteo) sin correos de participantes", async () => {
+  it("devuelve el Raffle ACTIVO del tenant (nombre/premio/fechas + conteo) sin correos de participantes", async () => {
     const res = await getSorteoActivoStorefront({
       db: fakeDb([raffle({ tenantId: "A", totalEntries: 3 })]),
       tenantId: "A",
@@ -79,7 +74,6 @@ describe("domain/checkout/getSorteoActivoStorefront (fake db, público, tenant-s
       id: "r1",
       nombre: "Sorteo de lanzamiento",
       premio: "Un ejemplar firmado",
-      basesTexto: "Participan las compras pagadas…",
       totalParticipaciones: 3,
     });
     // Privacidad (ADR-0004): jamás correos ni lista de participantes.

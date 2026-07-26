@@ -20,3 +20,24 @@ Razón:
 - **Degradación elegante obligatoria** (regla de producto, no de infra): cada imagen es opcional; sin ella el storefront muestra un **gradiente/placeholder temático derivado del `colorPrimario`** del tenant, nunca un hueco ni un `<img>` roto.
 - **La marca de la PLATAFORMA sigue PENDIENTE** (decisión #4): este ADR es sobre los assets de las TIENDAS (theming per-tenant), no sobre la identidad del SaaS. El pie del storefront no lleva nombre de marca de plataforma hasta que #4 se cierre.
 - **Atadura a la decisión #5** (dominio/hosting): `R2_PUBLIC_BASE_URL` es hoy el subdominio `r2.dev` gestionado; migrar a dominio propio es cambiar la env + un script one-time que recomponga las URLs almacenadas (barato, pre-go-live). Alternativa considerada y diferida: guardar solo la KEY y componer la URL server-side en cada lectura (evita el script pero agrega composición en todo read path) — revisable si el dominio público pasa a variar por entorno.
+
+## Addendum 2026-07-25 — el PDF de las Bases del sorteo entra al bucket público (destino `bases`)
+
+> Plan `tasks/26-07-25-admin-bases-pdf-y-limpieza.md` (D1). Amplía la decisión original sin reescribirla.
+
+El bucket público ahora acepta **`application/pdf` SOLO para el destino nuevo `bases`** (el PDF de las
+Bases del sorteo, `Raffle.basesPdfUrl`, key per-tenant/per-raffle generada server-side:
+`<tenantId>/sorteo/<raffleId>/bases.pdf`, con el mismo cache-buster `?v=` que el resto de los assets).
+Cualquier otro destino público (logo/hero/portada/premio) sigue rechazando PDFs, y el destino `bases`
+rechaza todo lo que no sea PDF.
+
+**El invariante se re-redacta**: de «el bucket público jamás contiene un PDF» a «el bucket público
+jamás contiene un PDF de **PRODUCTO**». Los PDFs de producto pagados siguen SOLO en el bucket privado
+con URL prefirmada + `Entitlement` — ADR-0002/0009 quedan intactos.
+
+Razón: las bases son un **documento legal público por naturaleza** — ADR-0008 obliga a mostrarlas a
+cualquier visitante del storefront (visor embebido en la página `/bases`), así que no hay nada que
+"filtrar": no son el producto pirateable, son la letra chica del sorteo. Una URL pública estable
+simplifica el visor embebido (`<iframe>` nativo) y evita URLs firmadas que expiran a mitad de una
+visita. El razonamiento original de la frontera a nivel de bucket sigue en pie: lo que cambia no es
+la frontera sino la clasificación — las bases pertenecen al lado público de ella.

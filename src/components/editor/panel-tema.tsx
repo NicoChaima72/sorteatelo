@@ -12,6 +12,7 @@ import { IconArrowLeft } from "@tabler/icons-react";
 import { useState } from "react";
 
 import { useAutoGuardado } from "~/components/editor/use-auto-guardado";
+import { SWATCHES_MARCA } from "~/lib/coloresMarca";
 import {
   ANCHO_CONTENIDO,
   ESQUEMAS_FONDO,
@@ -104,15 +105,9 @@ export function PanelTema({
         onChange={setAcento}
         onChangeEnd={aplicarAcento}
         rightSection={aplicandoAcento ? <Loader size="xs" /> : undefined}
-        swatches={[
-          "#7c3aed",
-          "#ffc530",
-          "#e11d48",
-          "#0d9488",
-          "#2b3fbf",
-          "#f97316",
-          "#111827",
-        ]}
+        // Misma paleta sugerida que la card «Tu tienda» del admin (admin-bases-pdf F06): las dos
+        // superficies que editan la marca ofrecen los mismos atajos.
+        swatches={[...SWATCHES_MARCA]}
       />
     </Stack>
   );

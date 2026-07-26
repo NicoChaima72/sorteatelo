@@ -6,7 +6,7 @@ import { editarSorteo } from "~/server/domain/panel/editarSorteo";
 
 /**
  * Tests del use case `editarSorteo` (F02) con `db` FAKE STATEFUL. Solo edita un Raffle ACTIVO y NO
- * ejecutado; muta ÚNICAMENTE nombre/premio/fechaFin/basesUrl (nunca estado, premioImageUrl ni campos
+ * ejecutado; muta ÚNICAMENTE nombre/premio/fechaFin (nunca estado, premioImageUrl/basesPdfUrl ni campos
  * de ejecución, I4). Ya ejecutado ⇒ CONFLICT; raffle ajeno/inexistente ⇒ NOT_FOUND. Scoped por
  * tenant server-side; el `raffleId` del input se valida contra el tenant.
  */
@@ -16,6 +16,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   email: "org@x.cl",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 const AHORA = new Date("2026-02-15T12:00:00Z");
@@ -68,8 +71,8 @@ function fakeDb(
 }
 
 describe("domain/panel/editarSorteo (fake db stateful, solo ACTIVO no ejecutado)", () => {
-  // panel.sorteo.editar.001 — edita nombre/premio/fechaFin/basesUrl del ACTIVO
-  it("actualiza nombre/premio/fechaFin/basesUrl del Raffle ACTIVO del tenant", async () => {
+  // panel.sorteo.editar.001 — edita nombre/premio/fechaFin del ACTIVO (las bases NO son campo de edición)
+  it("actualiza nombre/premio/fechaFin del Raffle ACTIVO del tenant", async () => {
     const { db, getUpdateData } = fakeDb({
       id: "r1",
       tenantId: "A",
@@ -83,7 +86,6 @@ describe("domain/panel/editarSorteo (fake db stateful, solo ACTIVO no ejecutado)
         nombre: "Nuevo nombre",
         premio: "Nuevo premio",
         fechaFin: FUTURO,
-        basesUrl: "https://bases.cl/x",
       },
       ahora: AHORA,
     });
@@ -92,7 +94,6 @@ describe("domain/panel/editarSorteo (fake db stateful, solo ACTIVO no ejecutado)
     expect(data.nombre).toBe("Nuevo nombre");
     expect(data.premio).toBe("Nuevo premio");
     expect(data.fechaFin).toEqual(FUTURO);
-    expect(data.basesUrl).toBe("https://bases.cl/x");
   });
 
   // panel.sorteo.editar.002 — ya ejecutado ⇒ CONFLICT
@@ -159,8 +160,11 @@ describe("domain/panel/editarSorteo (fake db stateful, solo ACTIVO no ejecutado)
     expect(updateIntentado).toBe(true); // llegó al guard atómico y rechazó ahí
   });
 
-  // panel.sorteo.editar.004 — no muta estado, premioImageUrl ni campos de ejecución
-  it("no permite mutar estado, premioImageUrl ni campos de ejecución (solo los 4 campos editables)", async () => {
+  // panel.sorteo.editar.004 — no muta estado, assets (premio/bases) ni campos de ejecución
+  // Reescrito (admin-bases-pdf F02/D2/I6): `basesUrl` salió del input con D3 y `basesPdfUrl` NO es
+  // editable acá — reemplazar las bases es RE-SUBIR el PDF (`confirmarBasesSubidas` es el único
+  // escritor de esa columna), igual que `premioImageUrl` va por el AssetUploader.
+  it("no permite mutar estado, premioImageUrl/basesPdfUrl ni campos de ejecución (solo los 3 editables)", async () => {
     const { db, getUpdateData } = fakeDb({
       id: "r1",
       tenantId: "A",
@@ -173,6 +177,6 @@ describe("domain/panel/editarSorteo (fake db stateful, solo ACTIVO no ejecutado)
       ahora: AHORA,
     });
     const keys = Object.keys(getUpdateData()!).sort();
-    expect(keys).toEqual(["basesUrl", "fechaFin", "nombre", "premio"]);
+    expect(keys).toEqual(["fechaFin", "nombre", "premio"]);
   });
 });

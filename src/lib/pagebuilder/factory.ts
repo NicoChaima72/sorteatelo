@@ -16,19 +16,24 @@ import { runsDeTexto, urlPublica, WIDGET_REGISTRY } from "~/lib/pagebuilder/widg
  * de cada sección en la semilla. Mismo branding ⇒ mismo documento, byte a byte. Las mutaciones del
  * MCP (F04) generan ids nuevos con `crypto.randomUUID()`; la semilla no.
  *
- * DEGRADACIÓN ELEGANTE: los overrides de texto/imagen del hero SOLO se incluyen si la columna existe
- * y es válida — sin ellos el render cae al `nombre`/`descripcion`/gradiente del Tenant (resueltos
+ * DEGRADACIÓN ELEGANTE: los overrides de texto/imagen del hero SOLO se incluyen si vienen y son
+ * válidos — sin ellos el render cae al `nombre`/`descripcion`/gradiente del Tenant (resueltos
  * server-side; NO se copian al documento, I2). Los textos se recortan al límite del schema y una
  * `imagenUrl` inválida se descarta ⇒ la factory NUNCA produce un documento que no parsee.
  */
 
-/** Columnas de branding del `Tenant` que la semilla "fotografía" al documento (hero + aviso). */
+/**
+ * Valores con los que SEMBRAR el hero/aviso del documento inicial. Hasta admin-bases-pdf F07 esto
+ * "fotografiaba" columnas del `Tenant` (`heroTitulo`/`heroSubtitulo`/`heroImageUrl`/`avisoTexto`);
+ * esas columnas ya NO existen — el hero vive solo en el Documento. Hoy son datos que trae el CALLER:
+ * los seeds siembran una tienda demo con su hero, y `crearTienda` no pasa ninguno (una Tienda nueva
+ * nace sin overrides y el render degrada a su nombre/descripción). Todos OPCIONALES.
+ */
 export interface BrandingSemilla {
-  heroTitulo: string | null;
-  heroSubtitulo: string | null;
-  heroImageUrl: string | null;
-  /** Banner de aviso (F10): si está, se emite un overlay `aviso_barra` (migra el chrome, R1).
-   *  Opcional (ausente ⇒ sin overlay) para no romper los callers previos a F10. */
+  heroTitulo?: string | null;
+  heroSubtitulo?: string | null;
+  heroImageUrl?: string | null;
+  /** Banner de aviso: si está, se emite un overlay `aviso_barra`. */
   avisoTexto?: string | null;
 }
 
@@ -63,14 +68,14 @@ export function documentoInicial(branding: BrandingSemilla): PageDocument {
   // encima de sus defaults. Un cambio a `WIDGET_REGISTRY.<tipo>.defaultProps` se propaga solo. El hero
   // v3 (Tanda 3 F02/D4) usa `titulo`/`subtitulo` como RichTexto ⇒ el override de branding (string) se
   // envuelve en un run plano (`runsDeTexto`); ausente ⇒ el render cae al `nombre`/`descripcion` del Tenant.
-  const heroTitulo = recortar(branding.heroTitulo, 120);
-  const heroSubtitulo = recortar(branding.heroSubtitulo, 300);
+  const heroTitulo = recortar(branding.heroTitulo ?? null, 120);
+  const heroSubtitulo = recortar(branding.heroSubtitulo ?? null, 300);
   const heroProps = {
     ...WIDGET_REGISTRY.hero.defaultProps,
     ...sinVacios({
       titulo: heroTitulo ? runsDeTexto(heroTitulo) : undefined,
       subtitulo: heroSubtitulo ? runsDeTexto(heroSubtitulo) : undefined,
-      imagenUrl: urlODescartar(branding.heroImageUrl),
+      imagenUrl: urlODescartar(branding.heroImageUrl ?? null),
     }),
   };
 
@@ -163,4 +168,65 @@ export function conAvisoBarra(
     props: { ...WIDGET_REGISTRY.aviso_barra.defaultProps, mensajes: [texto] },
   };
   return PageDocumentSchema.parse({ ...doc, overlays: [...doc.overlays, overlay] });
+}
+
+/** Las 4 columnas MUERTAS de la card «Tu tienda» del admin, que F05 vuelca al Documento. */
+export interface TextosDeTienda {
+  heroTitulo: string | null;
+  heroSubtitulo: string | null;
+  heroImageUrl: string | null;
+  avisoTexto: string | null;
+}
+
+/**
+ * Vuelca al Documento de Página el contenido que quedó atrapado en las **columnas muertas** del
+ * Tenant (`heroTitulo`/`heroSubtitulo`/`heroImageUrl`/`avisoTexto`) — admin-bases-pdf F05, D7/opción E.
+ * PURA e IDEMPOTENTE; la usa el script `scripts/migrar-tu-tienda-a-documento.ts` antes del DROP de F07.
+ *
+ * Por qué existe: desde que el storefront lee TODO del Documento, esos 4 inputs del admin guardaban
+ * con un toast «Cambios guardados.» y **no cambiaban nada**. Un Organizador que escribió ahí después
+ * del backfill tiene texto suyo que solo vive en la columna; borrar la columna sin rescatarlo sería
+ * perder contenido de un usuario.
+ *
+ * Regla única: **rellenar huecos, jamás pisar**. Si el hero ya tiene `titulo`/`subtitulo`/`imagenUrl`,
+ * esos ganan siempre (el builder es la fuente de verdad; la columna es el legado). De ahí sale la
+ * idempotencia gratis: tras la primera corrida ya no hay huecos, y la segunda es un no-op exacto.
+ *
+ * Toca SOLO el primer `hero` del documento; si el Organizador lo eliminó, no se re-crea (respetar su
+ * página vale más que rescatar un título). El aviso va por `conAvisoBarra`, que es overlay y no
+ * depende del hero. Devuelve un documento VALIDADO.
+ */
+export function conTextosDeTienda(
+  doc: PageDocument,
+  columnas: TextosDeTienda,
+): PageDocument {
+  const titulo = recortar(columnas.heroTitulo, 120);
+  const subtitulo = recortar(columnas.heroSubtitulo, 300);
+  const imagenUrl = urlODescartar(columnas.heroImageUrl);
+
+  let conHero = doc;
+  const hayAlgoDeHero = titulo ?? subtitulo ?? imagenUrl;
+  if (hayAlgoDeHero !== undefined) {
+    let tocado = false;
+    const secciones = doc.secciones.map((s) => {
+      // Solo el PRIMER hero (`tocado` corta): un documento con dos heros no se toca dos veces.
+      if (s.tipo !== "hero" || tocado) return s;
+      tocado = true;
+      // `sinVacios` + el spread al final garantizan que lo EXISTENTE gana sobre la columna.
+      const props = {
+        ...sinVacios({
+          titulo: titulo ? runsDeTexto(titulo) : undefined,
+          subtitulo: subtitulo ? runsDeTexto(subtitulo) : undefined,
+          imagenUrl,
+        }),
+        ...s.props,
+      };
+      return { ...s, props };
+    });
+    if (tocado) {
+      conHero = PageDocumentSchema.parse({ ...doc, secciones });
+    }
+  }
+
+  return conAvisoBarra(conHero, columnas.avisoTexto);
 }

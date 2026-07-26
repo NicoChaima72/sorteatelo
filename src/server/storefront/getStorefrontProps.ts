@@ -1,12 +1,15 @@
 import { type GetServerSidePropsContext } from "next";
 
 import { leerChromeParaRender, type Chrome } from "~/lib/pagebuilder/chrome";
-import { documentoInicial } from "~/lib/pagebuilder/factory";
 import { leerDocumentoParaRender } from "~/lib/pagebuilder/migrate";
 import { humanizarSlug, type NavItem } from "~/lib/pagebuilder/nav";
 import { type PageDocument, type Tema } from "~/lib/pagebuilder/schema";
 import { env } from "~/env";
 import { db } from "~/server/db";
+import {
+  type CampoDelCheckout,
+  listarCamposActivosDelStorefront,
+} from "~/server/domain/camposCheckout/camposActivos";
 import { crearRepoBranding } from "~/server/storefront/repoBranding";
 import {
   type ResolucionBranding,
@@ -55,6 +58,36 @@ export async function getPropsPaginaComprador(
   const res = await resolverBrandingSSR(ctx);
   if (res.zona !== "storefront") return { notFound: true };
   return { props: { tenantBranding: res.branding } };
+}
+
+/** Props del CHECKOUT: las del comprador + los Campos de checkout activos de la Tienda (F04). */
+export interface PropsCheckout extends PropsStorefront {
+  /**
+   * Los datos ADICIONALES que esta Tienda pide, en orden. `[]` ⇒ el checkout pide solo el correo,
+   * exactamente como antes de la feature (I9). El correo NO está acá: es fijo (I2/ADR-0004).
+   */
+  campos: CampoDelCheckout[];
+}
+
+/**
+ * Helper del SSR del checkout (F04). Se apoya en `getPropsPaginaComprador` en vez de repetir el
+ * gate de zona: así el checkout no puede divergir del resto de las páginas del Comprador en QUÉ
+ * hosts atiende (I2), y lo único que suma es la lectura de los campos.
+ *
+ * El tenant sale del subdominio ya resuelto server-side (I1) — el cliente no elige de qué Tienda
+ * son los campos que ve, que es lo que impide que los de una Tienda aparezcan en otra.
+ */
+export async function getPropsCheckout(
+  ctx: GetServerSidePropsContext,
+): Promise<{ props: PropsCheckout } | { notFound: true }> {
+  const base = await getPropsPaginaComprador(ctx);
+  if (!("props" in base)) return base;
+
+  const campos = await listarCamposActivosDelStorefront({
+    db,
+    tenantSlug: base.props.tenantBranding.slug,
+  });
+  return { props: { ...base.props, campos } };
 }
 
 /** Props de la home (`/`): tematizada + Documento de Página si es storefront; sin nada si es apex. */
@@ -109,16 +142,11 @@ async function cargarDocumentoParaRender({
     select: { draftJson: true, publishedJson: true },
   });
   const raw = cual === "borrador" ? page?.draftJson : page?.publishedJson;
-  if (raw == null) {
-    // Solo `home` cae al fallback on-the-fly (siempre debe renderizar algo). Otras páginas ⇒ null (404).
-    if (slug !== "home") return null;
-    return documentoInicial({
-      heroTitulo: branding.heroTitulo,
-      heroSubtitulo: branding.heroSubtitulo,
-      heroImageUrl: branding.heroImageUrl,
-      avisoTexto: branding.avisoTexto, // F10: overlay aviso_barra en el fallback on-the-fly
-    });
-  }
+  // El FALLBACK on-the-fly desde las columnas de branding MURIÓ con ellas (admin-bases-pdf F07/D9):
+  // tras el backfill ningún tenant lo recorría, y las columnas que lo alimentaban ya no existen. Toda
+  // Tienda nace con su `StorefrontPage` en la MISMA $tx que el Tenant (`crearTienda`), así que "sin
+  // documento" dejó de ser un estado alcanzable; si igual pasara, 404 neutral es la respuesta honesta.
+  if (raw == null) return null;
   return leerDocumentoParaRender(raw);
 }
 
@@ -198,7 +226,9 @@ export async function getPropsHome(
     branding: res.branding,
     cual: modo === "borrador" ? "borrador" : "publicado",
   });
-  // `home` siempre resuelve (fallback on-the-fly) ⇒ pagina no-null; guardamos por tipos.
+  // Desde F07/D9 ya NO hay fallback on-the-fly: una tienda sin `publishedJson` en su `home` da 404
+  // neutral. No es dead code — es el fail-closed honesto (toda Tienda nace con su página en la misma
+  // $tx que el Tenant, así que llegar acá significa que algo borró la fila).
   if (!pagina) return { notFound: true };
   const navPaginas = await resolverNavPaginas({ tenantSlug: res.branding.slug, paginaActual: "home" });
   const chrome = await resolverChrome({ tenantSlug: res.branding.slug });

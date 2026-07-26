@@ -20,7 +20,11 @@ export interface RequisitosPublicacion {
   flow: Requisito;
   /** ≥1 Product `activo` con `pdfPath` (publicable = entregable, I9/D5). */
   producto: Requisito;
-  /** Bases del sorteo: solo `aplica` si hay un Raffle ACTIVO (ADR-0008). */
+  /**
+   * Bases del sorteo: solo `aplica` si hay un Raffle ACTIVO (ADR-0008). Desde admin-bases-pdf
+   * F03/D2/D3, «cumplido» = el Raffle ACTIVO tiene su **PDF de bases** subido — ya no un texto
+   * borrador en el Tenant.
+   */
   bases: Requisito & { aplica: boolean };
 }
 
@@ -45,11 +49,21 @@ export interface DatosGate {
   flowConfigurada: boolean;
   tieneProductoPublicable: boolean;
   hayRaffleActivo: boolean;
-  basesSorteo: string | null;
+  /**
+   * `Raffle.basesPdfUrl` del Raffle **ACTIVO** (admin-bases-pdf F03/D2/D3), o `null` si no lo subió
+   * — o si no hay Raffle activo, en cuyo caso el requisito ni siquiera aplica. Reemplaza al
+   * `basesSorteo` (texto borrador del Tenant) que era la fuente hasta este plan: las bases legales
+   * son SIEMPRE un PDF y viven en el SORTEO, no en la Tienda.
+   */
+  basesPdfDelRaffleActivo: string | null;
 }
 
-/** `true` sii el texto tiene contenido real (no null, no solo espacios). */
-function tieneTexto(v: string | null): boolean {
+/**
+ * `true` sii el valor tiene contenido real (no null, no vacío, no solo espacios). Se llama `tieneValor`
+ * y no `tieneTexto` desde admin-bases-pdf F03: lo que evalúa ahora es una URL de PDF, no un texto
+ * redactado. El `trim` sigue importando — una columna con `""` o espacios NO es "bases cargadas".
+ */
+function tieneValor(v: string | null): boolean {
   return (v?.trim().length ?? 0) > 0;
 }
 
@@ -68,7 +82,7 @@ export function evaluarPublicacion(d: DatosGate): EstadoPublicacion {
   const basesAplica = d.hayRaffleActivo;
   const bases = {
     aplica: basesAplica,
-    cumplido: !basesAplica || tieneTexto(d.basesSorteo),
+    cumplido: !basesAplica || tieneValor(d.basesPdfDelRaffleActivo),
   };
 
   const puedePublicar =
@@ -94,7 +108,7 @@ export function mensajeRequisitoFaltante(
     return "Antes de publicar necesitas al menos un producto activo con su PDF subido.";
   }
   if (r.bases.aplica && !r.bases.cumplido) {
-    return "Tu sorteo está activo: antes de publicar debes cargar las bases del sorteo.";
+    return "Tu sorteo está activo: antes de publicar debes subir el PDF con sus bases.";
   }
   return null;
 }

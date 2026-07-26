@@ -20,6 +20,11 @@ describe("config/app — APP_CONFIG", () => {
     expect(APP_CONFIG.tagline.length).toBeGreaterThan(0);
   });
 
+  // config.app.003 — el tagline es el de la landing sorteo-first (D11): alimenta title/meta/OG
+  it("el tagline es el sorteo-first «Monta tu sorteo online tú mismo, en un día.»", () => {
+    expect(APP_CONFIG.tagline).toBe("Monta tu sorteo online tú mismo, en un día.");
+  });
+
   // config.app.002 — client-safe: no importa nada de ~/server (no filtra secretos al bundle)
   it("no importa código de ~/server (seguro para el bundle del cliente)", () => {
     const src = readFileSync(resolve(__dirname, "../../config/app.ts"), "utf8");

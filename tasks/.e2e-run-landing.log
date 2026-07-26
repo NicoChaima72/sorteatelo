@@ -1,0 +1,81 @@
+=== feature-tester — corrida E2E ===
+Modo:    feature (slug=landing-reposicionamiento)
+Scope:   Vitest landing-copy + landing-seo + config/app; 9 checks de e2e-landing-reposicionamiento.md
+Server:  http://localhost:3001 — next dev REINICIADO por mi (autorizado), UNA sola instancia
+Host de la landing: http://www.localhost:3001/  (ver nota devTienda abajo)
+Nota:    escribo en .e2e-run-landing.log y NO en .e2e-run.log porque otro feature-tester
+         (slug=plataforma-retiro-operador) esta corriendo en paralelo y es el dueno de ese archivo.
+Inicio:  2026-07-26
+
+--- Vitest ---
+config/app       3/3   OK
+landing-copy    13/13  OK
+landing-seo      9/9   OK
+TOTAL           25/25  VERDE
+
+--- Restart del dev server ---
+PID 46248 (next dev :3001) terminado con taskkill; puerto libre; relanzado
+`node node_modules/next/dist/bin/next dev -p 3001` en background (node_modules/.bin no existe).
+Ready en 1440ms. Post-restart TODO 200: / /login /robots.txt /sitemap.xml /og.png autora.localhost.
+=> confirmado: el 500 global era estado stale del dev server, causa AJENA a esta task.
+
+--- Hallazgo de host (no es un bug) ---
+src/config.ts tiene devTienda.enabled=true slug="autora" (F09d, estado COMMITEADO del repo):
+en dev el apex PELADO localhost:3001 impersona la Tienda autora, no la landing de plataforma.
+La landing se alcanza en www.localhost:3001 — parsearHost() mapea el prefijo "www" a
+{zona:"plataforma"}, misma zona que el apex. NO toque src/config.ts: apagarlo habria roto
+la corrida del agente paralelo, que esta testeando sobre localhost:3001.
+
+--- E2E ---
+[PASS]    landing.hero.001      eyebrow, titular con plumon en «sorteo» y «Hoy», bajada, nota
+                                «Gratis para partir · Sin tarjeta», 3 CTAs «Crea tu tienda gratis»
+                                -> /login. \brifa\b = 0 en texto visible; «Flow» = 1 (FAQ 4).
+[PARCIAL] landing.bandas.001    9 bandas en orden D8 EXACTO verificado por DOM + CSS module:
+                                azul/blanca/amarilla/blanca/amarilla/blanca/gris/azul/tinta.
+                                Cero blancas adyacentes. Copy de precio completo. Remate
+                                «Menos de mil pesos al dia.» es span.plumon dentro de .bandaAmarilla
+                                y .bandaAmarilla .plumon conmuta a plumon-blanco.svg (plumon BLANCO).
+                                PENDIENTE: viewport movil ~375px (apilado y no-desborde de la card).
+[PARCIAL] landing.faq.001       9 preguntas en el orden aprobado, 9 items y 9 paneles en el DOM SSR.
+                                Respuesta 1 con «$25.000 al mes, IVA incluido» y sin «en definicion».
+                                Respuesta 4 es la UNICA con «Flow» en toda la pagina.
+                                PENDIENTE: el click que expande (Accordion de Mantine, stock).
+[PASS]    landing.jsonld.001    4 scripts ld+json en orden Organization/WebSite/SoftwareApplication/
+                                FAQPage, los 4 JSON.parse OK, FAQPage con 9 Question identicas a las
+                                del Accordion, Offer price=25000 priceCurrency=CLP, sin «</script».
+[PASS]    landing.metadata.001  canonical https://sorteatelo.cl/ ; og:locale es_CL ;
+                                og:image https://sorteatelo.cl/og.png 1200x630 ; keywords con «rifa» ;
+                                title y description SIN «rifa» (desc 156 chars).
+                                Control negativo autora.localhost:3001: cero ld+json, cero canonical
+                                del apex, cero «sorteatelo.cl» en el head.
+[PASS]    landing.robots.001    /robots.txt 200 text/plain 321 B con User-agent:* + Allow:/ +
+                                Sitemap absoluto. /sitemap.xml 200 application/xml con
+                                <loc>https://sorteatelo.cl/</loc>. Pasan el matcher del middleware.
+[PASS]    landing.og.001        /og.png 200 image/png, 1200x630, 40.253 B byte-identico al de disco.
+                                Lectura visual: wordmark, titular con plumon DEBAJO (no tachado),
+                                tagline nuevo, chip mono N 000428, fuentes de marca.
+[PASS]    landing.honestidad.001 Cero afirmaciones de que alguien VE un numero. Banda del momento
+                                habla del ganador apareciendo en la pantalla del Organizador al
+                                apretar sortear. Boleto: «Admite a 1 (una) tienda», sin «nueva».
+[PASS]    login.og.001          /login og:image = https://sorteatelo.cl/og.png ; cero /og.svg relativo.
+
+--- Cierre ---
+Vitest 25/25 | E2E 7 PASS + 2 PARCIAL (residuo: viewport 375px y click del Accordion)
+Ambos carriles MCP de navegador OCUPADOS por agentes paralelos (chrome-devtools PIDs 42320/39056,
+playwright PIDs 21768/36264). No se le arranco el navegador a nadie (browser-verify §0/§5).
+Design findings: 2 nits (redaccion del check og «ea», talonario decorativo con N° en banda momento).
+Auto-retries: 1 (touch de middleware, sin efecto) + 2 reintentos de carril MCP.
+fin: 2026-07-26
+
+--- Cierre definitivo (2026-07-26 05:15) ---
+Residuos cerrados por la SESION PRINCIPAL (carril Playwright, lock liberado):
+[PASS] landing.bandas.001  375x812: colores computados de las 10 bandas = orden D8 exacto, cero
+                           blancas adyacentes, sin overflow (scrollWidth <= innerWidth 376).
+[PASS] landing.faq.001     click real: aria-expanded=true, panel offsetHeight 237, respuesta 1 verbatim.
+
+VEREDICTO: Vitest 25/25 + E2E 9/9. Cero fallos funcionales.
+Decision del usuario aplicada: F01-F05 state=passing, status=done,
+entry movida en tasks/INDEX.md de Activas a Cerradas recientes
+("landing-reposicionamiento | 2026-07-26 (25/25 Vitest, 9/9 E2E)").
+Sin commit (lo maneja el usuario con /deploy).
+Dev server :3001 queda VIVO (una sola instancia) — no se baja.

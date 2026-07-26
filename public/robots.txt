@@ -1,0 +1,9 @@
+# Sortéatelo — sorteatelo.cl
+# Se sirve desde `public/`, así que responde en el apex Y en los subdominios de cada Tienda
+# (misma app Next). "Allow all" es deliberado: las rutas privadas del panel están gateadas
+# server-side, no por este archivo.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://sorteatelo.cl/sitemap.xml

@@ -1,9 +1,13 @@
-import { Accordion, Button, Group, Text, Title } from "@mantine/core";
+import { Accordion, Button, Group, Stack, Text, Title } from "@mantine/core";
 import {
   IconBrandGoogle,
   IconBuildingBank,
+  IconCalendarOff,
+  IconCheck,
+  IconCodeOff,
   IconFileCertificate,
   IconLockSquareRounded,
+  IconReceiptOff,
   type Icon,
 } from "@tabler/icons-react";
 import Head from "next/head";
@@ -24,26 +28,42 @@ import {
   FAQ,
   FAQ_INTRO,
   FOOTER,
+  HAZLO_TU_MISMO,
   HEADER_CTA,
   HERO,
   MOMENTO,
   PASOS,
+  PRECIO,
   TESTIMONIO,
 } from "./copy";
 import { Etiqueta } from "./etiqueta";
 import s from "./landing.module.css";
+import { Perforacion } from "./perforacion";
 import { Plumon } from "./plumon";
+import {
+  BLOQUES_JSON_LD,
+  DESCRIPCION_SEO,
+  KEYWORDS_SEO,
+  LOCALE_SEO,
+  TITULO_SEO,
+  URL_CANONICA,
+  URL_OG_IMAGEN,
+} from "./seo";
 import { RevelarAlScroll } from "./revelar-al-scroll";
 import { TalonarioVivo } from "./talonario-vivo";
 import { TelefonoTienda } from "./telefono-tienda";
 
 /**
- * Landing oficial de la plataforma «El Talonario» (F03). Reemplaza el `PlaceholderPlataforma` del
- * apex (`src/pages/index.tsx`) SIN tocar el despacho por zona/tenant (I2). Secuencia de bandas D9:
- * AZUL (hero) → BLANCO (cómo funciona) → AMARILLO (momento clave + talonario) → BLANCO (confianza)
- * → GRIS (FAQ) → AZUL (boleto CTA) → TINTA (footer). Regla I6: dos blancas nunca adyacentes. Copy
- * migrado (I8), 100% Mantine + la gramática talonario encapsulada (D6). CTAs a `/login`. Indexable
- * (sin `noindex`), title/OG desde `APP_CONFIG` (D9).
+ * Landing oficial de la plataforma «El Talonario». Reemplaza el `PlaceholderPlataforma` del apex
+ * (`src/pages/index.tsx`) SIN tocar el despacho por zona/tenant (I2/I6). 100% Mantine + la gramática
+ * talonario encapsulada; CTAs a `/login`; indexable (sin `noindex`), metadata desde `APP_CONFIG`.
+ *
+ * **Secuencia de bandas — 9, reposicionamiento sorteo-first D8** (`docs/design.md` §9 la registra):
+ * AZUL (hero) → BLANCA (cómo funciona) → AMARILLA (momento clave + talonario) → BLANCA (hazlo tú
+ * mismo) → AMARILLA (precio) → BLANCA (confianza) → GRIS (FAQ) → AZUL (boleto CTA) → TINTA (footer).
+ * Regla dura del usuario: **dos blancas nunca adyacentes** — por eso las secciones nuevas entran
+ * intercaladas y NINGUNA sección existente se recolorea. Mover una sección obliga a re-verificar la
+ * alternancia y a actualizar design.md §9.
  */
 
 /** Fuente display para los titulares (Bricolage 800 vía theme headings). */
@@ -59,6 +79,12 @@ const CONFIANZA_ICONOS: Icon[] = [
   IconFileCertificate,
   IconLockSquareRounded,
 ];
+
+/** Íconos «sin X» de la banda hazlo-tú-mismo (cotización / programador / espera). */
+const HAZLO_ICONOS: Icon[] = [IconReceiptOff, IconCodeOff, IconCalendarOff];
+
+/** Color de acento de los íconos de la landing (token del theme, cero hex). */
+const COLOR_ICONO = "var(--mantine-color-sorteatelo-6)";
 
 /** Card de la gramática suave (radio 18, sombra difusa) — CSS module acotado. */
 function Card({
@@ -79,13 +105,36 @@ export function LandingPlataforma() {
   return (
     <>
       <Head>
-        <title>{`${APP_CONFIG.name} · ${APP_CONFIG.tagline}`}</title>
-        <meta name="description" content={APP_CONFIG.tagline} />
-        <meta property="og:title" content={APP_CONFIG.name} />
-        <meta property="og:description" content={APP_CONFIG.tagline} />
-        <meta property="og:image" content="/og.svg" />
+        <title>{TITULO_SEO}</title>
+        <meta name="description" content={DESCRIPCION_SEO} />
+        {/* Única superficie (junto al `keywords` del JSON-LD) donde "rifa" está permitida — D13.
+            Su valor de ranking es ≈0 y se pone a sabiendas; ver `seo.ts`. */}
+        <meta name="keywords" content={KEYWORDS_SEO} />
+        <link rel="canonical" href={URL_CANONICA} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={APP_CONFIG.name} />
+        <meta property="og:locale" content={LOCALE_SEO} />
+        <meta property="og:url" content={URL_CANONICA} />
+        <meta property="og:title" content={TITULO_SEO} />
+        <meta property="og:description" content={DESCRIPCION_SEO} />
+        {/* PNG absoluto: los crawlers sociales no rasterizan SVG ni resuelven rutas relativas. */}
+        <meta property="og:image" content={URL_OG_IMAGEN} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
+
+      {/* JSON-LD en el BODY, no dentro de `next/head`: Google acepta `application/ld+json` en el
+          body (es la forma que documenta el propio Next para el pages router) y así no se depende
+          del manejo especial que `next/head` hace de los `<script>`. Los bloques se DERIVAN del copy
+          (I10) — nunca se escriben a mano acá. */}
+      {BLOQUES_JSON_LD.map((bloque) => (
+        <script
+          key={String(bloque["@type"])}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(bloque) }}
+        />
+      ))}
 
       {/* Header + Hero = una sola región AZUL, con curva inferior derecha (scoop) */}
       {/* Header (azul, integrado al hero, sticky) */}
@@ -115,10 +164,11 @@ export function LandingPlataforma() {
         <div>
           <Etiqueta>{HERO.eyebrow}</Etiqueta>
           <Title order={1} c="white" mt={18} mb={20} style={{ ...TITULAR, fontSize: "clamp(36px, 4.8vw, 52px)", lineHeight: 1.04 }}>
-            <Plumon>{HERO.vende}</Plumon>
-            {HERO.entre}
-            <Plumon variante="b">{HERO.sortea}</Plumon>
-            {HERO.despues}
+            {HERO.monta}
+            <Plumon>{HERO.sorteo}</Plumon>
+            {HERO.online}
+            <Plumon variante="b">{HERO.hoy}</Plumon>
+            {HERO.mismo}
           </Title>
           <Text c="white" style={{ fontSize: 19, lineHeight: 1.55, maxWidth: "30em", opacity: 0.85 }}>
             {HERO.bajada}
@@ -174,6 +224,13 @@ export function LandingPlataforma() {
               </Card>
             ))}
           </div>
+          {/* Remate del «en un día»: la promesa se dice al final de los pasos, no en el titular. El
+              plumón lo separa del tratamiento de los títulos de card (fw 600 / 17.5) — sin él se leía
+              como un 5º paso huérfano bajo la grilla. */}
+          <Text fw={700} mt={30} style={{ fontSize: 20 }}>
+            {COMO_FUNCIONA.remate}
+            <Plumon>{COMO_FUNCIONA.remateDestacado}</Plumon>
+          </Text>
         </RevelarAlScroll>
       </Banda>
 
@@ -197,6 +254,98 @@ export function LandingPlataforma() {
         </RevelarAlScroll>
       </Banda>
 
+      {/* Hazlo tú mismo (blanca) — el diferenciador vs. encargarle el sorteo a una agencia.
+          A propósito SIN cards: la sección va entre dos que sí las usan (pasos y confianza), y
+          repetir la card por tercera vez aplanaba el ritmo de la página. */}
+      <Banda tono="blanca" contenedorClassName="py-16">
+        <RevelarAlScroll>
+          <Etiqueta>{HAZLO_TU_MISMO.eyebrow}</Etiqueta>
+          <Title order={2} mt={12} mb={24} style={{ ...TITULAR, maxWidth: "18em" }}>
+            {HAZLO_TU_MISMO.titulo}
+          </Title>
+          <Perforacion className="mb-9" />
+          <div className="grid gap-8 lg:grid-cols-3 lg:gap-10">
+            {HAZLO_TU_MISMO.items.map((item, i) => {
+              const Icono = HAZLO_ICONOS[i]!;
+              return (
+                <div key={item.titulo}>
+                  <Icono className="size-8" stroke={1.5} color={COLOR_ICONO} />
+                  <Text fw={600} mt={14} mb={8} style={{ fontSize: 18, lineHeight: 1.3 }}>
+                    {item.titulo}
+                  </Text>
+                  <Text c="dimmed" style={{ fontSize: 15, lineHeight: 1.6 }}>
+                    {item.texto}
+                  </Text>
+                </div>
+              );
+            })}
+          </div>
+        </RevelarAlScroll>
+      </Banda>
+
+      {/* Precio (amarilla) — el modelo comercial impreso completo. El amarillo lotería es el color
+          del momento que importa; acá el momento es saber cuánto cuesta, sin cotizar. */}
+      <Banda tono="amarilla" contenedorClassName="py-16 lg:py-20">
+        <RevelarAlScroll className="grid items-center gap-10 lg:grid-cols-[6fr_5fr] lg:gap-16">
+          <div>
+            <Etiqueta c="black">{PRECIO.eyebrow}</Etiqueta>
+            <Title order={2} c="black" mt={12} mb={14} style={{ ...TITULAR, maxWidth: "14em" }}>
+              {PRECIO.titulo}
+            </Title>
+            <Text c="black" style={{ fontSize: 17, lineHeight: 1.6, maxWidth: "28em", opacity: 0.8 }}>
+              {PRECIO.gratis}
+            </Text>
+            <Text c="black" fw={600} mt={14} style={{ fontSize: 17, lineHeight: 1.5 }}>
+              {PRECIO.comision}
+            </Text>
+            <Text c="black" fw={700} mt={20} style={{ fontSize: 20 }}>
+              <Plumon variante="b">{PRECIO.remate}</Plumon>
+            </Text>
+            <Text c="black" mt={14} style={{ fontSize: 15, lineHeight: 1.55, opacity: 0.75 }}>
+              {PRECIO.multiTienda}
+            </Text>
+          </div>
+          <div className="flex justify-center lg:justify-end">
+            <Card className="w-full max-w-[380px]">
+              <div style={{ padding: "30px 30px 26px" }}>
+                <Group align="baseline" gap={10}>
+                  <Text
+                    ff="monospace"
+                    fw={600}
+                    className="tabular-nums"
+                    style={{
+                      fontSize: "clamp(38px, 5vw, 48px)",
+                      letterSpacing: "-0.02em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {PRECIO.monto}
+                  </Text>
+                  <Text fw={600} style={{ fontSize: 17 }}>
+                    {PRECIO.periodo}
+                  </Text>
+                </Group>
+                <Etiqueta className="mt-[10px] block">{PRECIO.nota}</Etiqueta>
+                <Perforacion className="my-5" />
+                <Stack gap={12}>
+                  {PRECIO.incluye.map((item) => (
+                    <Group key={item} gap={10} wrap="nowrap" align="flex-start">
+                      <IconCheck
+                        className="size-[18px] shrink-0"
+                        stroke={2.5}
+                        color={COLOR_ICONO}
+                        style={{ marginTop: 2 }}
+                      />
+                      <Text style={{ fontSize: 15, lineHeight: 1.5 }}>{item}</Text>
+                    </Group>
+                  ))}
+                </Stack>
+              </div>
+            </Card>
+          </div>
+        </RevelarAlScroll>
+      </Banda>
+
       {/* Confianza (blanca) */}
       <Banda tono="blanca" contenedorClassName="py-16">
         <RevelarAlScroll>
@@ -213,11 +362,7 @@ export function LandingPlataforma() {
               return (
                 <Card key={item.titulo}>
                   <div style={{ padding: "26px 24px" }}>
-                    <Icono
-                      className="size-8"
-                      stroke={1.5}
-                      color="var(--mantine-color-sorteatelo-6)"
-                    />
+                    <Icono className="size-8" stroke={1.5} color={COLOR_ICONO} />
                     <Text fw={600} mt={14} mb={8} style={{ fontSize: 18, lineHeight: 1.3 }}>
                       {item.titulo}
                     </Text>

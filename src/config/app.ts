@@ -9,8 +9,12 @@
 export const APP_CONFIG = {
   /** Nombre de marca de la plataforma. Derivado del dominio `sorteatelo.cl`. */
   name: "Sortéatelo",
-  /** Descriptor corto para meta description / hero de plataforma. Voz cercana chilena. */
-  tagline: "Vende lo que hiciste y sortéalo entre quienes te compraron.",
+  /**
+   * Descriptor corto para title / meta description / OG de plataforma. Voz cercana chilena.
+   * Sorteo-first (plan landing-reposicionamiento D11): la promesa es MONTAR el sorteo tú mismo y
+   * rápido — el diferenciador contra las agencias que cotizan sitios de sorteo a medida.
+   */
+  tagline: "Monta tu sorteo online tú mismo, en un día.",
   /** Dominio raíz de la plataforma (los tenants viven en sus subdominios). */
   dominio: "sorteatelo.cl",
   /**

@@ -20,6 +20,7 @@
     "seed:raffles": "tsx scripts/seed-raffles.ts",
     "cors:r2": "tsx scripts/configurar-cors-r2.ts",
     "lint": "next lint",
+    "og:png": "node scripts/generar-og.mjs",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest"

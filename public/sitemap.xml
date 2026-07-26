@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap ESTÁTICO del apex (sorteatelo.cl). Solo la landing pública: `/login` y `/admin` no
+  aportan a la búsqueda y las Tiendas viven en subdominios propios, fuera de este sitemap.
+
+  SIN `<lastmod>` a propósito: es un campo opcional y acá tendría que mantenerse a mano. Una fecha
+  escrita a mano queda vieja en la primera edición del copy, y un lastmod que miente Google lo
+  termina ignorando — mejor no declararlo que declararlo mal. Si algún día el sitemap se genera
+  dinámicamente, ahí sí corresponde.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://sorteatelo.cl/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

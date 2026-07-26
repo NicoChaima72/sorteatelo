@@ -8,6 +8,7 @@ import { signIn } from "next-auth/react";
 import { Banda } from "~/components/landing/banda";
 import { LOGIN } from "~/components/landing/copy";
 import { Etiqueta } from "~/components/landing/etiqueta";
+import { URL_OG_IMAGEN } from "~/components/landing/seo";
 import { TalonarioVivo } from "~/components/landing/talonario-vivo";
 import { Wordmark } from "~/components/marca/wordmark";
 import { APP_CONFIG } from "~/config/app";
@@ -44,7 +45,9 @@ export default function LoginPage() {
         <meta name="description" content={APP_CONFIG.tagline} />
         <meta property="og:title" content={APP_CONFIG.name} />
         <meta property="og:description" content={APP_CONFIG.tagline} />
-        <meta property="og:image" content="/og.svg" />
+        {/* PNG y ABSOLUTO, igual que la landing: los crawlers sociales no rasterizan SVG ni
+            resuelven rutas relativas. Fuente única en `~/components/landing/seo`. */}
+        <meta property="og:image" content={URL_OG_IMAGEN} />
         <meta name="twitter:card" content="summary_large_image" />
       </Head>
 

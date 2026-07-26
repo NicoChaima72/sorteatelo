@@ -1,38 +1,89 @@
-# E2E run — feature-tester
-modo: feature (slug=checkout-campos-configurables) — LEG DE CIERRE (re-corrida del rojo)
-scope: Vitest del area del fix + panel.ventas.csv.002 (criterio ACTUALIZADO) + re-verificacion de csv.001
-server: http://localhost:3001 (sorteatelo; :3000 es grillos-ai)
-carril: Playwright MCP (libre, sesion NextAuth viva de la corrida anterior)
-inicio: 2026-07-26 22:17
----
-[vitest] src/__tests__/server/panel -> 22 archivos / 119 tests - 119 PASS, 0 FAIL (area del fix)
-[vitest] camposCheckout + checkout + components + schema/checkoutFields -> 27 archivos / 142 tests - 142 PASS
-[vitest] TOTAL area de la feature: 49 archivos / 261 tests verdes, 0 fallos
----
-[reloj] la maquina esta en hora de CHILE (Pacific SA Standard Time, UTC-4): local 2026-07-25 22:22,
-      UTC 2026-07-26 02:22. Las entradas previas de esta feature fechadas "2026-07-26" usaron el dia UTC.
-[E2E] panel.ventas.csv.002 ✅ VERDE (era el unico rojo) - descarga FRESCA desde el boton del panel
-      (.playwright-mcp/ventas-2026-07-25.csv, 1027 bytes) abierta con Workbooks.Open en Excel 16.0 real,
-      Windows es-CL (sList=';'): (a) 8 filas x 12 COLUMNAS (era 1 columna) y acentos perfectos por el BOM
-      -Comision, Telefono de contacto, Codigo postal, Maria Ñuñoa Perez, Maipu, Ñuñoa, ×-; (b) la celda con
-      coma Y comillas cae entera y desescapada en R2C8; (c) telefono = '+56912345678 CON apostrofo visible
-      (criterio actualizado) y PrefixCharacter vacio => el apostrofo es parte del valor, no la marca de texto;
-      '=Perez, "Ana" B NO se ejecuta; (d) SUM(Total C2:C8)=27000 y COUNT=7 => las 7 son Double de verdad;
-      bonus: Codigo postal Double (SUM=8320000) y Fecha parseada como fecha real (dd-mm-yyyy h:mm).
-      Barrido WorksheetFunction.IsError sobre todo el UsedRange: 0 celdas con error real (los ########## de
-      la col A eran ANCHO de columna, no #NOMBRE?: tras AutoFit muestran 25-07-2026 21:45).
-[E2E] panel.ventas.csv.001 ✅ RE-VERIFICADO con el criterio NUEVO de bytes en la misma descarga:
-      encabezado Fecha;Correo;Total;Comision;Te queda;Estado;Productos + las 5 dinamicas; BOM 1 vez; CRLF;
-      sin salto final; 7 filas de venta; montos crudos; casilla true/false; numero sin separador; PENDIENTE
-      con Comision/Te queda vacias; celdas dinamicas vacias en las 4 ventas previas a la feature.
-      PRUEBA CLAVE del fix: split A LO BRUTO por ';' (lector que NO honra comillas) => las 8 filas dan
-      12 campos exactas, ninguna se corre.
-      NO ejercitable en vivo: la celda de DOS PRODUCTOS distintos unidos por ", " -- la tienda `autora`
-      tiene UN solo producto y `prueba` no tiene membresia en esta sesion (no se forzo login). Queda
-      cubierto por exportarVentasCsv.test.ts::panel.ventas.csv.010. Idem el sub-punto de >15 ventas (hay 7)
-      y el `disabled` con lista vacia.
----
-data: CERO escrituras en DB en este leg (solo lectura + una descarga). Las 2 ordenes de prueba previas siguen.
-browser: Playwright abierto, sesion NextAuth intacta, tab en autora.localhost:3001/admin/ventas. 0 errores de consola.
-RESUMEN FINAL: Vitest 261/261 (49 archivos) | E2E 12 verdes / 0 rojos | design findings 1 (previo, no bloqueante)
-fin: 2026-07-25 22:25
+=== CORRIDA E2E — feature-tester ===
+Modo:     feature (slug=storefront-tema-paginas-plataforma) — TERCERA vuelta
+          (las 2 anteriores murieron por errores de API; ninguna alcanzó a escribir Bitácora)
+Scope:    Vitest del área + los 6 E2E storefront.tema.001–006 de tasks/e2e-storefront.md
+Server:   http://localhost:3001 (instancia ÚNICA del usuario — no se tocó, I9)
+Carril:   Playwright MCP (chrome-devtools estaba LOCKEADO por un browser ajeno — no se expropió, §0)
+Inicio:   2026-07-26 18:33
+
+[18:33] VITEST — re-corrido de cero: server/storefront/ + styles/ ⇒ 119/119 VERDE (10 archivos).
+        Confirma el 119/119 del run 1. Los 25 IDs citados en Validaciones existen en la suite.
+[18:34] PRECONDICIÓN — :3001 responde 200 en apex, iselk y demo-noche.
+[18:34] CARRILES — chrome-devtools: profile-lock de un browser NO atachado a mi MCP ⇒ NO se mató
+        (§0/§5: podría ser de otro agente). Playwright libre ⇒ ese carril. Cero navegadores cerrados.
+[18:34] BASELINE iselk HOME: shell rgb(242,235,253) (lila, marca_suave), Poppins, radius 1rem.
+        Coincide exacto con el baseline del run 2. Es la vara de comparación de tema.001.
+
+--- storefront.tema.001 — iselk /checkout ------------------------------------- PASS
+[18:35] Carrito ya cargado del run anterior (localStorage carrito:iselk, producto real $3.000).
+        shell inline `background:var(--mantine-primary-color-0)` ⇒ rgb(242,235,253) = IDÉNTICO a la home.
+        H1 "Finalizar compra" en __Poppins (antes Fraunces). radius 1rem, input radius 16px (radio `l`).
+        Botón de marca #7c3aed intacto. NO se coló lo no-heredado: backgroundImage `none` (sin glows)
+        y 0 reglas .st-titulo-poster. Screenshot tmp/ft3-tema-001-iselk-checkout.png.
+
+--- storefront.tema.002 — iselk /producto/[id] + /checkout/retorno ------------- PASS
+[18:36] /producto/cms1zoq0m0004nkk2s43rfzui: mismo shell lila + Poppins + radius 1rem.
+[18:36] /checkout/retorno ("¡Gracias por tu compra!"): mismo shell lila + Poppins. Es el que más
+        importa (el Comprador vuelve de Flow) y reconoce la tienda.
+
+--- storefront.tema.003 — demo-noche /checkout OSCURO y LEGIBLE ---------------- PASS + finding
+[18:37] Carrito sembrado por la UI real (el catálogo es un carrusel en animación infinita ⇒ Playwright
+        nunca lo ve "stable"; 2 retries agotados, resuelto con click DOM real sobre el botón Agregar).
+[18:37] scheme=dark FORZADO correctamente. Shell color-mix(black 86%, primary-9) — CSS vars, cero hex.
+        Todo dark-aware: input #c9c9c9 sobre #2e2e2e (borde #424242), Card ídem, Alert #eef0f5,
+        labels #c9c9c9, H1 Anton sólido (bgImage none: el look "metálico" del screenshot es el
+        antialiasing de Anton, no un gradiente roto). NINGÚN control quedó tinta sobre near-black
+        — que era EL riesgo declarado del check.
+[18:38] Auditoría de contraste WCAG sobre los 20 nodos de texto visibles: 13 bajo 4.5:1, el PEOR 3.53:1
+        (secundarios de 12px: "$3.000 c/u", "Quitar", la caption del resumen). CONTROL corrido sobre la
+        HOME del mismo tenant: 81/158 nodos bajo el umbral, varios peores ⇒ la dimness es el carácter
+        del tema oscuro de la tienda (dimmed estándar de Mantine), NO algo que introduzca esta feature.
+        Se reporta como design finding no bloqueante (§3.5), no como fallo funcional.
+
+--- storefront.tema.004 — no-op del tema default ------------------------------- PASS (premisa corregida)
+[18:40] CENSO de temas publicados (query read-only): la premisa del check quedó vieja. `prueba` y `bcac`
+        YA NO son tema default — la tanda-2 (F11–F14) las republicó como réplicas OSCURAS
+        (prueba: tinta_profunda_acento/cartel/s/oscuro · bcac: tinta/energia/l/oscuro).
+        La ÚNICA tienda de tema default hoy es `autora` (root.props = {}).
+[18:40] autora /checkout (el no-op de verdad): "temaPagina":null en __NEXT_DATA__, shell SIN style=
+        inline, 0 <style> de override de tipografía, 1 sola ocurrencia de setAttribute(color-scheme)
+        — la misma que el apex/login de plataforma. Render: body blanco + Fraunces + rosa de marca,
+        o sea EXACTAMENTE como antes de la feature. tmp/ft3-tema-004-autora-checkout.png.
+[18:41] MATIZ HONESTO sobre I6: el render es byte-idéntico, pero el payload de __NEXT_DATA__ ganó la
+        clave `"temaPagina":null` (~18 bytes, cero efecto de render). D7 pedía "ni mergeThemeOverrides,
+        ni <style> extra, ni style= inline": los 3 se cumplen. Se deja anotado, no es fallo.
+[18:41] Sin regresión en las otras dos: prueba y bcac renderizan /checkout según SU tema oscuro
+        (prueba índigo profundo + CTA dorado; bcac gray-9 con empty-state legible). Nada roto.
+[18:42] BONUS del censo: `test-seed-a`/`test-seed-b` publican EXACTAMENTE los defaults del schema
+        ⇒ ejercen en vivo la rama D7 "esTemaDefault ⇒ null" (distinta de la rama "sin fila").
+
+--- storefront.tema.005 — iselk /bases ----------------------------------------- PASS
+[18:42] Shell lila + H1 Poppins + radius 1rem. Nav/chrome intactos (4 links), visor de PDF presente
+        (iframe a R2) y el disclaimer de ADR-0008 sigue visible.
+
+--- storefront.tema.006 — /entrega/<token> por el APEX ------------------- PARCIAL (mitad ⏭️)
+[18:43] Verificado con el grant real de `autora` servido por el APEX: HTTP 200, título de la tienda
+        del GRANT, shell sin style= inline y temaPagina null (correcto: autora ES tema default).
+[18:44] HOST-AGNOSTICIDAD probada FUERTE (D9/I3): el MISMO token por apex y por autora.localhost
+        devuelve cuerpo **BYTE-IDÉNTICO** (36.508 bytes ambos).
+[18:44] Token basura ⇒ 404 neutral. Grant de `e2e-numeros` (tenant SIN fila home ⇒ la otra rama null)
+        ⇒ 200 y shell no-op.
+[18:44] ⏭️ LO QUE NO SE PUDO EJERCER: el shell TEMATIZADO del tenant del grant. No existe ni un solo
+        DownloadGrant de una tienda tematizada — censo: 6 grants totales, todos de `e2e-numeros` (4)
+        y `autora` (2), ambas sin tema. Fabricar uno exige una orden PAGADA = escritura en DB (no
+        autorizada) y el túnel de Flow está caído. El cableado slug-del-grant→tema SÍ está cubierto
+        por Vitest (storefront.tema.entrega.001, verde).
+
+--- I8 verificado con controles REALES (no estaba pedido, pero es el invariante caro) ---
+[18:45] escalaTitulos:poster (prueba): regla .st-titulo-poster presente en su HOME (1) y AUSENTE en su
+        /checkout (0) ⇒ NO se hereda.
+[18:45] ambiente:neon (demo-noche): HOME con capas radial-gradient de glow; /checkout con el color
+        SÓLIDO color-mix ⇒ NO se hereda. Ídem ambiente:focos_marca (bcac): home con gradientes,
+        checkout con var(--mantine-color-gray-9) sólido.
+        La normalización estructural del resolver (D6) hace el trabajo que prometía.
+
+Cierre: 2026-07-26 18:46
+Resultado: Vitest 119/119 · E2E 5 PASS + 1 PARCIAL + 0 FALLOS · 1 design finding no bloqueante
+Retries: 2 (ambos en el mismo punto: click sobre carrusel animado de demo-noche; resuelto)
+Artefactos: tmp/ft3-*.png (5 screenshots). Scripts .ts de consulta borrados (precedente de tsc).
+No se tocó: dev server, sesiones, DB (cero escrituras), navegadores ajenos, código de la feature.

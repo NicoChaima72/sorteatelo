@@ -18,6 +18,7 @@ import { DISCLAIMER_SORTEO } from "~/lib/disclaimerSorteo";
 import { hrefMenuItem } from "~/lib/pagebuilder/chrome";
 import { fecha } from "~/lib/formato";
 import { getPropsBases, type PropsBases } from "~/server/storefront/getBasesProps";
+import { estiloHeredadoDeTema } from "~/styles/estiloSeccion";
 
 /**
  * Página `/bases` del storefront (admin-bases-pdf F04, D4/D5, ADR-0008): el visor de las **bases
@@ -39,9 +40,14 @@ export default function BasesPage({
   tenantBranding,
   navPaginas,
   chrome,
+  temaPagina,
   pdfUrl,
   sorteo,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // Fondo heredado de la Tienda (tema-paginas F03); `_app` aplica radio/tipografía/modo. Tema default ⇒
+  // `undefined` en ambas ⇒ la página queda byte-idéntica a como salía antes (I6).
+  const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
+
   // Nav: el menú del chrome manda; si no, las páginas `enNav` del tenant. Acá NO hay anclas de
   // sección que derivar (esta página no es un Documento), así que el nav derivado no aplica.
   const menuChrome = chrome?.header.menu ?? [];
@@ -51,7 +57,13 @@ export default function BasesPage({
       : navPaginas;
 
   return (
-    <StorefrontLayout branding={tenantBranding} navItems={navItems} chrome={chrome}>
+    <StorefrontLayout
+      branding={tenantBranding}
+      navItems={navItems}
+      chrome={chrome}
+      estiloShell={estiloShell}
+      colorPagina={colorPagina}
+    >
       <Head>
         <title>{`Bases del sorteo · ${tenantBranding.nombre}`}</title>
         {/* Documento legal de una tienda concreta: no aporta a la búsqueda y no queremos que

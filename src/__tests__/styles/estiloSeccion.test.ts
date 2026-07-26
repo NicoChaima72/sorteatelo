@@ -1,11 +1,13 @@
 import { type CSSProperties } from "react";
 import { describe, expect, it } from "vitest";
 
+import { TemaSchema } from "~/lib/pagebuilder/schema";
 import { EstiloSeccionSchema } from "~/lib/pagebuilder/widgets";
 import {
   colorFondoSolido,
   colorSolidoDeEsquema,
   esFondoOscuro,
+  estiloHeredadoDeTema,
   estiloSeccionACss,
   fondoLienzoExterior,
   fondoSeccionACss,
@@ -596,5 +598,32 @@ describe("estiloSeccion — columna estrecha del shell (Tanda 2 F15, fidelidad e
     expect(css.background).toContain("--mantine-color-black"); // oscurece
     expect(css.background).toContain(colorSolidoDeEsquema("marfil")); // sobre el marfil base
     expect(tieneHex(css.background as string)).toBe(false);
+  });
+});
+
+describe("estiloSeccion — estilo heredado por las páginas de PLATAFORMA (tema-paginas F01)", () => {
+  // tema.heredado.001 — con tema, el shell recibe el fondo SÓLIDO del esquema (sin capas de ambiente)
+  it("con tema devuelve el fondo sólido del esquema + el colorPagina del header (cero hex)", () => {
+    const tema = TemaSchema.parse({ fondoPagina: "marca_suave", tipografia: "dulce", radio: "l" });
+
+    const { estiloShell, colorPagina } = estiloHeredadoDeTema(tema);
+
+    // El fondo lila de la home llega al `/checkout`, pero SIN los `radial-gradient` del ambiente: los
+    // glows de stage-lights no aplican a un form de pago (D1), y el resolver ya normalizó `ambiente`.
+    expect(estiloShell?.background).toBe(colorSolidoDeEsquema("marca_suave"));
+    expect(estiloShell?.background).not.toContain("radial-gradient");
+    // `colorPagina` es lo que deja al header `fondo:"pagina"` fundirse con el fondo en vez de cortarlo.
+    expect(colorPagina).toBe(colorSolidoDeEsquema("marca_suave"));
+    expect(tieneHex(valoresCss(estiloShell!))).toBe(false);
+  });
+
+  // tema.heredado.002 — sin tema (D7), estilos AUSENTES ⇒ el layout queda byte-idéntico al de hoy
+  it("con null devuelve los estilos ausentes (no un fondo 'por defecto')", () => {
+    const heredado = estiloHeredadoDeTema(null);
+
+    // Ausentes, no `{}` ni `"transparent"`: se spreadean sobre `StorefrontLayout`, así que un valor
+    // presente le pondría un `style=` inline a las tiendas sin tematizar y rompería el no-op (I6).
+    expect(heredado.estiloShell).toBeUndefined();
+    expect(heredado.colorPagina).toBeUndefined();
   });
 });

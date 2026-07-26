@@ -1,6 +1,7 @@
 import { type MantineSpacing, type StyleProp } from "@mantine/core";
 import { type CSSProperties } from "react";
 
+import { type Tema } from "~/lib/pagebuilder/schema";
 import {
   type AmbienteFondo,
   type AnchoContenido,
@@ -638,4 +639,40 @@ export function maxWidthColumna(ancho: AnchoContenido): number | null {
 export function fondoLienzoExterior(fondoPagina: EsquemaFondo): CSSProperties {
   const base = colorSolidoDeEsquema(fondoPagina);
   return { background: `color-mix(in srgb, ${base} 93%, var(--mantine-color-black))` };
+}
+
+// ── Herencia del tema en las páginas de PLATAFORMA del storefront (tema-paginas F01) ────────────
+
+/** Lo que una página de plataforma le pasa a `StorefrontLayout` para heredar el fondo de la Tienda. */
+export interface EstiloHeredadoDeTema {
+  /** Fondo del shell. AUSENTE con tema `null` ⇒ el layout no recibe `style=` (no-op byte-idéntico). */
+  estiloShell?: CSSProperties;
+  /** Color sólido del `fondoPagina` (lo usa el header `fondo:"pagina"` para fundirse). AUSENTE idem. */
+  colorPagina?: string;
+}
+
+/**
+ * Deriva el fondo del shell que heredan `/checkout`, `/producto/[id]`, `/checkout/retorno`, `/bases` y
+ * `/entrega/[token]` del `Tema` que resolvió `resolverTemaPagina` (tema-paginas F01, D1/D7).
+ *
+ * Existe para que las 5 páginas no dupliquen la derivación ni diverjan entre ellas — el defecto original
+ * era exactamente ese tipo de deriva: la home tematizada y el checkout con el body blanco de plataforma.
+ * `_app` se encarga del radio/tipografía/modo del mismo `temaPagina`; acá solo el fondo.
+ *
+ * `null` (tienda con tema default, D7) ⇒ objeto VACÍO, no un fondo "por defecto": las páginas lo
+ * spreadean sobre `StorefrontLayout`, así que devolver un valor presente les pondría un `style=` inline
+ * a todas las tiendas sin tematizar y rompería el no-op byte-idéntico (I6).
+ *
+ * Cero hex (I1): el fondo sale de `fondoShellConAmbiente`/`colorSolidoDeEsquema`, que resuelven a tokens
+ * de la escala del tenant. PURO ⇒ SSR y cliente calculan lo mismo (sin hydration mismatch).
+ */
+export function estiloHeredadoDeTema(tema: Tema | null): EstiloHeredadoDeTema {
+  if (!tema) return {};
+  return {
+    // `ambiente` viene forzado a `"ninguno"` desde el resolver (D6/I8) ⇒ esto es el color SÓLIDO del
+    // esquema, sin las capas de stage-lights de la home. Se llama al helper con ambiente igual: si
+    // mañana alguien decidiera heredar el ambiente, el cambio vive en el resolver, no acá.
+    estiloShell: fondoShellConAmbiente(tema.fondoPagina, tema.ambiente),
+    colorPagina: colorSolidoDeEsquema(tema.fondoPagina),
+  };
 }

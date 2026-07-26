@@ -8,9 +8,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import {
-  getPropsPaginaComprador,
+  getPropsPaginaEntrega,
   type PropsStorefront,
 } from "~/server/storefront/getStorefrontProps";
+import { estiloHeredadoDeTema } from "~/styles/estiloSeccion";
 import { esHex, type TenantBranding } from "~/styles/tenantTheme";
 import { api } from "~/utils/api";
 
@@ -27,16 +28,30 @@ import { api } from "~/utils/api";
  * la página pasa a celebración y dispara `canvas-confetti` UNA vez (dynamic import lazy, colores de la
  * escala del tenant, `useReducedMotion` lo apaga). La query solo LEE el resultado del webhook — no
  * confirma nada (I6/I-T6).
+ *
+ * Superficie de ENTREGA, no de venta (facturación F05/I5): entra por `getPropsPaginaEntrega`, que NO
+ * gatea por la facturación del tenant. Si la Tienda entrara en pausa mientras un Comprador vuelve de
+ * pagar, verlo rebotar a la página neutral sería quitarle el comprobante de una compra que ya hizo —
+ * la mora del Organizador no la paga el Comprador.
  */
 export const getServerSideProps: GetServerSideProps<PropsStorefront> = async (
   ctx,
-) => getPropsPaginaComprador(ctx);
+) => getPropsPaginaEntrega(ctx);
 
 export default function RetornoPage({
   tenantBranding,
+  temaPagina,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // Fondo heredado de la Tienda (tema-paginas F02). Es la página donde MÁS pesa la continuidad visual:
+  // el Comprador vuelve de pagar en Flow y tiene que reconocer que aterrizó en la misma tienda.
+  const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
+
   return (
-    <StorefrontLayout branding={tenantBranding}>
+    <StorefrontLayout
+      branding={tenantBranding}
+      estiloShell={estiloShell}
+      colorPagina={colorPagina}
+    >
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
         <RetornoContenido branding={tenantBranding} />
       </Container>

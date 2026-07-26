@@ -212,6 +212,70 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   Flow y **no** se crea la Orden (verificar en `\admin\ventas`). Recargar `/checkout` muestra el
   form ya sin ese campo.
 
+### Herencia del tema de la Tienda en las páginas de PLATAFORMA
+
+Checks de `tasks/26-07-26-storefront-tema-paginas-plataforma.md` (F02/F03). El defecto que cierran:
+la home de una tienda tematizada convivía con `/checkout`, `/producto/[id]`, `/checkout/retorno`,
+`/bases` y `/entrega/[token]` saliendo con el **body blanco de plataforma** — la ruptura visual caía
+en el momento más delicado del funnel. Se hereda SOLO fondo de página + par tipográfico + radio +
+modo (D1): NO ambiente (los glows de stage-lights), NO ancho estrecho, NO títulos-poster.
+
+> Tenants de referencia: **iselk** (fondo lila `marca_suave`, par `dulce` = Poppins/Nunito, radio `l`,
+> modo claro) y **demo-noche** (fondo `tinta_profunda` near-black, modo OSCURO). Ninguna tienda
+> necesita re-publicar: se lee el `publishedJson` que ya tienen.
+
+- [x] **storefront.tema.001** (F02, D1/D5) ✅ 2026-07-26 — shell `rgb(242,235,253)` IDÉNTICO al de la
+  home, H1 "Finalizar compra" en Poppins (antes Fraunces), radius 1rem / input 16px, botón `#7c3aed`
+  intacto; `backgroundImage:none` (sin glows) y 0 reglas `.st-titulo-poster`. — En `iselk.localhost:3001/checkout` (con el carrito
+  cargado) el shell sale con el **fondo lila** de la tienda —no blanco— y los headings
+  («Finalizar compra») en **Poppins**, no en Fraunces; los controles usan el radio `l`. El botón de
+  marca conserva su violeta. Comparar contra la home del mismo subdominio: el fondo y la tipografía
+  deben LEER igual (es el punto de la feature). Verificar además que NO se coló lo que no se hereda:
+  sin glows de ambiente sobre el shell y sin títulos-poster.
+
+- [x] **storefront.tema.002** (F02) ✅ 2026-07-26 — `/producto/cms1zoq0m…` y `/checkout/retorno`
+  («¡Gracias por tu compra!») con el MISMO shell lila + Poppins + radius 1rem que `/checkout`. — En el mismo subdominio, `/producto/<id>` y `/checkout/retorno`
+  muestran el MISMO shell heredado (fondo + tipografía) que `/checkout`. El retorno es el que más
+  importa: el Comprador vuelve de pagar en Flow y tiene que reconocer que aterrizó en la misma tienda.
+
+- [x] **storefront.tema.003** (F02, D5) ✅ 2026-07-26 — OSCURA (scheme dark forzado) y el form LEGIBLE:
+  input `#c9c9c9` sobre `#2e2e2e`, Card/Alert/labels dark-aware, H1 Anton sólido. NINGÚN control quedó
+  tinta sobre near-black (el riesgo declarado). Finding no bloqueante: 13/20 nodos de texto bajo AA
+  4.5:1, peor 3.53:1 (secundarios 12px) — pero el CONTROL sobre la home del mismo tenant da 81/158 con
+  casos peores ⇒ es el carácter del tema oscuro de la tienda (dimmed de Mantine), no una regresión. — En `demo-noche.localhost:3001/checkout` la página sale
+  **OSCURA** y —lo que hay que mirar de verdad— el **form es LEGIBLE**: los `TextInput` de Mantine, sus
+  labels/descriptions, la `Card` del resumen y el `Alert` gris tienen contraste correcto en dark. Es
+  verificación VISUAL (screenshot), no de DOM: el riesgo es un control que quede tinta sobre near-black.
+
+- [x] **storefront.tema.004** (F02, D7/I6 — el no-op) ✅ 2026-07-26 — **PREMISA CORREGIDA**: `prueba` y
+  `bcac` ya NO son tema default (la tanda-2 F11–F14 las republicó OSCURAS); hoy la única default es
+  `autora` (`root.props = {}`). En `autora/checkout`: `"temaPagina":null`, shell SIN `style=` inline,
+  0 `<style>` de tipografía y 1 sola ocurrencia de `setAttribute(color-scheme)` — la misma que el apex
+  de plataforma ⇒ render idéntico a antes (blanco + Fraunces + rosa). Matiz honesto: el payload de
+  `__NEXT_DATA__` sí gana la clave `"temaPagina":null` (~18 bytes, cero efecto de render). Sin regresión
+  en `prueba` (índigo + CTA dorado) ni `bcac` (gray-9, empty-state legible), cada una según SU tema. — Una tienda con **tema default** (`autora`,
+  `prueba`, `bcac`) renderiza `/checkout` **visualmente idéntica a hoy**: shell sin `style=` inline,
+  sin `<style>` extra de tipografía en el `<head>` y sin forzado de color-scheme. El resolver devuelve
+  `null` para ellas, así que el HTML no debería cambiar en nada.
+
+- [x] **storefront.tema.005** (F03) ✅ 2026-07-26 — shell lila + H1 Poppins + radius 1rem; nav/chrome
+  intactos (4 links), visor de PDF presente (iframe a R2) y disclaimer ADR-0008 visible. — `iselk.localhost:3001/bases` hereda fondo + tipografía y conserva
+  el nav/chrome y el visor de PDF exactamente como hoy (el disclaimer de ADR-0008 sigue visible).
+
+- [ ] ⏭️ **storefront.tema.006** (F03, D9) — **PARCIAL 2026-07-26**. ✅ Verificado: grant real de
+  `autora` por el APEX ⇒ 200 con la identidad de la tienda del GRANT, shell no-op (`temaPagina` null,
+  correcto porque autora ES default); host-agnosticidad probada FUERTE — el mismo token por apex y por
+  `autora.localhost` devuelve cuerpo **BYTE-IDÉNTICO** (36.508 bytes); token basura ⇒ **404 neutral**;
+  grant de `e2e-numeros` (tenant sin fila `home` ⇒ la otra rama null) ⇒ 200 no-op.
+  ⏭️ NO ejercido: el shell **tematizado**. No existe ningún `DownloadGrant` de una tienda con tema
+  (censo: 6 grants, todos de `e2e-numeros` y `autora`, ambas sin tema). Fabricar uno exige una orden
+  PAGADA = escritura en DB (no autorizada) + túnel de Flow (caído). El cableado slug-del-grant→tema sí
+  está cubierto por Vitest `storefront.tema.entrega.001` (verde). — `/entrega/<token>` servida **por el APEX**
+  (`localhost:3001/entrega/<token>`, que es a donde apunta el enlace del correo) muestra el shell
+  tematizado **del tenant del GRANT**, no el de plataforma ni el del host. Requiere un `DownloadGrant`
+  vigente de una orden PAGADA en la DB dev (ya existe uno de `autora`; para ver el tema heredado hace
+  falta uno de una tienda tematizada como `iselk`). Un token inválido sigue dando **404 neutral**.
+
 ## Requiere Flow (credenciales sandbox reales por tenant + túnel del webhook)
 
 - [ ] **storefront.cantidad.001** — En `autora.localhost:3001`, agregar un producto al carrito y subir la
@@ -302,3 +366,103 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   — todo servido desde el Documento de Página, que ya era la única fuente. Ninguno 500ea (el `select` del
   branding y el del sorteo ya no piden columnas inexistentes) y ninguno pierde contenido visible.
   **Requiere restart del dev server** (cliente Prisma nuevo). Sin sesión.
+
+- [ ] **storefront.sobre.compra.001** (productos-tipos-digitales F07/F08/F09, D3/D4/D5/D6) — El flujo
+  COMPLETO del sobre sorpresa, de la vitrina a la descarga. Requiere el sobre montado en el panel
+  (`panel.productos.sobre.001`) y una compra PAGADA (Flow sandbox con túnel — ver memoria
+  `flow-sandbox-e2e`; o el estado PAGADO forzado en DB con permiso del usuario).
+  (a) **Catálogo**: la tarjeta del sobre muestra **«desde $3.000»** (NO el precio de referencia del
+  producto) y su botón dice **«Elegir pack»** y lleva al detalle — no agrega al carrito directo.
+  (b) **Detalle**: aparece el selector «Elige tu pack» con las 2 opciones (1 archivo $3.000 /
+  4 archivos $10.000) y el precio de arriba dice «desde $3.000»; **«Agregar al carrito» está
+  deshabilitado** hasta elegir. Al elegir el de 4, el precio de arriba pasa a `$10.000`.
+  (c) **Carrito y checkout**: el drawer y el resumen dicen `$10.000 por pack de 4` (NO «c/u»).
+  (d) **Compra**: pagar en Flow sandbox. La orden queda PAGADA.
+  (e) **DB (Prisma Studio)**: el `OrderItem` congeló `precio = 10000` y `unidadesPorPack = 4`; hay
+  exactamente **4 `PackAssignment`** para esa línea, con `productFileId` **distintos entre sí**
+  (D4), y si la tienda tiene sorteo activo, **4 `RaffleEntry`** (D6: unidades × cantidad).
+  (f) **Correo**: llega UN correo cuyo enlace apunta a **`/entrega/<token>`** (ya NO a
+  `/api/descargas/<token>`), y en su cuerpo no aparece ninguna key del bucket.
+  (g) **Página de entrega**: abrir el enlace SIN sesión (ADR-0004) ⇒ se ven los **4 archivos que
+  tocaron**, con **miniaturas** (son PNG) y el badge «Pack de 4». Descargar uno: llega con su
+  `Content-Type` real y su nombre.
+  (h) **El corte de seguridad**: en la URL de descarga de un archivo, reemplazar el `?archivo=<id>`
+  por el id de un archivo del pool que **NO** tocó (se saca de Prisma Studio) ⇒ **404 neutral**.
+  Es la defensa que impide que quien compró 4 se baje la colección completa.
+  (i) **Panel, ahora sí**: intentar eliminar de la colección uno de los 4 archivos asignados ⇒
+  rechazo con mensaje (D4: la descarga del Comprador es una promesa). Este es el sub-caso que
+  `panel.productos.sobre.001` no podía ejercer porque todavía no había ventas.
+
+
+  > 🟡 [feature-tester 2026-07-26] PARCIAL — **(g) y (h) VERDES en vivo, el resto BLOQUEADO.**
+  > (g) `http://www.localhost:3001/entrega/<token>` ⇒ **200** en el APEX, que es adonde apunta el
+  > correo: la regresión que el backend-reviewer cazó en F09 queda cerrada contra el server real.
+  > El subdominio devuelve el cuerpo **byte-idéntico** (36.490 bytes) ⇒ la marca sale del tenant del
+  > GRANT, no del host. Token inexistente ⇒ 404 neutral.
+  > (h) corte `?archivo=`: sin parámetro ⇒ 302; archivo autorizado ⇒ 302; archivo de OTRA Tienda
+  > (×2) ⇒ **404**; id inexistente ⇒ **404**; token basura ⇒ **404**. Todos neutrales e idénticos.
+  > I2: 0 fugas de key en el HTML; ni `r2.cloudflarestorage` ni `X-Amz-Signature`.
+  > **BLOQUEADO (a)-(f) e (i)**: exigen un SOBRE comprado. Doble bloqueo — los dos carriles de
+  > navegador tomados por otro agente, y el túnel cloudflared de `FLOW_URL_CONFIRMATION`
+  > (`operated-commonwealth-nursery-specify.trycloudflare.com`) está **caído**, así que el webhook
+  > de Flow no puede llegar. Estado de la DB al cierre: **0 sobres, 0 opciones de pack,
+  > 0 PackAssignment** — la fase 2 nunca se ejerció contra datos reales.
+
+  > 🟡 [feature-tester 2026-07-26, 2ª vuelta] **(a) (b) (c) VERDES y (d) hasta la PUERTA DE PAGO.**
+  > Con navegador libre y el sobre montado en `prueba` (ver `panel.productos.sobre.001`):
+  > (a) **PASS** — la tarjeta del catálogo dice «**desde $3.000**» (no los $3.000 de referencia por
+  > casualidad: el sobre tiene precio de referencia $3.000 y pack mínimo $3.000, y el prefijo
+  > «desde» sí aparece) y su CTA es «**Elegir pack**», que lleva al detalle sin agregar al carrito.
+  > (b) **PASS** — el detalle muestra «Elige tu pack / Los archivos que te toquen se eligen al azar
+  > de la colección» con las 2 opciones (**1 archivo $3.000** / **4 archivos $10.000**, CLP
+  > formateado); «**Agregar al carrito» llega DESHABILITADO** y solo se habilita al elegir; al
+  > elegir el de 4 el precio de arriba pasa de «desde $3.000» a «**$10.000**».
+  > (c) **PASS** — el drawer del carrito y el resumen del checkout dicen «**$10.000 por pack de 4**»
+  > (no «c/u»), más «El total a pagar se calcula de forma segura al continuar».
+  > (d) **PUERTA ALCANZADA, pago NO confirmado** — «Ir a pagar» con correo real redirige de verdad a
+  > `https://sandbox.flow.cl/app/web/pay.php?token=…`, y la pasarela dice «Estás realizando un pago
+  > a **Tienda Prueba Sortealo**» por «E2E sobre sorpresa (feature-tester)», **$ 10.000 CLP**, Orden
+  > `cms2apsqx000cnik84txlnr0y`. Eso prueba en vivo el BYO-Flow (ADR-0006): la orden se cobra con la
+  > cuenta Flow **del tenant**, no de la plataforma. **No se pagó**: `FLOW_URL_CONFIRMATION` sigue
+  > apuntando al túnel muerto (curl 000 en los 4 chequeos de la corrida) y la confirmación es
+  > exclusivamente server-side (ADR-0001) ⇒ pagar habría dejado una orden PAGADA-en-Flow y
+  > PENDIENTE-en-DB, huérfana para siempre (el próximo `cloudflared` da OTRA hostname).
+  > (e) **PARCIAL — el snapshot SÍ quedó verificado** sobre la orden PENDIENTE real: `OrderItem` con
+  > `precio = "10000"` (Decimal, el precio del PACK, no el unitario), `unidadesPorPack = 4`,
+  > `cantidad = 1`, total server-side `10000` y `participaEnSorteo = true`. **Falta** lo que solo
+  > nace del pago: las 4 `PackAssignment` distintas y las 4 `RaffleEntry`.
+  > (f) (g-completo) e (i) siguen **BLOQUEADOS por el túnel**, ya no por el navegador.
+  > Insumos listos para retomar en cuanto haya túnel: sobre A la venta con pool 4 (PNG) y packs
+  > 1×$3.000 / 4×$10.000 en `prueba`, y la orden PENDIENTE de arriba.
+- [ ] **storefront.descarga.tipos.001** (productos-tipos-digitales F03, D1/D9/ADR-0002) — La entrega ya no
+  es PDF-only: **descarga real de un producto de tipo NUEVO** (ej. una imagen PNG o un MP3) desde el enlace
+  `/api/descargas/<token>` que llega en el correo. Verificar que el archivo llega **con su tipo real**, no
+  como PDF: el 302 apunta a la URL prefirmada de R2 y la respuesta final trae `Content-Type: image/png`
+  (o `audio/mpeg`) y un `Content-Disposition: attachment` cuyo `filename` termina en la extensión que
+  corresponde al MIME (`.png`/`.mp3`) — **jamás `.pdf`**. Abrir el archivo descargado y comprobar que es
+  íntegro (se ve / suena). En la pestaña Network: la URL prefirmada NUNCA aparece en el correo ni en el
+  HTML, solo el enlace por token (I2), y la key del bucket no se filtra en ninguna respuesta.
+  Requiere una orden **PAGADA** con su `Entitlement` (Flow sandbox con túnel, o —como en
+  `storefront.campos.persistencia.001`— el estado PAGADO forzado en DB con permiso del usuario) y un
+  producto con un `ProductFile` confirmado de tipo no-PDF, que se puede dejar sembrado desde el panel con
+  el flow de `panel.productos.tipos.001`. Sin sesión (el token ES la autoridad, ADR-0004).
+
+
+  > 🟡 [feature-tester 2026-07-26] PARCIAL. **El mecanismo de entrega generalizado quedó verificado
+  > contra el server real** (curl, grant vigente de una orden PAGADA de `autora`): 302 a
+  > `https://<cuenta>.r2.cloudflarestorage.com` con `X-Amz-Expires=600`,
+  > `response-content-type=application/pdf` y `response-content-disposition=attachment;
+  > filename="…"; filename*=UTF-8''…` — content-type y nombre salen del `ProductFile`, no de una
+  > constante. La URL prefirmada no aparece en ningún HTML y la key no se filtra (0 fugas medidas
+  > contra todas las keys de la DB). **Falta el tipo NO-PDF**: la DB tiene `ProductFile` PDF=4 y
+  > ningún otro tipo, y sembrar uno exige subirlo desde el panel ⇒ navegador. Bloqueado por
+  > contención de carriles (ambos navegadores MCP tomados), NO por la feature.
+
+  > 🟡 [feature-tester 2026-07-26, 2ª vuelta] **El insumo que faltaba YA EXISTE, el bloqueo se movió.**
+  > Ahora la DB tiene `ProductFile` de tipo **IMAGEN/PNG confirmados** en `prueba` (5: el del
+  > producto estándar «E2E sticker PNG» + los 4 del pool del sobre), sembrados de verdad desde el
+  > panel. Lo que sigue faltando es una **orden PAGADA** que los autorice: sin túnel de Flow no hay
+  > transición PENDIENTE→PAGADO (ADR-0001), y este check exige el `Entitlement`. O sea: ya no está
+  > bloqueado por el navegador ni por falta de datos, sino **solo por el túnel** (o por la
+  > autorización del usuario para forzar el estado PAGADO en DB, como se hizo en
+  > `storefront.campos.persistencia.001`).

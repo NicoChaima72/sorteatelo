@@ -17,7 +17,6 @@ import {
   BotonCarrito,
   CarritoDrawer,
 } from "~/components/storefront/carrito-ui";
-import { CountdownChip } from "~/components/storefront/countdown-chip";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
 import { hrefMenuItem, type Chrome, type FondoHeader } from "~/lib/pagebuilder/chrome";
 import { type NavItem } from "~/lib/pagebuilder/nav";
@@ -237,7 +236,9 @@ function Header({
           </Group>
 
           <Group gap="sm" wrap="nowrap">
-            <CountdownChip />
+            {/* Sin CountdownChip en el header (usuario 2026-07-26): la urgencia vive en la página
+                (widget `urgencia_countdown`); el chip duplicaba el mensaje. `aviso_barra` conserva
+                el suyo (opt-in del Organizador). */}
             {/* Acción de sesión (F09c): junto al carrito, chrome neutro, post-hidratación (I5). */}
             <AccesoSesion slug={branding.slug} />
             <BotonCarrito onOpen={onAbrirCarrito} />

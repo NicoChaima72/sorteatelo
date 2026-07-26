@@ -10,12 +10,14 @@ import {
   type CampoDelCheckout,
   listarCamposActivosDelStorefront,
 } from "~/server/domain/camposCheckout/camposActivos";
+import { cargarGateVenta } from "~/server/domain/facturacion/cargarGateVenta";
 import { crearRepoBranding } from "~/server/storefront/repoBranding";
 import {
   type ResolucionBranding,
   resolverBrandingDesdeHost,
 } from "~/server/storefront/resolverBranding";
 import { resolverModoPreview } from "~/server/storefront/previewToken";
+import { resolverTemaPagina } from "~/server/storefront/temaPagina";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { esSlugPaginaReservado } from "~/server/tenancy/slugTienda";
 import { type TenantBranding } from "~/styles/tenantTheme";
@@ -44,20 +46,92 @@ export async function resolverBrandingSSR(
 /** Props que reciben las páginas del storefront tematizadas (`tenantBranding` no-null). */
 export interface PropsStorefront {
   tenantBranding: TenantBranding;
+  /**
+   * Tema MÍNIMO heredado de la Tienda (tema-paginas F02, D1): fondo de página + par tipográfico + radio
+   * + modo, ya recortado por `resolverTemaPagina`. Lo consume `_app` (radio/tipografía/modo) y la página
+   * lo deriva a `estiloShell`/`colorPagina` con `estiloHeredadoDeTema`.
+   *
+   * `null` ⇒ la Tienda tiene el tema default y la página queda BYTE-idéntica a como salía antes de esta
+   * feature (D7/I6) — por eso es `null` y no un `Tema` de defaults.
+   */
+  temaPagina: Tema | null;
+}
+
+/** Ruta de la página neutral que se sirve cuando la Tienda está en pausa por facturación (F05/D4). */
+export const RUTA_EN_PAUSA = "/en-pausa";
+
+/** Redirect a la página neutral, en la forma que espera `getServerSideProps`. */
+type RedirectSSR = { redirect: { destination: string; permanent: false } };
+
+/**
+ * GATE DE VENTA del storefront (F05, D4/D5, ADR-0026). Devuelve el redirect a la página neutral si
+ * esta Tienda no puede vender AHORA, o `null` si sí.
+ *
+ * Esto es el AVISO al visitante, no la autoridad: el gate que de verdad impide la venta es el que
+ * `iniciarCheckout` recomputa server-side dentro de su `$transaction`. Acá se decide qué HTML se
+ * sirve; allá, si se cobra.
+ *
+ * Se sirve una página aparte en vez de un 404 a propósito: la Tienda existe y sigue `PUBLICADA` (I6),
+ * y a un visitante que llegó por un link compartido le corresponde una respuesta honesta, no la
+ * neutralidad de ADR-0007 (que está pensada para no delatar tiendas que no existen o están
+ * suspendidas). La página tampoco nombra el motivo: la mora es asunto entre la Plataforma y el
+ * Organizador.
+ */
+async function gateDeVentaSSR(tenantSlug: string): Promise<RedirectSSR | null> {
+  const gate = await cargarGateVenta({ db, where: { slug: tenantSlug } });
+  if (gate.puedeVender) return null;
+  return { redirect: { destination: RUTA_EN_PAUSA, permanent: false } };
 }
 
 /**
- * Helper para las páginas EXCLUSIVAS del comprador (`/producto/[id]`, `/checkout`,
- * `/checkout/retorno`): solo existen dentro de un storefront. Zona storefront ⇒ props con
- * branding; apex o host sin Tienda publicada ⇒ `notFound` neutral (I2/ADR-0007) — el apex es
- * zona plataforma, no del comprador.
+ * Zona del comprador, SIN gate de venta: solo resuelve que el host sea el subdominio de una Tienda
+ * publicada. Privado a propósito — quien quiera props del comprador tiene que elegir explícitamente
+ * entre la variante de VENTA y la de ENTREGA, que es la distinción que sostiene I5.
  */
-export async function getPropsPaginaComprador(
+async function zonaComprador(
   ctx: GetServerSidePropsContext,
 ): Promise<{ props: PropsStorefront } | { notFound: true }> {
   const res = await resolverBrandingSSR(ctx);
   if (res.zona !== "storefront") return { notFound: true };
-  return { props: { tenantBranding: res.branding } };
+  // El tema se resuelve ACÁ, en el único lugar por donde pasan las tres páginas del Comprador, y no en
+  // cada helper público: era justamente la deriva entre páginas lo que produjo el defecto que esta
+  // feature arregla (la home tematizada y el checkout con el body blanco). El `tenantSlug` sale del
+  // branding ya resuelto server-side por subdominio (I1), nunca de `ctx.query` ni de otro input.
+  // Cuesta una query en el camino del redirect por pausa (que no la necesita); es el precio de tener un
+  // solo call site, y es una fila chica por request.
+  const temaPagina = await resolverTemaPagina({ tenantSlug: res.branding.slug });
+  return { props: { tenantBranding: res.branding, temaPagina } };
+}
+
+/**
+ * Helper para las páginas de VENTA del comprador (`/producto/[id]`, `/checkout`): solo existen dentro
+ * de un storefront. Zona storefront ⇒ props con branding; apex o host sin Tienda publicada ⇒
+ * `notFound` neutral (I2/ADR-0007) — el apex es zona plataforma, no del comprador. Tienda en pausa por
+ * facturación ⇒ página neutral (F05/D4).
+ */
+export async function getPropsPaginaComprador(
+  ctx: GetServerSidePropsContext,
+): Promise<{ props: PropsStorefront } | { notFound: true } | RedirectSSR> {
+  const base = await zonaComprador(ctx);
+  if (!("props" in base)) return base;
+  return (await gateDeVentaSSR(base.props.tenantBranding.slug)) ?? base;
+}
+
+/**
+ * Helper para las páginas de ENTREGA post-compra (`/checkout/retorno`) — la MISMA zona del comprador
+ * pero **sin gate de facturación** (I5).
+ *
+ * Existe como export aparte, y no como un flag de `getPropsPaginaComprador`, para que la excepción sea
+ * legible desde el call site y auditable desde fuera: hay un test estático que enumera quién lo usa
+ * (`gateVentaEnElBorde.test.ts`). El motivo es la regla que protege al Comprador: acá ve su compra y
+ * su enlace de descarga, y alguien que acaba de pagar no puede quedarse sin comprobante porque el
+ * Organizador esté moroso. Si mañana otra página quiere entrar por acá, tiene que justificarse en ese
+ * test — no colarse.
+ */
+export async function getPropsPaginaEntrega(
+  ctx: GetServerSidePropsContext,
+): Promise<{ props: PropsStorefront } | { notFound: true }> {
+  return zonaComprador(ctx);
 }
 
 /** Props del CHECKOUT: las del comprador + los Campos de checkout activos de la Tienda (F04). */
@@ -79,7 +153,8 @@ export interface PropsCheckout extends PropsStorefront {
  */
 export async function getPropsCheckout(
   ctx: GetServerSidePropsContext,
-): Promise<{ props: PropsCheckout } | { notFound: true }> {
+): Promise<{ props: PropsCheckout } | { notFound: true } | RedirectSSR> {
+  // Se apoya en el helper de VENTA ⇒ hereda el gate de facturación (F05) sin repetirlo.
   const base = await getPropsPaginaComprador(ctx);
   if (!("props" in base)) return base;
 
@@ -203,7 +278,7 @@ export async function resolverChrome({ tenantSlug }: { tenantSlug: string }): Pr
  */
 export async function getPropsHome(
   ctx: GetServerSidePropsContext,
-): Promise<{ props: PropsHome } | { notFound: true }> {
+): Promise<{ props: PropsHome } | { notFound: true } | RedirectSSR> {
   const res = await resolverBrandingSSR(ctx);
   if (res.zona === "plataforma") {
     return {
@@ -220,6 +295,15 @@ export async function getPropsHome(
   });
   if (modo === "no-encontrado") {
     return { notFound: true }; // preview con token inválido ⇒ 404 neutral
+  }
+
+  // Gate de venta por facturación (F05/D4): la tienda en pausa sirve la página neutral, no su catálogo.
+  // EXCEPTO en preview: ese render es el canvas del editor del Organizador (ya `noindex`, nunca
+  // público), y devolverle la página de pausa dentro del iframe le rompería la herramienta con la que
+  // tiene que dejar la tienda lista para volver a vender.
+  if (modo !== "borrador") {
+    const pausa = await gateDeVentaSSR(res.branding.slug);
+    if (pausa) return pausa;
   }
 
   const pagina = await cargarDocumentoParaRender({
@@ -253,7 +337,7 @@ export async function getPropsHome(
  */
 export async function getPropsPaginaTienda(
   ctx: GetServerSidePropsContext,
-): Promise<{ props: PropsPagina } | { notFound: true }> {
+): Promise<{ props: PropsPagina } | { notFound: true } | RedirectSSR> {
   const res = await resolverBrandingSSR(ctx);
   if (res.zona !== "storefront") return { notFound: true }; // apex/host ajeno ⇒ 404 neutral
 
@@ -267,6 +351,12 @@ export async function getPropsPaginaTienda(
     token: env.STOREFRONT_PREVIEW_TOKEN,
   });
   if (modo === "no-encontrado") return { notFound: true };
+
+  // Mismo gate y misma excepción de preview que la home (F05/D4).
+  if (modo !== "borrador") {
+    const pausa = await gateDeVentaSSR(res.branding.slug);
+    if (pausa) return pausa;
+  }
 
   const pagina = await cargarDocumentoParaRender({
     branding: res.branding,
@@ -288,4 +378,30 @@ export async function getPropsPaginaTienda(
       slug,
     },
   };
+}
+
+/**
+ * Borde SSR de la página neutral `/en-pausa` (F05/D4) — el destino al que el gate manda a los
+ * visitantes de una Tienda que dejó de vender.
+ *
+ * Reconsulta el gate en vez de confiar en que se llegó por un redirect: así la página **no puede
+ * quedar servida a una tienda que ya regularizó**. Si vuelve a vender, redirige a la home — un
+ * "estamos en pausa" cacheado en el historial de alguien no debe sobrevivir al pago.
+ */
+export async function getPropsEnPausa(
+  ctx: GetServerSidePropsContext,
+): Promise<{ props: PropsStorefront } | { notFound: true } | RedirectSSR> {
+  const res = await resolverBrandingSSR(ctx);
+  if (res.zona !== "storefront") return { notFound: true }; // apex/host ajeno ⇒ 404 neutral
+
+  const gate = await cargarGateVenta({ db, where: { slug: res.branding.slug } });
+  if (gate.puedeVender) {
+    return { redirect: { destination: "/", permanent: false } };
+  }
+
+  // `temaPagina: null` DELIBERADO (tema-paginas I4): esta página queda NEUTRAL, sin heredar el tema de
+  // la Tienda. No es un olvido — es la única página del storefront que se sirve *en nombre de la
+  // Plataforma* y no de la Tienda, y vestirla con la marca de la Tienda sugeriría que la pausa es una
+  // decisión de ella. Tampoco usa `StorefrontLayout`.
+  return { props: { tenantBranding: res.branding, temaPagina: null } };
 }

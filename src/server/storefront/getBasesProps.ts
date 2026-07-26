@@ -13,6 +13,8 @@ import {
   resolverChrome,
   resolverNavPaginas,
 } from "~/server/storefront/getStorefrontProps";
+import { resolverTemaPagina } from "~/server/storefront/temaPagina";
+import { type Tema } from "~/lib/pagebuilder/schema";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -38,6 +40,8 @@ export interface PropsBases extends BasesDelSorteoSerializable {
   tenantBranding: TenantBranding;
   navPaginas: NavItem[];
   chrome: Chrome | null;
+  /** Tema mínimo heredado de la Tienda (tema-paginas F03). `null` ⇒ tienda sin tematizar (no-op, I6). */
+  temaPagina: Tema | null;
 }
 
 export async function getPropsBases(
@@ -47,10 +51,14 @@ export async function getPropsBases(
   if (res.zona !== "storefront") return { notFound: true }; // apex/host ajeno ⇒ 404 neutral
 
   const tenantSlug = res.branding.slug;
-  const [bases, navPaginas, chrome] = await Promise.all([
+  // El tema entra al `Promise.all` que ya existía (tema-paginas F03/D8): en paralelo con bases/nav/chrome,
+  // el costo en latencia es ≈ 0. Igual que sus vecinos, es defensivo: si falla, `null` y la página sale
+  // sin heredar en vez de romperse — esta URL se cita en documentos legales (ADR-0008).
+  const [bases, navPaginas, chrome, temaPagina] = await Promise.all([
     resolverBasesDelSorteo({ db, tenantSlug }),
     resolverNavPaginas({ tenantSlug, paginaActual: "bases" }),
     resolverChrome({ tenantSlug }),
+    resolverTemaPagina({ tenantSlug }),
   ]);
 
   return {
@@ -58,6 +66,7 @@ export async function getPropsBases(
       tenantBranding: res.branding,
       navPaginas,
       chrome,
+      temaPagina,
       ...serializarBases(bases),
     },
   };

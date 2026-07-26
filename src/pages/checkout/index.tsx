@@ -36,6 +36,7 @@ import {
   getPropsCheckout,
   type PropsCheckout,
 } from "~/server/storefront/getStorefrontProps";
+import { estiloHeredadoDeTema } from "~/styles/estiloSeccion";
 import { api } from "~/utils/api";
 
 /**
@@ -56,10 +57,20 @@ export const getServerSideProps: GetServerSideProps<PropsCheckout> = async (
 
 export default function CheckoutPage({
   tenantBranding,
+  temaPagina,
   campos,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // Tema MÍNIMO heredado de la Tienda (tema-paginas F02): el fondo de página. El radio, el par
+  // tipográfico y el modo claro/oscuro los aplica `_app` desde el mismo `temaPagina`. Con la Tienda en
+  // tema default esto es `undefined`/`undefined` ⇒ el shell sale sin `style=`, byte-idéntico a antes (I6).
+  const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
+
   return (
-    <StorefrontLayout branding={tenantBranding}>
+    <StorefrontLayout
+      branding={tenantBranding}
+      estiloShell={estiloShell}
+      colorPagina={colorPagina}
+    >
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
         <ResumenYPago campos={campos} />
       </Container>
@@ -122,7 +133,14 @@ function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
   const submit = form.onSubmit((valores) =>
     iniciar.mutate({
       email: valores.email.trim(),
-      items: items.map((i) => ({ productId: i.id, cantidad: i.cantidad })),
+      // El `packOptionId` viaja tal cual salió del selector (F07): es un ID, no un precio. El
+      // server lo valida contra las opciones ACTIVAS de ese producto y relee el monto de la fila
+      // vigente — si la opción se apagó o cambió mientras el carrito dormía, manda la DB (I4).
+      items: items.map((i) => ({
+        productId: i.id,
+        cantidad: i.cantidad,
+        ...(i.packOptionId ? { packOptionId: i.packOptionId } : {}),
+      })),
       respuestas: respuestasParaEnviar(valores.respuestas),
     }),
   );
@@ -142,7 +160,15 @@ function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
                   {item.titulo}
                 </Text>
                 <Text size="xs" c="dimmed" className="tabular-nums">
-                  {clp(item.precio)} c/u
+                  {/*
+                    En un sobre la "unidad" es UN PACK, así que "c/u" solo sería honesto diciendo
+                    de qué pack se trata: el Comprador tiene que poder verificar en el resumen que
+                    va a pagar el pack de 4 y no el de 1.
+                  */}
+                  {clp(item.precio)}{" "}
+                  {item.unidadesPorPack
+                    ? `por pack de ${item.unidadesPorPack}`
+                    : "c/u"}
                 </Text>
               </div>
               <Group gap="xs" wrap="nowrap">

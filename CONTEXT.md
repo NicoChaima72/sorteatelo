@@ -37,6 +37,10 @@ carga productos, sorteo, credenciales, marca) → **publicada** (visible y vendi
 → **suspendida** (retirada de operación por incumplimiento; hoy la aplica el [[Operador de
 plataforma]] por DB directa, sin superficie en el producto — ADR-0023). Solo una Tienda
 **publicada** vende; una **suspendida** no resuelve su subdominio hacia el storefront.
+**Desde ADR-0026** la facturación es un eje SEPARADO que no cambia estos estados: una Tienda
+publicada solo **vende** si su [[Suscripción de plataforma]] está al día o tiene [[Exención]]
+vigente — la morosa entra "en pausa por pago" (sin venta, con descargas y verificador vivos)
+sin dejar de estar `PUBLICADA`.
 
 ### Organizador
 La persona (u organización) dueña de una [[Tienda]]: **tiene cuenta en la Plataforma** (login),
@@ -104,6 +108,53 @@ del contrato con la plataforma).
 ### Disclaimer del sorteo
 El aviso **visible al [[Comprador]]** en el storefront de una Tienda con sorteo activo: el
 responsable del sorteo es el [[Organizador]] detrás de la tienda, no la [[Plataforma]] (ADR-0008).
+
+---
+
+## Facturación de la plataforma
+
+> **Aceptado 2026-07-26** (plan `tasks/26-07-26-plataforma-facturacion-suscripciones.md`, ADR-0026).
+> Es el **otro mundo del dinero**: acá la [[Plataforma]] cobra SU mensualidad con SU cuenta de Flow
+> (Flow Suscripciones). Las [[CredencialFlow]] BYO de un tenant JAMÁS participan en este cobro, ni las
+> credenciales de plataforma (solo env) en las ventas de las tiendas. No contradice ADR-0006: esta
+> plata es propia. Modelos Prisma con prefijo `Platform*`.
+
+### Suscripción de plataforma (`PlatformSubscription`)
+El cobro mensual de la Plataforma a una [[Tienda]]: 1-1 con el `Tenant`, anclada a un [[Pagador]] y
+respaldada por una suscripción de Flow Suscripciones en la cuenta propia. **Nace al publicar** (sin
+trial: la etapa de configuración es el gratis) y muere solo por **cancelación explícita** (fin de
+período, sin prorrateos — despublicar NO la toca). Su estado es **derivado** del dunning de Flow
+(que no tiene `past_due` nativo): al día → cobro pendiente (reintentos de Flow) → **en pausa por
+pago** (dunning agotado: la tienda deja de vender, el [[Comprador]] conserva descargas y verificador)
+→ cancelada. Precio: $25.000 la primera tienda del Pagador, $12.500 las siguientes (brutos, IVA
+incl.); **exactamente una full entre las activas de un Pagador** — al cancelar la full se promueve
+la adicional más antigua. _Evitar_: confundirla con el [[Pago]] (ventas de la tienda vía BYO-Flow),
+"suscripción" a secas donde haya ambigüedad.
+
+### Pagador (`PlatformBillingCustomer`)
+El `User` que pone la tarjeta de una [[Tienda]]: dueño del cliente Flow (customer) en la cuenta de la
+plataforma y **receptor único** de los correos de facturación. Quien activa el plan al publicar ES el
+Pagador de esa Tienda. La regla "segunda tienda a mitad de precio" es relativa a él. _Evitar_: "el
+dueño de la tienda" (la membresía es N:M — el Pagador es un rol de facturación, no de autorización),
+facturar "al Organizador" en abstracto.
+
+### Exención (`PlatformExemption`)
+La marca que libera a una [[Tienda]] del cobro de la [[Suscripción de plataforma]]: motivo
+**CORTESIA** (cuentas regaladas — ej. la [[Autora (tenant piloto)]]) o **GRANDFATHER** (publicadas
+antes del despliegue del cobro, exentas a perpetuidad), con fecha de término opcional (null =
+perpetua; expiración por evaluación lazy en el gate). Tienda exenta: sin tarjeta ni suscripción Flow;
+su panel muestra "Plan cortesía". Se administra por **DB directa** (ADR-0023: sin superficie
+superadmin). _Evitar_: "comped" en código/UI (el término del producto es cortesía), modelarla como
+cupón de 100%.
+
+### Cupón de plataforma (`PlatformCoupon`)
+Un **código repartible** de descuento sobre la [[Suscripción de plataforma]] (ej. `ARMY2026`),
+espejo de un cupón de Flow (`flowCouponId`): porcentaje o monto, duración una vez / N meses / para
+siempre, expiración y máximo de canjes (`maxCanjes = 1` ⇒ código personal). Se canjea **solo al
+activar el plan**; cada canje queda trazado en `PlatformCouponRedemption` (quién, cuándo, qué tienda
+— el reporte "quién entró por cuál código"). Se crea por script CLI (Flow + fila local en la misma
+corrida). _Evitar_: confundirlo con futuros cupones de una Tienda a sus [[Comprador]]es (no existen
+hoy); usarlo para el descuento 100% (eso es una [[Exención]]).
 
 ---
 
@@ -201,12 +252,34 @@ descartado en el grill), guardar o loguear el token plano.
 ## Producto y catálogo
 
 ### Producto (`Product`)
-Un producto digital descargable (hoy: **PDF**) que una [[Tienda]] vende. Atributos: título,
-descripción, precio (`Decimal`, CLP), portada, referencia al archivo en **storage privado**, flag de
-activo, **flag `participaEnSorteo`** (ver [[Producto participante]]), y su `tenantId`. El archivo
-**nunca** se expone por enlace público (ver [[Entitlement]] y ADR-0002). _Evitar_: Libro, `Book`,
-e-book (términos del single-tenant; el primer Producto del piloto sigue siendo un e-book, pero el
-modelo es genérico).
+Un producto digital descargable que una [[Tienda]] vende. Atributos: título, descripción, precio
+(`Decimal`, CLP), portada, sus [[Archivo de producto|Archivos de producto]], flag de activo, **flag
+`participaEnSorteo`** (ver [[Producto participante]]), **modalidad** (`modalidad`: estándar hoy; el
+sobre sorpresa es el otro valor previsto) y su `tenantId`. El archivo **nunca** se expone por enlace
+público (ver [[Entitlement]] y ADR-0002). _Evitar_: Libro, `Book`, e-book (términos del
+single-tenant; el primer Producto del piloto sigue siendo un e-book, pero el modelo es genérico);
+"el PDF del producto" como sinónimo del archivo (desde 2026-07-26 el tipo es uno de varios).
+
+### Archivo de producto (`ProductFile`)
+> **Aceptado 2026-07-26** (plan `tasks/26-07-26-productos-tipos-digitales.md`, F01).
+
+El archivo entregable que respalda a un [[Producto]] — la unidad que el [[Comprador]] efectivamente
+descarga. Vive como **fila propia**, no como columna del Producto: un producto estándar tiene
+**exactamente uno** confirmado, y el diseño deja lugar a un **pool de varios** para la modalidad
+sobre sorpresa. Atributos: `key` del objeto en el bucket **privado** (autoría del server, con prefijo
+`<tenantId>/`, extensión derivada del **MIME validado** y jamás del nombre que mandó el cliente),
+`contentType` + `tipo` dentro de una **allowlist cerrada** (PDF, EPUB, imagen PNG/JPEG/WebP, audio
+MP3/M4A/WAV, ZIP), `bytes` (tamaño real, medido server-side contra el bucket — tope **20 MB por
+archivo**), `nombreArchivo` (el nombre con que llega la descarga) y `confirmadoAt`.
+
+**Confirmado vs. pendiente** es la distinción que importa: la fila nace al **presignar** la subida
+(la key necesita existir antes de que haya bytes) y solo cuenta como entregable cuando el server
+verificó el objeto en el bucket y le puso `confirmadoAt`. De ahí sale **entregable**, el requisito
+que el gate de publicación (ver [[Ciclo de vida de la Tienda]]) mide sobre el Producto: una Tienda no
+publica sin ≥1 Producto activo **entregable**. El [[Organizador]] nunca declara
+el tipo: lo **deriva el server** del MIME. _Evitar_: "el PDF" (el tipo es uno de varios), "adjunto"
+(no es correo), llamar `path` a la `key`, y confundirlo con un [[Asset de marca]] (bucket **público**:
+logo, portada, hero, bases del sorteo — ADR-0013).
 
 ### Producto participante
 Un [[Producto]] con el flag `participaEnSorteo = true`: comprarlo genera [[Ticket]]s para el
@@ -290,7 +363,8 @@ La promoción que una [[Tienda]] monta sobre su venta: entre quienes compran pro
 sortea un premio definido por el [[Organizador]] (piloto: 2 entradas a un recital de BTS). Atributos:
 nombre, premio, fechas, estado, el PDF de sus [[Bases del sorteo]] (`basesPdfUrl`), `tenantId`. Cada compra genera cero o más
 [[Ticket]]s. El ganador se elige **entre tickets** (más tickets = más chance), de forma auditable
-(ganador, fecha, quién ejecutó). A lo sumo un Sorteo ACTIVO por Tienda (S5).
+(ganador, su [[Número del sorteo]], fecha, quién ejecutó — ADR-0024). A lo sumo un Sorteo ACTIVO
+por Tienda (S5).
 
 ### Ticket
 La **unidad de chance** en un [[Sorteo]]. Una compra genera **un Ticket por cada unidad de
@@ -302,12 +376,25 @@ multiplicador por unidad es puerta abierta (ADR-0012). Cada Ticket se materializ
 
 ### Participación (`RaffleEntry`)
 La materialización de **un** [[Ticket]]: una fila por ticket en el [[Sorteo]] ACTIVO de la [[Tienda]]
-de la [[Orden]], con el **correo** del comprador (snapshot) y un `ordinal` 0..K-1 dentro de la orden.
-Se crean **al confirmarse el pago**, junto con el [[Entitlement]], dentro de la misma `$transaction`;
-K = tickets de la orden. Idempotentes por `@@unique([raffleId, orderId, ordinal])` (exactly-once ante
-replay del webhook, ADR-0001/0012). El [[Organizador]] ve las participaciones (puede agruparlas por
-correo, mostrando tickets por participante) y ejecuta el sorteo de forma auditable. _Nota_: "una
-Participación = un ticket", NO "una por orden" (semántica pre-ADR-0012, ya obsoleta).
+de la [[Orden]], con el **correo** del comprador (snapshot), un `ordinal` 0..K-1 dentro de la orden y
+su [[Número del sorteo]]. Se crean **al confirmarse el pago**, junto con el [[Entitlement]], dentro
+de la misma `$transaction`; K = tickets de la orden. Idempotentes por
+`@@unique([raffleId, orderId, ordinal])` (exactly-once ante replay del webhook, ADR-0001/0012). El
+[[Organizador]] ve las participaciones (puede agruparlas por correo, mostrando tickets por
+participante) y ejecuta el sorteo de forma auditable. _Nota_: "una Participación = un ticket", NO
+"una por orden" (semántica pre-ADR-0012, ya obsoleta). _Evitar_: confundir el `ordinal`
+(discriminador interno de idempotencia, jamás visible) con el [[Número del sorteo]] (la identidad
+pública del ticket).
+
+### Número del sorteo
+La **identidad pública de un [[Ticket]] dentro de su [[Sorteo]]**: un correlativo único por sorteo,
+desde 1, asignado al confirmarse el pago (ADR-0024). Es lo que el [[Comprador]] conoce como "mis
+números" y se le comunica **en rango** (`1043–1092`); el ganador se anuncia por su número. Una vez
+asignado es **inmutable y no se reutiliza** — es una promesa pública. Sin prefijo de canal hoy: si
+mañana existieran canales de venta adicionales (offline, bonus), el canal sería un dato aparte y el
+número no se re-significa (ADR-0024). _Evitar_: "ordinal" (ese es el discriminador interno por
+orden, plomería de idempotencia — dos compradores distintos comparten ordinal `0`, jamás comparten
+Número del sorteo), "ticket number" / "correlativo de la orden" (el correlativo es POR SORTEO).
 
 ### Bases del sorteo
 El documento legal del [[Sorteo]] (quiénes participan, cómo se elige, fechas, premio). Son
@@ -322,6 +409,43 @@ PDF, la página muestra un estado vacío neutral. La palabra «Bases» en navbar
 existan, pero no las redacta ni responde por ellas (ADR-0008). **No es código ni texto libre**
 (el modelo viejo — texto en `Tenant.basesSorteo` o URL externa en `Raffle.basesUrl` — fue
 eliminado el 2026-07-25, plan `admin-bases-pdf-y-limpieza`).
+
+---
+
+## Correos al Comprador
+
+> **Aceptado 2026-07-26** (plan `tasks/26-07-26-correo-sistema-correos-comprador.md`, ADR-0027).
+> Todo correo al [[Comprador]] habla **en voz de la [[Tienda]]** («Tienda X · vía Sortéatelo»,
+> reply-to del [[Organizador]]) sobre un **layout compartido con identidad Sortéatelo** (la marca
+> va en el chrome del correo, la Tienda es la protagonista), y toda plantilla que hable de un
+> sorteo **nombra CUÁL** (una Tienda tiene n [[Sorteo]]s, solo uno activo). Regla dura:
+> **transaccional ≠ marketing** — confirmación y resultado salen siempre; los recordatorios solo
+> con [[Consentimiento de recordatorios]] y sin [[Supresión de correo]].
+
+### Ledger de correos (`CorreoEnviado`)
+El registro persistente de **cada correo que la Plataforma decide enviar** a un [[Comprador]],
+escrito ANTES de enviar: una fila por envío con tipo, clave natural determinística, destinatario
+snapshot, estado (pendiente/enviado/fallido) e intentos, idempotente por `[tipo, clave]`
+(ADR-0027). Es la **fuente de verdad** de qué salió y qué falta — el cron horario drena lo
+pendiente; la falla segura es que un correo no salga (recuperable), jamás que salga dos veces (el
+dominio compartido es reputación de TODAS las Tiendas). Quedarse sin cuota del proveedor no es un
+fallo: la fila espera al día siguiente sin gastar reintentos. _Evitar_: "cola" (no es una cola de
+mensajes), "log de envíos" (no es un registro pasivo — es lo que decide qué se envía).
+
+### Supresión de correo
+La marca `(tenantId, email)` de que un [[Comprador]] pidió **no recibir más correos de avisos de
+UNA [[Tienda]]** (vía one-click unsubscribe, RFC 8058, endpoint público sin login — ADR-0004). Es
+**por Tienda**, no global, y **no bloquea los transaccionales** (confirmación de compra,
+resultado del sorteo): esos salen siempre. _Evitar_: blacklist, "baja global de la plataforma".
+
+### Consentimiento de recordatorios
+El **opt-in verificable** que el [[Comprador]] da en el checkout para recibir recordatorios del
+[[Sorteo]] de ESA [[Tienda]]: checkbox **jamás premarcado**, persistiendo timestamp + IP + el
+texto exacto mostrado (Ley 21.719 exige consentimiento verificable; las casillas premarcadas
+están prohibidas). Es **por Tienda**. Sin él no se envía ningún recordatorio; la confirmación y
+el resultado no lo requieren (transaccionales). _Evitar_: "acepta marketing" (genérico),
+consentimiento implícito o inferido de la compra, y modelarlo como [[Campo de checkout]] (es de
+plataforma, no configurable por el Organizador).
 
 ---
 

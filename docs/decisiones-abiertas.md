@@ -41,6 +41,26 @@ bloqueaba (buzones, verificación de Resend, `NEXTAUTH_URL`) queda ahora gated s
 
 **→ Vercel (app) + Supabase (PostgreSQL)**, promovida a [ADR-0015](adr/0015-hosting-vercel-db-supabase.md). Wildcard `*.sorteatelo.cl` cubierto vía nameservers de Vercel. Transitorios anotados en el ADR: plan Hobby (no comercial — subir a Pro antes de vender) y DB dev = DB prod (separar antes de F10).
 
-## 6. Marca de agua en los PDFs (MVP sí/no) — ABIERTA
+## 6. Marca de agua en los archivos entregados (sí/no) — ABIERTA, y AMPLIADA (2026-07-26)
 
-Recomendada en [ADR-0002](adr/0002-entrega-pdf-storage-privado-url-firmada.md) para desincentivar redistribución (embeber correo/identificador del comprador). Decidir si entra en el MVP o se difiere.
+Recomendada en [ADR-0002](adr/0002-entrega-pdf-storage-privado-url-firmada.md) para desincentivar redistribución (embeber correo/identificador del comprador). Decidir si entra y cuándo.
+
+**Ampliada por `tasks/26-07-26-productos-tipos-digitales.md` (D11).** La pregunta estaba formulada
+**PDF-only**; desde que el [[Archivo de producto]] admite una allowlist de tipos (PDF, EPUB, imagen
+PNG/JPEG/WebP, audio MP3/M4A/WAV, ZIP), "marca de agua" ya no es UNA decisión sino una por familia,
+y cada una tiene técnica, costo y efecto distintos:
+
+- **PDF** — lo original: estampar correo/identificador del Comprador en el documento.
+- **Imagen** — admite **watermark VISIBLE**, y acá el trade-off es el más caro del set: si el
+  producto ES la imagen (un sticker, una photocard), la marca degrada justamente lo que se vendió.
+- **Audio** — la técnica es otra (tono/marca inaudible o *audio fingerprinting*), no es "poner un
+  texto encima"; complejidad y dependencias fuera de lo que hoy tiene el repo.
+- **ZIP** — **ninguna** aplica al contenedor; habría que marcar cada archivo de adentro, o nada.
+- **EPUB** — sin evaluar.
+
+Consecuencia operativa: si se decide "sí", habrá que decidir **para cuáles** y qué pasa con los tipos
+donde no aplica (¿se entregan sin marca? ¿se prohíben?). Nada del código de tipos de producto la
+precierra ni asume un watermark futuro (invariante I6 de ese plan): la marca de agua entraría en el
+pipeline de entrega/confirmación sin rediseñar nada de lo construido.
+
+**Sigue ABIERTA y es del usuario** — no cerrarla por cuenta propia.

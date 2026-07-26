@@ -27,11 +27,20 @@ Convenciones de evolución del schema (`prisma/schema.prisma`). PostgreSQL con F
 - Enums: convención `ModelNameStatus` / `ModelNameType`, valores en SCREAMING_CASE.
 - JSON: tipo `Json` nativo de Postgres.
 
+## Multi-tenancy: `tenantId` y uniques
+
+La regla vive en `CLAUDE.md` § Reglas de oro (ADR-0005): **todo modelo del dominio comercial lleva `tenantId`, con `@@index([tenantId])`, y sus uniques van COMPUESTOS con `tenantId`** (`@@unique([tenantId, slug])`) — así dos Tiendas pueden usar el mismo slug, título o código sin pisarse.
+
+**Excepción documentada — la key de un objeto de bucket va `@unique` GLOBAL, no compuesto.** Cuando la columna es la **key de un objeto en el bucket** (R2), el unique es global: `key String @unique`. Precedente: `ProductFile.key` (2026-07-26, decisión de `schema-guardian`). Razón, que no es obvia y por eso se anota: el bucket es **UN namespace de plataforma**, no uno por tenant — un `@@unique([tenantId, key])` permitiría que dos tenants tuvieran filas apuntando **al mismo objeto**, que es justo el cruce cross-tenant que hay que hacer imposible (el prefijo `<tenantId>/` de la key es una convención del código; el constraint es la garantía en DB). Bonus: el unique global es además la llave natural de **idempotencia** de un backfill o de una re-confirmación.
+
+Cómo distinguirla de una columna normal: ¿el valor identifica un recurso que vive **fuera** de esta DB y es compartido por todos los tenants? → unique global. ¿Es un dato del tenant (slug, código, nombre)? → compuesto con `tenantId`. Ojo con el orden de operaciones al cambiar un unique existente: ver § Workflow de cambios (Prisma exige `--accept-data-loss` incluso para ampliaciones).
+
 ## Dominio con dinero (precios, IVA, comisiones) — reglas de oro
 
 - **Dinero: `Decimal @db.Decimal(15, 2)`** (o precisión acordada). **NUNCA `Float`**. Los errores de redondeo en finanzas no son aceptables.
 - Modelos que registran plata (pagos, órdenes) son **append-only** por diseño: preferir reversión (registro espejo) sobre delete/update destructivo. Discutir excepciones en el grill.
 - Todo modelo de datos del usuario tiene FK a `User` con `onDelete: Cascade` y `@@index([userId])`.
+  - **Excepción — `Restrict` hacia `User` cuando la fila es la LLAVE de una obligación de plata VIVA en un sistema externo.** `PlatformBillingCustomer` (el Pagador de la facturación de plataforma, ADR-0026) va `onDelete: Restrict`: su `flowCustomerId` es la tarjeta registrada en la cuenta Flow de la Plataforma y de él cuelgan las `PlatformSubscription` que se cobran mes a mes. Con `Cascade`, borrar el `User` dejaría **cobros recurrentes vivos en Flow sin ninguna fila local que los explique** — nadie a quién avisarle, nada que cancelar, y el Organizador siguiendo pagando. Es el mismo criterio del `Restrict` hacia `Tenant` de `Order`/`Payment` (§ Convenciones obligatorias), un nivel más arriba: *si esta fila desaparece, ¿pierdo un ajuste o un hecho?* — acá se pierde el control de un cobro recurrente en un tercero. Consecuencia asumida: borrar un Organizador exige cancelar antes sus suscripciones (el `Restrict` es justamente el recordatorio en DB de ese orden).
   - La otra vía de escape del Cascade es **no tener FK**: `McpAuditLog` guarda `userId String?` SIN relación + `userEmail` snapshot, porque una bitácora de auditoría tiene que seguir legible después de que el `User` se fue (ADR-0025). Cómo elegir entre las dos: si la fila debe **sobrevivir** al borrado ⇒ sin FK + columnas snapshot; si el borrado debe **fallar** hasta que alguien limpie ⇒ `Restrict`.
 
 ## Frontera NextAuth

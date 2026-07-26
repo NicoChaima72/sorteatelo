@@ -31,8 +31,12 @@ async function limpiar() {
   });
   const ids = tenants.map((t) => t.id);
   if (ids.length === 0) return;
-  await db.productPackOption.deleteMany({ where: { tenantId: { in: ids } } });
   await db.productFile.deleteMany({ where: { tenantId: { in: ids } } });
+  // Los PACKS antes que sus fuentes: el `onDelete: Restrict` de la self-relation aborta el borrado
+  // de una fuente que todavía tenga packs colgando.
+  await db.product.deleteMany({
+    where: { tenantId: { in: ids }, fuenteId: { not: null } },
+  });
   await db.product.deleteMany({ where: { tenantId: { in: ids } } });
   await db.tenant.deleteMany({ where: { id: { in: ids } } });
 }
@@ -178,29 +182,33 @@ describe("productos/hayProductoEntregable (DB real)", () => {
     expect(await hayProductoEntregable({ db, tenantId: tenant.id })).toBe(true);
   });
 
-  // productos.gate.004 — la mitad SOBRE que F03 dejó anotada como pendiente (D4/I7). ESTE es el test
-  // que no existía: hasta F05 no había forma de crear un sobre.
-  it("un SOBRE publica solo cuando su pool cubre el pack ACTIVO más grande", async () => {
-    const tenant = await crearTenant("sobre");
-    const sobre = await crearProducto({
+  // productos.gate.004 — el caso stickers bajo v2: quien habilita la publicación es el PACK, y solo
+  // cuando el pool de su FUENTE le alcanza. Verifica que el select traiga la fuente ANIDADA: sin
+  // ella, `fuente: null` se lee como "entrega lo suyo" y un pack (que no tiene archivos propios)
+  // quedaría inentregable SIEMPRE — toda Tienda que venda por packs, impublicable.
+  it("un pack publica solo cuando el pool de su colección cubre sus unidades", async () => {
+    const tenant = await crearTenant("pack");
+    const coleccion = await crearProducto({
       tenantId: tenant.id,
-      titulo: "Sobre de stickers",
+      titulo: "Colección de stickers",
       activo: true,
       modalidad: "SOBRE",
       pool: 3,
-      packs: [
-        [1, true],
-        [4, true], // el de 4 no entra en un pool de 3
-      ],
+    });
+    await crearProducto({
+      tenantId: tenant.id,
+      titulo: "Pack 4 stickers",
+      activo: true,
+      fuente: { id: coleccion.id, unidadesPorPack: 4 }, // 4 no entra en un pool de 3
     });
     expect(await hayProductoEntregable({ db, tenantId: tenant.id })).toBe(false);
 
-    // Un archivo más al pool y ya cubre el pack de 4 (el límite es inclusivo).
+    // Un archivo más al pool de la COLECCIÓN y el pack ya se puede armar (límite inclusivo).
     await db.productFile.create({
       data: {
         tenantId: tenant.id,
-        productId: sobre.id,
-        key: `${tenant.id}/${sobre.id}/pool-3.png`,
+        productId: coleccion.id,
+        key: `${tenant.id}/${coleccion.id}/pool-3.png`,
         contentType: "image/png",
         tipo: "IMAGEN",
         nombreArchivo: "pool-3.png",
@@ -210,60 +218,66 @@ describe("productos/hayProductoEntregable (DB real)", () => {
     expect(await hayProductoEntregable({ db, tenantId: tenant.id })).toBe(true);
   });
 
-  // productos.gate.005 — el `where: { activo: true }` del `packOptions` del select importa: una
-  // opción DESACTIVADA no puede bloquear la publicación (ni habilitarla). Sin ese filtro, apagar el
-  // pack grande no serviría de nada y la Tienda quedaría impublicable sin explicación.
-  it("ignora las opciones de pack DESACTIVADAS al medir el pack más grande", async () => {
-    const tenant = await crearTenant("apagadas");
+  // productos.gate.005 — E17: «no quiero vender la unidad suelta» se resuelve DESPUBLICANDO la
+  // fuente, sin flag nuevo. Su pack sigue a la venta y tiene que seguir habilitando la publicación.
+  // Si el select filtrara la fuente por `activo`, este caso —el caso libro completo— se rompería.
+  it("un pack cuya FUENTE está despublicada igual habilita la publicación", async () => {
+    const tenant = await crearTenant("fuenteoff");
+    const libro = await crearProducto({
+      tenantId: tenant.id,
+      titulo: "El libro",
+      activo: false, // la unidad suelta NO se vende
+      archivo: "confirmado",
+    });
     await crearProducto({
       tenantId: tenant.id,
-      titulo: "Sobre con el pack grande apagado",
+      titulo: "Pack 4 libros",
       activo: true,
-      modalidad: "SOBRE",
-      pool: 2,
-      packs: [
-        [1, true], // el pool de 2 cubre el pack de 1
-        [10, false], // apagado ⇒ no cuenta
-      ],
+      fuente: { id: libro.id, unidadesPorPack: 4 },
     });
+    // Fuente ESTANDAR ⇒ con UN archivo alcanza por grande que sea el pack (las copias se derivan).
     expect(await hayProductoEntregable({ db, tenantId: tenant.id })).toBe(true);
   });
 
-  // productos.gate.006 — un SOBRE sin NINGUNA opción activa no tiene nada que vender, por más pool
-  // que tenga. Es el caso que el `where` viejo (basado solo en "¿tiene archivos?") habría dejado
-  // publicar con un sobre sin precio.
-  it("un SOBRE con pool lleno pero sin opciones de pack activas no publica", async () => {
-    const tenant = await crearTenant("sinopciones");
+  // productos.gate.006 — una COLECCIÓN no se vende directo, así que por llena que esté NO habilita
+  // la publicación por sí sola. Sin esta mitad, una Tienda cuyo único producto activo fuera la
+  // colección quedaría PUBLICADA con la vitrina vacía: el catálogo excluye `modalidad = SOBRE`.
+  it("una colección con el pool lleno pero sin ningún pack no publica", async () => {
+    const tenant = await crearTenant("solocoleccion");
     await crearProducto({
       tenantId: tenant.id,
-      titulo: "Sobre sin precio",
+      titulo: "Colección sin packs",
       activo: true,
       modalidad: "SOBRE",
       pool: 12,
-      packs: [[4, false]], // la única opción está apagada
     });
     expect(await hayProductoEntregable({ db, tenantId: tenant.id })).toBe(false);
   });
 
   // productos.gate.007 — los archivos PENDIENTES no cuentan como pool: el `_count` filtrado por
-  // `confirmadoAt != null` es lo que impide que subidas a medio camino habiliten un sobre que
-  // después no podría entregar.
-  it("no cuenta los archivos sin confirmar en el pool de un SOBRE", async () => {
+  // `confirmadoAt != null` —y en la FUENTE anidada, no solo en el producto— es lo que impide que
+  // subidas a medio camino habiliten un pack que después no podría entregar.
+  it("no cuenta los archivos sin confirmar del pool de la colección", async () => {
     const tenant = await crearTenant("pendientes");
-    const sobre = await crearProducto({
+    const coleccion = await crearProducto({
       tenantId: tenant.id,
-      titulo: "Sobre con subidas a medias",
+      titulo: "Colección con subidas a medias",
       activo: true,
       modalidad: "SOBRE",
       pool: 1, // 1 confirmado
-      packs: [[2, true]],
+    });
+    await crearProducto({
+      tenantId: tenant.id,
+      titulo: "Pack 2",
+      activo: true,
+      fuente: { id: coleccion.id, unidadesPorPack: 2 },
     });
     // Dos filas SIN confirmar: existen, pero no son pool.
     await db.productFile.createMany({
       data: [0, 1].map((i) => ({
         tenantId: tenant.id,
-        productId: sobre.id,
-        key: `${tenant.id}/${sobre.id}/pendiente-${i}.png`,
+        productId: coleccion.id,
+        key: `${tenant.id}/${coleccion.id}/pendiente-${i}.png`,
         contentType: "image/png",
         tipo: "IMAGEN" as const,
         nombreArchivo: `pendiente-${i}.png`,

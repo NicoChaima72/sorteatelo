@@ -33,6 +33,7 @@ El trabajo no trivial fluye por el **tridente**: `planner` (o `domain-planner` s
 
 Reglas del orquestador (sesión principal):
 
+- **Subagentes SIEMPRE en foreground**: toda invocación del tool `Agent` lleva `run_in_background: false` explícito (el default del harness es background). El usuario quiere ver el progreso en la conversación.
 - Pedido vago de feature/fix/refactor sin plan escrito → invocar `planner`. Si introduce conceptos nuevos del dominio → `domain-planner`.
 - **Implementación solo tras visto bueno explícito del usuario al plan.** Nunca saltar del grill a escribir código.
 - Relevar los mensajes de los subagentes al usuario tal cual (especialmente los `AWAITING ANSWER` / `AWAITING USER APPROVAL`) y re-invocarlos con las respuestas.

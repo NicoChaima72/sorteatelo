@@ -39,14 +39,115 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   > `otorgar-membresia nikochaima72@gmail.com autora` → panel "Tienda de la Autora (piloto)". DB:
   > user `nikochaima72@gmail.com` con **1** membresía → tenant `autora`.
 
-- [ ] **panel.productos.crud.001** — En `/admin/productos`: crear un producto (título, precio, ruta PDF)
-  y verlo aparecer en la lista real; editarlo (cambiar precio / desactivar) y ver el cambio reflejado.
-  El producto persiste con el `tenantId` de la sesión (verificable en Prisma Studio). El catálogo del
-  storefront (`<slug>.localhost:3001`) deja de listarlo al desactivarlo.
+- [ ] **panel.productos.crud.001** — En `/admin/productos`: crear un producto (título, precio y su
+  **archivo**) y verlo aparecer en la lista real; editarlo (cambiar precio / desactivar) y ver el cambio
+  reflejado. El producto persiste con el `tenantId` de la sesión (verificable en Prisma Studio). El
+  catálogo del storefront (`<slug>.localhost:3001`) deja de listarlo al desactivarlo.
+  (Decía «ruta PDF»: desde productos-tipos-digitales F04 el campo acepta 9 tipos y el Organizador
+  nunca escribió una ruta — elige un archivo y el server computa la key.)
   > ⏳ [feature-tester 2026-07-17] NO cubierto por la evidencia de esta corrida (el E2E en vivo cubrió
   > login + sorteo, no el CRUD de productos). Backend verde por Vitest. Queda para una corrida browser
   > con sesión.
 
+- [x] **panel.productos.tipos.001** (productos-tipos-digitales F04, D1/D7/D9) — En `/admin/productos`,
+  abrir el form de producto y verificar la subida generalizada:
+  (a) **ANTES de elegir archivo**, el campo «Archivo del producto» ya muestra el aviso con los tipos y
+  el peso máximo: `PDF, EPUB, PNG, JPG, WEBP, MP3, M4A, WAV, ZIP · máximo 20 MB por archivo.`
+  (b) El diálogo de archivos filtra por esos tipos (el `accept` sale de la allowlist, no de una lista
+  escrita a mano).
+  (c) Crear un producto estándar con un archivo **no-PDF** (una imagen PNG o un MP3 sirven) ⇒ sube,
+  confirma y el producto queda **entregable**: en la lista NO aparece el badge «Sin archivo», el badge
+  del form dice «Archivo subido», y activarlo (Estado = A la venta) **no** es rechazado por el guard.
+  (d) Elegir un archivo de **más de 20 MB** ⇒ notificación roja que incluye el **peso real** del
+  archivo y el máximo (ej. «pesa 24,7 MB y el máximo es 20 MB por archivo»), y el input queda vacío
+  (no se sube nada, no se pide URL prefirmada — verificable en la pestaña Network).
+  (e) Elegir un archivo de un tipo NO aceptado (un `.mp4`, forzando «todos los archivos» en el
+  diálogo) ⇒ rechazo que **lista los tipos aceptados**, sin hablar del peso.
+  (f) En ninguna respuesta de red aparece la `key` del bucket (I2/ADR-0002).
+  Nota: si un `.epub` real se rechaza con «no pudimos reconocer el tipo», NO es un bug del form — es
+  el caveat conocido de D9 (Windows reporta `type` vacío para extensiones que no conoce y adivinar
+  desde el nombre está prohibido). Reportarlo al usuario, es su decisión.
+
+
+  > ✅ [feature-tester 2026-07-26, 2ª vuelta] **VERDE — 6/6 sub-puntos ejercidos en navegador real**
+  > (chrome-devtools MCP, tienda `prueba`, sesión real del Organizador).
+  > (a) El aviso sale ANTES de elegir archivo, literal: «PDF, EPUB, PNG, JPG, WEBP, MP3, M4A, WAV,
+  > ZIP · máximo 20 MB por archivo.»
+  > (b) `accept` del input = `application/pdf,application/epub+zip,image/png,image/jpeg,image/webp,
+  > audio/mpeg,audio/mp4,audio/wav,application/zip` — 9/9 de la allowlist, ni uno de más.
+  > (c) Producto «E2E sticker PNG (feature-tester)» creado con un PNG real ⇒ `ProductFile`
+  > `tipo=IMAGEN`, `contentType=image/png`, `bytes=101686` (el headObject midió el archivo exacto),
+  > `confirmadoAt` puesto, key `<tenantId>/<productId>/<id>.png`. En la lista NO aparece «Sin
+  > archivo», el form muestra el badge **«Archivo subido»**, y al pasarlo a **A la venta** el guard
+  > lo ACEPTA (`activo=true`) con el archivo viviendo **solo** en `ProductFile` — sin `pdfPath`.
+  > (d) Archivo de 24,7 MB ⇒ «**e2e-gigante.png» pesa 24,7 MB y el máximo es 20 MB por archivo.
+  > Sube una versión más liviana.**»; el input queda vacío y en Network **no** se pide
+  > `crearUrlSubidaArchivo` (el rechazo es antes de presignar).
+  > (e) `.mp4` ⇒ «**«e2e-clip.mp4» no es un tipo que podamos entregar. Aceptamos PDF, EPUB, PNG,
+  > JPG, WEBP, MP3, M4A, WAV, ZIP.**» — lista los aceptados y NO habla del peso.
+  > (f) `panel.listarProductos` devuelve `archivos: [{id, tipo, …}]` **sin campo `key`**, sin
+  > `r2.cloudflarestorage` y sin `X-Amz-Signature`. (La PUT prefirmada de la subida sí lleva la key
+  > en su URL — es inherente al upload del propio dueño, no una fuga hacia el Comprador.)
+  > Pipeline observado en Network: `crearProducto → crearUrlSubidaArchivo → PUT R2 →
+  > confirmarArchivoProducto`. El caveat de D9 sobre `.epub` no se probó (no se subió un EPUB).
+- [ ] **panel.productos.sobre.001** (productos-tipos-digitales F06, D3/D4/I7) — En `/admin/productos`,
+  montar un **sobre sorpresa** entero y ver el gate del pool en vivo:
+  (a) Crear un producto eligiendo modalidad **Sobre sorpresa** ⇒ el form muestra los dos bloques del
+  sobre (la **colección** y el **menú de packs**) en vez del campo de archivo único. La modalidad se
+  elige al crear y **no se puede editar después** (reabrir el producto: el selector no está).
+  (b) Subir **4 archivos** a la colección (sirven 4 PNG) ⇒ los 4 quedan listados con su nombre, su
+  ícono por tipo y su peso; el contador de la colección dice 4.
+  (c) Definir 2 opciones de pack: **1 archivo por $3.000** y **4 archivos por $10.000** ⇒ las dos
+  aparecen en el menú con el precio en CLP formateado (`$3.000` / `$10.000`, `tabular-nums`).
+  (d) Crear una **tercera opción de 4** ⇒ rechazo con el mensaje humano de tamaño duplicado («Ya
+  tienes una opción de ese tamaño…»), NO un 500 ni un error crudo de Prisma.
+  (e) **El gate en vivo**: con pool 4 y pack máximo 4, el producto se puede poner **A la venta**.
+  Agregar una opción de **6** ⇒ el sobre deja de ser entregable y el guard de activación lo rechaza
+  con el mensaje que trae los NÚMEROS («packs de hasta 6 unidades y su colección tiene 4 archivos»).
+  Volver a bajar el pack más grande a 4 (o desactivar la opción de 6) ⇒ vuelve a ser vendible.
+  (f) **Borrado bloqueado por el gate**: con el sobre A la venta y pool exactamente 4 con pack de 4,
+  intentar eliminar un archivo de la colección ⇒ se rechaza con mensaje (borrarlo dejaría el pool bajo
+  el pack más grande). Bajarlo de la venta y recién ahí se puede eliminar.
+  (g) En ninguna respuesta de red aparece la `key` del bucket de ningún archivo del pool (I2/ADR-0002).
+  Nota: el bloqueo por **asignaciones existentes** (un archivo que ya le tocó a un Comprador no se
+  borra nunca, D4) no se puede ejercer acá porque todavía no hay ventas del sobre — se verifica en
+  `storefront.sobre.compra.001` (F09), después de comprar.
+
+
+  > 🔴 [feature-tester 2026-07-26, 2ª vuelta] **EJERCIDO Y ROJO — hay un BUG que impide montar un
+  > sobre desde el panel.** Sobre «E2E sobre sorpresa (feature-tester)» creado en `prueba`.
+  > (a) **PASS** — al elegir «Sobre sorpresa» desaparece el campo de archivo único y el precio pasa a
+  > «Solo de referencia: lo que se cobra son los precios de los packs de abajo»; al reabrir dice
+  > «Forma de venta: **Sobre sorpresa**. No se puede cambiar después de crear el producto» (sin
+  > selector). Los dos bloques del sobre (colección + menú de packs) viven en el form de EDICIÓN,
+  > no en el de alta — el de alta lo anuncia («Cuando guardes el sobre vas a poder…»).
+  > (b) **PASS** — 4 PNG subidos, listados con nombre y peso (83 KB / 82 KB / 86 KB / 87 KB) y el
+  > contador dice «4 archivos». Dato fino que salió gratis: una subida que quedó **sin confirmar**
+  > (el HMR del dev server cortó su confirmación) **no cuenta** en el pool — el contador marcó
+  > «3 archivos» hasta reponerla. Es exactamente lo que el schema promete (`confirmadoAt` null ⇒
+  > el pipeline ignora la fila).
+  > (c) y (d) **FAIL — el botón «Agregar opción» del menú de packs no crea nada: NAVEGA.**
+  > Clic ⇒ la página se va a `/admin/productos?` (submit nativo GET), el modal se cierra y en DB
+  > `ProductPackOption` sigue en 0. **2 de 2 intentos, determinista.** Causa medida en el DOM: el
+  > form de packs está **ANIDADO dentro del form del producto** (`<form>` dentro de `<form>`, HTML
+  > inválido) y su botón es `type="submit"` ⇒ el submit escala al form externo.
+  > **El backend está SANO** y quedó probado por separado invocando `panel.crearOpcionDePack` con la
+  > misma sesión: `1 × $3.000` y `4 × $10.000` ⇒ **200**; y la tercera opción de 4 ⇒ **409** con el
+  > mensaje humano exacto que pide (d): «Ya tienes una opción de ese tamaño en este sobre. Edítala
+  > en vez de crear otra (si la habías desactivado, vuelve a activarla).» O sea: **el defecto es
+  > 100 % de frontend**, pero deja la mecánica del sobre INUTILIZABLE para un Organizador real.
+  > (e) **PASS** (con las opciones sembradas por API) — con pool 4 y pack máximo 4 el sobre se pone
+  > **A la venta** sin que el guard lo rechace, y la fila de la lista pasa de «Sin packs / Sin
+  > archivo» a «**desde $3.000**». La variante «agregar una opción de 6» NO se probó: exige crear
+  > una opción, que es justo lo que el bug impide desde la UI.
+  > (f) **PASS** — con el sobre A la venta y pool 4 = pack 4, «Eliminar e2e-sticker-1.png» abre un
+  > modal de confirmación (Mantine, no dialog nativo) y al confirmar se rechaza con los NÚMEROS:
+  > «**Si borras este archivo tu colección queda en 3 y el pack más grande que vendes es de 4. Saca
+  > el sobre de la venta, sube otro archivo o desactiva ese pack antes de borrar.**» Nada se borró
+  > (pool sigue en 4).
+  > (g) **PASS** — ninguna respuesta de red del panel expone la `key` del pool.
+  > **Queda sin ejercer** el bloqueo por asignaciones (necesita venta pagada, ver
+  > `storefront.sobre.compra.001`) y el rechazo del guard con una opción de 6.
 - [ ] **panel.ventas.dashboard.001** — `/admin/ventas` muestra las órdenes reales del tenant (la venta
   pagada de `autora` del E2E de F01, con su total CLP formateado y el neto = total − comisión); "Cargar
   más" pagina sin repetir. `/admin` muestra KPIs coherentes con la DB (ventas pagadas, ingresos).
@@ -70,6 +171,41 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   de un mismo correo, ej. una compra ×N de un producto participante): la tarjeta "Participaciones" muestra
   el total de **tickets** (no de órdenes) y la tabla de Participantes agrupa por correo mostrando su
   **conteo de tickets** + su última participación. (Plan F04 E2E — sorteo-por-producto, ADR-0012)
+
+- [ ] **panel.sorteo.prefijo.001** — En `/admin/configuracion`, card «Tu tienda», el campo **Prefijo de
+  los números del sorteo** acepta `ARMY` (al tipear se pone en MAYÚSCULAS solo y **no deja escribir el
+  guion** ni espacios ni símbolos; tope de 8 caracteres). Tras **Guardar cambios**, en `/admin/sorteo` la
+  columna **Números** muestra el MISMO plegado de siempre pero con prefijo por BLOQUE — `ARMY-1–2,
+  ARMY-7–9`, nunca `ARMY-1–ARMY-2` — conservando mono + tabular-nums; y si hay Historial, el ganador
+  muestra `Nº ARMY-<n>`. Vaciar el campo y guardar deja los números **pelados otra vez** (byte-idéntico a
+  antes de la feature). Contraparte del correo: el C1 real que se mande en el gate de F03 tiene que traer
+  EXACTAMENTE ese mismo texto en sus boletos y en su `text/plain` (por eso conviene plegar este check al
+  envío real de F03 y no gastar cuota de Resend aparte).
+  (Plan F08 E2E — sistema-correos-comprador, D12/I12)
+
+- [x] **panel.sorteo.numeros.001** — En `/admin/sorteo`, la tabla de Participantes tiene una columna
+  **Números** y cada participante muestra su(s) **Número(s) del sorteo** plegados en rango
+  (`1043–1092`, con guion medio; varias compras ⇒ `3, 7–9`), en tipografía **mono + tabular-nums**
+  (design.md §3). Los números son correlativos por sorteo desde 1 y coherentes con su conteo de
+  tickets (un participante con 3 tickets muestra 3 números). En el **Historial**, un sorteo ya
+  ejecutado muestra bajo el correo del ganador su **`Nº <n>`**.
+  NO buscar el caso «ejecutado sin número»: al cerrar F01 (2026-07-26) no había NINGÚN sorteo
+  ejecutado en la DB, así que ese histórico no existe en ningún entorno — la degradación de la UI
+  está cubierta por tipos y por Vitest, no es verificable acá.
+  (Plan F01 E2E — sistema-correos-comprador, ADR-0024 §5/§6)
+  > ✅ [feature-tester 2026-07-26] **Mitad de Participantes: VERDE en navegador real**, tenant desechable
+  > `e2e-numeros` (`http://e2e-numeros.localhost:3001/admin/sorteo`, cookie de sesión por subdominio con
+  > sessionToken de DB). Columna **Números** presente y plegada exacto: `ana@e2e.test 1–2, 7–9` (5 tickets,
+  > DOS bloques ⇒ ejerce el caso "varias compras"), `bruno@e2e.test 3–6` (4), `carla@e2e.test 10` (1);
+  > correlativos 1..10 desde 1 y coherentes con cada conteo de tickets; tarjeta PARTICIPACIONES = 10.
+  > Guion medio **U+2013 verificado por codepoint** (no `-` ASCII). Tipografía: `IBM Plex Mono` **realmente
+  > cargada** (`document.fonts.check` = true, no fallback) + `font-variant-numeric: tabular-nums`. 0 errores
+  > de consola. Screenshot `tmp/ft-e2e-numeros-panel.png`. Carril: propio (Chrome headless con perfil
+  > dedicado + CDP crudo, `tmp/ft-cdp-e2e.mjs`) porque los dos carriles MCP estaban tomados por sesiones vivas.
+  > **Mitad del Historial (`Nº <n>` bajo el ganador): NO observada** — el tenant no tiene sorteos CERRADOS y
+  > ejecutar el del fixture es irreversible (reservado al usuario). Queda cubierta por
+  > `panel.sorteo.ejecutar.008/009` + revisión estática de `sorteo.tsx`. Si el usuario prefiere el criterio
+  > estricto de "checkbox = check completo", este vuelve a `[ ]` hasta que se ejecute un sorteo real.
 
 - [ ] **panel.sorteo.ejecutar.001** — Con un Raffle ACTIVO sembrado por F02 (`npm run seed:raffles` u
   origen equivalente) y participaciones reales: `/admin/sorteo` muestra el sorteo activo + los

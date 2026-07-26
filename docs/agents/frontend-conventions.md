@@ -194,6 +194,31 @@ Patrón de las guías paso a paso que viven DENTRO del panel en vez de en una p�
 - **"Card contenida"**: `Box maw={…} mx="auto"` con `background: var(--mantine-color-body)`, borde `color-mix(in srgb, ${ACENTO} X%, transparent)` y `boxShadow`. Cero hex. Ya son dos widgets con la misma receta (`momento_ticket`, `urgencia_countdown` variante `tarjeta`). **Caveat que hay que verificar cada vez**: sobre `esquema: superficie`/`tema` (el default de la mayoría de las tiendas) el fondo de la SECCIÓN resuelve al MISMO token que la card — lo único que las separa es el borde y la sombra. Verificar a resolución real sobre el esquema por defecto, no solo sobre uno contrastante.
 - **`Group.gap` / `Flex.gap` NO admiten valores responsive** (son `MantineSpacing`, no `StyleProp`) — a diferencia de `p`/`miw`/`fz`. Una fila de N columnas que tiene que entrar en 320 px se ajusta por el **`miw` de cada hijo**, que sí es responsive, con el gap fijo en el valor chico. El `miw` es un piso duro que flex-shrink no negocia: subirlo en `base` es reintroducir scroll horizontal. Ej. vivo: `RelojBloques` en `urgencia-countdown.tsx`, donde este gotcha costó un blocker de review.
 
+## Herencia del tema de la Tienda en páginas de PLATAFORMA (storefront)
+
+- Las páginas que NO son Documento de Página (`/checkout`, `/producto/[id]`, `/checkout/retorno`,
+  `/bases`, `/entrega/[token]`) heredan un tema **MÍNIMO** de la Tienda: fondo de página, par
+  tipográfico, radio y modo — **nunca** `ambiente` (los glows de stage-lights no van sobre un form de
+  pago), `anchoContenido` ni `escalaTitulos`. El recorte es ESTRUCTURAL, en `resolverTemaPagina`
+  (`~/server/storefront/temaPagina`), no disciplina de cada página: `_app` inyecta una regla CSS
+  GLOBAL si `escalaTitulos:"poster"` viaja en `temaPagina`.
+- El par es **resolver defensivo (server) + helper puro (client-safe)**: `resolverTemaPagina({tenantSlug})`
+  lee SOLO el `publishedJson` de la `home` (jamás el borrador) y degrada a `null` ante cualquier fallo;
+  la página deriva con `estiloHeredadoDeTema(temaPagina)` de `~/styles/estiloSeccion` y pasa
+  `estiloShell`/`colorPagina` a `StorefrontLayout`. El mismo gesto en las 5 páginas — la deriva entre
+  ellas ES el defecto que este patrón vino a cerrar (home tematizada, checkout con el body blanco).
+- **Contrato `null → {}` (no-op byte-idéntico)**: con tema default el resolver devuelve `null` y el
+  helper un objeto vacío, así que las props llegan `undefined` y React omite el atributo `style`. No
+  devolver "un tema de defaults": sería visualmente igual pero metería `mergeThemeOverrides`, un
+  `<style>` extra y un `style=` inline a todas las tiendas sin tematizar.
+- **Distinto del patrón inline de `home`/`[slug]`**, que llaman `fondoShellConAmbiente` +
+  `colorSolidoDeEsquema` directo: ahí el `Tema` siempre existe y SÍ se hereda todo (ambiente incluido).
+  El helper compartido existe solo para el caso `Tema | null` repetido en N páginas.
+- **Caveat de legibilidad**: el fondo se hereda SIN el color de texto emparejado que sí trae
+  `esquemaACss`, a propósito — heredarlo rompería las `Card` (fondo claro + texto blanco heredado).
+  Consecuencia: un `fondoPagina` oscuro con `modo:"claro"` sería ilegible. Verificar en E2E al agregar
+  una tienda con esa combinación.
+
 ## Crear/editar y listar en el panel (sorteo)
 
 - **Fieldset compartido crear/editar**: cuando un form de creación y uno de edición comparten campos, extraer un componente que reciba `form: UseFormReturnType<T>` (de `@mantine/form`) y renderice los inputs cableados con `form.getInputProps`. Cada form (crear/editar) mantiene su propio `useForm`; el fieldset es presentación pura. Ej.: `CamposSorteo` en `admin/sorteo.tsx`.

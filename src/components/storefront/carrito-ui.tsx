@@ -89,7 +89,15 @@ export function CarritoDrawer({
                     {item.titulo}
                   </Text>
                   <Text size="sm" c="dimmed" className="tabular-nums">
-                    {clp(item.precio)} c/u
+                    {/*
+                      En un sobre la "unidad" es UN PACK (F07/D3): decir "c/u" a secas dejaría al
+                      Comprador sin saber si lleva el pack de 1 o el de 4. El drawer se ve ANTES que
+                      el resumen del checkout, así que la aclaración tiene que estar en los dos.
+                    */}
+                    {clp(item.precio)}{" "}
+                    {item.unidadesPorPack
+                      ? `por pack de ${item.unidadesPorPack}`
+                      : "c/u"}
                   </Text>
                 </div>
                 <Group gap="xs" wrap="nowrap">

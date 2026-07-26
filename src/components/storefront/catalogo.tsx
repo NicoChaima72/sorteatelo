@@ -206,9 +206,26 @@ function TarjetaProducto({
 
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <Text fw={700} className="tabular-nums">
-              {clp(producto.precio)}
+              {/*
+                En un SOBRE el `precio` del producto es solo referencia y no se cobra nunca (F07/D3):
+                lo que vale es el precio de cada pack, así que la tarjeta muestra el "desde".
+              */}
+              {producto.modalidad === "SOBRE" && producto.precioDesde !== null
+                ? `desde ${clp(producto.precioDesde)}`
+                : clp(producto.precio)}
             </Text>
-            {enCarrito ? (
+            {producto.modalidad === "SOBRE" ? (
+              // Un sobre NO se agrega desde la tarjeta: hay que elegir pack, y el pack es lo que
+              // fija el precio. Meter el selector en cada tarjeta del grid llenaría el catálogo de
+              // decisiones; mandarlo al detalle es el mismo camino que ya usa `producto-spotlight`.
+              <Button
+                size="xs"
+                component={Link}
+                href={`/producto/${producto.id}`}
+              >
+                Elegir pack
+              </Button>
+            ) : enCarrito ? (
               <Group gap="xs" wrap="nowrap">
                 <StepperCantidad id={producto.id} size="sm" />
                 <Button

@@ -251,7 +251,9 @@ const docDreamy = {
       id: nid(),
       tipo: "como_funciona",
       v: 1,
-      props: { titulo: "Comprar es participar", pasos: PASOS },
+      // `estiloTarjeta: "dreamy"` = el paso del prototipo (card translúcida + círculo primario numerado a
+      // la izquierda). El `layout` queda en su default `tarjetas`, que es sobre el que dreamy aplica.
+      props: { titulo: "Comprar es participar", estiloTarjeta: "dreamy", pasos: PASOS },
       estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "En 3 pasos", estilo: "acento" } }, // F16: kicker rosa
       nav: { incluir: true, etiqueta: "Cómo funciona" },
     },
@@ -299,6 +301,7 @@ const docDreamy = {
       v: 1,
       props: {
         titulo: "Sorteo 100% transparente",
+        estiloVisual: "dreamy", // cards translúcidas con ring blanco + ícono en círculo suave
         metodo: CONFIANZA_METODO,
         items: [
           { icono: "verificado", titulo: "En vivo por Instagram", desc: "Con testigos y acta firmada, a la vista de todas." },
@@ -324,7 +327,8 @@ const docDreamy = {
       id: nid(),
       tipo: "faq",
       v: 1,
-      props: { titulo: "Preguntas frecuentes", items: FAQS },
+      // `estiloVisual: "dreamy"` = items translúcidos + toggle `＋` primario que rota 45° al abrir.
+      props: { titulo: "Preguntas frecuentes", estiloVisual: "dreamy", items: FAQS },
       estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "Dudas", estilo: "acento" } }, // F16: kicker rosa
       nav: { incluir: true, etiqueta: "Preguntas" },
     },

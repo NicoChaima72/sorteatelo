@@ -2,6 +2,7 @@ import { PrismaClient, type TenantStatus } from "@prisma/client";
 
 import { documentoInicial } from "~/lib/pagebuilder/factory";
 import { cifrar, parsearClave } from "~/server/services/cifrado";
+import { sanearNombreArchivo } from "~/server/services/storage";
 
 /**
  * Siembra los tenants de dev de F01 (paso 7 del roadmap): tenant piloto (autora) +
@@ -65,7 +66,7 @@ export interface ResultadoSeedTenant {
 
 type DbSeed = Pick<
   PrismaClient,
-  "tenant" | "flowCredential" | "product" | "storefrontPage"
+  "tenant" | "flowCredential" | "product" | "productFile" | "storefrontPage"
 >;
 
 export async function sembrarTenants({
@@ -155,8 +156,9 @@ export async function sembrarTenants({
     });
     const productoCreado = prodExistente === null;
     const participaEnSorteo = spec.producto.participaEnSorteo ?? false;
+    let productId = prodExistente?.id;
     if (!prodExistente) {
-      await db.product.create({
+      const creado = await db.product.create({
         data: {
           tenantId: tenant.id,
           titulo: spec.producto.titulo,
@@ -165,14 +167,40 @@ export async function sembrarTenants({
           pdfPath: spec.producto.pdfPath,
           participaEnSorteo, // opt-in al sorteo (ADR-0012/D1, S3)
           activo: true,
+          // `modalidad` queda en su default ESTANDAR (productos-tipos-digitales F01/D2).
         },
+        select: { id: true },
       });
+      productId = creado.id;
     } else {
       // Re-sincroniza SOLO el flag del sorteo (S3): permite alternar la promo del piloto en
       // una DB ya sembrada sin pisar título/precio/PDF ya cargados (el resto es find-or-create).
       await db.product.update({
         where: { id: prodExistente.id },
         data: { participaEnSorteo },
+      });
+    }
+
+    // 3-bis) Archivo del producto (`ProductFile`, productos-tipos-digitales F01/D2). El seed sigue
+    //   declarando `pdfPath` —la columna vive durante la fase EXPANDIR— y acá se espeja como fila,
+    //   que es la fuente de verdad del código nuevo. Idempotente por el unique GLOBAL de `key`, con
+    //   la MISMA conversión que el backfill (`scripts/backfill-product-files.ts`): key VERBATIM,
+    //   tipo PDF, `bytes: null` (el seed tampoco conoce el tamaño real — no hay objeto en R2) y
+    //   `confirmadoAt` no-null (el producto sembrado se comporta como entregable, igual que antes).
+    if (productId !== undefined) {
+      await db.productFile.upsert({
+        where: { key: spec.producto.pdfPath },
+        create: {
+          tenantId: tenant.id,
+          productId,
+          key: spec.producto.pdfPath,
+          contentType: "application/pdf",
+          tipo: "PDF",
+          bytes: null,
+          nombreArchivo: sanearNombreArchivo(spec.producto.titulo, "application/pdf"),
+          confirmadoAt: new Date(),
+        },
+        update: {}, // ya sembrado ⇒ no-op (no se pisa nada de lo que haya en la DB)
       });
     }
 

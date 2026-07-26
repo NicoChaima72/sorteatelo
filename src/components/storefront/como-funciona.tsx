@@ -1,5 +1,7 @@
 import {
+  Box,
   Card,
+  Flex,
   Group,
   SimpleGrid,
   Stack,
@@ -85,6 +87,8 @@ export function ComoFunciona({
 
         {props.layout === "lista" ? (
           <ListaMetodo pasos={pasos} />
+        ) : props.estiloTarjeta === "dreamy" ? (
+          <PasosDreamy pasos={pasos} />
         ) : (
           <SimpleGrid
             cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
@@ -148,6 +152,79 @@ export function ComoFunciona({
         )}
       </Stack>
     </SeccionWrapper>
+  );
+}
+
+/**
+ * Estilo `dreamy` del layout `tarjetas` (builder-dreamy-secciones F01/D4): el paso EXACTO del prototipo
+ * `dev-ref/variant-dreamy` (L171-179). Tres diferencias con `solida`/`contorno`, todas del prototipo:
+ *  (1) la card es AIREADA — blanco translúcido + ring BLANCO (sin el borde gris del `withBorder`), radio
+ *      generoso y sin sombra (misma familia que la stat-card dreamy de `estadisticas.tsx`);
+ *  (2) el ícono Tabler NO se pinta: lo reemplaza un CÍRCULO RELLENO en el primario con el NÚMERO del paso
+ *      (el numeral dejó de ser el texto dimmed al lado del ícono y pasó a ser el protagonista);
+ *  (3) el contenido va a la IZQUIERDA en una FILA (círculo + texto) que pasa a COLUMNA en desktop.
+ * `paso.icono` sigue siendo requerido por el schema (sin cambio de shape, I5) pero acá no se usa.
+ * Cero hex: todo sale de tokens del tenant vía `light-dark()`/`color-mix()` (I1).
+ */
+function PasosDreamy({
+  pasos,
+}: {
+  pasos: { icono: string; titulo: string; desc: string }[];
+}) {
+  return (
+    <SimpleGrid
+      cols={{ base: 1, sm: pasos.length >= 3 ? 3 : pasos.length }}
+      spacing="md"
+    >
+      {pasos.map((paso, i) => (
+        <Flex
+          key={`${paso.titulo}-${i}`}
+          className="st-paso-dreamy"
+          gap="sm"
+          // El quiebre fila→columna va en `sm`, el MISMO breakpoint donde el `SimpleGrid` de arriba pasa a
+          // N columnas: si la card quebrara más tarde (md), entre 48em y 62em habría 3 columnas angostas
+          // con el círculo y el texto todavía lado a lado. Un solo corte para la sección entera.
+          direction={{ base: "row", sm: "column" }}
+          align="flex-start"
+          p={{ base: "md", sm: "lg" }}
+          h="100%"
+          style={{
+            background:
+              "light-dark(color-mix(in srgb, var(--mantine-color-white) 70%, transparent), color-mix(in srgb, var(--mantine-color-dark-6) 70%, transparent))",
+            borderRadius: "var(--mantine-radius-lg)",
+            // ring BLANCO/airy (≈ sin borde): NO el `--mantine-color-default-border` gris del `withBorder`.
+            border:
+              "1px solid light-dark(color-mix(in srgb, var(--mantine-color-white), transparent 20%), var(--mantine-color-dark-4))",
+          }}
+        >
+          <Box
+            className="st-paso-dreamy-num tabular-nums"
+            w={{ base: 36, sm: 44 }}
+            h={{ base: 36, sm: 44 }}
+            fz={{ base: 14, sm: 16 }}
+            fw={800}
+            style={{
+              flex: "0 0 auto",
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "50%",
+              background: "var(--mantine-primary-color-filled)",
+              color: "var(--mantine-primary-color-contrast)",
+            }}
+          >
+            {i + 1}
+          </Box>
+          <Box miw={0}>
+            <Text fw={700} fz={{ base: 14, sm: 16 }} lh={1.3}>
+              {paso.titulo}
+            </Text>
+            <Text c="dimmed" fz={{ base: 12, sm: 14 }} lh={1.5} mt={2}>
+              {paso.desc}
+            </Text>
+          </Box>
+        </Flex>
+      ))}
+    </SimpleGrid>
   );
 }
 

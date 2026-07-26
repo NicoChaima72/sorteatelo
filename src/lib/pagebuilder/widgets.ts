@@ -881,9 +881,14 @@ export type LayoutComoFunciona = (typeof LAYOUTS_COMO_FUNCIONA)[number];
  * Estilo de las tarjetas de `como_funciona` (layout `tarjetas`). `solida` (DEFAULT, no-op I-H) = card con
  * fondo del body + ícono en caja `light`. `contorno` = card TRANSPARENTE (se funde con el fondo de la
  * sección) + solo un BORDE sutil, e ícono sin caja rellena — evita el tinte marrón que da el primario
- * cálido sobre un fondo oscuro. Enum cerrado.
+ * cálido sobre un fondo oscuro. `dreamy` (builder-dreamy-secciones F01/D4) = el paso EXACTO del prototipo
+ * `dev-ref/variant-dreamy` (L171-179): card AIREADA (blanco translúcido + ring BLANCO, sin borde gris) con
+ * un CÍRCULO RELLENO en el primario que lleva el NÚMERO del paso (no el ícono, no el numeral dimmed) y el
+ * texto a la IZQUIERDA — fila (círculo + texto) en móvil, columna en desktop. El `icono` del paso sigue
+ * siendo requerido por el schema pero NO se pinta en esta rama (el círculo numerado lo reemplaza). Aplica
+ * solo al layout `tarjetas`. Enum cerrado; los dos valores previos quedan byte-idénticos (no-op, I-H).
  */
-export const ESTILOS_TARJETA_PASO = ["solida", "contorno"] as const;
+export const ESTILOS_TARJETA_PASO = ["solida", "contorno", "dreamy"] as const;
 
 /**
  * `como_funciona` (semilla): pasos de conversión. Sin `pasos` ⇒ el render usa los 3 pasos FIJOS de
@@ -928,8 +933,24 @@ export const contadorTicketsProps = z
 export type ContadorTicketsProps = z.infer<typeof contadorTicketsProps>;
 
 /**
+ * Estilo visual de `urgencia_countdown` (builder-countdown-presencia F01/D1). Enum cerrado de 3:
+ * - `clasico` (DEFAULT, no-op I-H): la anatomía de siempre — ícono + mensaje + UNA línea de reloj + CTA,
+ *   con la banda/pulso que aporta `intensidad`. Lo único que cambió con la enmienda D2 del usuario es el
+ *   TEXTO de esa línea, que ahora tictaquea con minutos y segundos (`formatoRelojLinea`).
+ * - `panel`: banda translúcida liviana con el reloj por BLOQUES (D/H/M/S). Sin badge ni premio.
+ * - `tarjeta`: la presencia completa de la referencia — badge, nombre del premio, reloj enorme en el
+ *   acento con el pulso de los segundos, caption fija y CTA grande.
+ *
+ * El glow neón NO entra acá (D1/I6): se compone con `ambiente: neon` del TEMA DE PÁGINA (`root.props`,
+ * lo pinta el shell del storefront — no es un estilo de sección). Si alguna vez aparece un `"neon"` en
+ * este enum, es un error.
+ */
+export const ESTILOS_COUNTDOWN = ["clasico", "panel", "tarjeta"] as const;
+export type EstiloCountdown = (typeof ESTILOS_COUNTDOWN)[number];
+
+/**
  * `urgencia_countdown` (sección, F10): cuenta regresiva al cierre del sorteo ACTIVO. Auto-oculto si no
- * hay sorteo o ya venció (§3). `intensidad` modula el énfasis visual.
+ * hay sorteo o ya venció (§3). `intensidad` modula el énfasis visual (solo en `clasico`, D7).
  */
 export const urgenciaCountdownProps = z
   .object({
@@ -937,6 +958,10 @@ export const urgenciaCountdownProps = z
     ctaTexto: z.string().min(1).max(40).optional(),
     ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
     intensidad: z.enum(["suave", "fuerte"]).default("suave"),
+    // Estilo visual (F01/D1): `clasico` = la anatomía de siempre (default no-op, I1, sin v-bump);
+    // `panel`/`tarjeta` = las variantes con reloj por bloques. Solo estilo: cero props de contenido
+    // nuevas — la `tarjeta` deriva badge/premio/CTA de lo que ya existe (D4).
+    estiloVisual: z.enum(ESTILOS_COUNTDOWN).default("clasico"),
   })
   .strict();
 export type UrgenciaCountdownProps = z.infer<typeof urgenciaCountdownProps>;
@@ -1060,10 +1085,24 @@ export const ganadoresProps = z
   .strict();
 export type GanadoresProps = z.infer<typeof ganadoresProps>;
 
+/**
+ * Estilo visual de `faq` (builder-dreamy-secciones F03/D3). `clasico` (DEFAULT, no-op I-H) = el
+ * `Accordion variant="separated"` de siempre. `dreamy` = el acordeón del prototipo `dev-ref/variant-dreamy`
+ * (L244-253): cada item como card translúcida con ring BLANCO y el chevron reemplazado por un `＋` en el
+ * color primario que rota 45° al abrir (o sea, se vuelve una ✕). El `Accordion` de Mantine SE MANTIENE en
+ * las dos ramas (I3): el re-skin va por Styles API sobre los data-attributes nativos, jamás reimplementando
+ * el acordeón a mano — la semántica y la accesibilidad (botón, `aria-expanded`, teclado) son de Mantine.
+ * Enum cerrado.
+ */
+export const ESTILOS_FAQ = ["clasico", "dreamy"] as const;
+
 /** `faq` (sección, F11): preguntas frecuentes. Texto plano pre-wrap con límites (nunca HTML, I3). */
 export const faqProps = z
   .object({
     titulo: z.string().min(1).max(80).default("Preguntas frecuentes"),
+    // Estilo visual (F03/D3): `clasico` = el acordeón de siempre (default no-op, I-H); `dreamy` = items
+    // translúcidos con ring blanco + toggle `＋` primario que rota 45°. Solo estilo, sin tocar `items` (I5).
+    estiloVisual: z.enum(ESTILOS_FAQ).default("clasico"),
     items: z
       .array(
         z
@@ -1439,6 +1478,16 @@ export const metaProgresoSorteoProps = z
 export type MetaProgresoSorteoProps = z.infer<typeof metaProgresoSorteoProps>;
 
 /**
+ * Estilo visual de `garantias_sorteo` (builder-dreamy-secciones F02/D5). `clasico` (DEFAULT, no-op I-H) =
+ * el render de siempre (cards `withBorder` + ícono en caja `light` con radio `md`). `dreamy` = RE-SKIN de
+ * esa misma estructura al lenguaje del prototipo `dev-ref/variant-dreamy` (L225-231): cards translúcidas
+ * con ring BLANCO (sin el borde gris) y el ícono en un CÍRCULO relleno suave en tinte del primario. Es un
+ * re-skin, NO un cambio de modelo: `items[]`/`metodo` quedan intactos (el prototipo muestra una sola card
+ * con emoji, pero el widget modela N items y colapsarlo sería cambiar el contenido — D5). Enum cerrado.
+ */
+export const ESTILOS_GARANTIAS = ["clasico", "dreamy"] as const;
+
+/**
  * `garantias_sorteo` (sección, F06): "cómo elegimos al ganador" — transparencia (anti caso Naya
  * Fácil). Texto plano del `metodo` + `items` (ícono + título + desc). Contenido editorial, sin datos
  * server-side.
@@ -1446,6 +1495,9 @@ export type MetaProgresoSorteoProps = z.infer<typeof metaProgresoSorteoProps>;
 export const garantiasSorteoProps = z
   .object({
     titulo: z.string().min(1).max(80).default("Cómo elegimos al ganador"),
+    // Estilo visual (F02/D5): `clasico` = render actual (default no-op, I-H); `dreamy` = cards translúcidas
+    // con ring blanco e ícono en círculo suave. Solo estilo: no cambia el shape del contenido (I5).
+    estiloVisual: z.enum(ESTILOS_GARANTIAS).default("clasico"),
     metodo: z.string().min(1).max(600).optional(),
     items: z
       .array(

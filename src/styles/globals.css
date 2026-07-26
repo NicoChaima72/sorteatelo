@@ -215,6 +215,20 @@
 }
 
 /*
+  FAQ estilo `dreamy` (builder-dreamy-secciones F03/D3) — la ÚNICA parte del re-skin que no puede ir inline.
+  El componente reemplaza el chevron por un `＋` y le pone esta clase; Mantine marca el contenedor del
+  chevron con su data-attribute NATIVO `[data-rotate]` cuando el item está abierto (I3: no reimplementamos
+  el acordeón, nos colgamos del suyo). Su regla default lo gira 180° — un `＋` girado 180° se ve igual, así
+  que acá se overridea a 45°, que lo vuelve una ✕ (el gesto del prototipo `dev-ref/variant-dreamy` L250).
+  Gana por especificidad sin `!important`: la regla de Mantine envuelve el estado en `:where([data-rotate])`,
+  que aporta 0 — esta es clase + atributo. La TRANSICIÓN ya la trae Mantine (transform 200ms ease); fuera de
+  la rama dreamy esta clase no existe en el DOM y el acordeón conserva su chevron y sus 180° (no-op, I2).
+*/
+.st-faq-dreamy-chevron[data-rotate] {
+  transform: rotate(45deg);
+}
+
+/*
   Edición INLINE sobre el canvas (Tanda 3 F12/D19). El runtime agrega `.pb-inline-activo` al <body> SOLO
   en preview dentro del iframe del editor ⇒ los `[data-campo]` (campos planos anotados por los widgets)
   muestran cursor de texto + un anillo al hover/foco. En el SSR público NO existe esta clase ⇒ los

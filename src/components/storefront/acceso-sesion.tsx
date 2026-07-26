@@ -45,7 +45,11 @@ export function AccesoSesion({ slug }: { slug: string }) {
     puedeEditar: autz.data?.puedeEditar,
   });
 
-  if (accion.tipo === "oculto") return null;
+  // `editar` también se oculta en el HEADER (usuario 2026-07-26): la dueña ya tiene el banner
+  // superior de plataforma ("Estás viendo tu tienda publicada — Editar mi página / Mi panel"),
+  // y el duplicado en el navbar solo mete ruido. La máquina pura `accionSesionStorefront` NO
+  // cambia (sus otros consumidores/tests conservan la semántica); esto es una decisión del render.
+  if (accion.tipo === "oculto" || accion.tipo === "editar") return null;
 
   const { href, Icon, label } = enlaceDeAccion(accion, slug);
   return (

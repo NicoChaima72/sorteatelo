@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bloquesReloj,
   formatoCompacto,
+  formatoRelojLinea,
   tiempoRestante,
 } from "~/components/storefront/use-countdown";
 
@@ -60,5 +62,56 @@ describe("storefront/use-countdown — tiempoRestante (núcleo puro)", () => {
     expect(
       formatoCompacto({ dias: 0, horas: 0, minutos: 0, segundos: 0, terminado: true }),
     ).toBe("Cerrado");
+  });
+});
+
+/**
+ * Reloj COMPLETO con segundos (builder-countdown-presencia F01/D3). Es la descomposición que alimenta a
+ * las tres variantes de `urgencia_countdown`: `panel`/`tarjeta` la pintan como 4 bloques y `clasico` como
+ * una línea (enmienda D2). Un solo helper puro ⇒ las variantes no pueden desincronizarse entre sí.
+ */
+describe("storefront/use-countdown — reloj completo (F01/D3)", () => {
+  const T = { dias: 54, horas: 3, minutos: 12, segundos: 7, terminado: false } as const;
+
+  // storefront.countdown.005 — 4 bloques FIJOS con sus labels: días sin pad ni tope, h/m/s a 2 dígitos.
+  it("bloquesReloj da 4 bloques con h/m/s a dos dígitos y los días sin pad", () => {
+    expect(bloquesReloj(T)).toEqual([
+      { clave: "dias", valor: "54", label: "Días" },
+      { clave: "horas", valor: "03", label: "Horas" },
+      { clave: "minutos", valor: "12", label: "Min" },
+      { clave: "segundos", valor: "07", label: "Seg" },
+    ]);
+  });
+
+  // storefront.countdown.006 — los 4 bloques SIEMPRE están, aunque den 0 (estabilidad de layout, CLS 0),
+  // y los días no se topean a 2 dígitos (un sorteo puede cerrar a más de 99 días).
+  it("los 4 bloques siempre están (0 días incluido) y los días no se topean", () => {
+    const cero = bloquesReloj({ dias: 0, horas: 0, minutos: 0, segundos: 9, terminado: false });
+    expect(cero.map((b) => b.valor)).toEqual(["0", "00", "00", "09"]);
+
+    const largo = bloquesReloj({ dias: 365, horas: 23, minutos: 59, segundos: 59, terminado: false });
+    expect(largo[0]!.valor).toBe("365");
+  });
+
+  // storefront.countdown.007 — la LÍNEA de `clasico` (enmienda D2) es la misma descomposición en una sola
+  // línea: mismo pad, mismos 4 valores. Terminado ⇒ "Cerrado" (nunca un reloj congelado en ceros).
+  it("formatoRelojLinea arma la línea de clasico con los MISMOS valores de los bloques", () => {
+    expect(formatoRelojLinea(T)).toBe("54d 03h 12m 07s");
+    // Atadura explícita: la línea se DERIVA de los bloques (si alguien cambia el pad de un lado, cae).
+    expect(formatoRelojLinea(T)).toBe(
+      bloquesReloj(T)
+        .map((b, i) => `${b.valor}${["d", "h", "m", "s"][i]!}`)
+        .join(" "),
+    );
+    expect(
+      formatoRelojLinea({ dias: 0, horas: 0, minutos: 0, segundos: 0, terminado: true }),
+    ).toBe("Cerrado");
+  });
+
+  // storefront.countdown.008 — GUARD de la enmienda D2: `formatoCompacto` (chip del header y countdown del
+  // `aviso_barra`) NO se movió. El formato nuevo vive aparte; el compacto sigue eligiendo 2 unidades.
+  it("formatoCompacto sigue intacto: el formato nuevo no lo tocó", () => {
+    expect(formatoCompacto(T)).toBe("54d 03h");
+    expect(formatoCompacto(T)).not.toBe(formatoRelojLinea(T));
   });
 });

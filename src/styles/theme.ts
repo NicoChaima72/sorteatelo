@@ -176,6 +176,13 @@ export type EstadoOrden = "PENDIENTE" | "PAGADO" | "FALLIDO";
 /** Estado del ciclo de vida de una Tienda (enum `TenantStatus` de Prisma). */
 export type EstadoTienda = "ALTA" | "CONFIGURACION" | "PUBLICADA" | "SUSPENDIDA";
 
+/** Estado de la Suscripción de plataforma (enum `PlatformSubscriptionStatus`, facturación F01/D15). */
+export type EstadoSuscripcion =
+  | "AL_DIA"
+  | "COBRO_PENDIENTE"
+  | "EN_PAUSA_POR_PAGO"
+  | "CANCELADA";
+
 /**
  * Semántica de color de comercio (D3, design.md §5): fuente ÚNICA del token de color por estado.
  * Los badges (`EstadoBadge`/`EstadoTiendaBadge`) consumen estos mapas — cero hex inline. Cada
@@ -192,4 +199,46 @@ export const ESTADO_TIENDA_COLOR: Record<EstadoTienda, MantineColor> = {
   CONFIGURACION: "pendiente",
   PUBLICADA: "exito",
   SUSPENDIDA: "red",
+};
+
+/**
+ * Estado de la Suscripción de plataforma (facturación F05/D4/D15). Mismo criterio que los dos mapas de
+ * arriba: fuente ÚNICA del token por estado, exhaustiva contra el enum de Prisma (test).
+ *
+ * `COBRO_PENDIENTE` va en `pendiente` (ámbar) y NO en `red`, y es la distinción que importa: durante
+ * los reintentos de Flow la tienda **sigue vendiendo** (D4), así que el rojo le diría al Organizador
+ * que está cortado cuando no lo está — y §9 reserva el rojo para lo que de verdad está roto.
+ * `CANCELADA` es `gray` porque no es un fallo: es una decisión suya que se cumplió.
+ */
+export const ESTADO_SUSCRIPCION_COLOR: Record<EstadoSuscripcion, MantineColor> = {
+  AL_DIA: "exito",
+  COBRO_PENDIENTE: "pendiente",
+  EN_PAUSA_POR_PAGO: "red",
+  CANCELADA: "gray",
+};
+
+/** Estado de un cobro del historial (enum `PlatformInvoiceStatus`, facturación F01/F10). */
+export type EstadoCobro =
+  | "PENDIENTE"
+  | "PAGADA"
+  | "FALLIDA"
+  | "VENCIDA"
+  | "ANULADA";
+
+/**
+ * Estado de un cobro en el historial de la página Plan (F10/D12). Exhaustivo contra el enum de
+ * Prisma (test).
+ *
+ * `FALLIDA` comparte el ámbar con `COBRO_PENDIENTE` de la suscripción y NO va en rojo, por la misma
+ * razón: es un cobro que Flow sigue reintentando con la tienda vendiendo (D4). Las dos cosas se ven
+ * juntas en la misma pantalla —el badge del plan arriba, la fila del cobro abajo—, así que pintarlas
+ * distinto sería contarle dos historias al Organizador sobre el mismo hecho. El rojo queda para
+ * `VENCIDA`, que es cuando el dunning se agotó de verdad.
+ */
+export const ESTADO_COBRO_COLOR: Record<EstadoCobro, MantineColor> = {
+  PENDIENTE: "pendiente",
+  PAGADA: "exito",
+  FALLIDA: "pendiente",
+  VENCIDA: "red",
+  ANULADA: "gray",
 };

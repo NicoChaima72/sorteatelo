@@ -1,11 +1,18 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-import { OrderStatus, TenantStatus } from "@prisma/client";
+import {
+  OrderStatus,
+  PlatformInvoiceStatus,
+  PlatformSubscriptionStatus,
+  TenantStatus,
+} from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
 import {
+  ESTADO_COBRO_COLOR,
   ESTADO_ORDEN_COLOR,
+  ESTADO_SUSCRIPCION_COLOR,
   ESTADO_TIENDA_COLOR,
   theme,
 } from "~/styles/theme";
@@ -56,6 +63,26 @@ describe("styles/theme — semántica de comercio (D3, exhaustiva vs Prisma)", (
       Object.values(TenantStatus).sort(),
     );
   });
+
+  // styles.theme.010 — ESTADO_SUSCRIPCION_COLOR cubre TODOS los PlatformSubscriptionStatus (F05)
+  it("ESTADO_SUSCRIPCION_COLOR cubre todos los PlatformSubscriptionStatus, cada uno con un token", () => {
+    for (const estado of Object.values(PlatformSubscriptionStatus)) {
+      expect(ESTADO_SUSCRIPCION_COLOR[estado]).toBeTruthy();
+    }
+    expect(Object.keys(ESTADO_SUSCRIPCION_COLOR).sort()).toEqual(
+      Object.values(PlatformSubscriptionStatus).sort(),
+    );
+  });
+
+  // styles.theme.011 — ESTADO_COBRO_COLOR cubre TODOS los PlatformInvoiceStatus (F10)
+  it("ESTADO_COBRO_COLOR cubre todos los PlatformInvoiceStatus, cada uno con un token", () => {
+    for (const estado of Object.values(PlatformInvoiceStatus)) {
+      expect(ESTADO_COBRO_COLOR[estado]).toBeTruthy();
+    }
+    expect(Object.keys(ESTADO_COBRO_COLOR).sort()).toEqual(
+      Object.values(PlatformInvoiceStatus).sort(),
+    );
+  });
 });
 
 describe("styles/theme — tuplas semánticas re-ancladas al talonario (D3)", () => {
@@ -100,6 +127,32 @@ describe("styles/theme — mapeo semántico específico (D3, design.md §5)", ()
     // "pendiente"/"configuración" NUNCA usan el token de error
     expect(ESTADO_ORDEN_COLOR.PENDIENTE).not.toBe("red");
     expect(ESTADO_TIENDA_COLOR.CONFIGURACION).not.toBe("red");
+  });
+
+  // styles.estado.003 — suscripción: al día→teal, cobro pendiente→ámbar, en pausa→rojo (F05/D4)
+  it("mapea cada estado de suscripción a su token (el dunning en curso NUNCA en rojo)", () => {
+    expect(ESTADO_SUSCRIPCION_COLOR.AL_DIA).toBe("exito");
+    expect(ESTADO_SUSCRIPCION_COLOR.EN_PAUSA_POR_PAGO).toBe("red");
+    expect(ESTADO_SUSCRIPCION_COLOR.CANCELADA).toBe("gray");
+    // `COBRO_PENDIENTE` es un cobro que Flow SIGUE reintentando y la tienda sigue vendiendo (D4):
+    // pintarlo en rojo le diría al Organizador que su tienda está cortada cuando no lo está (§9).
+    expect(ESTADO_SUSCRIPCION_COLOR.COBRO_PENDIENTE).toBe("pendiente");
+    expect(ESTADO_SUSCRIPCION_COLOR.COBRO_PENDIENTE).not.toBe("red");
+  });
+
+  // styles.estado.004 — historial de cobros: pagada→teal, fallida→ámbar, vencida→rojo (F10)
+  it("mapea cada estado de cobro a su token (el reintento en curso NUNCA en rojo)", () => {
+    expect(ESTADO_COBRO_COLOR.PAGADA).toBe("exito");
+    expect(ESTADO_COBRO_COLOR.PENDIENTE).toBe("pendiente");
+    // Una `FALLIDA` es un cobro que Flow SIGUE reintentando y con la tienda vendiendo (D4): es el
+    // mismo hecho que `COBRO_PENDIENTE` en la suscripción, así que comparte token — un rojo en el
+    // historial contradiría el badge ámbar del estado del plan en la misma pantalla.
+    expect(ESTADO_COBRO_COLOR.FALLIDA).toBe("pendiente");
+    expect(ESTADO_COBRO_COLOR.FALLIDA).not.toBe("red");
+    // `VENCIDA` sí: el dunning se agotó y la tienda dejó de vender.
+    expect(ESTADO_COBRO_COLOR.VENCIDA).toBe("red");
+    // Anulada no es un fallo del Organizador: es un cobro que Flow dio de baja.
+    expect(ESTADO_COBRO_COLOR.ANULADA).toBe("gray");
   });
 });
 

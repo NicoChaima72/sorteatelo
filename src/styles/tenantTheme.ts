@@ -33,11 +33,9 @@ export interface TenantBranding {
    * degradan a la escala de marca (I-T2). Tratamiento ESPEJO de `colorPrimario`.
    */
   colorAcento: string | null;
-  heroTitulo: string | null;
-  heroSubtitulo: string | null;
-  /** URL PÚBLICA de la imagen de hero (bucket público, ADR-0013); `null` ⇒ gradiente temático (D7). */
-  heroImageUrl: string | null;
-  avisoTexto: string | null;
+  // El HERO (título/subtítulo/imagen) y el AVISO no viven acá desde admin-bases-pdf F07/D8/D9: son
+  // del Documento de Página (`StorefrontPage`, ADR-0016) y se editan en el EDITOR. El branding es
+  // solo la MARCA base del Tenant (nombre/logo/colores/redes), que el theming per-request consume.
   // Redes y contacto del footer (plantilla-rica F02/D2). Cada una `null` ⇒ se oculta ese ícono/línea (D7).
   instagramUrl: string | null;
   tiktokUrl: string | null;

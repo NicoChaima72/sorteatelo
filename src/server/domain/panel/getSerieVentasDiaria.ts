@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import {
   claveDiaUTC,
   inicioDiaUTC,
@@ -37,10 +37,7 @@ export async function getSerieVentasDiaria({
   acceso: AccesoPanel;
   ahora?: Date;
 }): Promise<PuntoSerieVentas[]> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const inicioHoy = inicioDiaUTC(ahora);
   const inicio = restarDiasUTC(inicioHoy, DIAS - 1);

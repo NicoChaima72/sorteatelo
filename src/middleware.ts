@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { env } from "~/env";
 import { CSP_HEADER, construirCSP } from "~/server/security/csp";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { aplicarHeaderDeTenant } from "~/server/tenancy/headerTenant";
@@ -49,6 +50,11 @@ export function middleware(req: NextRequest) {
     construirCSP({
       esDev: process.env.NODE_ENV !== "production",
       esPreview: req.nextUrl.searchParams.has("preview"),
+      // Origen del bucket público en `frame-src` (admin-bases-pdf F04/D6): la página `/bases` embebe
+      // el PDF de bases del sorteo en un `<iframe>` servido desde ahí. Se lee del `env` VALIDADO
+      // (backend-conventions § Env vars) — que ya funciona en este runtime edge: `configPlataformaDesdeEnv()`
+      // lo usa unas líneas más arriba. Ausente ⇒ la CSP queda igual que antes.
+      baseUrlAssetsPublicos: env.R2_PUBLIC_BASE_URL,
     }),
   );
 

@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
 
 /**
@@ -19,10 +19,7 @@ export async function despublicarTienda({
   db: PrismaClient;
   acceso: AccesoPanel;
 }): Promise<{ estado: "CONFIGURACION"; despublicada: true }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const { count } = await db.tenant.updateMany({
     where: { id: tenantId, estado: "PUBLICADA" },

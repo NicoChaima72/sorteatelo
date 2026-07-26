@@ -1,5 +1,6 @@
 import {
   IconBolt,
+  IconBuildingBank,
   IconChartBar,
   IconClock,
   IconCreditCard,
@@ -8,6 +9,8 @@ import {
   IconHeart,
   IconHeadset,
   IconLock,
+  IconMicrophone,
+  IconMoneybag,
   IconRosetteDiscountCheck,
   IconShieldCheck,
   IconShoppingBag,
@@ -48,6 +51,9 @@ export const ICONOS_BENEFICIO_MAP: Record<string, ComponentType<IconProps>> = {
   usuarios: IconUsers,
   grafico: IconChartBar,
   etiqueta: IconTag,
+  microfono: IconMicrophone,
+  dinero: IconMoneybag,
+  banco: IconBuildingBank,
 };
 
 /** Resuelve un enum de ícono a su componente Tabler; fallback seguro a `IconSparkles`. */
@@ -81,8 +87,11 @@ export const EMOJI_BENEFICIO_MAP: Record<string, string> = {
   pago: "💳",
   mundo: "🌍",
   usuarios: "👥",
-  grafico: "📈",
+  grafico: "📊",
   etiqueta: "🏷️",
+  microfono: "🎤",
+  dinero: "💸",
+  banco: "🏦",
 };
 
 /** Resuelve un enum de ícono a su EMOJI del set curado (F17); fallback estable a ✨. */

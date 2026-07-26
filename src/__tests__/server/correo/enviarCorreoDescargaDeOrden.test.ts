@@ -181,7 +181,7 @@ function enrutarFake(
       flowOrder: 555,
       paymentData: { fee: "100" },
     });
-  const ruteo: FlowRuteado = { tenantId, orderId, getStatus };
+  const ruteo: FlowRuteado = { tenantId, orderId, montoEsperado: 1000, getStatus };
   return vi
     .fn<EnrutarFlowFn>()
     .mockResolvedValue(ruteo) as unknown as EnrutarFlowFn;

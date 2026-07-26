@@ -15,6 +15,7 @@ import {
   type PropsPagina,
 } from "~/server/storefront/getStorefrontProps";
 import {
+  colorSolidoDeEsquema,
   fondoLienzoExterior,
   fondoShellConAmbiente,
   maxWidthColumna,
@@ -52,10 +53,14 @@ export default function PaginaTienda({
     : undefined;
   // Nav (Tanda 3 F06/D10): el menú del chrome manda; si no, anclas de esta página + páginas `enNav`.
   const menuChrome = chrome?.header.menu ?? [];
-  const navItems =
+  const navBase =
     menuChrome.length > 0
       ? menuChrome.map((m) => ({ label: m.etiqueta, href: hrefMenuItem(m.destino) }))
       : [...derivarNav(paginaViva.secciones), ...navPaginas];
+  // Bases del sorteo como item FIJO del navbar (ADR-0008): mismo append que en la home.
+  const navItems = chrome?.header.basesPdf
+    ? [...navBase, { label: "Bases", href: hrefMenuItem(chrome.header.basesPdf) }]
+    : navBase;
   const avisoSobreNav = paginaViva.overlays.find(
     (o) => o.tipo === "aviso_barra" && o.props.posicion === "sobre_nav",
   );
@@ -64,6 +69,7 @@ export default function PaginaTienda({
     <StorefrontLayout
       branding={tenantBranding}
       estiloShell={estiloShellFondo}
+      colorPagina={colorSolidoDeEsquema(paginaViva.root.props.fondoPagina)}
       estiloLienzo={estiloLienzo}
       columnaMaxWidth={columnaMaxWidth}
       navItems={navItems}

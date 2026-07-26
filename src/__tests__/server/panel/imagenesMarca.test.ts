@@ -19,6 +19,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   userId: "u1",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 /** Fake db con productos/raffles por tenant + captura de las escrituras (update/updateMany). */
@@ -152,7 +155,7 @@ describe("domain/panel/crearUrlSubidaImagen (fake db + fake storage público)", 
       crearUrlSubidaImagen({
         db,
         acceso: acceso([]),
-        input: { destino: "hero", contentType: "image/png" },
+        input: { destino: "logo", contentType: "image/png" },
         storage,
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -161,28 +164,32 @@ describe("domain/panel/crearUrlSubidaImagen (fake db + fake storage público)", 
 });
 
 describe("domain/panel/confirmarImagenSubida (fake db + fake storage público)", () => {
-  // panel.imagen.confirmar.001 — hero presente ⇒ compone URL y persiste en Tenant.heroImageUrl
-  it("hero con objeto presente ⇒ persiste la URL pública en Tenant.heroImageUrl", async () => {
+  // panel.imagen.confirmar.001 — logo presente ⇒ compone URL y persiste en Tenant.logoUrl
+  // Reescrito de `hero` a `logo` (admin-bases-pdf F06/D7): el destino `hero` MURIÓ con la card «Tu
+  // tienda» (la imagen del hero es del Documento y se sube desde el editor), pero el camino que este
+  // test cubre —destino SIN recurso asociado ⇒ escribe una columna del propio Tenant— sigue vivo en
+  // `logo`. Cobertura preservada, assertion movida al comportamiento nuevo.
+  it("logo con objeto presente ⇒ persiste la URL pública en Tenant.logoUrl", async () => {
     const { db, escrituras } = fakeDb({});
     const storage = fakeStorage({
       headObject: true,
-      url: "https://pub.r2.dev/A/branding/hero?v=999",
+      url: "https://pub.r2.dev/A/branding/logo?v=999",
     });
     const res = await confirmarImagenSubida({
       db,
       acceso: acceso(["A"]),
-      input: { destino: "hero" },
+      input: { destino: "logo" },
       storage,
     });
     expect(res).toMatchObject({
       confirmado: true,
-      url: "https://pub.r2.dev/A/branding/hero?v=999",
+      url: "https://pub.r2.dev/A/branding/logo?v=999",
     });
     expect(escrituras).toEqual([
       {
         modelo: "tenant",
         where: { id: "A" },
-        data: { heroImageUrl: "https://pub.r2.dev/A/branding/hero?v=999" },
+        data: { logoUrl: "https://pub.r2.dev/A/branding/logo?v=999" },
         select: { id: true },
       },
     ]);

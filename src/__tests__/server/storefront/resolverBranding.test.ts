@@ -29,10 +29,6 @@ const persistido = (
   logoUrl: null,
   colorPrimario: "#4f46e5",
   colorAcento: "#f59e0b",
-  heroTitulo: "Hola",
-  heroSubtitulo: null,
-  heroImageUrl: "https://pub.r2.dev/x/branding/hero?v=1",
-  avisoTexto: null,
   instagramUrl: "https://instagram.com/x",
   tiktokUrl: null,
   whatsappUrl: null,
@@ -61,9 +57,7 @@ describe("server/storefront/resolverBranding", () => {
       slug: "autora",
       colorPrimario: "#4f46e5",
       colorAcento: "#f59e0b", // builder-tanda-1 F01: el 2º color de marca viaja al chrome/theme
-      heroTitulo: "Hola",
       // plantilla-rica F02: la marca lleva la imagen de hero + redes/contacto del footer.
-      heroImageUrl: "https://pub.r2.dev/x/branding/hero?v=1",
       instagramUrl: "https://instagram.com/x",
       contactoEmail: "hola@x.cl",
     });

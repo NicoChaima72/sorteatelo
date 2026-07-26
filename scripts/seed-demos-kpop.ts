@@ -756,8 +756,6 @@ async function sembrarTienda(db: PrismaClient, spec: SpecTienda, doc: PageDocume
       colorPrimario: spec.colorPrimario,
       colorAcento: spec.colorAcento,
       descripcion: spec.descripcion,
-      heroTitulo: spec.heroTitulo,
-      heroSubtitulo: spec.heroSubtitulo,
       contactoEmail: OWNER_EMAIL,
       instagramUrl: "https://instagram.com/borahae.demo",
       tiktokUrl: "https://tiktok.com/@borahae.demo",

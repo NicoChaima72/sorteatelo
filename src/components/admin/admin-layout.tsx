@@ -69,10 +69,10 @@ interface NavItem {
   icon: IconCmp;
   /**
    * Acción en vez de navegación interna (admin-bases-pdf F06/D7): el ítem «Editor de la tienda» abre
-   * `<slug>.<apex>/editor` en otra pestaña — otra zona de la app, y con el Operador puede ser incluso
-   * otra tienda ⇒ no se navega con `next/link`. Con `onSelect` el rail renderiza un botón en vez de
-   * un `Link`. (Desde ADR-0022 el panel también vive en el subdominio, pero la salida sigue siendo
-   * navegación dura: el editor no comparte el router del panel.)
+   * `<slug>.<apex>/editor` en otra pestaña — otra zona de la app ⇒ no se navega con `next/link`.
+   * Con `onSelect` el rail renderiza un botón en vez de un `Link`. (Desde ADR-0022 el panel también
+   * vive en el subdominio, pero la salida sigue siendo navegación dura: el editor no comparte el
+   * router del panel.)
    */
   onSelect?: () => void;
 }

@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import {
   persistirUrlImagen,
   resolverKeyDestinoImagen,
@@ -37,10 +37,7 @@ export async function confirmarImagenSubida({
   input: ConfirmarImagenSubidaInput;
   storage: Pick<StoragePublicoService, "headObject" | "urlPublica">;
 }): Promise<{ confirmado: true; url: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const key = await resolverKeyDestinoImagen({ db, tenantId, input });
 

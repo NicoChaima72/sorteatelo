@@ -11,6 +11,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconAlertCircle, IconBuildingStore } from "@tabler/icons-react";
 
+import { construirUrlSubdominio } from "~/lib/urlApex";
 import { api } from "~/utils/api";
 
 /**
@@ -51,12 +52,27 @@ export function CrearTienda() {
   });
 
   const crear = api.panel.crearTienda.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (tienda) => {
       await utils.panel.getAccesoActual.invalidate();
       notifications.show({
         message: "¡Tu tienda fue creada! Vamos a configurarla.",
         color: "green",
       });
+      // El panel vive en el SUBDOMINIO de la tienda (ADR-0022) y este formulario es lo único que
+      // queda en el apex: recién creada la tienda hay que MUDARSE a su dirección, o el panel se
+      // quedaría en un host sin tienda (donde todo procedure de contenido es fail-closed).
+      // Navegación DURA (cross-host): `next/router` no sirve para cambiar de host.
+      window.location.assign(
+        construirUrlSubdominio({
+          protocol: window.location.protocol,
+          // En el apex, el host ACTUAL es el apex: de ahí cuelga el subdominio nuevo.
+          apex: window.location.hostname,
+          puerto: window.location.port,
+          // El slug de la RESPUESTA, no el del input: el server es su autoridad (D7/I4).
+          slug: tienda.slug,
+          path: "/admin",
+        }),
+      );
     },
     onError: (error) => {
       // El server es la autoridad del slug (tomado/reservado/formato) y de la regla

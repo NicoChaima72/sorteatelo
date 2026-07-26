@@ -82,6 +82,9 @@ export const ICONOS_BENEFICIO = [
   "usuarios",
   "grafico",
   "etiqueta",
+  "microfono",
+  "dinero",
+  "banco",
 ] as const;
 
 /**
@@ -131,6 +134,7 @@ export const ESQUEMAS_FONDO = [
   "acento_profundo", // acento-8 — texto claro (degrada a marca)
   "tinta", // gray-9 — texto claro
   "tinta_profunda", // Tanda 2 F15: near-black con tinte de marca (más profundo que gray-9) — texto claro (fidelidad concert)
+  "tinta_profunda_acento", // near-black con tinte de ACENTO (morado) — texto claro (fidelidad landing_idol, #120828)
 ] as const;
 export type EsquemaFondo = (typeof ESQUEMAS_FONDO)[number];
 
@@ -472,7 +476,7 @@ export const EFECTOS_TITULO = ["ninguno", "revelar_palabras", "gradiente_animado
  * LIBRO. ANDA A VER A BTS" ENORME del prototipo concert, que con el par `impacto`/Anton pedía tamaño).
  * Enum cerrado ⇒ el render mapea a un fz responsive fijo, jamás px libre.
  */
-export const TITULO_TAMANOS = ["normal", "grande", "enorme"] as const;
+export const TITULO_TAMANOS = ["normal", "grande", "enorme", "poster"] as const;
 export type TituloTamano = (typeof TITULO_TAMANOS)[number];
 
 /**
@@ -538,7 +542,10 @@ export const HeroVisualSchema = z.discriminatedUnion("tipo", [
       // Estilo de la holocard-placeholder (Tanda 2 F12): `plano` = el fondo tematizado sólido (DEFAULT =
       // look actual, no-op I-H). `suave` = "glassy" — mismo gradiente + 2-3 blur-blobs decorativos de
       // tokens (el heroviz soft del prototipo dreamy). CSS puro, sin motion, cero hex (I-A). NO usa `holo`.
-      estilo: z.enum(["plano", "suave"]).default("plano"),
+      // `cristal` (fidelidad tienda-libro bcac): INTERIOR OSCURO (radial dark → negro) + scanlines de luz
+      // + ícono con glow — la "holographic idol card" del mockup (interior oscuro, NO relleno de marca).
+      // Se combina con `holo:true` para el borde iridiscente arcoíris (violeta→cian→rosa) del MarcoHolo.
+      estilo: z.enum(["plano", "suave", "cristal"]).default("plano"),
       // Motivo decorativo del estilo `suave` (Tanda 2 F13): sobre los blur-blobs, agrega 1–2 chips
       // FLOTANTES (mini-tickets/estrellas) con blur + rotación leve — el heroviz del prototipo dreamy tenía
       // corazón + 2 tickets. `corazon` (DEFAULT) = solo los blobs actuales (no-op, I-H). `tickets` = 2
@@ -847,12 +854,17 @@ export type CatalogoProps = z.infer<typeof catalogoProps>;
 /**
  * `sorteo_vitrina` (semilla): vitrina del `Raffle` ACTIVO. NO guarda premio/fechas/conteo — se
  * resuelven server-side al render (I2). Se auto-oculta sin sorteo activo. El Disclaimer del sorteo
- * (ADR-0008/I8) NO es configurable: `mostrarBases` solo controla el texto de bases del Organizador.
+ * (ADR-0008/I8) NO es configurable: `mostrarBases` solo controla el ENLACE a la página `/bases`
+ * (admin-bases-pdf F04 — antes era el texto de bases del Organizador volcado inline).
  */
 export const sorteoVitrinaProps = z
   .object({
     mostrarBases: z.boolean().default(true),
     estiloConteo: z.enum(["badge", "destacado"]).default("badge"),
+    // Layout (fidelidad landing_idol prueba). `split` (DEFAULT, no-op I-H) = premio a la izq + info a la
+    // der. `banner` = BANNER CENTRADO sin la imagen del premio: badge + premio GRANDE + nombre + conteo +
+    // disclaimer, apilados y centrados — el bloque "2 ENTRADAS PARA BTS" del mockup. Enum cerrado.
+    variante: z.enum(["split", "banner"]).default("split"),
   })
   .strict();
 export type SorteoVitrinaProps = z.infer<typeof sorteoVitrinaProps>;
@@ -866,6 +878,14 @@ export const LAYOUTS_COMO_FUNCIONA = ["tarjetas", "lista"] as const;
 export type LayoutComoFunciona = (typeof LAYOUTS_COMO_FUNCIONA)[number];
 
 /**
+ * Estilo de las tarjetas de `como_funciona` (layout `tarjetas`). `solida` (DEFAULT, no-op I-H) = card con
+ * fondo del body + ícono en caja `light`. `contorno` = card TRANSPARENTE (se funde con el fondo de la
+ * sección) + solo un BORDE sutil, e ícono sin caja rellena — evita el tinte marrón que da el primario
+ * cálido sobre un fondo oscuro. Enum cerrado.
+ */
+export const ESTILOS_TARJETA_PASO = ["solida", "contorno"] as const;
+
+/**
  * `como_funciona` (semilla): pasos de conversión. Sin `pasos` ⇒ el render usa los 3 pasos FIJOS de
  * plataforma (copy actual). `icono` es un enum cerrado (nunca string libre); textos con límite.
  */
@@ -874,6 +894,8 @@ export const comoFuncionaProps = z
     titulo: z.string().min(1).max(80).default("Cómo funciona"),
     // Layout (Tanda 2 F15): `tarjetas` (default = grilla de cards, no-op I-H) o `lista` (numerada vertical).
     layout: z.enum(LAYOUTS_COMO_FUNCIONA).default("tarjetas"),
+    // Estilo de las cards del layout `tarjetas`: `solida` (default) o `contorno` (transparente + borde).
+    estiloTarjeta: z.enum(ESTILOS_TARJETA_PASO).default("solida"),
     pasos: z
       .array(
         z
@@ -1093,14 +1115,23 @@ export type EmbedSocialProps = z.infer<typeof embedSocialProps>;
 // iframe crudo. La degradación (imagen rota, sin sorteo) la maneja el componente (I-G).
 
 /**
+ * Estilo de las tarjetas de `beneficios_grid` (fidelidad landing_idol prueba). `icono` (DEFAULT) = el
+ * look actual: ThemeIcon Tabler `light` sobre card con borde neutro (no-op I-H). `emoji_borde` = EMOJI a
+ * color del set curado (`EMOJI_BENEFICIO`, jamás emoji libre — D2) + card con borde de ACENTO (el dorado
+ * del tenant) — las feature cards violeta/borde-dorado con 📊/💸/🎤/🏦 del mockup. Cero hex (I-A).
+ */
+export const ESTILOS_BENEFICIO_ITEM = ["icono", "emoji_borde"] as const;
+
+/**
  * `beneficios_grid` (sección, F04): grilla 2–6 de beneficios (ícono + título + desc). Los íconos son
  * `ICONOS_BENEFICIO` (enum cerrado, mapeado a Tabler en el render — jamás string libre). `columnas`
- * acota el layout. Textos planos con límite.
+ * acota el layout. Textos planos con límite. `estiloItem` elige el look de la tarjeta (I-H default).
  */
 export const beneficiosGridProps = z
   .object({
     titulo: z.string().min(1).max(80).optional(),
     columnas: z.union([z.literal(2), z.literal(3)]).default(3),
+    estiloItem: z.enum(ESTILOS_BENEFICIO_ITEM).default("icono"),
     items: z
       .array(
         z
@@ -1369,6 +1400,10 @@ export const bloqueTicketPromoProps = z
     ctaTexto: z.string().min(1).max(40).optional(),
     ctaAncla: z.enum(CTA_ANCLAS).default("catalogo"),
     mostrarSorteoActivo: z.boolean().default(true),
+    // Alineación del bloque (fidelidad tienda-libro bcac). `centro` (DEFAULT, no-op I-H) = todo centrado.
+    // `izquierda` = título/descripción a la izquierda (la "Mecánica del sorteo" minimal del mockup, que va
+    // con un kicker de sección dorado arriba del pricing). Enum cerrado.
+    alineacion: z.enum(["centro", "izquierda"]).default("centro"),
   })
   .strict();
 export type BloqueTicketPromoProps = z.infer<typeof bloqueTicketPromoProps>;
@@ -1541,10 +1576,18 @@ export type PerfilAutoraProps = z.infer<typeof perfilAutoraProps>;
  * tematizado (I-G). `columnas` acota el layout; `notaPie` es una aclaración editorial opcional. Texto
  * plano con límite (nunca HTML, I3); imagen = `urlPublica` (ADR-0013); `.strict()`.
  */
+/**
+ * Estilo de la vitrina (fidelidad tienda-libro bcac). `cover` (DEFAULT, no-op I-H) = portada 3:4 grande
+ * en grayscale con candado centrado. `ficha` = FICHA compacta oscura (card de superficie + borde) con
+ * candado arriba-derecha + título + estado en MONO/acento — las cards chicas "PRÓXIMAMENTE" del mockup.
+ */
+export const ESTILOS_VITRINA = ["cover", "ficha"] as const;
+
 export const vitrinaProximamenteProps = z
   .object({
     titulo: z.string().min(1).max(80).optional(),
     columnas: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
+    estilo: z.enum(ESTILOS_VITRINA).default("cover"),
     items: z
       .array(
         z
@@ -1571,9 +1614,18 @@ export type VitrinaProximamenteProps = z.infer<typeof vitrinaProximamenteProps>;
  * claras con sombra suave. El CTA ancla al catálogo (enum cerrado, `CTA_ANCLAS`). El precio se formatea
  * con `Intl.NumberFormat` (CLP) en el render. Texto plano con límite (nunca HTML, I3); `.strict()`.
  */
+/**
+ * Variante de layout de `packs_precio` (fidelidad tienda-libro bcac). `tarjeta` (DEFAULT, no-op I-H) =
+ * card horizontal (título/detalle a la izq + precio a la der), destacado = filled del primario. `ficha` =
+ * card VERTICAL oscura: badge mono arriba + precio grande en MONO + detalle debajo; destacado = borde de
+ * ACENTO (dorado) sobre superficie, no filled — las 2 price-cards del mockup ($3.000 / $10.000 featured).
+ */
+export const VARIANTES_PACKS = ["tarjeta", "ficha"] as const;
+
 export const packsPrecioProps = z
   .object({
     titulo: z.string().min(1).max(80).optional(),
+    variante: z.enum(VARIANTES_PACKS).default("tarjeta"),
     items: z
       .array(
         z

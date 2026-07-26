@@ -188,6 +188,64 @@ del backend (que puede tener OR's complejos). Eso es frágil y duplica lógica. 
 pinta lo seguro (el campo que el usuario eligió); el server, vía refetch, es la fuente de
 verdad sobre qué filas pertenecen al conjunto filtrado.
 
+## Acción de un solo tiro sobre un `.query()` (dato sensible fuera de la caché)
+
+Algunas acciones del panel **leen** del server —son `query`, no `mutation`— pero se disparan
+desde un botón y su resultado se consume UNA vez: un export que se baja como archivo, un
+documento que se abre. Hay tres formas de pedirlo y, cuando el payload trae PII, solo una sirve:
+
+| Forma                                        | Qué deja en la caché de React Query                            | ¿Sirve? |
+| -------------------------------------------- | -------------------------------------------------------------- | ------- |
+| `useQuery({ enabled: false })` + `refetch()` | El payload completo, indexado por su input                     | **NO**  |
+| `utils.<router>.<procedure>.fetch()`         | Idem — `fetch` de tRPC escribe en la caché                     | **NO**  |
+| `utils.client.<router>.<procedure>.query()`  | Nada: es el cliente **crudo** de tRPC, no pasa por React Query | **SÍ**  |
+
+```ts
+const utils = api.useUtils();
+const [exportando, setExportando] = useState(false);
+
+const exportarCsv = async () => {
+  setExportando(true);
+  try {
+    const { nombreArchivo, contenido } =
+      await utils.client.panel.exportarVentasCsv.query();
+    descargarArchivo({
+      nombre: nombreArchivo,
+      contenido,
+      tipo: "text/csv;charset=utf-8",
+    });
+  } catch {
+    notifications.show({
+      color: "red",
+      message: "No pudimos generar el archivo.",
+    });
+  } finally {
+    setExportando(false);
+  }
+};
+```
+
+Por qué importa: cachear el resultado significa que el dato **sobrevive al click**. Un CSV de
+ventas lleva el correo de todos los Compradores; dejarlo en la caché lo mantiene vivo en memoria
+mientras dure la sesión y hace que una segunda descarga pueda servir el archivo VIEJO (la caché
+responde antes de refetchear). El cliente crudo lo entrega y se va.
+
+Lo que hay que asumir y no olvidar:
+
+- **El loading es un `useState` propio**, no un `isPending`: `utils.client` no es un hook y no
+  expone estado. El botón igual lleva `loading={…}`; es el costo del patrón.
+- **No hay `onSuccess`/`onError`** — el manejo va en `try/catch/finally` y la notificación de
+  error se dispara a mano.
+- **Solo para LECTURAS de un tiro.** Si la acción cambia algo en el server es `useMutation` y
+  aplica el default de invalidar de arriba.
+- **Ojo con el input**: una `query` de tRPC viaja por **GET con el input serializado en la URL**
+  (queda en logs de server y proxies). Con `.query()` sin input el punto no aplica; si la acción
+  necesitara filtrar por un dato identificatorio, eso ya no es una query de un tiro.
+- La plomería del DOM (Blob → `<a download>` → revoke) va **aislada** en `src/lib/descargar.ts`,
+  no inline en la página: el criterio es aislar el DOM, no contar repeticiones.
+
+Ej. vivo: botón «Exportar CSV» de `src/pages/admin/ventas.tsx` (F07 de campos de checkout).
+
 ## Aritmética de dinero en el cliente
 
 Regla de oro del dominio (CLAUDE.md): el dinero es `Decimal`, nunca `number`. En el frontend

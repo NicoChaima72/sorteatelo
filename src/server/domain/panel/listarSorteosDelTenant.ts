@@ -1,6 +1,6 @@
 import { type PrismaClient, type RaffleStatus } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 
 interface SorteoDeLista {
   id: string;
@@ -9,8 +9,8 @@ interface SorteoDeLista {
   estado: RaffleStatus;
   fechaInicio: Date;
   fechaFin: Date;
-  /** Enlace informativo del sorteo (D7); distinto del `Tenant.basesSorteo` legal del gate. */
-  basesUrl: string | null;
+  /** URL pública del PDF de BASES del sorteo (admin-bases-pdf F02/D2); null ⇒ sin bases cargadas. */
+  basesPdfUrl: string | null;
   premioImageUrl: string | null;
   ganadorEmail: string | null;
   ejecutadoAt: Date | null;
@@ -36,10 +36,7 @@ export async function listarSorteosDelTenant({
   db: PrismaClient;
   acceso: AccesoPanel;
 }): Promise<{ sorteos: SorteoDeLista[] }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const raffles = await db.raffle.findMany({
     where: { tenantId },
@@ -51,7 +48,7 @@ export async function listarSorteosDelTenant({
       estado: true,
       fechaInicio: true,
       fechaFin: true,
-      basesUrl: true,
+      basesPdfUrl: true,
       premioImageUrl: true,
       ganadorEmail: true,
       ejecutadoAt: true,

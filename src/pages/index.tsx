@@ -17,6 +17,7 @@ import {
   type PropsHome,
 } from "~/server/storefront/getStorefrontProps";
 import {
+  colorSolidoDeEsquema,
   fondoLienzoExterior,
   fondoShellConAmbiente,
   maxWidthColumna,
@@ -98,10 +99,15 @@ function StorefrontHome({
   // se deriva de las secciones (`nav.incluir`, F05/D8) + las páginas `enNav` (F04/D9). Sin nada ⇒ `[]`
   // y el layout cae al nav actual (I-H).
   const menuChrome = chrome?.header.menu ?? [];
-  const navItems =
+  const navBase =
     menuChrome.length > 0
       ? menuChrome.map((m) => ({ label: m.etiqueta, href: hrefMenuItem(m.destino) }))
       : [...derivarNav(paginaViva.secciones), ...navPaginas];
+  // Bases del sorteo como item FIJO del navbar (ADR-0008): si el chrome trae `basesPdf`, se AGREGA
+  // "Bases" al final (destino tipado — típicamente el PDF). Ausente ⇒ nav sin cambios (I-U8).
+  const navItems = chrome?.header.basesPdf
+    ? [...navBase, { label: "Bases", href: hrefMenuItem(chrome.header.basesPdf) }]
+    : navBase;
   // Cinta SOBRE el nav (F13): el 1er `aviso_barra` con `posicion:"sobre_nav"` se pinta ANTES del header
   // (lo renderiza el layout). El resto (`bajo_nav`, default) los pinta `RenderPagina` dentro de `<main>`.
   const avisoSobreNav = paginaViva.overlays.find(
@@ -111,6 +117,7 @@ function StorefrontHome({
     <StorefrontLayout
       branding={branding}
       estiloShell={estiloShellFondo}
+      colorPagina={colorSolidoDeEsquema(paginaViva.root.props.fondoPagina)}
       estiloLienzo={estiloLienzo}
       columnaMaxWidth={columnaMaxWidth}
       navItems={navItems}

@@ -1,5 +1,8 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
+import { SELECCION_CAMPO_DEL_CHECKOUT } from "~/server/domain/camposCheckout/camposActivos";
+import { ordenDeCamposCheckout } from "~/server/domain/camposCheckout/reglas";
+import { validarRespuestasDeCheckout } from "~/server/domain/camposCheckout/validarRespuestas";
 import { DomainError } from "~/server/domain/errors";
 import { type IniciarCheckoutInput } from "~/server/domain/checkout/schemas";
 import { type FlowService } from "~/server/services/flow";
@@ -65,6 +68,20 @@ export async function iniciarCheckout({
       }
     }
 
+    // Campos de checkout (F05): la definición que manda es la VIGENTE en la DB en este instante,
+    // releída DENTRO de la $tx y scopeada por el `tenantId` del contexto (I1/I3) — nunca la que el
+    // cliente tenía renderizada. Solo los ACTIVOS: desactivar un campo es sacarlo del checkout (D5).
+    const definiciones = await tx.checkoutField.findMany({
+      where: { tenantId, activo: true },
+      orderBy: ordenDeCamposCheckout, // el MISMO orden del form: los errores nombran el primer campo que falta
+      // El select público (el que ve el Comprador) + `id`, que acá sí hace falta para poblar `fieldId`.
+      select: { ...SELECCION_CAMPO_DEL_CHECKOUT, id: true },
+    });
+    const respuestas = validarRespuestasDeCheckout({
+      definiciones,
+      respuestas: input.respuestas,
+    });
+
     const items = input.items.map(({ productId, cantidad }) => {
       const producto = porId.get(productId)!;
       return {
@@ -94,6 +111,18 @@ export async function iniciarCheckout({
         total,
         items: { create: items },
         payment: { create: { tenantId, estado: "PENDIENTE", monto: total } },
+        // Las respuestas se congelan en la MISMA sentencia que la Order (D2): no hay un instante
+        // en que exista la compra sin los datos con que se hizo. Sin respuestas no se emite ni la
+        // clave — una Tienda sin campos crea exactamente la Order de siempre (I9).
+        ...(respuestas.length > 0
+          ? {
+              checkoutResponses: {
+                // `tenantId` DESPUÉS del spread: el tenant del contexto gana por construcción, aunque
+                // mañana el validador devuelva un campo con ese nombre (I1).
+                create: respuestas.map((r) => ({ ...r, tenantId })),
+              },
+            }
+          : {}),
       },
       select: { id: true, total: true, email: true },
     });

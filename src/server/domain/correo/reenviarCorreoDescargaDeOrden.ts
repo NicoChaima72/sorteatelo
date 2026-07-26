@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { enviarCorreoDescargaDeOrden } from "~/server/domain/correo/enviarCorreoDescargaDeOrden";
 import { DomainError } from "~/server/domain/errors";
 import {
@@ -15,8 +15,8 @@ import { type CorreoService } from "~/server/services/correo";
  * para que los enlaces del correo vuelvan a funcionar. Los grants vigentes se conservan tal cual.
  *
  * Reglas duras:
- * - **I4 (tenancy, lección H1)**: la Tienda se resuelve con `resolverTenantAutorizado` (membresía /
- *   flag Operador, server-side) — JAMÁS del input. La orden se carga scopeada por ese `tenantId`:
+ * - **I4 (tenancy, lección H1)**: la Tienda se resuelve con `resolverTenantDelPanel` (host + membresía,
+ *   server-side) — JAMÁS del input. La orden se carga scopeada por ese `tenantId`:
  *   una orden de OTRA Tienda es indistinguible de inexistente ⇒ `NOT_FOUND` (fail-closed).
  * - **Solo órdenes PAGADAS**: reenviar una orden no-PAGADA ⇒ `INVALID`, sin envío ni mutación.
  * - **Regeneración transaccional**: la re-escritura de los grants expirados va DENTRO de una
@@ -44,10 +44,7 @@ export async function reenviarCorreoDescargaDeOrden({
   ahora?: Date;
   generarToken?: () => string;
 }): Promise<{ reenviado: true; id: string; grantsRegenerados: number }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   // 1) Validación + regeneración de grants expirados, atómica.
   const grantsRegenerados = await db.$transaction(async (tx) => {

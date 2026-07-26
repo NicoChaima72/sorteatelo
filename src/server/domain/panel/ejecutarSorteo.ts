@@ -2,7 +2,7 @@ import { randomInt } from "crypto";
 
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
 import { type EjecutarSorteoInput } from "~/server/domain/panel/schemas";
 
@@ -37,10 +37,7 @@ export async function ejecutarSorteo({
   ejecutadoPor: string | null;
   yaEjecutado: boolean;
 }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
   const ejecutadoPor = acceso.email ?? acceso.userId;
 
   return db.$transaction(async (tx) => {

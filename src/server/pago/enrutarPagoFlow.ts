@@ -34,6 +34,12 @@ import {
 export interface PagoConCredencial extends CredencialFlowCifrada {
   tenantId: string;
   orderId: string;
+  /**
+   * Monto esperado del pago en pesos CLP enteros (= `Payment.monto` = `Order.total`). El núcleo del
+   * webhook lo compara contra el `amount` de `getStatus` antes de transicionar a PAGADO (F03/D9) —
+   * defensa en profundidad del dinero server-side. CLP no tiene decimales ⇒ entero exacto.
+   */
+  montoEsperado: number;
 }
 
 /** Puerto de datos del ruteo. El borde lo cabla contra Prisma; los tests, en memoria. */
@@ -45,10 +51,12 @@ export interface RepoRuteoFlow {
 /** `getStatus` ya ligado a las credenciales del tenant dueño del pago. */
 export type GetStatusDeTenant = (token: string) => Promise<FlowGetStatusResponse>;
 
-/** Resultado del ruteo: la Tienda dueña + la orden + su `getStatus` tenant-scoped. */
+/** Resultado del ruteo: la Tienda dueña + la orden + monto esperado + su `getStatus` tenant-scoped. */
 export interface FlowRuteado {
   tenantId: string;
   orderId: string;
+  /** Monto esperado en CLP entero (= `Payment.monto`); el núcleo lo verifica antes de PAGADO (F03). */
+  montoEsperado: number;
   getStatus: GetStatusDeTenant;
 }
 
@@ -83,6 +91,7 @@ export function crearEnrutadorFlow({
     return {
       tenantId: pago.tenantId,
       orderId: pago.orderId,
+      montoEsperado: pago.montoEsperado,
       getStatus: (t) => flow.getStatus(t),
     };
   };
@@ -103,6 +112,7 @@ export function crearRepoRuteoFlow(db: PrismaClient): RepoRuteoFlow {
         select: {
           tenantId: true,
           orderId: true,
+          monto: true, // monto esperado del pago (= Order.total) para el chequeo del webhook (F03)
           tenant: {
             select: {
               flowCredential: {
@@ -121,6 +131,8 @@ export function crearRepoRuteoFlow(db: PrismaClient): RepoRuteoFlow {
       return {
         tenantId: pago.tenantId,
         orderId: pago.orderId,
+        // CLP entero: `Payment.monto` es Decimal(15,2) de pesos enteros ⇒ `toNumber()` exacto.
+        montoEsperado: pago.monto.toNumber(),
         apiKeyCifrada: cred.apiKeyCifrada,
         secretKeyCifrada: cred.secretKeyCifrada,
         sandbox: cred.sandbox,

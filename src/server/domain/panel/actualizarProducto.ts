@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
 import { type ActualizarProductoInput } from "~/server/domain/panel/schemas";
 
@@ -32,10 +32,7 @@ export async function actualizarProducto({
   acceso: AccesoPanel;
   input: ActualizarProductoInput;
 }): Promise<{ actualizado: true }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   // Guard de activación (I7): activar exige PDF confirmado. Carga scopeada por tenant — un
   // id de otra Tienda no matchea ⇒ NOT_FOUND (indistinguible de inexistente).

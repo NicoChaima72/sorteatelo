@@ -122,6 +122,16 @@ describe("pagebuilder/paginas — reservados (F04/D7)", () => {
     expect(esSlugPaginaReservado("sobre-mi")).toBe(false);
     expect(esSlugPaginaReservado("ADMIN")).toBe(true); // normaliza
   });
+
+  // page.pag.001b — `bases` es RESERVADO (admin-bases-pdf F04/D6, ADR-0008)
+  // `/bases` es la página de PLATAFORMA que muestra el PDF de bases del sorteo activo. Si un
+  // Organizador pudiera crear una página con ese slug, la ruta estática la taparía (nunca se
+  // serviría) y —peor— el enlace legal del footer/vitrina apuntaría a algo que él controla.
+  it("marca `bases` como reservado (la página del PDF de bases es de plataforma)", () => {
+    expect(esSlugPaginaReservado("bases")).toBe(true);
+    expect(esSlugPaginaReservado("BASES")).toBe(true); // normaliza
+    expect(esSlugPaginaReservado(" bases ")).toBe(true); // normaliza
+  });
 });
 
 describe("pagebuilder/paginas — crearPagina (F04)", () => {

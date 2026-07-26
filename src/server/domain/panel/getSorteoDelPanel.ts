@@ -1,6 +1,6 @@
 import { type PrismaClient, type RaffleStatus } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 
 interface SorteoDelPanel {
   id: string;
@@ -11,6 +11,12 @@ interface SorteoDelPanel {
   fechaFin: Date;
   /** URL pública de la imagen del premio (bucket público, ADR-0013); null ⇒ sin imagen (plantilla-rica F03). */
   premioImageUrl: string | null;
+  /**
+   * URL pública del PDF de BASES del sorteo (bucket público, admin-bases-pdf F01/F02/D1/D2). null ⇒
+   * sin bases cargadas ⇒ el gate de publicación BLOQUEA con este sorteo ACTIVO (F03/ADR-0008). El
+   * panel lo usa para mostrar el estado «bases cargadas» y sembrar el uploader.
+   */
+  basesPdfUrl: string | null;
   /** Participaciones AGRUPADAS por correo, con su conteo de tickets (S2/D6, ADR-0012). */
   participantes: Array<{ email: string; tickets: number; ultimaInscripcion: Date }>;
   /** Total de TICKETS del sorteo (nº de RaffleEntry = suma de tickets de todos los correos). */
@@ -39,10 +45,7 @@ export async function getSorteoDelPanel({
   db: PrismaClient;
   acceso: AccesoPanel;
 }): Promise<{ sorteo: SorteoDelPanel | null }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const raffle = await db.raffle.findFirst({
     where: { tenantId },
@@ -55,6 +58,7 @@ export async function getSorteoDelPanel({
       fechaInicio: true,
       fechaFin: true,
       premioImageUrl: true,
+      basesPdfUrl: true,
       ganadorEmail: true,
       ejecutadoAt: true,
       ejecutadoPor: true,

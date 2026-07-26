@@ -59,8 +59,18 @@ export function PerfilAutora({
           alt={props.nombre}
           size={120}
           radius="50%"
-          color="var(--mantine-primary-color-filled)"
-          styles={{ placeholder: { fontSize: "var(--mantine-font-size-xl)", fontWeight: 700 } }}
+          styles={{
+            placeholder: {
+              fontSize: "var(--mantine-font-size-xl)",
+              fontWeight: 700,
+              // Iniciales del color de acción (primario) sobre un fondo que se FUNDE con la sección + un
+              // borde sutil — en vez del tinte relleno `light` (que sobre un fondo oscuro cálido lee marrón).
+              // Reproduce el círculo "borde + iniciales" del mockup. Cero hex (I-A).
+              background: "transparent",
+              border: "1px solid color-mix(in srgb, currentColor 20%, transparent)",
+              color: "var(--mantine-primary-color-filled)",
+            },
+          }}
         >
           {iniciales(props.nombre)}
         </Avatar>

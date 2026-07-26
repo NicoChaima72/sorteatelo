@@ -67,8 +67,19 @@ export interface AccesoPanel {
   /** Email del usuario logueado (para snapshots de auditoría, ADR-0004). */
   email?: string | null;
   esOperador: boolean;
-  /** tenantIds de las membresías del usuario (server-side, jamás del input). */
+  /**
+   * tenantIds de las membresías del usuario (server-side, jamás del input), en el ORDEN CANÓNICO
+   * (`TenantMembership.createdAt asc, id asc` — D5/ADR-0022).
+   */
   tenantIds: string[];
+  /**
+   * Tienda que administra el HOST del request (`<slug>.<apex>/admin`), resuelta SERVER-SIDE del
+   * subdominio en el contexto tRPC (ADR-0007/0022). `null` en el apex o en un host que no resuelve.
+   *
+   * Es la ÚNICA selección de tenant del panel: server-authored, así que no viola I1 (el input del
+   * cliente sigue sin poder elegir tenant). Los use cases lo consumen vía `resolverTenantDelPanel`.
+   */
+  tenantIdDelHost: string | null;
 }
 
 /**
@@ -117,6 +128,40 @@ export function resolverTenantAutorizado({
     "FORBIDDEN",
     "Tu cuenta no tiene una Tienda asignada.",
   );
+}
+
+/**
+ * Tenant sobre el que opera un use case del PANEL (admin-multi-tienda F03/D3, ADR-0022).
+ *
+ * Es el único llamador de `resolverTenantAutorizado` en el panel: le pasa como `tenantIdSolicitado`
+ * la Tienda del HOST — que es server-authored (subdominio + middleware), no input del cliente, así
+ * que la política sigue "seleccionando entre lo autorizado, jamás autorizando" (I1/I2). La política
+ * pura no cambió ni de firma ni de semántica: esta función la ALIMENTA.
+ *
+ * **Sin Tienda en el host ⇒ `FORBIDDEN`, no fallback.** Antes, cada use case llamaba a la política
+ * sin selección y caía a `tenantIdsDeMembresia[0]`: con más de una membresía se podía VER una tienda
+ * en el chip y OPERAR otra. El panel de contenido ahora vive SOLO dentro del subdominio de una
+ * Tienda; en el apex solo quedan el redirect y el alta (D1), que no pasan por acá.
+ *
+ * **El rol Operador de plataforma NO abre esta puerta** (D11, 2026-07-25): el panel de Organizador
+ * es *por empresa* y se resuelve SIEMPRE contra la membresía. Por eso acá se declara
+ * `esOperador: false` — no es una mentira sobre quién es el usuario, es la afirmación de que en ESTA
+ * superficie el rol no autoriza nada. El acceso cross-tienda del Operador sigue vivo en su propio
+ * panel (`/admin/operador` + `operadorProcedure`, que sí lee `acceso.esOperador`), y la política
+ * pura `resolverTenantAutorizado` conserva intacta su rama de Operador para esos otros bordes (I2).
+ */
+export function resolverTenantDelPanel(acceso: AccesoPanel): string {
+  if (!acceso.tenantIdDelHost) {
+    throw new DomainError(
+      "FORBIDDEN",
+      "Abre el panel desde la dirección de tu tienda.",
+    );
+  }
+  return resolverTenantAutorizado({
+    esOperador: false, // D11 — ver el bloque de arriba
+    tenantIdsDeMembresia: acceso.tenantIds,
+    tenantIdSolicitado: acceso.tenantIdDelHost,
+  });
 }
 
 /**

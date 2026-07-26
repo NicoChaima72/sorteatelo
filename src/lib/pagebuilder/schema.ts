@@ -181,6 +181,10 @@ export const TemaSchema = z
     anchoContenido: z.enum(ANCHO_CONTENIDO).default("contenido"), // default heredado por secciones
     fondoPagina: z.enum(ESQUEMAS_FONDO).default("superficie"), // pinta el <body>/shell
     ambiente: z.enum(AMBIENTE_FONDO).default("ninguno"), // Tanda 2 F05/D5: stage-lights sobre el shell
+    // Escala de los títulos de SECCIÓN (fidelidad landing_idol prueba). `normal` (DEFAULT, no-op I-H) =
+    // los fz de siempre (~30px). `poster` = títulos grandes tipo poster (~52px, el look Bebas del mockup):
+    // `_app` inyecta una regla CSS SOLO para tenants poster que escala `.st-titulo-poster`. Enum cerrado.
+    escalaTitulos: z.enum(["normal", "poster"]).default("normal"),
   })
   .strict();
 export type Tema = z.infer<typeof TemaSchema>;

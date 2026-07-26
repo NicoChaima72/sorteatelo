@@ -69,8 +69,9 @@ import { crearStoragePublicoDeEnv } from "~/server/storage/storagePublicoDeEnv";
 /**
  * Router del panel de Organizadores (F05, ADR-0005) — borde de administración. Todos sus
  * procedures usan `panelProcedure`: exige sesión y carga `ctx.acceso` (userId + esOperador
- * + membresías, server-side). Cada use case resuelve sobre qué Tienda opera con
- * `resolverTenantAutorizado` — el `tenantId` scopeado JAMÁS sale del input (I1/ADR-0005).
+ * + membresías en orden canónico + `tenantIdDelHost`, server-side). Cada use case resuelve
+ * sobre qué Tienda opera con `resolverTenantDelPanel` (la Tienda del subdominio, gateada por
+ * membresía — ADR-0022) — el `tenantId` scopeado JAMÁS sale del input (I1/ADR-0005).
  *
  * Procedures finos: validan input Zod y delegan a `domain/panel/` vía `runDomain`.
  */

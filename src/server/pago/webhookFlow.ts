@@ -93,6 +93,31 @@ export async function manejarWebhookFlow({
     return { status: 200, body: { received: true, estado: "pendiente" } };
   }
 
+  // Gate 5 (F03/D9, defensa en profundidad del dinero): antes de marcar PAGADO, comparar el `amount`
+  // que reporta getStatus contra el monto ESPERADO de nuestra DB (Payment.monto = Order.total, CLP
+  // entero). Si difiere ⇒ NO transicionar (log + ack 200 SIN reintento: es irreintentable, no un
+  // fallo transitorio). Si Flow omite `amount` (undefined), se procede con un warning — no se bloquea
+  // un pago legítimo por un campo que Flow puede no informar. Solo aplica a la rama PAGADO.
+  if (resultado === "PAGADO") {
+    if (flowPago.amount === undefined) {
+      console.warn("[webhookFlow] getStatus sin amount: se procede sin verificar monto", {
+        tenantId: ruteo.tenantId,
+        orderId: ruteo.orderId,
+      });
+    } else if (flowPago.amount !== ruteo.montoEsperado) {
+      console.warn("[webhookFlow] amount_mismatch: NO se transiciona a PAGADO", {
+        tenantId: ruteo.tenantId,
+        orderId: ruteo.orderId,
+        esperado: ruteo.montoEsperado,
+        recibido: flowPago.amount,
+      });
+      return {
+        status: 200,
+        body: { received: true, ignorado: "amount_mismatch" },
+      };
+    }
+  }
+
   const r = await confirmarPago({
     // Autoritativo: la orden dueña del token según NUESTRA DB (no el commerceOrder que
     // venga en la respuesta de Flow). Cierra la orden correcta del tenant correcto.

@@ -26,6 +26,7 @@ const clave = randomBytes(32);
 const TENANT_A: PagoConCredencial = {
   tenantId: "tenant-A",
   orderId: "order-A",
+  montoEsperado: 5000,
   apiKeyCifrada: cifrar("apikey-A", clave),
   secretKeyCifrada: cifrar("secret-A", clave),
   sandbox: true,
@@ -33,6 +34,7 @@ const TENANT_A: PagoConCredencial = {
 const TENANT_B: PagoConCredencial = {
   tenantId: "tenant-B",
   orderId: "order-B",
+  montoEsperado: 12000,
   apiKeyCifrada: cifrar("apikey-B", clave),
   secretKeyCifrada: cifrar("secret-B", clave),
   sandbox: true,
@@ -73,6 +75,7 @@ describe("pago/enrutarPagoFlow — ruteo multi-tenant del webhook", () => {
     expect(ruteo).not.toBeNull();
     expect(ruteo!.tenantId).toBe("tenant-A");
     expect(ruteo!.orderId).toBe("order-A"); // orderId autoritativo, de nuestra DB
+    expect(ruteo!.montoEsperado).toBe(5000); // F03: monto esperado (Payment.monto) para el chequeo
 
     await ruteo!.getStatus("tok-A");
     // El service se armó con las credenciales del tenant A (descifradas).

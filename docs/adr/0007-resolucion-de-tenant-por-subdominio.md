@@ -9,5 +9,5 @@ Razón: le da a cada Organizador una URL propia y compartible sin gestionar domi
 - Las decisiones abiertas de **dominio (#4)** y **hosting (#5)** quedan restringidas: deben soportar wildcard subdomains y certificados wildcard.
 - El **slug** de la Tienda es único a nivel plataforma e inmutable tras la publicación (supuesto revisable); subdominio inexistente, tienda no publicada o suspendida ⇒ respuesta neutral de la plataforma (no un storefront).
 - En dev se usa `*.localhost` (ej. `piloto.localhost:3000`), que los browsers modernos resuelven sin tocar DNS.
-- El panel de Organizadores y del Operador vive en el **apex** (sesión NextAuth con cookie en un solo host, sin cookies cross-subdominio); el subdominio es solo la superficie del Comprador (supuesto revisable).
+- ~~El panel de Organizadores y del Operador vive en el **apex** (sesión NextAuth con cookie en un solo host, sin cookies cross-subdominio); el subdominio es solo la superficie del Comprador (supuesto revisable).~~ **SUPERSEDED por ADR-0022 (2026-07-25)**: el panel vive en `<tienda>.<dominio>/admin` y el apex queda como puerta (redirect a la primera tienda + alta); la cookie de sesión ya cruza subdominios desde ADR-0019.
 - Dominios custom por tenant: fuera del MVP; si llegan, se agregan como alias verificados sobre esta misma resolución por host.

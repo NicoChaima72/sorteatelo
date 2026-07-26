@@ -42,6 +42,33 @@ export function construirUrlApex({
 }
 
 /**
+ * Construye una URL absoluta al SUBDOMINIO de una Tienda: `<protocol>//<slug>.<apex>[:puerto]<path>`
+ * (admin-multi-tienda F02/F05, ADR-0022). Es el inverso de `construirUrlApex` y la ÚNICA forma de
+ * armar una dirección de otra tienda — client (switcher del panel, "Ver mi tienda", editor) y server
+ * (redirect del apex `/admin` ⇒ la primera tienda) comparten esta definición.
+ *
+ * El `apex` entra SIEMPRE pelado (sin subdominio y sin puerto): pegarle el slug al host ACTUAL —que
+ * en el panel ya es `<tienda>.<apex>`— produciría `<otra>.<tienda>.<apex>`, una URL rota. Ese era
+ * exactamente el bug de `url-tienda.ts` antes de esta feature.
+ */
+export function construirUrlSubdominio({
+  protocol,
+  apex,
+  puerto,
+  slug,
+  path,
+}: {
+  protocol: string;
+  apex: string;
+  puerto?: string;
+  slug: string;
+  path: string;
+}): string {
+  const host = puerto ? `${slug}.${apex}:${puerto}` : `${slug}.${apex}`;
+  return `${protocol}//${host}${path}`;
+}
+
+/**
  * Atajo CLIENT-ONLY: URL absoluta al APEX para `path` (`/login`, `/admin`), con el apex de env
  * (`NEXT_PUBLIC_PLATFORM_DOMAIN`, autoritativo) o derivado del host actual (localhost sin env), y el
  * protocolo/puerto del `window` actual. Es la FUENTE ÚNICA de la resolución del apex desde componentes
@@ -66,5 +93,34 @@ export function hrefApex({
     puerto: window.location.port,
     path,
     callbackUrl,
+  });
+}
+
+/**
+ * Atajo CLIENT-ONLY: URL absoluta al SUBDOMINIO de la Tienda `slug` (admin-multi-tienda F05,
+ * ADR-0022). `slugActual` es la tienda del host DONDE ESTOY (el panel vive en `<slugActual>.<apex>`)
+ * y solo sirve para derivar el apex cuando `NEXT_PUBLIC_PLATFORM_DOMAIN` no está seteado (dev);
+ * con la env presente —siempre en producción— manda la env.
+ *
+ * Lo usan el switcher de tiendas, "Ver mi tienda" y el enlace al editor. Solo post-hidratación.
+ */
+export function hrefSubdominio({
+  slug,
+  slugActual,
+  path,
+}: {
+  slug: string;
+  slugActual: string;
+  path: string;
+}): string {
+  const apex =
+    env.NEXT_PUBLIC_PLATFORM_DOMAIN ??
+    apexDesdeHost(window.location.hostname, slugActual);
+  return construirUrlSubdominio({
+    protocol: window.location.protocol,
+    apex,
+    puerto: window.location.port,
+    slug,
+    path,
   });
 }

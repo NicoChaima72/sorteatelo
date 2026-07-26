@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ConfirmarPagoInput,
@@ -23,21 +23,25 @@ function enrutarMock(
   extra: {
     tenantId?: string;
     orderId?: string;
+    montoEsperado?: number;
     respuesta?: Partial<FlowGetStatusResponse>;
   } = {},
 ): { enrutar: EnrutarFlowFn; getStatus: ReturnType<typeof vi.fn> } {
+  const montoEsperado = extra.montoEsperado ?? 1000;
   const getStatus = vi
     .fn<(token: string) => Promise<FlowGetStatusResponse>>()
     .mockResolvedValue({
       commerceOrder: "flow-dice-otra-cosa", // el body/Flow NO manda el orderId
       status,
       flowOrder: 991,
+      amount: montoEsperado, // por defecto el monto coincide (happy path); se overridea por caso
       paymentData: { fee: "103" },
       ...extra.respuesta,
     });
   const ruteo: FlowRuteado = {
     tenantId: extra.tenantId ?? "tenant-A",
     orderId: extra.orderId ?? "order-A",
+    montoEsperado,
     getStatus,
   };
   const enrutar = vi
@@ -109,7 +113,7 @@ describe("pago/webhookFlow — núcleo del webhook de Flow (multi-tenant)", () =
       });
     const enrutar = vi
       .fn<EnrutarFlowFn>()
-      .mockResolvedValue({ tenantId: "t", orderId: "o1", getStatus });
+      .mockResolvedValue({ tenantId: "t", orderId: "o1", montoEsperado: 1000, getStatus });
     const confirmarPago = vi
       .fn<
         (
@@ -237,4 +241,73 @@ describe("pago/webhookFlow — núcleo del webhook de Flow (multi-tenant)", () =
 
     expect(enrutar).toHaveBeenCalledWith("flow-token-abc");
   });
+
+  // webhook.amount.match — amount de Flow == montoEsperado ⇒ transiciona a PAGADO normal
+  it("con amount == montoEsperado transiciona a PAGADO normalmente", async () => {
+    const { enrutar } = enrutarMock(2, {
+      montoEsperado: 5000,
+      respuesta: { amount: 5000 },
+    });
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "t" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).toHaveBeenCalledTimes(1);
+    expect(confirmarPago).toHaveBeenCalledWith(
+      expect.objectContaining({ resultado: "PAGADO" }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  // webhook.amount.mismatch — amount ≠ montoEsperado ⇒ NO transiciona (log + ack 200 irreintentable)
+  it("con amount != montoEsperado NO transiciona, loguea y responde 200 con ignorado amount_mismatch", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { enrutar } = enrutarMock(2, {
+      montoEsperado: 5000,
+      respuesta: { amount: 999999 }, // monto adulterado
+    });
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "t" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).not.toHaveBeenCalled(); // NO se marca PAGADO
+    expect(res.status).toBe(200); // ack sin reintento (irreintentable)
+    expect(res.body).toMatchObject({ received: true, ignorado: "amount_mismatch" });
+    expect(warn).toHaveBeenCalled(); // se logueó el mismatch
+  });
+
+  // webhook.amount.undefined — Flow omite amount ⇒ procede (warning) sin bloquear un pago legítimo
+  it("con amount undefined procede a confirmar (warning) — no bloquea pagos legítimos", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { enrutar } = enrutarMock(2, {
+      montoEsperado: 5000,
+      respuesta: { amount: undefined }, // Flow omite amount
+    });
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "t" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).toHaveBeenCalledTimes(1);
+    expect(confirmarPago).toHaveBeenCalledWith(
+      expect.objectContaining({ resultado: "PAGADO" }),
+    );
+    expect(res.status).toBe(200);
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });

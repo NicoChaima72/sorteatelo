@@ -108,6 +108,7 @@ describe("pagebuilder/TemaPagina — root.props (F01)", () => {
         anchoContenido: "contenido",
         fondoPagina: "superficie",
         ambiente: "ninguno", // Tanda 2 F05/D5: default no-op (el shell no cambia)
+        escalaTitulos: "normal", // fidelidad landing_idol: default no-op (títulos de sección al tamaño de siempre)
       });
     }
   });

@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { type GuardarCredencialFlowInput } from "~/server/domain/panel/schemas";
 import { cifrar } from "~/server/services/cifrado";
 
@@ -25,10 +25,7 @@ export async function guardarCredencialFlow({
   input: GuardarCredencialFlowInput;
   clave: Buffer;
 }): Promise<{ configurada: true; sandbox: boolean; updatedAt: Date }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const datos = {
     apiKeyCifrada: cifrar(input.apiKey, clave),

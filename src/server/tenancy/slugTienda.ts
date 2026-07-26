@@ -85,6 +85,10 @@ export const SLUGS_PAGINA_RESERVADOS: ReadonlySet<string> = new Set([
   "login",
   "checkout",
   "producto",
+  // `/bases` = la página de PLATAFORMA con el PDF de bases del sorteo ACTIVO (admin-bases-pdf F04/D6,
+  // ADR-0008). Además de ser una ruta estática que taparía a la página del Organizador, es el destino
+  // del enlace LEGAL del footer y de la vitrina: no puede quedar bajo contenido que el tenant edita.
+  "bases",
   "dev",
   "dev-ref",
   "prototipo",

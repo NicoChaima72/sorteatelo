@@ -75,22 +75,15 @@ const doc = {
         variante: "split",
         eyebrow: "A la venta ahora · Edición única",
         eyebrowEstilo: "acento", // Tanda 2 F04: eyebrow DORADO (acento), desacoplado del violeta de marca
-        // Tanda 3 F02/D4: titulo/subtitulo son RichTexto; "Enriquecer" en un run con marca "acento" (dorado).
+        // Fidelidad al mockup: el h1 es BLANCO ENTERO (sin palabra en dorado) y el hero NO lleva precio
+        // (el $3.000 vive recién en la sección de pricing "Elige cómo participar", como en tienda-libro).
         titulo: {
-          children: [
-            { t: "Cómo " },
-            { t: "Enriquecer", m: ["acento"] },
-            { t: " a tu Artista Favorito" },
-          ],
+          children: [{ t: "Cómo Enriquecer a tu Artista Favorito" }],
         },
         subtitulo: {
           children: [
             { t: "Una guía real sobre cómo tu apoyo financiero llega —o no— a quien admiras. Cada copia que compras suma un número al sorteo de entradas al recital del 14 de octubre." },
           ],
-        },
-        destacado: {
-          texto: "$3.000",
-          nota: "1 copia del libro (PDF) · 1 número para el sorteo",
         },
         ctaTexto: "Comprar y participar",
         ctaAncla: "catalogo",
@@ -106,8 +99,9 @@ const doc = {
           tipo: "tarjeta",
           titulo: "Cómo Enriquecer a tu Artista Favorito",
           subtitulo: "PDF descargable · ES / EN",
-          icono: "grafico",
+          icono: "microfono", // 🎤 con glow (el mic-icon del mockup)
           holo: true,
+          estilo: "cristal", // interior OSCURO radial + scanlines + borde iridiscente arcoíris (idol card)
         },
       },
       // Composición fina (F06): sin `altoMin:pantalla` (evita el void del full-viewport que dejó F14);
@@ -122,6 +116,7 @@ const doc = {
       props: {
         titulo: "Un libro a la vez",
         columnas: 4,
+        estilo: "ficha", // fichas compactas OSCURAS (candado + estado mono), no covers 3:4 rellenos
         items: [
           { titulo: "I. Claude", subtitulo: "Próximamente" },
           { titulo: "Rezado", subtitulo: "Próximamente" },
@@ -141,30 +136,44 @@ const doc = {
       props: {
         titulo: "Cada compra suma números",
         descripcion:
-          "Sorteo promocional con notario y bolillero físico. Cada copia que compras suma un número; el pack de 4 copias suma cuatro. Bases completas más abajo.",
-        mostrarMecanica: true,
-        ctaTexto: "Comprar ahora",
-        ctaAncla: "catalogo",
-        mostrarSorteoActivo: true,
+          "Sorteo con notario y bolillero físico. Bases completas más abajo.",
+        // Fidelidad al mockup: la sección "Mecánica del sorteo" es MINIMAL (eyebrow + h2 + lead a la
+        // izquierda), SIN las 3 cards de proceso ni CTA ni badge — el pricing va directo debajo.
+        mostrarMecanica: false,
+        mostrarSorteoActivo: false,
+        alineacion: "izquierda",
       },
-      estilo: { padY: "xl", entrada: "aparecer" },
+      // Kicker dorado "MECÁNICA DEL SORTEO" (el eyebrow mono del mockup) + padBottom chico para pegar el pricing.
+      estilo: {
+        kicker: { texto: "Mecánica del sorteo", estilo: "acento" },
+        padTop: "xl",
+        padBottom: "s",
+        entrada: "aparecer",
+      },
       nav: { incluir: true, etiqueta: "Sorteo" },
     },
-    // ── PRICING: los 2 tiers del mockup ($3.000 = 1 número / $10.000 = 4 números). ──
-    // Aproximación con `estadisticas` (cards). GAP anotado: "pack de tickets" (de dominio, ya conocido).
+    // ── PRICING: los 2 tiers del mockup ($3.000 = 1 número / $10.000 = 4 números). Widget dedicado
+    //    `packs_precio` variante `ficha`: price-cards VERTICALES oscuras con badge mono ①/④ + precio en
+    //    IBM Plex Mono; la 2ª es FEATURED (borde dorado + tinte). GAP de dominio: "pack de tickets". ──
     {
       id: nid(),
-      tipo: "estadisticas",
+      tipo: "packs_precio",
       v: 1,
       props: {
-        titulo: "Elige cómo participar",
-        estiloVisual: "cards",
+        // Sin título: el pricing va DIRECTO bajo "Cada compra suma números" (el mockup no tiene 2º heading).
+        variante: "ficha",
         items: [
-          { valor: 3000, prefijo: "$", etiqueta: "1 número · 1 copia del libro (PDF)", icono: "ticket" },
-          { valor: 10000, prefijo: "$", etiqueta: "4 números · pack de 4 copias", icono: "regalo" },
+          { titulo: "1 copia", precio: 3000, badge: "① número", detalle: "1 copia del libro (PDF)" },
+          {
+            titulo: "Pack de 4",
+            precio: 10000,
+            badge: "④ números",
+            detalle: "Pack de 4 copias — más chances, mismo libro",
+            destacado: true,
+          },
         ],
       },
-      estilo: { padY: "l", entrada: "subir" },
+      estilo: { padTop: "s", padBottom: "xl", entrada: "subir" },
     },
     // ── COMPRAR (catálogo real — el producto de la tienda) ──
     {
@@ -187,91 +196,14 @@ const doc = {
         entrada: "aparecer",
       },
     },
-    // ── BASES legales (texto_rico v2, Tanda 3 F01: bloques con `rico` runs) — dueña del ancla #bases ──
-    {
-      id: nid(),
-      tipo: "texto_rico",
-      v: 2,
-      props: {
-        ancho: "normal",
-        bloques: [
-          { tipo: "subtitulo", rico: { children: [{ t: "Bases de la promoción" }] } },
-          {
-            // Tanda 3 F14/seeds: runs REALES (marca `fuerte`) en vez de texto plano — sube fidelidad legal.
-            tipo: "parrafo",
-            rico: {
-              children: [
-                { t: "Este es un sorteo promocional asociado a la compra del libro, " },
-                { t: "no una rifa", m: ["fuerte"] },
-                { t: ". La participación queda sujeta a la aceptación de las bases." },
-              ],
-            },
-          },
-          {
-            tipo: "parrafo",
-            rico: { children: [{ t: "Organiza: BCAC · Ediciones (RUT por completar). Sorteos: 15/08/2026 y 15/09/2026. Evento: recital del 14/10/2026." }] },
-          },
-          {
-            // `resaltado` sobre "sin costo adicional" (destacador como background del propio span, D2).
-            tipo: "parrafo",
-            rico: {
-              children: [
-                { t: "Mecánica: cada copia del libro comprada durante la vigencia suma un número al sorteo, " },
-                { t: "sin costo adicional", m: ["resaltado"] },
-                { t: ". El pack de 4 copias suma cuatro números." },
-              ],
-            },
-          },
-          {
-            // `acento` sobre el premio (color de la escala acento — el dorado del tenant).
-            tipo: "parrafo",
-            rico: {
-              children: [
-                { t: "Premio: " },
-                { t: "entradas al recital del 14 de octubre", m: ["acento"] },
-                { t: ". No canjeable por dinero. El ganador será contactado al correo de la compra." },
-              ],
-            },
-          },
-          {
-            // Link inline TIPADO (url https validada) + `enfasis` — reemplaza el texto plano de la Ley.
-            tipo: "parrafo",
-            rico: {
-              markDefs: [
-                { id: "ley", destino: { tipo: "url", url: "https://www.bcn.cl/leychile/navegar?idNorma=61438" } },
-              ],
-              children: [
-                { t: "Sorteo ante notario con bolillero físico. Bases legales completas disponibles ante notario. Esta promoción se rige por la " },
-                { t: "Ley 19.496", m: ["enfasis"], link: "ley" },
-                { t: "." },
-              ],
-            },
-          },
-        ],
-      },
-      estilo: { fondo: { tipo: "esquema", esquema: "superficie_alt" }, padY: "xl", entrada: "ninguna" },
-      nav: { incluir: true, etiqueta: "Bases" },
-    },
+    // ── BASES: ya NO van como sección inline (ADR-0008). Viven como PDF/enlace FIJO en el navbar
+    //    (`chromeJson.header.basesPdf`, abajo). El item "Bases" del nav lo agrega el chrome, no una sección.
   ],
-  overlays: [
-    // ── Cinta SOBRE el nav con countdown al sorteo (aproxima el badge "D-— para el sorteo" del mockup) ──
-    {
-      id: nid(),
-      tipo: "aviso_barra",
-      v: 2,
-      props: {
-        mensajes: [
-          "A la venta ahora · Edición única",
-          "Cada copia suma un número al sorteo",
-          "Recital del 14 de octubre",
-        ],
-        modo: "marquee",
-        esquema: "tinta", // banda oscura, como el tope del mockup
-        posicion: "sobre_nav",
-        mostrarCountdown: true, // chip del sorteo ACTIVO (server-side)
-      },
-    },
-  ],
+  // SIN overlay de cinta/ticker (fidelidad al mockup — bajar el "techo de chrome"): el original de
+  // tienda-libro NO tiene cinta marquee; su nav es marca + pill "D-— para el sorteo". El pill D-day lo
+  // aporta el `CountdownChip` del topbar (independiente, alimentado por el sorteo ACTIVO server-side),
+  // así que quitar el overlay deja el nav limpio como el mockup SIN perder el countdown.
+  overlays: [],
 };
 
 async function main() {
@@ -317,9 +249,11 @@ async function main() {
         colorAcento: COLOR_DORADO,
         descripcion:
           "Ediciones digitales de BCAC. Cada compra participa en un sorteo promocional con notario.",
-        heroTitulo: PRODUCTO_TITULO,
-        heroSubtitulo: PRODUCTO_DESC,
         contactoEmail: OWNER_EMAIL,
+        // Bases del sorteo como enlace FIJO del navbar (ADR-0008): placeholder inerte `ancla:"bases"`
+        // (no hay sección #bases ⇒ no navega) hasta cargar el PDF, cuando se cambia a `{tipo:"url", url}`.
+        // `fondo:"pagina"` = el header se funde con el fondo de la página (en vez del body neutro).
+        chromeJson: { header: { fondo: "pagina", basesPdf: { tipo: "ancla", ancla: "bases" } } },
       },
     });
 

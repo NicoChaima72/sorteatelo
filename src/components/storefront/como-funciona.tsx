@@ -79,7 +79,7 @@ export function ComoFunciona({
       divisorColor={divisorColor}
     >
       <Stack gap="lg">
-        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700}>
+        <Title order={2} fz={{ base: 24, sm: 30 }} fw={700} className="st-titulo-poster">
           {props.titulo}
         </Title>
 
@@ -92,13 +92,46 @@ export function ComoFunciona({
           >
             {pasos.map((paso, i) => {
               const Icono = ICONOS[paso.icono] ?? IconSparkles;
+              const contorno = props.estiloTarjeta === "contorno";
               return (
-                <Card key={`${paso.titulo}-${i}`} withBorder radius="md" padding="lg">
+                <Card
+                  key={`${paso.titulo}-${i}`}
+                  withBorder
+                  radius="md"
+                  padding="lg"
+                  // `contorno`: la card se FUNDE con el fondo de la sección (bg transparente) y solo un
+                  // borde sutil la delinea — sin el relleno del body (que sobre un fondo oscuro cálido lee
+                  // marrón). Cero hex (I-A).
+                  style={
+                    contorno
+                      ? { background: "transparent", borderColor: "color-mix(in srgb, currentColor 18%, transparent)" }
+                      : undefined
+                  }
+                >
                   <Stack gap="sm">
                     <Group gap="sm" wrap="nowrap">
-                      <ThemeIcon variant="light" size="xl" radius="md">
-                        <Icono className="size-6" stroke={1.75} />
-                      </ThemeIcon>
+                      {contorno ? (
+                        // Ícono SIN caja rellena (evita el tinte marrón): solo el glifo en el color de acción
+                        // (primario), dentro de un cuadro de borde sutil.
+                        <ThemeIcon
+                          variant="default"
+                          size="xl"
+                          radius="md"
+                          styles={{
+                            root: {
+                              background: "transparent",
+                              border: "1px solid color-mix(in srgb, currentColor 18%, transparent)",
+                              color: "var(--mantine-primary-color-filled)",
+                            },
+                          }}
+                        >
+                          <Icono className="size-6" stroke={1.75} />
+                        </ThemeIcon>
+                      ) : (
+                        <ThemeIcon variant="light" size="xl" radius="md">
+                          <Icono className="size-6" stroke={1.75} />
+                        </ThemeIcon>
+                      )}
                       <Text fz={28} fw={800} c="dimmed" className="tabular-nums">
                         {i + 1}
                       </Text>

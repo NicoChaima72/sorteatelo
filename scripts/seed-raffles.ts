@@ -26,8 +26,8 @@ export interface EspecificacionRaffle {
   premio: string;
   fechaInicio: Date;
   fechaFin: Date;
-  /** Bases del sorteo (del Organizador, ADR-0008); la carga real llega en F05. */
-  basesUrl?: string;
+  // Las BASES no se siembran (admin-bases-pdf F07/D3): son un PDF que el Organizador SUBE al bucket
+  // público (`Raffle.basesPdfUrl`, ADR-0008/0013). Un seed no puede inventar un documento legal.
 }
 
 export interface ResultadoSeedRaffle {
@@ -87,7 +87,6 @@ export async function sembrarRafflesActivos({
           estado: "ACTIVO",
           fechaInicio: spec.fechaInicio,
           fechaFin: spec.fechaFin,
-          basesUrl: spec.basesUrl,
         },
         select: { id: true },
       });

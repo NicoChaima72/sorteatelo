@@ -14,16 +14,27 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconMail } from "@tabler/icons-react";
-import { type GetServerSideProps, type InferGetServerSidePropsType } from "next";
+import {
+  type GetServerSideProps,
+  type InferGetServerSidePropsType,
+} from "next";
 import Link from "next/link";
 
 import { useCarrito } from "~/components/storefront/carrito";
+import { CamposCheckout } from "~/components/storefront/campos-checkout";
+import {
+  erroresDeCampos,
+  respuestasParaEnviar,
+  valoresInicialesDeCampos,
+  type ValoresCheckout,
+} from "~/components/storefront/respuestas-checkout";
 import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { clp } from "~/lib/formato";
+import { type CampoDelCheckout } from "~/server/domain/camposCheckout/camposActivos";
 import {
-  getPropsPaginaComprador,
-  type PropsStorefront,
+  getPropsCheckout,
+  type PropsCheckout,
 } from "~/server/storefront/getStorefrontProps";
 import { api } from "~/utils/api";
 
@@ -34,33 +45,48 @@ import { api } from "~/utils/api";
  * `iniciarCheckout` → redirect a Flow. El `tenantId` y la URL de retorno se resuelven SERVER-SIDE
  * (I1/D6); el cliente NO manda montos ni tenantId. I4: solo muestra precios por ítem con `clp`, no
  * suma un total en el cliente — el total lo calcula el server y lo muestra Flow.
+ *
+ * Los datos ADICIONALES que pide la Tienda (Campos de checkout, F04) llegan también por SSR: el
+ * form los renderiza bajo el correo, en el orden que fijó el Organizador. Tienda sin campos ⇒ este
+ * checkout es el de siempre (I9).
  */
-export const getServerSideProps: GetServerSideProps<PropsStorefront> = async (
+export const getServerSideProps: GetServerSideProps<PropsCheckout> = async (
   ctx,
-) => getPropsPaginaComprador(ctx);
+) => getPropsCheckout(ctx);
 
 export default function CheckoutPage({
   tenantBranding,
+  campos,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <StorefrontLayout branding={tenantBranding}>
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
-        <ResumenYPago />
+        <ResumenYPago campos={campos} />
       </Container>
     </StorefrontLayout>
   );
 }
 
-function ResumenYPago() {
+function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
   const { items, quitar, vaciar, cantidad } = useCarrito();
 
-  const form = useForm({
-    initialValues: { email: "" },
-    validate: {
-      email: (v) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+  const form = useForm<ValoresCheckout>({
+    initialValues: { email: "", respuestas: valoresInicialesDeCampos(campos) },
+    // `validate` como FUNCIÓN (no como objeto por campo) porque las claves de `respuestas` son
+    // dinámicas: las define el Organizador, no este archivo. Lo de los campos sale del espejo puro
+    // (`erroresDeCampos`); la verdad la pone el server en su `$tx` (I3).
+    validate: (valores) => {
+      const errores: Record<string, string | null> = {
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valores.email.trim())
           ? null
           : "Ingresa un correo válido.",
+      };
+      for (const [clave, mensaje] of Object.entries(
+        erroresDeCampos(campos, valores.respuestas),
+      )) {
+        errores[`respuestas.${clave}`] = mensaje;
+      }
+      return errores;
     },
   });
 
@@ -90,10 +116,14 @@ function ResumenYPago() {
     );
   }
 
+  // Las respuestas viajan como lista `{clave, valor}` y NADA más (F05): ni el tipo, ni la etiqueta,
+  // ni qué era obligatorio. Todo eso lo relee el server de la definición vigente dentro de su `$tx`
+  // y es ahí donde se decide qué se guarda (I3). Este form es el espejo, no la verdad.
   const submit = form.onSubmit((valores) =>
     iniciar.mutate({
       email: valores.email.trim(),
       items: items.map((i) => ({ productId: i.id, cantidad: i.cantidad })),
+      respuestas: respuestasParaEnviar(valores.respuestas),
     }),
   );
 
@@ -132,8 +162,8 @@ function ResumenYPago() {
           <Divider />
           <Text size="xs" c="dimmed">
             {cantidad} {cantidad === 1 ? "producto" : "productos"}. El total a
-            pagar (según las cantidades elegidas) se calcula de forma segura y lo
-            confirmas en el siguiente paso.
+            pagar (según las cantidades elegidas) se calcula de forma segura y
+            lo confirmas en el siguiente paso.
           </Text>
         </Stack>
       </Card>
@@ -148,6 +178,12 @@ function ResumenYPago() {
             type="email"
             {...form.getInputProps("email")}
           />
+
+          {/*
+            Los campos de la Tienda van DESPUÉS del correo, siempre (I2): el correo es la identidad
+            del Comprador y la vía de entrega del PDF, así que encabeza el form pase lo que pase.
+          */}
+          <CamposCheckout campos={campos} form={form} />
 
           <Alert variant="light" color="gray" p="sm">
             <Text size="xs">

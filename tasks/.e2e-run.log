@@ -8,3 +8,14 @@ inicio: 2026-07-26 01:07
 [vitest] 19 archivos / 104 tests — 104 PASS, 0 FAIL (area de la feature)
 [curl] SSR autora/checkout: las 5 etiquetas + opciones del SELECT presentes
 [curl] SSR prueba/checkout: 0 etiquetas de campos (aislamiento OK)
+[E2E] panel.campos.crud.001 ✅ — lista con fila «Correo»+badge Fijo sin switch; creados los 5 tipos
+      (Texto/Teléfono/Número/Lista de opciones/Casilla sí-no) con clave derivada (tester_texto…);
+      2º «Tester texto» ⇒ clave anti-colisión `tester_texto_2`; ↑/↓ reordena y el server reasigna
+      posicion (verificado en DB); switch ⇒ badge «Inactivo» y reactivación con cupo; tacho ⇒ modal
+      «Eliminar campo» con «Las respuestas que ya te dejaron se conservan en tus ventas.».
+      Estado restaurado a los 5 campos originales.
+[E2E] panel.campos.candado.001 ✅ — guardrail anti-consentimiento en la lista Y en el modal;
+      al editar: «Tipo» disabled con candado + «Nombre interno» disabled con la clave en mono;
+      al crear: Tipo editable y sin campo de clave; con 10 activos «Agregar campo» disabled,
+      «10 de 10 campos activos» + aviso, y el switch del campo INACTIVO queda disabled (D6/I6).
+      CHECKBOX en el modal: NO muestra «Es obligatorio», muestra «Viene marcada por defecto» (D4).

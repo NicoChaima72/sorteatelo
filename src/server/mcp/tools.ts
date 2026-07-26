@@ -147,6 +147,7 @@ export function mcpListStyleOptions() {
         acento_profundo: "Versión oscura del 2º color de marca, texto claro; cae a marca sin acento.",
         tinta: "Fondo casi negro, texto claro (alto contraste).",
         tinta_profunda: "Negro profundo con un dejo de marca (más oscuro que tinta), texto claro.",
+        tinta_profunda_acento: "Negro profundo con un dejo del ACENTO (morado), texto claro.",
       }),
       fondoGradiente: describir(GRADIENTES, {
         marca_suave: "Degradado suave entre tonos claros de la marca.",
@@ -304,6 +305,7 @@ export function mcpListStyleOptions() {
         acento_profundo: "2º color de marca oscuro (cae a marca sin acento).",
         tinta: "Fondo casi negro.",
         tinta_profunda: "Negro profundo con un dejo de marca (más oscuro que tinta, fidelidad concert).",
+        tinta_profunda_acento: "Negro profundo con un dejo del ACENTO (morado, fidelidad landing_idol).",
       }),
       // Ambiente / stage-lights (Tanda 2 F05/D5): focos radiales de tokens sobre el fondo de página.
       ambiente: describir(AMBIENTE_FONDO, {

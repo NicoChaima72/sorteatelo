@@ -3,7 +3,6 @@ import { type PrismaClient } from "@prisma/client";
 import { DomainError } from "~/server/domain/errors";
 import { type ConfirmarImagenSubidaInput } from "~/server/domain/panel/schemas";
 import {
-  keyHeroTenant,
   keyLogoTenant,
   keyPortadaProducto,
   keyPremioSorteo,
@@ -18,7 +17,7 @@ import {
  *   con el `tenantId` del acceso + el id del recurso ya verificado. El cliente jamás la elige.
  * - **I1 (tenancy)**: para portada/premio, el recurso (producto/sorteo) se carga scopeado por el
  *   `tenantId` server-side. Inexistente O de OTRA Tienda ⇒ `NOT_FOUND` indistinguible (sin fuga
- *   de existencia cross-tenant). logo/hero no referencian un recurso: la key es del propio tenant.
+ *   de existencia cross-tenant). `logo` no referencia un recurso: la key es del propio tenant.
  */
 
 /**
@@ -37,8 +36,6 @@ export async function resolverKeyDestinoImagen({
   switch (input.destino) {
     case "logo":
       return keyLogoTenant(tenantId);
-    case "hero":
-      return keyHeroTenant(tenantId);
     case "portada": {
       const producto = await db.product.findFirst({
         where: { id: input.productId, tenantId },
@@ -65,7 +62,7 @@ export async function resolverKeyDestinoImagen({
 /**
  * Persiste la URL pública ya compuesta en la columna del destino. Para portada/premio usa
  * `updateMany` con el `tenantId` en el `where` (defensa en profundidad I1: no puede escribir un
- * recurso ajeno aunque el id fuera de otra Tienda). Para logo/hero, el `tenantId` (del acceso) es
+ * recurso ajeno aunque el id fuera de otra Tienda). Para `logo`, el `tenantId` (del acceso) es
  * la clave. Es el ÚNICO lugar que escribe estas columnas de asset (D4/I6).
  */
 export async function persistirUrlImagen({
@@ -84,13 +81,6 @@ export async function persistirUrlImagen({
       await db.tenant.update({
         where: { id: tenantId },
         data: { logoUrl: url },
-        select: { id: true },
-      });
-      return;
-    case "hero":
-      await db.tenant.update({
-        where: { id: tenantId },
-        data: { heroImageUrl: url },
         select: { id: true },
       });
       return;

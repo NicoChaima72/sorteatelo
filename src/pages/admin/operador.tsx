@@ -14,12 +14,14 @@ import { EmptyState } from "~/components/admin/empty-state";
 import { EstadoTiendaBadge } from "~/components/admin/estado-tienda-badge";
 import { PanelCard } from "~/components/admin/panel-card";
 import { fecha, num } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
 

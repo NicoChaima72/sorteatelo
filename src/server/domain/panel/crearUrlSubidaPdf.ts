@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { DomainError } from "~/server/domain/errors";
 import { type CrearUrlSubidaPdfInput } from "~/server/domain/panel/schemas";
 import { keyDePdfProducto, type StorageService } from "~/server/services/storage";
@@ -30,10 +30,7 @@ export async function crearUrlSubidaPdf({
   input: CrearUrlSubidaPdfInput;
   storage: Pick<StorageService, "presignarSubida">;
 }): Promise<{ url: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const producto = await db.product.findFirst({
     where: { id: input.productId, tenantId },

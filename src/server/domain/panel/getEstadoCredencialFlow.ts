@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 
 /**
  * Use case del panel (F04): estado LEÍBLE de la CredencialFlow de la Tienda. NUNCA devuelve
@@ -19,10 +19,7 @@ export async function getEstadoCredencialFlow({
   sandbox: boolean | null;
   updatedAt: Date | null;
 }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const cred = await db.flowCredential.findUnique({
     where: { tenantId },

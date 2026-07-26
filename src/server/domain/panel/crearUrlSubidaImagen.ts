@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { resolverKeyDestinoImagen } from "~/server/domain/panel/_imagenesMarca";
 import { type CrearUrlSubidaImagenInput } from "~/server/domain/panel/schemas";
 import { type StoragePublicoService } from "~/server/services/storagePublico";
@@ -31,10 +31,7 @@ export async function crearUrlSubidaImagen({
   input: CrearUrlSubidaImagenInput;
   storage: Pick<StoragePublicoService, "presignarSubidaImagen">;
 }): Promise<{ url: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const key = await resolverKeyDestinoImagen({ db, tenantId, input });
   const url = await storage.presignarSubidaImagen({

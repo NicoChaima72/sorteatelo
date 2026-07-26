@@ -35,12 +35,14 @@ import {
   useSubirImagenMarca,
 } from "~/components/admin/use-subir-imagen";
 import { clp } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api, type RouterOutputs } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
 

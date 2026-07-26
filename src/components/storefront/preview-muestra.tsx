@@ -35,8 +35,6 @@ export const MUESTRA_SORTEO_ACTIVO: NonNullable<
   premio: "Un premio de ejemplo",
   fechaInicio: new Date("2026-01-01T00:00:00.000Z"),
   fechaFin: new Date("2026-12-31T23:59:59.000Z"),
-  basesUrl: null,
-  basesTexto: "Bases de ejemplo para la vista previa del widget.",
   premioImageUrl: null,
   totalParticipaciones: 348,
 };

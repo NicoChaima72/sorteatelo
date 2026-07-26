@@ -1,19 +1,29 @@
 import { Button, Group, Skeleton, Table, Text } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconMailForward, IconShoppingCart } from "@tabler/icons-react";
+import {
+  IconDownload,
+  IconMailForward,
+  IconShoppingCart,
+} from "@tabler/icons-react";
 import { type GetServerSideProps } from "next";
+import { useState } from "react";
 
 import { AdminLayout } from "~/components/admin/admin-layout";
+import { DetalleVenta } from "~/components/admin/detalle-venta";
 import { EmptyState } from "~/components/admin/empty-state";
 import { EstadoBadge } from "~/components/admin/estado-badge";
 import { PanelCard } from "~/components/admin/panel-card";
+import { descargarArchivo } from "~/lib/descargar";
 import { clp, fechaHora } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
 
@@ -47,6 +57,18 @@ function FilasSkeleton() {
 }
 
 export default function VentasPage() {
+  // Detalle de una venta (F06). Se guarda el ID y NO la fila: así el Drawer sigue el dato vivo si
+  // la query refetchea (una orden PENDIENTE que pasa a PAGADO se actualiza a la vista). El id
+  // sobrevive al cierre a propósito — limpiarlo junto con `opened` vaciaría el panel a mitad de la
+  // animación de salida.
+  const utils = api.useUtils();
+
+  const [detalleId, setDetalleId] = useState<string | null>(null);
+  const [detalleAbierto, detalle] = useDisclosure(false);
+  // El export es una acción de un solo tiro, no una query de la pantalla: no hay `isPending` de
+  // mutation del que colgarse (es un `.query()`), así que el loading es de esta página.
+  const [exportando, setExportando] = useState(false);
+
   const ventas = api.panel.listarVentas.useInfiniteQuery(
     {},
     {
@@ -65,17 +87,66 @@ export default function VentasPage() {
       }),
     onError: () =>
       notifications.show({
-        message: "No pudimos reenviar el correo. Intenta nuevamente en un momento.",
+        message:
+          "No pudimos reenviar el correo. Intenta nuevamente en un momento.",
         color: "red",
       }),
   });
 
   const filas = ventas.data?.pages.flatMap((p) => p.items) ?? [];
+  const ventaDelDetalle = filas.find((o) => o.id === detalleId) ?? null;
+
+  const verDetalle = (id: string) => {
+    setDetalleId(id);
+    detalle.open();
+  };
+
+  /**
+   * Export CSV (F07). Se pide por el cliente CRUDO de tRPC (`utils.client`) y no por una `useQuery`
+   * ni por `utils.fetch`: los dos dejarían el archivo —con la PII de todos los Compradores— vivo en
+   * la caché de React Query, y una segunda descarga podría servir el CSV viejo. Acá es un tiro y se
+   * va con el Blob.
+   */
+  const exportarCsv = async () => {
+    setExportando(true);
+    try {
+      const { nombreArchivo, contenido } =
+        await utils.client.panel.exportarVentasCsv.query();
+      descargarArchivo({
+        nombre: nombreArchivo,
+        contenido,
+        tipo: "text/csv;charset=utf-8",
+      });
+    } catch {
+      notifications.show({
+        message:
+          "No pudimos generar el archivo. Intenta nuevamente en un momento.",
+        color: "red",
+      });
+    } finally {
+      setExportando(false);
+    }
+  };
 
   return (
     <AdminLayout
       title="Ventas"
       description="Todas las compras de tu tienda, con su estado y lo que te queda."
+      actions={
+        // `variant="default"` y no el filled de «Agregar producto»: exportar es una utilidad sobre
+        // lo que ya está en pantalla, no la acción que la página viene a proponer. Deshabilitado
+        // mientras no haya nada que exportar — bajar un archivo con solo el encabezado se lee como
+        // que el export está roto.
+        <Button
+          variant="default"
+          onClick={() => void exportarCsv()}
+          loading={exportando}
+          disabled={ventas.isLoading || filas.length === 0}
+          leftSection={<IconDownload className="size-4" />}
+        >
+          <span className="hidden sm:inline">Exportar CSV</span>
+        </Button>
+      }
     >
       <PanelCard padding={0}>
         <Table.ScrollContainer minWidth={640}>
@@ -130,15 +201,21 @@ export default function VentasPage() {
                       {o.email}
                     </Table.Td>
                     <Table.Td className="hidden max-w-[240px] truncate lg:table-cell">
-                      {o.productos.join(", ")}
+                      {o.items.map((it) => it.titulo).join(", ")}
                     </Table.Td>
-                    <Table.Td className="hidden whitespace-nowrap sm:table-cell" c="dimmed">
+                    <Table.Td
+                      className="hidden whitespace-nowrap sm:table-cell"
+                      c="dimmed"
+                    >
                       {fechaHora(o.createdAt)}
                     </Table.Td>
                     <Table.Td className="text-right tabular-nums">
                       {clp(o.total)}
                     </Table.Td>
-                    <Table.Td className="hidden text-right tabular-nums md:table-cell" c="dimmed">
+                    <Table.Td
+                      className="hidden text-right tabular-nums md:table-cell"
+                      c="dimmed"
+                    >
                       {o.comision ? `−${clp(o.comision)}` : "—"}
                     </Table.Td>
                     <Table.Td className="text-right tabular-nums" fw={500}>
@@ -147,25 +224,33 @@ export default function VentasPage() {
                     <Table.Td>
                       <EstadoBadge estado={o.estado} />
                     </Table.Td>
-                    <Table.Td className="pr-6 text-right">
-                      {o.estado === "PAGADO" ? (
+                    <Table.Td className="pr-6">
+                      <Group gap="xs" justify="flex-end" wrap="nowrap">
                         <Button
-                          variant="light"
+                          variant="subtle"
+                          color="gray"
                           size="xs"
-                          leftSection={<IconMailForward className="size-3.5" />}
-                          loading={
-                            reenviar.isPending &&
-                            reenviar.variables?.orderId === o.id
-                          }
-                          onClick={() => reenviar.mutate({ orderId: o.id })}
+                          onClick={() => verDetalle(o.id)}
                         >
-                          Reenviar
+                          Detalle
                         </Button>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          —
-                        </Text>
-                      )}
+                        {o.estado === "PAGADO" && (
+                          <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={
+                              <IconMailForward className="size-3.5" />
+                            }
+                            loading={
+                              reenviar.isPending &&
+                              reenviar.variables?.orderId === o.id
+                            }
+                            onClick={() => reenviar.mutate({ orderId: o.id })}
+                          >
+                            Reenviar
+                          </Button>
+                        )}
+                      </Group>
                     </Table.Td>
                   </Table.Tr>
                 ))
@@ -186,6 +271,12 @@ export default function VentasPage() {
           </Button>
         </Group>
       )}
+
+      <DetalleVenta
+        venta={ventaDelDetalle}
+        opened={detalleAbierto}
+        onClose={detalle.close}
+      />
     </AdminLayout>
   );
 }

@@ -19,12 +19,15 @@ const operador = (): AccesoPanel => ({
   email: "op@plataforma.cl",
   esOperador: true,
   tenantIds: [],
+  // El panel del Operador es CROSS-tenant: sus use cases no resuelven tienda del host.
+  tenantIdDelHost: null,
 });
 const organizador = (): AccesoPanel => ({
   userId: "u1",
   email: "org@x.cl",
   esOperador: false,
   tenantIds: ["A"],
+  tenantIdDelHost: "A",
 });
 
 describe("domain/operador/listarTiendas (fake db, operador-only)", () => {

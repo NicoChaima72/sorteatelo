@@ -117,7 +117,18 @@ describe("scripts/seed-tenants — sembrarTenants (DB-backed)", () => {
     ).map((t) => t.id);
     expect(await db.flowCredential.count({ where: { tenantId: { in: ids } } })).toBe(2);
     expect(await db.product.count({ where: { tenantId: { in: ids } } })).toBe(2);
-  });
+    // La `StorefrontPage` de cada tenant también es idempotente (admin-bases-pdf F07): el seed la
+    // crea SIEMPRE —antes lo hacía el backfill, que murió con las columnas que leía— y sin ella un
+    // tenant PUBLICADA quedaría con la home en 404 (ya no hay fallback on-the-fly, D9).
+    expect(await db.storefrontPage.count({ where: { tenantId: { in: ids } } })).toBe(2);
+    // Sembrar dos veces no duplica ni deja la página sin publicar.
+    expect(
+      await db.storefrontPage.count({
+        where: { tenantId: { in: ids }, slug: "home", publishedAt: { not: null } },
+      }),
+    ).toBe(2);
+    // Corre el seed COMPLETO dos veces contra la DB remota (~1-2s por roundtrip) ⇒ 30s no alcanzan.
+  }, 90_000);
 
   // seed.tenants.003
   it("guarda las credenciales CIFRADAS (el ciphertext en DB no contiene el plaintext, I5)", async () => {

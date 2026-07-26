@@ -1,5 +1,6 @@
 import { PrismaClient, type TenantStatus } from "@prisma/client";
 
+import { documentoInicial } from "~/lib/pagebuilder/factory";
 import { cifrar, parsearClave } from "~/server/services/cifrado";
 
 /**
@@ -42,14 +43,16 @@ export interface EspecificacionTenant {
    */
   branding?: {
     colorPrimario?: string;
-    heroTitulo?: string;
-    heroSubtitulo?: string;
-    avisoTexto?: string;
     instagramUrl?: string;
     tiktokUrl?: string;
     whatsappUrl?: string;
     contactoEmail?: string;
   };
+  /**
+   * Hero de la HOME del tenant (admin-bases-pdf F07): el hero dejó de ser columnas del `Tenant` y
+   * vive SOLO en el Documento de Página, así que se siembra ahí (no con un `tenant.update`).
+   */
+  hero?: { titulo?: string; subtitulo?: string; aviso?: string };
 }
 
 export interface ResultadoSeedTenant {
@@ -60,7 +63,10 @@ export interface ResultadoSeedTenant {
   productoCreado: boolean;
 }
 
-type DbSeed = Pick<PrismaClient, "tenant" | "flowCredential" | "product">;
+type DbSeed = Pick<
+  PrismaClient,
+  "tenant" | "flowCredential" | "product" | "storefrontPage"
+>;
 
 export async function sembrarTenants({
   db,
@@ -90,6 +96,33 @@ export async function sembrarTenants({
       await db.tenant.update({
         where: { id: tenant.id },
         data: spec.branding,
+        select: { id: true },
+      });
+    }
+
+    // 1c) Página de la tienda (`StorefrontPage`) — SIEMPRE, no solo con hero (admin-bases-pdf F07).
+    // Antes esto lo hacía `backfill-storefront-pages.ts`; ese script murió con las columnas que leía.
+    // Sin esta fila, un tenant PUBLICADA queda con la home en 404: desde D9 ya no hay fallback
+    // on-the-fly que invente un documento. Espeja el `crearTienda` real (draft = published) y el
+    // patrón de `seed-bcac`/`seed-demos-kpop`. Idempotente: solo crea si no existe.
+    const paginaExistente = await db.storefrontPage.findUnique({
+      where: { tenantId_slug: { tenantId: tenant.id, slug: "home" } },
+      select: { id: true },
+    });
+    if (!paginaExistente) {
+      const seedDoc = documentoInicial({
+        heroTitulo: spec.hero?.titulo ?? null,
+        heroSubtitulo: spec.hero?.subtitulo ?? null,
+        avisoTexto: spec.hero?.aviso ?? null,
+      });
+      await db.storefrontPage.create({
+        data: {
+          tenantId: tenant.id,
+          slug: "home",
+          draftJson: seedDoc,
+          publishedJson: seedDoc,
+          publishedAt: new Date(),
+        },
         select: { id: true },
       });
     }
@@ -230,12 +263,14 @@ function construirSpecs(envFlow: {
       },
       // Demo de la plantilla rica (F04): color rosa + textos + redes/contacto. Sin imágenes
       // (degradan a gradiente hasta que exista el bucket público real).
+      hero: {
+        titulo: "Historias que enamoran",
+        subtitulo:
+          "Libros y guías digitales con humor, listos para descargar. Cada compra te suma al sorteo.",
+        aviso: "Recibes el PDF por correo apenas se confirma tu pago.",
+      },
       branding: {
         colorPrimario: "#e11d48",
-        heroTitulo: "Historias que enamoran",
-        heroSubtitulo:
-          "Libros y guías digitales con humor, listos para descargar. Cada compra te suma al sorteo.",
-        avisoTexto: "Recibes el PDF por correo apenas se confirma tu pago.",
         instagramUrl: "https://instagram.com/tienda.autora",
         tiktokUrl: "https://tiktok.com/@tienda.autora",
         whatsappUrl: "https://wa.me/56900000000",
@@ -257,12 +292,12 @@ function construirSpecs(envFlow: {
       },
       // Segundo tenant con OTRO color (teal) y SIN redes: demuestra aislamiento per-tenant +
       // degradación elegante del footer (redes ocultas) en la verificación visual.
-      branding: {
-        colorPrimario: "#0d9488",
-        heroTitulo: "Tienda de Prueba",
-        heroSubtitulo:
+      hero: {
+        titulo: "Tienda de Prueba",
+        subtitulo:
           "El segundo tenant para verificar el aislamiento cross-tenant y la degradación elegante.",
       },
+      branding: { colorPrimario: "#0d9488" },
     },
   ];
 

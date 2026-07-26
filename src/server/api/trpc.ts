@@ -22,12 +22,17 @@ import {
 } from "~/server/authPolicy";
 import { db } from "~/server/db";
 import { origenDeRequest } from "~/server/pago/urlRetorno";
+import { cargarMembresiasCanonicas } from "~/server/panel/membresias";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
-import { crearRepoTenants } from "~/server/tenancy/repoTenants";
+import {
+  crearRepoTenants,
+  repoTenantsMemoizado,
+} from "~/server/tenancy/repoTenants";
 import {
   resolverTenantDesdeHost,
   type TenantDeContexto,
 } from "~/server/tenancy/resolverTenant";
+import { resolverTenantAdminDesdeHost } from "~/server/tenancy/resolverTenantAdmin";
 
 /**
  * 1. CONTEXT
@@ -46,6 +51,14 @@ interface CreateContextOptions {
    * H1 de datawalt-app (IDOR cross-tenant). Ver `src/server/tenancy/`.
    */
   tenant: TenantDeContexto | null;
+  /**
+   * La Tienda que administra el HOST del request, resuelta SERVER-SIDE del subdominio SIN exigir
+   * que esté publicada (ADR-0022). Es la gemela de `tenant` para el borde del PANEL: una Tienda en
+   * CONFIGURACION no tiene storefront pero sí panel. `null` en el apex o en un host que no resuelve.
+   *
+   * Igual que `tenant`, JAMÁS se completa desde el input de un procedure (I1).
+   */
+  tenantDelHost: TenantDeContexto | null;
   /**
    * Origen (`<proto>://<host>`) del request, o `null`. Lo usa SOLO el checkout para armar la
    * URL de retorno de Flow del subdominio (D6) — NUNCA para scopear queries (eso es `tenant`).
@@ -68,6 +81,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
     session: opts.session,
     db,
     tenant: opts.tenant,
+    tenantDelHost: opts.tenantDelHost,
     origin: opts.origin,
   };
 };
@@ -97,15 +111,29 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   // pone el middleware: así la resolución no depende de que el `matcher` del
   // middleware cubra este path (defensa en profundidad). En la zona plataforma
   // no consulta la DB.
+  //
+  // El MISMO host se resuelve con las DOS políticas: la del storefront (exige PUBLICADA, respuesta
+  // neutral) y la del PANEL (ADR-0022: una Tienda en CONFIGURACION o SUSPENDIDA se sigue
+  // administrando). El repo va memoizado ⇒ una sola query a la DB, dos lecturas de la política.
+  const config = configPlataformaDesdeEnv();
+  const repo = repoTenantsMemoizado(crearRepoTenants(db));
+
   const resolucion = await resolverTenantDesdeHost({
     host: req.headers.host,
-    config: configPlataformaDesdeEnv(),
-    repo: crearRepoTenants(db),
+    config,
+    repo,
+  });
+  const resolucionAdmin = await resolverTenantAdminDesdeHost({
+    host: req.headers.host,
+    config,
+    repo,
   });
 
   return createInnerTRPCContext({
     session,
     tenant: resolucion.zona === "storefront" ? resolucion.tenant : null,
+    tenantDelHost:
+      resolucionAdmin.zona === "tienda" ? resolucionAdmin.tenant : null,
     // Origen del request para la URL de retorno de Flow (D6). Server-side, solo lo usa el checkout.
     origin: origenDeRequest({
       host: req.headers.host,
@@ -244,9 +272,11 @@ export const tenantProcedure = t.procedure
  * (ADR-0005, F05). Exige sesión NextAuth (Google OAuth) y carga SERVER-SIDE el
  * `acceso`: quién es, si es Operador de plataforma (env `PLATFORM_OPERATOR_EMAILS`,
  * D4), y las Tiendas de las que es miembro (`TenantMembership`). Los use cases del
- * panel resuelven sobre qué Tienda operan con `resolverTenantAutorizado(ctx.acceso, …)`
- * — el `tenantId` con el que scopean TODA query sale de la membresía o del flag
- * Operador (ambos server-side), JAMÁS del input (I1; lección H1 de datawalt-app).
+ * panel resuelven sobre qué Tienda operan con `resolverTenantDelPanel(ctx.acceso)`
+ * — el `tenantId` con el que scopean TODA query sale del cruce entre el HOST
+ * (server-authored) y la MEMBRESÍA, JAMÁS del input (I1; lección H1 de datawalt-app).
+ * El flag `esOperador` NO autoriza acá (D11/ADR-0022): solo habilita el panel propio
+ * del Operador (`operadorProcedure`), que es otra superficie.
  *
  * NO gatea por membresía: un usuario logueado SIN membresía y sin rol Operador pasa el
  * procedure pero cualquier use case tira `FORBIDDEN` (fail-closed en la capa de datos,
@@ -259,9 +289,12 @@ export const panelProcedure = t.procedure
     if (!ctx.session?.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
-    const membresias = await ctx.db.tenantMembership.findMany({
-      where: { userId: ctx.session.user.id },
-      select: { tenantId: true },
+    // Membresías en el ORDEN CANÓNICO (D5/I5, ADR-0022): mismo origen ordenado que usa el guard
+    // de las páginas admin para elegir la PRIMERA tienda. Antes era un `findMany` sin `orderBy`
+    // (orden crudo) mientras el chip del header ordenaba por `nombre asc` — dos órdenes paralelos.
+    const membresias = await cargarMembresiasCanonicas({
+      db: ctx.db,
+      userId: ctx.session.user.id,
     });
     const acceso: AccesoPanel = {
       userId: ctx.session.user.id,
@@ -271,6 +304,10 @@ export const panelProcedure = t.procedure
         parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS),
       ),
       tenantIds: membresias.map((m) => m.tenantId),
+      // La Tienda del SUBDOMINIO (ADR-0022): es la selección de tenant del panel, y es
+      // server-authored (host + middleware), no input del cliente ⇒ no viola I1. Los use cases
+      // la consumen vía `resolverTenantDelPanel`; sin ella (apex) fallan fail-closed.
+      tenantIdDelHost: ctx.tenantDelHost?.id ?? null,
     };
     return next({
       ctx: {

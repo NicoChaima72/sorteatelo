@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { TOS_VERSION } from "~/server/tos/tos";
 
 /**
@@ -29,10 +29,7 @@ export async function aceptarTos({
   aceptadoAt: Date;
   aceptadoPor: string;
 }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
   // "Quién": el email (identidad del Organizador, ADR-0004); userId como respaldo si faltara.
   const aceptadoPor = acceso.email ?? acceso.userId;
 

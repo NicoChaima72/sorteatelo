@@ -1,7 +1,22 @@
 import { z } from "zod";
 
+import { MAX_CAMPOS_ACTIVOS } from "~/server/domain/camposCheckout/reglas";
+
 /** Tope de cordura de unidades por producto en una orden (S1, ADR-0012): evita abuso/overflow. */
 export const MAX_CANTIDAD_POR_ITEM = 99;
+
+/**
+ * Cotas de TRANSPORTE de las respuestas de checkout (F05). NO son la validación del dato: esa
+ * corre contra la definición vigente en `validarRespuestasDeCheckout` (I3), y es la que produce
+ * mensajes que nombran el campo. Acá solo se corta el payload absurdo antes de gastar una query.
+ *
+ * Por eso el tope de `valor` es holgado y no 200: si fuera el mismo del TEXTO, un texto de 201
+ * caracteres moriría con un error de Zod ("string demasiado largo", sin decir cuál campo) en vez
+ * del mensaje de dominio que sí nombra el campo.
+ */
+const MAX_RESPUESTAS = MAX_CAMPOS_ACTIVOS; // una Tienda no puede tener más campos activos que esto
+const MAX_LARGO_CLAVE = 80; // el filtro REAL es pertenecer a las definiciones vigentes, no el largo
+const MAX_LARGO_VALOR = 1000;
 
 /**
  * Input del inicio de checkout: el correo del comprador (su identidad, ADR-0004)
@@ -14,6 +29,11 @@ export const MAX_CANTIDAD_POR_ITEM = 99;
  * total: el dinero lo calcula el server con `Decimal` (I4). El `refine` garantiza un
  * productId único por orden (una línea por producto — `@@unique([orderId, productId])`);
  * la cantidad vive en la línea, no en filas repetidas.
+ *
+ * `respuestas` (F05) son los datos ADICIONALES que pide la Tienda (Campos de checkout): `{clave,
+ * valor}` y nada más. Opcionales con default `[]` — una Tienda sin campos manda el payload de
+ * siempre (I9). Que falte un obligatorio NO se detecta acá sino contra la definición vigente
+ * dentro de la `$tx` (I3): el cliente no es quien decide qué es obligatorio.
  */
 export const iniciarCheckoutInput = z.object({
   email: z.string().email(),
@@ -28,6 +48,28 @@ export const iniciarCheckoutInput = z.object({
     .refine(
       (items) => new Set(items.map((i) => i.productId)).size === items.length,
       { message: "Cada producto puede aparecer una sola vez en la orden." },
+    ),
+  respuestas: z
+    .array(
+      z.object({
+        clave: z.string().min(1).max(MAX_LARGO_CLAVE),
+        // Shape LAXO a propósito: el `valor` llega como lo emite el input de Mantine que le tocó
+        // (texto, número del NumberInput, booleano del Checkbox, `null` de un Select limpiado). El
+        // TIPO no viaja — el server lo lee de la definición vigente y valida contra ella (I3).
+        valor: z.union([
+          z.string().max(MAX_LARGO_VALOR),
+          z.number(),
+          z.boolean(),
+          z.null(),
+        ]),
+      }),
+    )
+    .max(MAX_RESPUESTAS)
+    .default([])
+    .refine(
+      (respuestas) =>
+        new Set(respuestas.map((r) => r.clave)).size === respuestas.length,
+      { message: "Cada campo puede responderse una sola vez." },
     ),
 });
 

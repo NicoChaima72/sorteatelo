@@ -21,12 +21,14 @@ import { EstadoBadge } from "~/components/admin/estado-badge";
 import { EstadoTiendaBadge } from "~/components/admin/estado-tienda-badge";
 import { PanelCard } from "~/components/admin/panel-card";
 import { clp, diaMes, fecha, fechaHora, num } from "~/lib/formato";
-import { requireSession } from "~/server/auth";
+import { guardPaginaAdmin } from "~/server/panel/guardPaginaAdmin";
 import { api, type RouterOutputs } from "~/utils/api";
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const guard = await requireSession(ctx);
-  if ("redirect" in guard) return { redirect: guard.redirect };
+  // Matriz de acceso del panel scopeado por subdominio (ADR-0022): redirige al login del apex,
+  // al storefront o a la primera tienda, o responde 404 neutral, según host + sesión + membresía.
+  const guard = await guardPaginaAdmin(ctx);
+  if (!("ok" in guard)) return guard;
   return { props: {} };
 };
 
@@ -547,7 +549,7 @@ export default function AdminDashboard() {
                       <Table.Tr key={o.id}>
                         <Table.Td c="dimmed">{o.email}</Table.Td>
                         <Table.Td className="hidden max-w-[240px] truncate md:table-cell">
-                          {o.productos.join(", ")}
+                          {o.items.map((it) => it.titulo).join(", ")}
                         </Table.Td>
                         <Table.Td className="hidden whitespace-nowrap sm:table-cell" c="dimmed">
                           {fechaHora(o.createdAt)}

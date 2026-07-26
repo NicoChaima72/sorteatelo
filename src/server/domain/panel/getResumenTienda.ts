@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { inicioDiaUTC, restarDiasUTC } from "~/server/domain/panel/_fechas";
 
 /** Ventana de comparación de los deltas: período actual (14d) vs los 14d previos. */
@@ -53,10 +53,7 @@ export async function getResumenTienda({
   productosActivos: number;
   deltas: { ventas: DeltaKpi | null; ingresos: DeltaKpi | null };
 }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   // Ventanas de los deltas (medianoche UTC, aritmética sin librería).
   const inicioActual = restarDiasUTC(inicioDiaUTC(ahora), DIAS - 1);

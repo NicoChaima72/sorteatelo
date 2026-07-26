@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { type CrearProductoInput } from "~/server/domain/panel/schemas";
 
 /**
@@ -24,10 +24,7 @@ export async function crearProducto({
   acceso: AccesoPanel;
   input: CrearProductoInput;
 }): Promise<{ id: string }> {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const producto = await db.product.create({
     data: {

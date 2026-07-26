@@ -78,6 +78,13 @@ const MyApp: AppType<{
     par && temaPagina && temaPagina.tipografia !== "plataforma"
       ? `:root{--font-heading:${par.display};--font-display:${par.display};--font-instrument:${par.texto};}`
       : "";
+  // Escala de títulos de sección `poster` (fidelidad landing_idol): SOLO para tenants poster se inyecta la
+  // regla que agranda `.st-titulo-poster` (los títulos de sección marcados) al tamaño Bebas del mockup
+  // (~52px). Para el resto la clase existe pero sin regla ⇒ no-op (I-H). `!important` gana al `fz` inline.
+  const escalaTitulosCss =
+    temaPagina?.escalaTitulos === "poster"
+      ? `.st-titulo-poster{font-size:clamp(2rem,4.6vw,3.25rem)!important;line-height:1.04!important;}`
+      : "";
 
   return (
     <>
@@ -86,6 +93,9 @@ const MyApp: AppType<{
         <style dangerouslySetInnerHTML={{ __html: FONT_VARS_CSS }} />
         {fontOverrideCss && (
           <style dangerouslySetInnerHTML={{ __html: fontOverrideCss }} />
+        )}
+        {escalaTitulosCss && (
+          <style dangerouslySetInnerHTML={{ __html: escalaTitulosCss }} />
         )}
       </Head>
       {/*

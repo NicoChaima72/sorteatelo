@@ -9,7 +9,9 @@ import { api } from "~/utils/api";
  * la URL pública en la columna del destino). El `Content-Type` del PUT debe coincidir con el que
  * el server firmó — se toma de `file.type` (validado contra la allowlist antes de subir).
  *
- * Reusado por Configuración (logo/hero), el form de producto (portada) y el panel del sorteo (premio).
+ * Reusado por Configuración (logo), el form de producto (portada) y el panel del sorteo (premio). El
+ * destino `hero` MURIÓ en admin-bases-pdf F06/D7: la imagen de portada es del Documento de Página y
+ * se sube desde el EDITOR, no desde el panel.
  */
 
 /**
@@ -30,7 +32,6 @@ export const ACCEPT_IMAGEN = CONTENT_TYPES_IMAGEN.join(",");
 /** Destino del asset (discriminado). Espeja el input server `crearUrlSubidaImagen`/`confirmar`. */
 export type DestinoImagen =
   | { destino: "logo" }
-  | { destino: "hero" }
   | { destino: "portada"; productId: string }
   | { destino: "premio"; raffleId: string };
 

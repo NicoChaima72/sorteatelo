@@ -60,6 +60,7 @@ const ESQUEMAS_OSCUROS: ReadonlySet<EsquemaFondo> = new Set([
   "acento_profundo",
   "tinta",
   "tinta_profunda",
+  "tinta_profunda_acento",
 ]);
 
 /**
@@ -70,6 +71,15 @@ const ESQUEMAS_OSCUROS: ReadonlySet<EsquemaFondo> = new Set([
  */
 const TINTA_PROFUNDA_FONDO =
   "color-mix(in srgb, var(--mantine-color-black) 86%, var(--mantine-primary-color-9))";
+
+/**
+ * Fondo TINTA PROFUNDA con tinte de ACENTO (fidelidad landing_idol prueba): near-black tintado con el
+ * ACENTO (no la marca) — el `#120828` (morado casi negro) del mockup, cuando la MARCA es el color de
+ * ACCIÓN (oro) y el ACENTO es la superficie (morado). ~40% del acento sobre negro ≈ #110926. Curado de
+ * TOKENS (I-A), degrada a marca sin acento. Texto claro (esquema oscuro).
+ */
+const TINTA_PROFUNDA_ACENTO_FONDO =
+  "color-mix(in srgb, var(--mantine-color-black) 68%, var(--mantine-color-acento-filled, var(--mantine-primary-color-9)))";
 
 /**
  * Fondo MARFIL cálido (Tanda 2 F14, fidelidad editorial): el off-white cálido tipo papel del prototipo
@@ -137,6 +147,9 @@ function esquemaACss(esquema: EsquemaFondo): CSSProperties {
     case "tinta_profunda":
       // Tanda 2 F15: near-black con tinte de marca (fidelidad concert), texto claro.
       return { background: TINTA_PROFUNDA_FONDO, color: "var(--mantine-color-white)" };
+    case "tinta_profunda_acento":
+      // Fidelidad landing_idol: near-black con tinte de ACENTO (morado) — el #120828 del mockup.
+      return { background: TINTA_PROFUNDA_ACENTO_FONDO, color: "var(--mantine-color-white)" };
   }
 }
 
@@ -175,6 +188,8 @@ export function colorSolidoDeEsquema(esquema: EsquemaFondo): string {
       return "var(--mantine-color-gray-9)";
     case "tinta_profunda":
       return TINTA_PROFUNDA_FONDO; // Tanda 2 F15: near-black brand-tinted (fill del shell concert)
+    case "tinta_profunda_acento":
+      return TINTA_PROFUNDA_ACENTO_FONDO; // fidelidad landing_idol: near-black accent-tinted (#120828)
   }
 }
 

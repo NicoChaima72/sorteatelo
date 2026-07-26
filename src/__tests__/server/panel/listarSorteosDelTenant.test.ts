@@ -15,6 +15,9 @@ const acceso = (tenantIds: string[]): AccesoPanel => ({
   email: "org@x.cl",
   esOperador: false,
   tenantIds,
+  // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
+  // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
+  tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });
 
 interface RaffleRow {
@@ -25,7 +28,7 @@ interface RaffleRow {
   estado: string;
   fechaInicio: Date;
   fechaFin: Date;
-  basesUrl: string | null;
+  basesPdfUrl: string | null;
   premioImageUrl: string | null;
   ganadorEmail: string | null;
   ejecutadoAt: Date | null;
@@ -51,7 +54,7 @@ const base = (over: Partial<RaffleRow>): RaffleRow => ({
   estado: "CERRADO",
   fechaInicio: new Date("2026-01-01T00:00:00Z"),
   fechaFin: new Date("2026-02-01T00:00:00Z"),
-  basesUrl: null,
+  basesPdfUrl: null,
   premioImageUrl: null,
   ganadorEmail: null,
   ejecutadoAt: null,

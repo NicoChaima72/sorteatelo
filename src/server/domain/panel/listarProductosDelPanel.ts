@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
-import { type AccesoPanel, resolverTenantAutorizado } from "~/server/authPolicy";
+import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 
 /**
  * Use case del panel (F05): lista los productos de la Tienda del Organizador — TODOS,
@@ -30,10 +30,7 @@ export async function listarProductosDelPanel({
     createdAt: Date;
   }>
 > {
-  const tenantId = resolverTenantAutorizado({
-    esOperador: acceso.esOperador,
-    tenantIdsDeMembresia: acceso.tenantIds,
-  });
+  const tenantId = resolverTenantDelPanel(acceso);
 
   const productos = await db.product.findMany({
     where: { tenantId },

@@ -28,15 +28,55 @@
       "locale": "es-CL",
       "status": "nuevo",
       "output": "out/2026-07-25-crea-tu-tienda.mp4"
+    },
+    {
+      "id": "conecta-flow",
+      "folder": null,
+      "module": "pagos",
+      "title": "Conecta Flow",
+      "description": "CADENA de 2 tours concatenados con ffmpeg concat (mismo códec/fps, sin re-encode): «Parte 1 · Crea tu cuenta» (flow.cl → registro → Configuración: datos del negocio y bancarios) + «Parte 2 · Conecta las claves» (Datos de integración → copiar → pegar en el panel). El journey completo no cabe en 6 beats.",
+      "format": "cadena",
+      "parts": ["conecta-flow-a", "conecta-flow-b"],
+      "durationSeconds": 77,
+      "fps": 30,
+      "aspect": "16:9",
+      "locale": "es-CL",
+      "status": "nuevo",
+      "output": "out/2026-07-25-conecta-flow.mp4",
+      "build": "node render.mjs conecta-flow-a && node render.mjs conecta-flow-b && ffmpeg -f concat -safe 0 -i <lista> -c copy out/2026-07-25-conecta-flow.mp4"
+    },
+    {
+      "id": "conecta-flow-a",
+      "folder": "conecta-flow-a",
+      "module": "pagos",
+      "title": "Conecta Flow · Parte 1: crea tu cuenta",
+      "description": "Formato Tour: concepto + 3 pasos sobre el sitio de Flow (screenshots reales recortados en conecta-flow-a/shots/): flow.cl → dashboard.flow.cl/register → Configuración (Datos del negocio ⇄ Datos bancarios). Parte 1 de la cadena `conecta-flow`.",
+      "format": "tour",
+      "partOf": "conecta-flow",
+      "durationSeconds": 38.5,
+      "fps": 30,
+      "aspect": "16:9",
+      "locale": "es-CL",
+      "status": "nuevo",
+      "output": "out/2026-07-25-conecta-flow-a.mp4"
+    },
+    {
+      "id": "conecta-flow-b",
+      "folder": "conecta-flow-b",
+      "module": "pagos",
+      "title": "Conecta Flow · Parte 2: conecta las claves",
+      "description": "Formato Tour: concepto + 2 pasos sobre el dashboard de Flow (screenshots reales recortados en conecta-flow-b/shots/) + 1 paso sobre el mock del panel (Configuración → Pagos (Flow)). Parte 2 de la cadena `conecta-flow`.",
+      "format": "tour",
+      "partOf": "conecta-flow",
+      "durationSeconds": 38.5,
+      "fps": 30,
+      "aspect": "16:9",
+      "locale": "es-CL",
+      "status": "nuevo",
+      "output": "out/2026-07-25-conecta-flow-b.mp4"
     }
   ],
   "backlog": [
-    {
-      "id": "conecta-flow",
-      "module": "pagos",
-      "title": "Conecta Flow",
-      "description": "Cómo pegar las claves de Flow en Configuración y qué pasa cuando quedan conectadas (BYO-Flow, ADR-0006)."
-    },
     {
       "id": "sube-productos",
       "module": "productos",

@@ -81,6 +81,7 @@ videos/hyperframes/
 | scripts `.mjs`, `_lib/`, `_template-tour/` | `out/` y todo `*.mp4` |
 | `_brand/tokens.local.json` + `brand.tokens.css` | `_brand/fonts/` (binarios OFL, reproducibles) |
 | `<slug>/index.html` + `<slug>/app.js` | `<slug>/assets/` (kit/tokens/gsap materializados) |
+| `<slug>/shots/*.png` (assets PROPIOS del video: screenshots de sitios de terceros ya recortados) | |
 | `videos.json`, `README.md`, `MOCKS.md` | `index.embed.html` (el base64 nunca queda en el árbol) |
 
 **Divergencia deliberada del kit origen**: allá cada video committeaba su copia de

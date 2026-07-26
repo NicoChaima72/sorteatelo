@@ -146,6 +146,104 @@ Clases propias: `ct-stat-label`, `ct-stat-row`, `ct-stat-valor`, `ct-stat-num`, 
 
 ---
 
+## CADENA de tours: una cápsula, N MP4 concatenados — `conecta-flow-a` + `conecta-flow-b`
+
+**Estado: LISTO** (patrón nuevo, 2026-07-25). Precedente del repo origen: `novedades` de terranova
+era una cadena de 3 tours.
+
+Cuando el journey no cabe en **6 beats** (acá: crear la cuenta en Flow *y* conectar las claves), no
+se estiran los beats ni se comprime el guion: se producen **dos tours normales** y se **concatenan**.
+
+- Un folder por parte, con el sufijo de orden: `<slug>-a`, `<slug>-b`. Cada uno pasa su propio
+  `check-classes` + `lint` + `render` (pipeline sin cambios) y sale a `out/<fecha>-<slug>-<parte>.mp4`.
+- `data-composition-id` y la key de `window.__timelines` = **el slug de la parte** (si renombrás el
+  folder, hay que cambiar los dos o el render sale estático).
+- Unión sin re-encode (mismo códec/fps/tamaño, todos mudos):
+  `ffmpeg -f concat -safe 0 -i <lista> -c copy out/<fecha>-<slug>.mp4`.
+- **Bisagra**: el outro de la parte N no lleva lockup (isotipo + wordmark + dominio) — es un
+  cierre parcial («Cuenta lista.» / «Ahora, las claves de integración.»). El lockup va **una sola
+  vez**, en el outro de la última parte. El poster de cada parte lleva el eyebrow con el número
+  (`PARTE 1 · CREA TU CUENTA`), mismo titular para toda la cadena.
+- `videos.json`: entrada `format: "cadena"` con `parts: [...]` y la duración TOTAL, más una entrada
+  por parte con `partOf`. La única salida que se publica es la del padre.
+
+---
+
+## Sitios de TERCEROS: screenshot real, no mock — `conecta-flow-b/app.js` (`flowFrame`)
+
+**Estado: LISTO** (patrón nuevo, 2026-07-25). Primer caso: el **dashboard de Flow**
+(`dashboard.flow.cl`) en los pasos 1 y 2 de `conecta-flow-b`.
+
+**Regla**: «mock, no screencast» aplica a **NUESTRO** producto — se re-dibuja para que el video no
+envejezca con cada cambio de UI y para no filtrar datos. Una **UI ajena que no controlamos** no se
+mockea: mockearla sería inventar la interfaz de otro, y envejecería igual. Precedente del repo
+origen: `sso-azure-onboarding` usaba shots de la consola de Azure.
+
+- **Dónde viven los PNG**: `<slug>/shots/*.png` — carpeta **COMMITEADA**. Ojo: `<slug>/assets/` es
+  EFÍMERO (`.gitignore` tiene `*/assets/`, lo regenera `materializar.mjs`), así que un asset PROPIO
+  del video moriría ahí. `shots/` es del video y va a git; el motor resuelve `src="shots/x.png"`
+  root-relative sin tocar el lint (no es `../`).
+- **Recorte obligatorio**: fuera todo chrome del entorno de pruebas. Acá,
+  `ffmpeg -i <orig>.png -vf "crop=1904:749:0:92"` saca la franja rosa «Sitio de pruebas de Flow»
+  (~90 px) y la barra de scroll derecha. **Verificá el corte mirando el PNG**, no de memoria.
+- **URL de la barra**: la de **producción** (`dashboard.flow.cl`), aunque el shot venga del sandbox
+  — es la que el Organizador va a ver. Divergencia deliberada.
+- **Chrome**: `flowFrame()` local, NO `TourKit.browserFrame()` (ése trae el rail y el topbar de
+  nuestro panel). Reusa las mismas clases del kit (`app-browser`, `app-chrome`, `app-dot`,
+  `app-url`, `app-chrome-spacer`) ⇒ ventana idéntica a la de los pasos del panel. Clases propias:
+  `cf-viewport` (recorta) + `cf-shot` (la `<img>`).
+- **Geometría por construcción**: la ventana se dimensiona **desde el shot** (ancho 1500 = el de
+  `FRAME`, alto = chrome 56 + shot escalado; centrada en el canvas). Los helpers `sx/sy/sRect`
+  mapean coords del PNG → canvas, así spotlight y cursor caen sobre el botón real del shot sin
+  medir «a ojo» sobre el video.
+- **Gotcha 15 NO aplica**: es un PNG plano, no un SVG con texto (no hay `@font-face` que heredar).
+
+### Extensión: sitio público + alta de cuenta — `conecta-flow-a/app.js`
+
+Mismo `flowFrame`, generalizado. Lo que agrega (copialo si tenés que mostrar otro sitio ajeno):
+
+- **`vista(natH)`** — la ventana se deriva del shot, y hay **más de una altura natural**: los shots
+  de producción (`flow.cl`, `dashboard.flow.cl/register`) se recortan `crop=1904:841:0:0` (sólo la
+  barra de scroll: el banner de arriba trae el link «Crea tu cuenta»), y los del sandbox
+  `crop=1904:749:0:92` (fuera la franja rosa). `vista()` devuelve `{FF, sx, sy, sRect}` por altura
+  ⇒ dos ventanas distintas, ambas centradas y del mismo ancho (1500 = `FRAME.width`).
+- **URL por paso**: `flow.cl` · `dashboard.flow.cl/register` · `dashboard.flow.cl` (siempre las de
+  producción, aunque el shot venga del sandbox).
+- **Crossfade de SHOTS** (paso 3): `flowFrame(V, url, ["a", "b"])` emite las dos `<img>` en la misma
+  caja (`#shot-<nombre>`, la 2ª con `.tour-hidden`) y el timeline las cruza a mitad de beat — mismo
+  patrón que `stackEl`, aplicado a páginas enteras (Datos del negocio → Datos bancarios). El
+  spotlight cae sobre la **banda de encabezado** (breadcrumb + título), que existe igual en los dos
+  shots: así el swap se lee sin que se mueva nada más.
+- Shots comiteados en `conecta-flow-a/shots/`: `flow-home`, `flow-registro`, `flow-datos-negocio`,
+  `flow-datos-bancarios`.
+- **Dato sensible**: los shots del sandbox muestran el correo y el teléfono de la cuenta de pruebas
+  del Operador en el topbar de Flow. Si el video se publica, hay que enmascararlos o rehacer los
+  shots con una cuenta de demo.
+
+---
+
+## Panel · Configuración → card «Pagos (Flow)» conectada — `conecta-flow-b/app.js`
+
+**Estado: LISTO.** Extensión de la card izquierda del piloto (`configura-la-tienda/app.js`), misma
+pantalla real `src/pages/admin/configuracion.tsx`. Lo que agrega:
+
+- `campoClave(id, y, label)` — campo de credencial con crossfade: vacío (`••••••••••••` en gris) →
+  pegado (mismo enmascarado más largo, con `foco` cobalto). **Nunca** una clave real: el mock sólo
+  muestra puntos.
+- Inset de estado como `stackEl("estado", 240, 26, …)`: `No conectada` (badge `borde`) →
+  `Configurada` (badge `exito` + check) + `Producción` (badge `gris`). Las dos variantes van dentro
+  de `.cf-badges` (flex `justify-content:flex-end`) para compartir el borde derecho del inset —
+  sin eso la variante corta flota a la izquierda de la caja reservada.
+- Ambiente `Producción` (el piloto mostraba `Sandbox (pruebas)`), toast «Credenciales guardadas.».
+- Clases propias (copia `cfg-*` → `cf-*`): `cf-asset`, `cf-thumb`, `cf-estado`, `cf-estado-label`,
+  `cf-estado-badge`, `cf-badges`, `cf-sec`, `cf-sec-txt`, `cf-div`, `cf-toast*`.
+
+> Tercera cápsula que copia el toast (`cfg-toast*` → `ct-toast*` → `cf-toast*`) y segunda que copia
+> `cfg-sec`/`cfg-asset`. **Ya está sobre-madura la promoción al kit** (`.pnl-toast`, `.pnl-subhead`)
+> — pendiente en `_lib/tour-kit.css`, con el color de la franja como parámetro.
+
+---
+
 ## Pendientes de mockear (backlog de cápsulas)
 
 | Pantalla | Componente real | Para la cápsula |

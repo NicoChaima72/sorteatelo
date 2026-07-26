@@ -2,18 +2,18 @@
 
 > Repo `NicoChaima72/sorteatelo` — plataforma **Sortéatelo** (`sorteatelo.cl`, ADR-0014). Codename histórico: `libros-iselk` (aún el nombre de la carpeta local y de recursos de infra dev como la DB local; el bucket R2 y el OAuth client se llaman `sortealo-dev`).
 
-**SaaS multi-tenant de tiendas con sorteo** (pivote 2026-07-16, ADR-0005): Organizadores crean su cuenta, configuran su Tienda sobre una plantilla (logo/colores/textos — NO builder visual), suben productos digitales (MVP: PDF), montan su sorteo promocional y venden — cada tienda en su **subdominio**, cobrando con **su propia cuenta de Flow** (BYO-Flow). La autora ARMY original del encargo es el **tenant #1 / piloto**, y su tienda operativa es un hito con fecha propia (F07 del roadmap). Lo desarrolla y opera un freelancer (el **Operador de plataforma**).
+**SaaS multi-tenant de tiendas con sorteo** (pivote 2026-07-16, ADR-0005): Organizadores crean su cuenta, configuran su Tienda sobre una plantilla (logo/colores/textos — NO builder visual), suben productos digitales (hoy: PDF), montan su sorteo promocional y venden — cada tienda en su **subdominio**, cobrando con **su propia cuenta de Flow** (BYO-Flow). La autora ARMY original del encargo es el **tenant #1 / piloto**, y su tienda operativa es un hito con fecha propia (F07 del roadmap). Lo desarrolla y opera un freelancer (el **Operador de plataforma**).
 
 T3 stack: Next.js 14 (pages router) + tRPC 11 + NextAuth 4 (Google OAuth para Organizadores) + Prisma 5 + PostgreSQL + **Mantine 7** (ADR-0011 — reemplazó a shadcn/ui) + Tailwind acotado a utilities de layout.
 
 ## Propósito y alcance
 
 - **Qué es**: plataforma multi-tenant — storefront por subdominio (catálogo + carrito + checkout Flow por tenant) + entrega segura de PDFs + sorteo por tienda + panel de Organizador + self-service de alta + panel del Operador.
-- **Principio rector**: sigue siendo **simple y barato** de construir y mantener. La plataforma NUNCA mueve plata de terceros (ADR-0006). No sobre-ingenierizar; MVP funcional sobre features avanzadas; el piloto (F07) antes que el self-service (F08).
+- **Principio rector**: sigue siendo **simple y barato** de construir y mantener. La plataforma NUNCA mueve plata de terceros (ADR-0006). No sobre-ingenierizar; funcionalidad sólida sobre features avanzadas; el piloto (F07) antes que el self-service (F08). **El producto ya superó la etapa MVP (decisión del usuario, 2026-07-25): no justificar ni acotar decisiones «porque esto es un MVP»** — las features nuevas se diseñan como producto en maduración.
 - **Decisiones cerradas**: ver `docs/adr/` — Flow server-side (0001), entrega por URL firmada (0002), sin cuentas de comprador (0004), multi-tenant por `tenantId` en DB compartida (0005), BYO-Flow con credenciales cifradas (0006), resolución por subdominio (0007), responsabilidad legal del sorteo = del Organizador (0008), storage Cloudflare R2 (0009), correo Resend (0010). **Hermes (ADR-0003) fue RETIRADO del producto el 2026-07-17** por decisión del usuario — no construir features de copy IA.
 - **Decisiones abiertas**: ver `docs/decisiones-abiertas.md` (#6 marca de agua — la única abierta; #4 dominio → `sorteatelo.cl` ADR-0014, #5 hosting → Vercel + Supabase ADR-0015). **No las cierres sin consultar al usuario.**
 - **Vocabulario del dominio**: `CONTEXT.md` (Tienda/`Tenant`, Organizador, Operador, `Product`, `FlowCredential`…). Roadmap vigente: `tasks/26-07-16-saas-roadmap.md`.
-- **Fuera de alcance (MVP)**: builder visual de tiendas, split de pagos / custodia de fondos, dominios custom por tenant, herramientas de copy IA (Hermes — retirado del producto), Mercado Pago directo, boletas SII automáticas, cuentas/login de compradores.
+- **Fuera de alcance (por ahora)**: builder visual de tiendas, split de pagos / custodia de fondos, dominios custom por tenant, herramientas de copy IA (Hermes — retirado del producto), Mercado Pago directo, boletas SII automáticas, cuentas/login de compradores.
 - **Legal/tributario**: cada Organizador responde por lo suyo (Inicio de Actividades SII, boleta, IVA 19%, bases del sorteo). La plataforma exige ToS + bases + muestra disclaimer (ADR-0008); validación por abogado pendiente antes del go-live público (F10).
 
 ## Reglas de oro del dominio

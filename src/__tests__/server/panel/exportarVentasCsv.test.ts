@@ -61,7 +61,6 @@ const dec = (v: string) => new Prisma.Decimal(v);
 
 const acceso = (tenantIds: string[]): AccesoPanel => ({
   userId: "u1",
-  esOperador: false,
   tenantIds,
   tenantIdDelHost: tenantIds[0] ?? "AJENO",
 });

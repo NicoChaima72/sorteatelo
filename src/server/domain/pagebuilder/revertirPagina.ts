@@ -6,7 +6,7 @@ import { DomainError } from "~/server/domain/errors";
 
 /**
  * ROLLBACK del page builder (F12/D4, ADR-0016): copia el Documento de una `revision` publicada vieja
- * al BORRADOR (no al publicado). El Operador la revisa y RE-PUBLICA (D4) — publicar sigue siendo acción
+ * al BORRADOR (no al publicado). La Organizadora la revisa y RE-PUBLICA (D4) — publicar sigue siendo acción
  * humana explícita (I6): revertir NO cambia lo que ven los visitantes hasta que se publique de nuevo.
  *
  * Tenancy (I1): `tenantId` resuelto server-side; la revisión se busca por `(tenantId, slug, revision)`.
@@ -42,8 +42,8 @@ export async function revertirPagina({
 
   // Revalida el snapshot (defensa: siempre parsea, se guardó ya válido) y lo copia al BORRADOR.
   const doc = parsearDocumento(snapshot.documento);
-  // Bump INCONDICIONAL del lock (EXCEPCIÓN intencional a I10, NIT-2): el rollback es un override del
-  // Operador que invalida cualquier expectedVersion pendiente. Se captura el `version` REAL grabado
+  // Bump INCONDICIONAL del lock (EXCEPCIÓN intencional a I10, NIT-2): el rollback es un override de
+  // quien edita, que invalida cualquier expectedVersion pendiente. Se captura el `version` REAL grabado
   // (el `increment` es atómico en SQL) para no reportar un valor stale si hubo edición concurrente.
   const actualizada = await db.storefrontPage.update({
     where: { tenantId_slug: { tenantId, slug } },

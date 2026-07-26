@@ -36,7 +36,6 @@ function fakeDb(productos: ProductoFake[]) {
 const dec = (v: string) => new Prisma.Decimal(v);
 const acceso = (tenantIds: string[]): AccesoPanel => ({
   userId: "u1",
-  esOperador: false,
   tenantIds,
   // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
   // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).
@@ -66,7 +65,7 @@ describe("domain/panel/listarProductosDelPanel (fake db, tenant-scoped)", () => 
   });
 
   // panel.productos.listar.002 — sin membresía ⇒ FORBIDDEN (fail-closed, nunca lista global)
-  it("sin membresía y sin rol Operador ⇒ FORBIDDEN (no devuelve una lista global)", async () => {
+  it("sin membresía ⇒ FORBIDDEN (no devuelve una lista global)", async () => {
     await expect(
       listarProductosDelPanel({ db: fakeDb(PRODUCTOS), acceso: acceso([]) }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });

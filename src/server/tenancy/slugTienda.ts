@@ -8,7 +8,7 @@ import { esSlugValido } from "~/server/tenancy/parsearHost";
  * reimplementa, para que la validación del alta y la resolución del host nunca
  * se desincronicen (drift que advirtió F01-B). Este módulo solo agrega la capa de
  * **reservados**: labels que son DNS-válidos pero que la plataforma se reserva
- * (apex/www, endpoints, el propio panel del Operador). La **unicidad** NO vive
+ * (apex/www, endpoints, rutas históricas de la plataforma). La **unicidad** NO vive
  * acá: la garantiza el `@unique` de `Tenant.slug` en la DB (colisión ⇒ CONFLICT).
  */
 
@@ -25,6 +25,8 @@ export const SLUGS_RESERVADOS: ReadonlySet<string> = new Set([
   "admin",
   "app",
   "panel",
+  // Se conserva aunque el rol Operador de plataforma ya no exista: sacarlo LIBERARÍA un
+  // subdominio que hasta hoy estaba bloqueado, y eso es un cambio de comportamiento, no una limpieza.
   "operador",
   "mail",
   "email",

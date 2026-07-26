@@ -141,6 +141,10 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   cambio se ve en `autora.localhost:3001`. Sin/mal Bearer ⇒ 401. (Plan F06 E2E — page-builder) —
   *implementer verificó vía curl: 401 sin Bearer, `initialize` OK (serverInfo sorteatelo-pagebuilder),
   `tools/list` devuelve las 10 tools. Falta el round-trip mutar→publicar→ver-en-subdominio con browser-verify.*
+  > ⚠ **NO RE-EJECUTAR — superficie RETIRADA 2026-07-25 (ADR-0023).** El Editor MCP murió entero
+  > (`/api/mcp`, las 12 tools y `MCP_OPERADOR_TOKEN`): hoy esa ruta responde **404**, no 401. El
+  > round-trip pendiente ya no aplica — el Borrador se edita desde el editor visual del panel y su
+  > asistente de IA. El 404 se verifica en `tasks/e2e-plataforma-retiro-operador.md#retiro.mcp.001`.
 
 - [x] **storefront.campos.render.001** — ✅ 2026-07-26 (feature-tester, Playwright, `autora`; el sub-punto
   «un campo desactivado desaparece tras recargar» quedó sin ejercer en vivo — cubierto por

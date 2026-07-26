@@ -17,11 +17,10 @@ import {
  * I4: un logueado NO miembro jamás recibe chrome del admin de una tienda ajena — rebota al
  * storefront ANTES de que se renderice nada del panel.
  *
- * D11 (2026-07-25): el rol **Operador de plataforma NO es excepción** — el panel de Organizador es
- * por membresía y nada más. Por eso la entrada del guard ya ni siquiera TIENE un flag Operador: la
- * excepción no se puede reintroducir por descuido. La red equivalente en la capa de datos (un
- * `AccesoPanel` con `esOperador: true` sobre un host ajeno ⇒ `FORBIDDEN`) vive en
- * `tenantDelHost.test.ts::panel.host.003`.
+ * D11 (2026-07-25): **ningún rol es excepción** — el panel de Organizador es por membresía y nada
+ * más. Por eso la entrada del guard ya ni siquiera TIENE un flag de rol: la excepción no se puede
+ * reintroducir por descuido. La red equivalente en la capa de datos (un `AccesoPanel` sobre un host
+ * ajeno ⇒ `FORBIDDEN`) vive en `tenantDelHost.test.ts::panel.host.002`.
  */
 
 const ORIGEN = { protocolo: "https:", apex: "sorteatelo.cl" };
@@ -69,8 +68,8 @@ describe("panel/guardAdmin — matriz de acceso (pura)", () => {
     });
   });
 
-  // panel.guard.003 — CUALQUIER logueado sin membresía en la tienda del host —incluido el Operador
-  // de plataforma (D11)— ⇒ storefront `/` del mismo subdominio (I4)
+  // panel.guard.003 — CUALQUIER logueado sin membresía en la tienda del host ⇒ storefront `/` del
+  // mismo subdominio (I4)
   it("logueado sin membresía rebota al storefront del mismo subdominio, sin chrome de admin", () => {
     const decision = decidirAccesoAdmin(
       entrada({
@@ -81,9 +80,9 @@ describe("panel/guardAdmin — matriz de acceso (pura)", () => {
     expect(decision).toEqual({ tipo: "redirect", destino: "/" });
   });
 
-  // panel.guard.004 — D11: NADIE entra sin membresía. Es el caso del Operador de plataforma, que
-  // antes tenía puerta de servicio a cualquier tienda: ahora la decisión depende solo de (zona,
-  // sesión, membresías) y su rol ni siquiera llega al guard (`EntradaAdmin` no lo declara).
+  // panel.guard.004 — D11: NADIE entra sin membresía. Antes existía un rol de plataforma con puerta
+  // de servicio a cualquier tienda: ahora la decisión depende solo de (zona, sesión, membresías) y no
+  // hay rol que llegue al guard (`EntradaAdmin` no declara ninguno).
   it("sin ninguna membresía tampoco entra al panel del subdominio: rebota al storefront", () => {
     expect(decidirAccesoAdmin(entrada({ haySesion: true, membresias: [] }))).toEqual({
       tipo: "redirect",

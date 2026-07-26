@@ -13,13 +13,8 @@ import { type Session } from "next-auth";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { env } from "~/env";
 import { getServerAuthSession } from "~/server/auth";
-import {
-  type AccesoPanel,
-  esOperador,
-  parsearAllowlist,
-} from "~/server/authPolicy";
+import { type AccesoPanel } from "~/server/authPolicy";
 import { db } from "~/server/db";
 import { origenDeRequest } from "~/server/pago/urlRetorno";
 import { cargarMembresiasCanonicas } from "~/server/panel/membresias";
@@ -268,20 +263,16 @@ export const tenantProcedure = t.procedure
   });
 
 /**
- * Panel (Organizador / Operador) procedure — el borde del panel de administración
- * (ADR-0005, F05). Exige sesión NextAuth (Google OAuth) y carga SERVER-SIDE el
- * `acceso`: quién es, si es Operador de plataforma (env `PLATFORM_OPERATOR_EMAILS`,
- * D4), y las Tiendas de las que es miembro (`TenantMembership`). Los use cases del
- * panel resuelven sobre qué Tienda operan con `resolverTenantDelPanel(ctx.acceso)`
- * — el `tenantId` con el que scopean TODA query sale del cruce entre el HOST
- * (server-authored) y la MEMBRESÍA, JAMÁS del input (I1; lección H1 de datawalt-app).
- * El flag `esOperador` NO autoriza acá (D11/ADR-0022): solo habilita el panel propio
- * del Operador (`operadorProcedure`), que es otra superficie.
+ * Panel (Organizador) procedure — el borde del panel de administración (ADR-0005, F05).
+ * Exige sesión NextAuth (Google OAuth) y carga SERVER-SIDE el `acceso`: quién es y las
+ * Tiendas de las que es miembro (`TenantMembership`). Los use cases del panel resuelven
+ * sobre qué Tienda operan con `resolverTenantDelPanel(ctx.acceso)` — el `tenantId` con el
+ * que scopean TODA query sale del cruce entre el HOST (server-authored) y la MEMBRESÍA,
+ * JAMÁS del input (I1; lección H1 de datawalt-app).
  *
- * NO gatea por membresía: un usuario logueado SIN membresía y sin rol Operador pasa el
- * procedure pero cualquier use case tira `FORBIDDEN` (fail-closed en la capa de datos,
- * D2/I2) y la UI muestra el empty state "sin tienda". Así `getAccesoActual` puede
- * decidir qué renderizar sin tirar el request.
+ * NO gatea por membresía: un usuario logueado SIN membresía pasa el procedure pero cualquier
+ * use case tira `FORBIDDEN` (fail-closed en la capa de datos, D2/I2) y la UI muestra el empty
+ * state "sin tienda". Así `getAccesoActual` puede decidir qué renderizar sin tirar el request.
  */
 export const panelProcedure = t.procedure
   .use(timingMiddleware)
@@ -299,10 +290,6 @@ export const panelProcedure = t.procedure
     const acceso: AccesoPanel = {
       userId: ctx.session.user.id,
       email: ctx.session.user.email ?? null,
-      esOperador: esOperador(
-        ctx.session.user.email,
-        parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS),
-      ),
       tenantIds: membresias.map((m) => m.tenantId),
       // La Tienda del SUBDOMINIO (ADR-0022): es la selección de tenant del panel, y es
       // server-authored (host + middleware), no input del cliente ⇒ no viola I1. Los use cases

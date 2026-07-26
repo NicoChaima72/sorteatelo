@@ -1,6 +1,8 @@
 # Página de tienda como documento JSON de dos niveles con registro Zod de widgets
 
 > **Estado: aceptado** (2026-07-17, visto bueno del usuario). Plan: `tasks/26-07-17-page-builder.md` (carril A). Origen: investigación multi-agente `.scratch/page-builder/investigacion-builder-profesional.md` (D1–D5).
+>
+> **Addendum 2026-07-25 — el Editor MCP de esta ADR fue RETIRADO** (ADR-0023). El documento JSON, el registro Zod, draft/published y el versionado siguen **intactos y vigentes**: lo que murió es uno de sus *editores*. El `/api/mcp` con sus 12 tools y el Bearer god-mode `MCP_OPERADOR_TOKEN` se borraron enteros al retirar el rol Operador de plataforma; los 3 helpers de solo-lectura que el asistente de IA consumía de ahí viven ahora en `src/server/domain/pagebuilder/catalogoDelEditor.ts`. Los editores vigentes son el **editor visual del panel** y su **asistente de IA**, ambos gateados por `TenantMembership`. La frase de más abajo *"cualquier editor (MCP, chat IA, drag-drop futuro) produce siempre documentos schema-válidos"* sigue siendo el argumento correcto — solo que el MCP ya no está en la lista. La **preview tokenizada** (`STOREFRONT_PREVIEW_TOKEN`) SÍ sobrevive: la usa el editor del panel (ver la deuda anotada en ADR-0023).
 
 El storefront pasa de una plantilla fija de secciones a una **Página de tienda por tenant definida por un documento JSON**, cuya fuente única de verdad estructural es un **registro Zod de discriminated unions** (`tipo → propsSchema + defaultProps + Componente + versión`).
 

@@ -137,7 +137,6 @@
     <tr><td><code>R2_PUBLIC_BUCKET</code> / <code>R2_PUBLIC_BASE_URL</code></td><td>Bucket público de assets (paso 8)</td><td>No secretas.</td></tr>
     <tr><td><code>RESEND_API_KEY</code></td><td>resend.com → API Keys</td><td>Secreta.</td></tr>
     <tr><td><code>FLOW_URL_CONFIRMATION</code></td><td><code>https://sorteatelo.cl/api/webhooks/flow</code></td><td>En prod ya no hay túnel — es la URL real.</td></tr>
-    <tr><td><code>PLATFORM_OPERATOR_EMAILS</code></td><td>correo del Operador</td><td>Fail-closed si falta.</td></tr>
   </table>
   <div class="peligro"><strong>La lección más importante del día:</strong> en Vercel las env vars <u>no</u> afectan al deployment que ya corre. Cambiaste una variable ⇒ <strong>Redeploy obligatorio</strong> (Deployments → menú ⋯ → Redeploy). Las <code>NEXT_PUBLIC_*</code> además se "hornean" en el build del cliente. Nos pasó dos veces: el deploy quedó construido segundos antes de guardar la variable y siguió botado con 500.</div>
 </section>

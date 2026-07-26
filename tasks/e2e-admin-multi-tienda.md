@@ -119,7 +119,12 @@ el plan referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tes
   `http://autora.lvh.me:3001` (NO `autora.autora.lvh.me`) y el ítem "Editor de la tienda" abre
   `http://autora.lvh.me:3001/editor`. Era el bug de `url-tienda.ts` que esta feature arregla.
 
-- [x] **admin.multitienda.007** ✅ 2026-07-25 — **REESCRITO 2026-07-25 (D11)**: el Operador de plataforma NO entra al
+- [x] **admin.multitienda.007** ✅ 2026-07-25 — **REESCRITO 2026-07-25 (D11)**:
+  > ⚠ **NO RE-EJECUTAR — escenario RETIRADO 2026-07-25 (ADR-0023).** Este check requiere una cuenta en
+  > `PLATFORM_OPERATOR_EMAILS`, env var que ya no existe: el rol Operador de plataforma se retiró entero
+  > (no hay flag, ni badge en el menú de cuenta, ni `/admin/operador`). Su garantía de fondo —un logueado
+  > sin membresía rebota al storefront— la cubre `admin.multitienda.002`. Se conserva como registro de lo
+  > que se verificó el 2026-07-25, no como instrucción ejecutable. el Operador de plataforma NO entra al
   panel de una tienda ajena. Con la cuenta de `PLATFORM_OPERATOR_EMAILS` (sin membresía en `prueba`), ir
   a `http://prueba.lvh.me:3001/admin` ⇒ el navegador termina en el STOREFRONT
   `http://prueba.lvh.me:3001/` — exactamente el mismo destino que un logueado cualquiera (check 002), sin

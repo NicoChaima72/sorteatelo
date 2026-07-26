@@ -1,5 +1,6 @@
 import {
   Alert,
+  Anchor,
   Button,
   Card,
   Divider,
@@ -29,6 +30,7 @@ import { type ReactNode } from "react";
 
 import { PanelCard } from "~/components/admin/panel-card";
 import { abrirTienda, urlDeTienda } from "~/components/admin/url-tienda";
+import { APP_CONFIG } from "~/config/app";
 import { api } from "~/utils/api";
 
 /**
@@ -334,7 +336,7 @@ export function ChecklistPublicacion() {
     );
   }
 
-  // Tienda suspendida por el Operador: sin acciones de publicación.
+  // Tienda suspendida: sin acciones de publicación.
   if (estadoTienda === "SUSPENDIDA") {
     return (
       <Alert
@@ -344,8 +346,15 @@ export function ChecklistPublicacion() {
         title="Tu tienda está suspendida"
       >
         <Text size="sm">
-          Un Operador de la plataforma suspendió tu tienda. Contáctalo para
-          reactivarla.
+          Mientras esté suspendida no aparece publicada y no puede vender.{" "}
+          <Anchor
+            size="sm"
+            href={`mailto:${APP_CONFIG.soporteEmail}`}
+            underline="always"
+          >
+            Escríbele al soporte de la plataforma
+          </Anchor>{" "}
+          para reactivarla.
         </Text>
       </Alert>
     );

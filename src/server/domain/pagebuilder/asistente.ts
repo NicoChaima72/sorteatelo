@@ -6,17 +6,17 @@ import { type PageDocument } from "~/lib/pagebuilder/schema";
 import { WIDGET_META, type WidgetTipo } from "~/lib/pagebuilder/widgets";
 import { DomainError } from "~/server/domain/errors";
 import { aplicarMutacionPagina } from "~/server/domain/pagebuilder/aplicarMutacionPagina";
+import {
+  listarOpcionesEstilo,
+  listarTiposWidget,
+  outlineDe,
+} from "~/server/domain/pagebuilder/catalogoDelEditor";
 import { getPagina } from "~/server/domain/pagebuilder/getPagina";
 import { type MutacionPagina } from "~/server/domain/pagebuilder/schemas";
-import {
-  mcpListStyleOptions,
-  mcpListWidgetTypes,
-  outlineDe,
-} from "~/server/mcp/tools";
 
 /**
  * Asistente de IA del editor (Tanda 3 F14/D21). Traduce lenguaje natural a las MISMAS mutaciones del
- * Documento de Página que el editor y el MCP — NUNCA HTML/CSS libre, NUNCA publicar, NUNCA efectos fuera
+ * Documento de Página que el editor — NUNCA HTML/CSS libre, NUNCA publicar, NUNCA efectos fuera
  * del documento de la página abierta (I-U6). El `LanguageModel` se INYECTA desde el composition root
  * (`~/server/ai/gateway`): este módulo jamás lee la env ni ve la API key (patrón FlowCredential ADR-0006).
  *
@@ -157,12 +157,12 @@ export function construirHerramientas({
     listar_widgets: tool({
       description: "Lista los tipos de sección disponibles y sus props por defecto.",
       inputSchema: z.object({}),
-      execute: () => mcpListWidgetTypes(),
+      execute: () => listarTiposWidget(),
     }),
     listar_estilos: tool({
       description: "Lista todas las opciones de estilo (fondos/espaciado/etc.) y de tema, con descripción.",
       inputSchema: z.object({}),
-      execute: () => mcpListStyleOptions(),
+      execute: () => listarOpcionesEstilo(),
     }),
 
     // ── Mutaciones del DOCUMENTO (whitelist; nunca publicar/chrome/páginas) ──

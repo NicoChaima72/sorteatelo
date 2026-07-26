@@ -10,7 +10,7 @@ import { DomainError } from "~/server/domain/errors";
  * hay flujo que publique implícitamente.
  *
  * `expectedVersion` opcional (lock del borrador): si se pasa y no coincide ⇒ `CONFLICT` (el borrador
- * cambió desde que el Operador lo revisó). El borrador se revalida (`parsearDocumento`) antes de
+ * cambió desde que se lo revisó). El borrador se revalida (`parsearDocumento`) antes de
  * publicar — defensa: nunca se publica un documento que no parsea. Guardar borrador NO toca published;
  * solo este use case lo hace.
  *
@@ -29,7 +29,7 @@ export async function publicarPagina({
   db: Pick<PrismaClient, "storefrontPage" | "storefrontPageVersion" | "$transaction">;
   tenantId: string;
   expectedVersion?: number;
-  /** Etiqueta/email del que publica, para el snapshot de auditoría (F12; MVP: "operador"). */
+  /** Email de quien publica (la Organizadora), para el snapshot de auditoría (F12). */
   publicadoPor?: string;
   slug?: string;
 }): Promise<{ publishedAt: Date; version: number; revision: number }> {

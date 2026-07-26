@@ -1,5 +1,4 @@
 import { checkoutRouter } from "~/server/api/routers/checkout";
-import { operadorRouter } from "~/server/api/routers/operador";
 import { pagebuilderRouter } from "~/server/api/routers/pagebuilder";
 import { panelRouter } from "~/server/api/routers/panel";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
@@ -12,7 +11,6 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 export const appRouter = createTRPCRouter({
   checkout: checkoutRouter,
   panel: panelRouter,
-  operador: operadorRouter,
   pagebuilder: pagebuilderRouter,
 });
 

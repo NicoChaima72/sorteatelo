@@ -34,7 +34,8 @@ La **unidad de aislamiento** del SaaS: una tienda de productos digitales con sor
 ### Ciclo de vida de la Tienda
 Los estados por los que pasa una [[Tienda]]: **alta** (creada) → **configuración** (el Organizador
 carga productos, sorteo, credenciales, marca) → **publicada** (visible y vendiendo en su subdominio)
-→ **suspendida** (retirada de operación por el Operador o por incumplimiento). Solo una Tienda
+→ **suspendida** (retirada de operación por incumplimiento; hoy la aplica el [[Operador de
+plataforma]] por DB directa, sin superficie en el producto — ADR-0023). Solo una Tienda
 **publicada** vende; una **suspendida** no resuelve su subdominio hacia el storefront.
 
 ### Organizador
@@ -44,9 +45,14 @@ configura su tienda sobre la [[Plantilla]], sube sus [[Producto]]s, conecta su p
 _Evitar_: admin (ambiguo), vendedor, autora, tenant (para la persona — `Tenant` es la Tienda).
 
 ### Operador de plataforma
-Quien administra la [[Plataforma]] entera (hoy: el freelancer que la desarrolla y mantiene). Da de
-alta, supervisa y suspende [[Tienda]]s; no opera las tiendas de los Organizadores. _Evitar_:
-superadmin, root.
+Quien administra la [[Plataforma]] entera (hoy: el freelancer que la desarrolla y mantiene): la
+infraestructura (cuenta R2, Cloudflare, deploy, DB) y las operaciones que no tienen superficie en el
+producto — hoy, suspender o reactivar una [[Tienda]] por UPDATE directo a la DB. **Es una persona
+operativa, NO un sujeto autorizado dentro de la aplicación**: desde ADR-0023 no existe rol, allowlist
+ni flag que le dé poder en el código — la única autorización es la membresía User↔Tienda, así que
+para entrar a un panel necesita ser [[Organizador]] de esa Tienda como cualquiera. La supervisión
+cross-tienda con superficie propia (**superadmin**) es una decisión diferida en ADR-0023.
+_Evitar_: superadmin o root (para la persona de hoy), "el rol Operador" (ya no existe en código).
 
 ### Autora (tenant piloto)
 La clienta original del proyecto single-tenant. Tras el pivote es la **primera [[Organizador]]a**
@@ -134,8 +140,9 @@ La instancia de un [[Widget]] que flota **fuera** del flujo vertical de la pági
 arriba, botón flotante de WhatsApp. _Evitar_: popup, modal.
 
 ### Borrador (de la Página)
-El estado editable del [[Documento de página]]: TODAS las ediciones (Operador vía MCP, chat futuro)
-ocurren sobre el Borrador. Invisible para el [[Comprador]]; visible solo vía preview autorizada.
+El estado editable del [[Documento de página]]: TODAS las ediciones (el [[Organizador]] desde el
+editor visual, o su asistente de IA) ocurren sobre el Borrador. Invisible para el [[Comprador]];
+visible solo vía preview autorizada.
 _Evitar_: "guardar" como sinónimo de publicar.
 
 ### Publicar (la Página)
@@ -148,10 +155,13 @@ El catálogo cerrado y versionado de los [[Widget]]s que existen, con su validac
 fuente de qué puede aparecer en un [[Documento de página]] (ADR-0016). Un contenido que el Registro
 no reconoce no se guarda ni se renderiza. _Evitar_: whitelist informal, lista de componentes.
 
-### Editor MCP
-El primer editor de la [[Página de tienda]]: una superficie de herramientas tipadas con la que el
-[[Operador de plataforma]] (y después un chat IA) edita el [[Borrador]] por operaciones sobre
-[[Sección]]es — nunca HTML, nunca publica por sí solo. _Evitar_: builder, editor visual.
+### Editor MCP (RETIRADO)
+El primer editor de la [[Página de tienda]]: una superficie de herramientas tipadas que editaba el
+[[Borrador]] por operaciones sobre [[Sección]]es — nunca HTML, nunca publicaba por sí solo.
+**Se retiró entero el 2026-07-25** (ADR-0023) porque su auth era un token god-mode compartido. El
+término queda para leer código e historia; su reemplazo —un MCP con tokens per-usuario scopeados a
+la membresía— es una decisión **diferida**. Hoy el Borrador se edita desde el **editor visual** del
+panel y su **asistente de IA**. _Evitar_: usarlo en presente.
 
 ---
 

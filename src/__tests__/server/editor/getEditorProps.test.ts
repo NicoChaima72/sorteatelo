@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Tests del gate SSR del editor (`getPropsEditor`, catálogo-v2 F09/D6). Es el borde de AUTORIZACIÓN de
  * la ruta `/editor`: resuelve la Tienda por HOST (I1), exige sesión (cookie wildcard) y autoriza por
- * `puedoEditar` (membresía/Operador server-side, I7). FAIL-CLOSED: host sin tienda, sin sesión, tenant
- * inexistente o sin permiso ⇒ `notFound` (404 NEUTRAL, indistinguibles — no delata que hay un editor).
- * El `previewToken` (env) SOLO llega al cliente tras autorizar. Se mockean las 4 dependencias de I/O.
+ * `puedoEditar` (MEMBRESÍA server-side, I7 — ya no hay god-mode por rol). FAIL-CLOSED: host sin tienda,
+ * sin sesión, tenant inexistente o sin permiso ⇒ `notFound` (404 NEUTRAL, indistinguibles — no delata
+ * que hay un editor). El `previewToken` (env) SOLO llega al cliente tras autorizar. Se mockean las 4
+ * dependencias de I/O.
  */
 
 vi.mock("~/env", () => ({
-  env: { STOREFRONT_PREVIEW_TOKEN: "tok-preview", PLATFORM_OPERATOR_EMAILS: "" },
+  env: { STOREFRONT_PREVIEW_TOKEN: "tok-preview" },
 }));
 vi.mock("~/server/db", () => ({ db: { tenant: { findUnique: vi.fn() } } }));
 // `getServerAuthSession` (F09d): el gate del editor lee la sesión real de NextAuth (la impersonación de

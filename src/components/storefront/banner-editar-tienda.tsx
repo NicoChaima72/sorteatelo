@@ -8,7 +8,7 @@ import { api } from "~/utils/api";
 
 /**
  * Banner "Editar mi tienda" (F09/D11, ADR-0019; acciones actualizadas en F09c). Aparece SOLO para la
- * Organizadora (o el Operador) logueada que visita SU tienda, y SOLO **post-hidratación**: monta con
+ * Organizadora logueada que visita SU tienda, y SOLO **post-hidratación**: monta con
  * `useEffect` y consulta `pagebuilder.puedoEditar` (autorización por `TenantMembership` server-side, I7)
  * recién ahí. En SSR y hasta hidratar no existe ⇒ el HTML anónimo es idéntico para todos ⇒ CDN-cacheable
  * (riesgo R5).

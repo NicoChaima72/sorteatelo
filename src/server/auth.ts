@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
     // Sin gate en el signIn (D2, ADR-0005): tras el pivote SaaS la AUTENTICACIÓN es
     // abierta — cualquier cuenta Google obtiene sesión (el adapter crea su `User`).
     // La AUTORIZACIÓN real es fail-closed en la capa de datos: sin `TenantMembership`
-    // y sin rol Operador, ningún procedure del panel devuelve ni muta nada (FORBIDDEN),
+    // ningún procedure del panel devuelve ni muta nada (FORBIDDEN),
     // y la UI muestra el empty state "tu cuenta no tiene una tienda asignada". Un `User`
     // huérfano es inocuo: la seguridad vive donde están los datos, no en la puerta.
     // Prepara F08 (self-service). No se reintroduce un gate de plataforma sin decidirlo.

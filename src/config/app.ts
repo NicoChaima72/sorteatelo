@@ -13,6 +13,12 @@ export const APP_CONFIG = {
   tagline: "Vende lo que hiciste y sortéalo entre quienes te compraron.",
   /** Dominio raíz de la plataforma (los tenants viven en sus subdominios). */
   dominio: "sorteatelo.cl",
+  /**
+   * Canal de soporte de la plataforma — ÚNICA fuente para todo copy que diga "escríbele al
+   * soporte". HOY es el correo personal del dueño de la plataforma (decisión 2026-07-25);
+   * unificar a un correo serio + WhatsApp es tarea abierta (`.scratch/soporte-canales/`).
+   */
+  soporteEmail: "nikochaima72@gmail.com",
 } as const;
 
 export type AppConfig = typeof APP_CONFIG;

@@ -6,7 +6,7 @@
  *
  * Los tres estados con sesión resuelta:
  *  - anónimo ⇒ `login` (enlace al apex `/login?callbackUrl=<tienda actual>`, F09b/F08).
- *  - logueado y DUEÑA de esta tienda (`puedeEditar`, autz server-side por `TenantMembership`/Operador)
+ *  - logueado y DUEÑA de esta tienda (`puedeEditar`, autz server-side por `TenantMembership`)
  *    ⇒ `editar` (→ `/editor` relativo, misma tienda).
  *  - logueado pero NO dueña ⇒ `panel` (→ apex `/admin`).
  *

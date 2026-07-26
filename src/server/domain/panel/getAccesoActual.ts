@@ -5,8 +5,8 @@ import { type AccesoPanel } from "~/server/authPolicy";
 /**
  * Use case del panel (F05): resuelve el ACCESO del usuario logueado para que el layout
  * decida qué renderizar. Devuelve las Tiendas de las que es miembro (nombre + slug para
- * mostrar, `colorPrimario` para el swatch del chip de tienda del chrome — admin-marca D7),
- * la Tienda ACTIVA (la del subdominio) y si es Operador de plataforma.
+ * mostrar, `colorPrimario` para el swatch del chip de tienda del chrome — admin-marca D7)
+ * y la Tienda ACTIVA (la del subdominio).
  *
  * Aislamiento (I1/ADR-0005): las Tiendas salen de `acceso.tenantIds` (membresías
  * resueltas SERVER-SIDE en `panelProcedure`), nunca del input. Un usuario sin membresía
@@ -20,9 +20,9 @@ import { type AccesoPanel } from "~/server/authPolicy";
  * en el chip podía no ser la tienda sobre la que se operaba. Prohibido reintroducirlo.
  *
  * TIENDA ACTIVA (ADR-0022): es la del HOST, no `tenants[0]` — y SIEMPRE una de `tenants`
- * (D11, 2026-07-25): el panel de Organizador es por membresía, sin excepción para el rol
- * Operador de plataforma, así que un host fuera de la membresía no enciende tienda activa
- * (ni filtra su nombre a quien no la administra). En el apex tampoco hay tienda activa.
+ * (D11, 2026-07-25): el panel de Organizador es por membresía y no hay rol que lo saltee,
+ * así que un host fuera de la membresía no enciende tienda activa (ni filtra su nombre a
+ * quien no la administra). En el apex tampoco hay tienda activa.
  */
 export async function getAccesoActual({
   db,
@@ -33,7 +33,6 @@ export async function getAccesoActual({
 }): Promise<{
   tenants: TiendaDelAcceso[];
   tiendaActiva: TiendaDelAcceso | null;
-  esOperador: boolean;
 }> {
   // Solo las Tiendas de la membresía: son las únicas que este usuario puede administrar (D11) y,
   // por lo tanto, las únicas que el chrome puede mostrar.
@@ -59,13 +58,7 @@ export async function getAccesoActual({
   const tiendaActiva =
     tenants.find((t) => t.id === acceso.tenantIdDelHost) ?? null;
 
-  return {
-    tenants,
-    tiendaActiva,
-    // El rol de plataforma NO da acceso al panel de otras tiendas (D11); sigue expuesto porque el
-    // chrome lo usa para ofrecer el panel propio del Operador (`/admin/operador`).
-    esOperador: acceso.esOperador,
-  };
+  return { tenants, tiendaActiva };
 }
 
 /** Una Tienda tal como la muestra el chrome del panel (chip, switcher, "Ver mi tienda"). */

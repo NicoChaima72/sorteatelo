@@ -17,11 +17,10 @@ import { resolverTenantAdminDesdeHost } from "~/server/tenancy/resolverTenantAdm
  * CABLEADO: junta los hechos (host → Tienda, sesión, membresías) y delega la política a
  * `decidirAccesoAdmin`, que es pura y testeada. Acá no hay reglas propias.
  *
- * El rol Operador de plataforma NO participa (D11, 2026-07-25): el panel de Organizador se
- * administra por membresía y nada más, así que este borde ni siquiera lee
- * `PLATFORM_OPERATOR_EMAILS`.
+ * No hay rol de plataforma que participe (D11, 2026-07-25; ADR-0023): el panel de Organizador se
+ * administra por membresía y nada más — no existe env var ni flag de rol que este borde pudiera leer.
  *
- * Reemplaza a `requireSession` en las 6 páginas de `src/pages/admin/`: con el panel scopeado por
+ * Reemplaza a `requireSession` en las 5 páginas de `src/pages/admin/`: con el panel scopeado por
  * subdominio, "hay sesión" ya no alcanza — hay que saber QUÉ tienda administra este host y si esta
  * persona puede. `requireSession` sobrevive para páginas que solo necesiten sesión.
  *

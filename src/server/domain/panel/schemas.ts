@@ -3,8 +3,7 @@ import { z } from "zod";
 /**
  * Inputs del panel de Organizadores (F05). NINGUNO lleva `tenantId`: la Tienda sobre la
  * que se opera se resuelve SERVER-SIDE con `resolverTenantDelPanel(ctx.acceso)` a
- * partir de la membresía / flag Operador (I1/ADR-0005; lección H1 de datawalt-app). El
- * selector multi-tienda del Operador llega con F08 (S8).
+ * partir de la MEMBRESÍA (I1/ADR-0005; lección H1 de datawalt-app).
  */
 
 /** Precio en pesos chilenos ENTEROS como string (se persiste como `Decimal`, nunca `number`). */

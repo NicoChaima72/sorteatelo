@@ -14,11 +14,10 @@ import { listarProductosDelPanel } from "~/server/domain/panel/listarProductosDe
  * membresía, se pudiera VER una tienda y OPERAR otra. Sin tienda en el host (apex, o host que no
  * resuelve) el panel no opera nada: FORBIDDEN, jamás "la primera que encuentre".
  *
- * D11 (2026-07-25): el rol **Operador de plataforma tampoco abre esta puerta**. `esOperador: true`
- * ya no selecciona tiendas ajenas en el panel de Organizador — es la red de seguridad de la capa de
- * datos que acompaña al guard de páginas (`guardAdmin.test.ts`). La política pura
- * `resolverTenantAutorizado` NO cambió (I2): sigue reconociendo al Operador; lo que cambió es que
- * `resolverTenantDelPanel` no le declara ese rol.
+ * D11 (2026-07-25) + retiro del rol Operador de plataforma: NO existe rol que abra esta puerta. La
+ * política pura `resolverTenantAutorizado` ya no tiene ninguna rama por fuera de la membresía, así
+ * que este cableado es la red de seguridad de la capa de datos que acompaña al guard de páginas
+ * (`guardAdmin.test.ts`), sin excepciones que declarar.
  */
 
 interface ProductoFake {
@@ -62,7 +61,6 @@ const PRODUCTOS = [producto("p-a", "A"), producto("p-b", "B"), producto("p-c", "
 const dosMembresias = (over: Partial<AccesoPanel> = {}): AccesoPanel => ({
   userId: "u1",
   email: "org@x.cl",
-  esOperador: false,
   tenantIds: ["A", "B"],
   tenantIdDelHost: null,
   ...over,
@@ -78,7 +76,7 @@ describe("panel — el use case opera la Tienda del HOST (fake db)", () => {
     expect(res.map((p) => p.id)).toEqual(["p-b"]);
   });
 
-  // panel.host.002 — host de tienda AJENA (no miembro, no Operador) ⇒ FORBIDDEN
+  // panel.host.002 — host de tienda AJENA (no miembro) ⇒ FORBIDDEN, sea quien sea
   it("con el host de una tienda ajena tira FORBIDDEN", async () => {
     await expect(
       listarProductosDelPanel({
@@ -86,24 +84,6 @@ describe("panel — el use case opera la Tienda del HOST (fake db)", () => {
         acceso: dosMembresias({ tenantIdDelHost: "C" }),
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-
-  // panel.host.003 — D11: el Operador de plataforma con host ajeno TAMPOCO opera esa tienda. El
-  // panel de Organizador es por membresía; su rol solo vale en su propio panel (`/admin/operador`).
-  it("el Operador con el host de una tienda ajena tira FORBIDDEN, igual que cualquiera", async () => {
-    await expect(
-      listarProductosDelPanel({
-        db: fakeDb(PRODUCTOS),
-        acceso: dosMembresias({ esOperador: true, tenantIdDelHost: "C" }),
-      }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-
-    // …y sobre una tienda de la que SÍ es miembro opera con normalidad (no se rompió el caso bueno).
-    const res = await listarProductosDelPanel({
-      db: fakeDb(PRODUCTOS),
-      acceso: dosMembresias({ esOperador: true, tenantIdDelHost: "B" }),
-    });
-    expect(res.map((p) => p.id)).toEqual(["p-b"]);
   });
 
   // panel.host.004 — sin tienda en el host (apex) ⇒ fail-closed: el fallback `tenantIds[0]` MURIÓ
@@ -115,11 +95,9 @@ describe("panel — el use case opera la Tienda del HOST (fake db)", () => {
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    // …y tampoco para el Operador, que sin host no tiene tienda "por defecto".
+    // …y la política pura tampoco inventa una tienda "por defecto" sin host.
     expect(() =>
-      resolverTenantDelPanel(
-        dosMembresias({ esOperador: true, tenantIdDelHost: null }),
-      ),
+      resolverTenantDelPanel(dosMembresias({ tenantIdDelHost: null })),
     ).toThrowError();
   });
 });

@@ -20,7 +20,6 @@ const acceso = (
 ): AccesoPanel => ({
   userId: "u1",
   email: "org@x.cl",
-  esOperador: false,
   tenantIds,
   tenantIdDelHost,
 });

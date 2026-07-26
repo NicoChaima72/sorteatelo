@@ -25,8 +25,8 @@ import { esSlugReservado } from "~/server/tenancy/slugTienda";
  * - **D8 (1 Tienda por Organizador)**: recontar las membresías del `userId` DENTRO de la tx.
  *   El snapshot `acceso.tenantIds` (cargado en `panelProcedure` ANTES de la tx) solo sirve de
  *   fast-fail; NO hay `@unique` de DB que lo respalde (`TenantMembership` es unique por
- *   `[userId, tenantId]`, no por `userId` solo — a propósito: el Operador podría sumar un user a
- *   varias Tiendas post-MVP). El recuento en la tx es el guard autoritativo de D8.
+ *   `[userId, tenantId]`, no por `userId` solo — a propósito: un mismo user puede tener membresía
+ *   en varias Tiendas post-MVP). El recuento en la tx es el guard autoritativo de D8.
  */
 export async function crearTienda({
   db,
@@ -47,7 +47,7 @@ export async function crearTienda({
     );
   }
 
-  // 2) Reservados de plataforma (apex/www, endpoints, panel del Operador).
+  // 2) Reservados de plataforma (apex/www, endpoints, rutas históricas).
   if (esSlugReservado(slug)) {
     throw new DomainError(
       "INVALID",

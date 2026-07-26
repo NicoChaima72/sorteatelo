@@ -6,8 +6,8 @@ import { exigirEditor } from "~/server/api/routers/pagebuilder";
 
 /**
  * Tests del gate de edición `exigirEditor` (catálogo-v2 F09/D6). Es el borde de AUTORIZACIÓN de todas
- * las mutaciones del editor: exige que el que mira PUEDA editar la Tienda del host (membresía o
- * Operador, resueltos SERVER-SIDE, I1/I7 — la cookie wildcard es identidad, no autorización). Anónimo o
+ * las mutaciones del editor: exige que el que mira PUEDA editar la Tienda del host (MEMBRESÍA,
+ * resuelta SERVER-SIDE, I1/I7 — la cookie wildcard es identidad, no autorización). Anónimo o
  * miembro de OTRO tenant ⇒ `FORBIDDEN`, sin tocar nada.
  */
 
@@ -44,7 +44,7 @@ describe("pagebuilder/exigirEditor — gate de edición server-side (F09)", () =
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  // page.editor.gate.002 — logueado pero SIN membresía de esta Tienda (ni Operador) ⇒ FORBIDDEN
+  // page.editor.gate.002 — logueado pero SIN membresía de esta Tienda ⇒ FORBIDDEN
   it("miembro de OTRO tenant (sin membresía acá) ⇒ FORBIDDEN", async () => {
     const db = fakeDb([{ tenantId: "t-OTRO", userId: "u1" }]); // membresía de otra tienda
     await expect(

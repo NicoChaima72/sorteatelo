@@ -199,14 +199,19 @@ describe("pagebuilder/publicarPagina (draft→published atómico)", () => {
     const { db, getPublished, getDraft, getVersiones } = fakeDb({ version: 3 });
     // Antes de publicar: published era null (guardar borrador no lo tocó).
     expect(getPublished()).toBeNull();
-    const res = await publicarPagina({ db, tenantId: "t1", expectedVersion: 3, publicadoPor: "operador" });
+    const res = await publicarPagina({
+      db,
+      tenantId: "t1",
+      expectedVersion: 3,
+      publicadoPor: "duena@tienda.cl",
+    });
     expect(res.publishedAt).toBeInstanceOf(Date);
     expect(res.revision).toBe(1); // primer snapshot
     // published quedó igual al borrador vigente.
     expect(getPublished()).toEqual(getDraft());
     // Se appendeó un snapshot (F12) con el documento publicado.
     expect(getVersiones()).toHaveLength(1);
-    expect(getVersiones()[0]!.publishedBy).toBe("operador");
+    expect(getVersiones()[0]!.publishedBy).toBe("duena@tienda.cl");
   });
 
   // page.uc.007 — la revisión es monotónica: 2ª publicación ⇒ revision 2 (append-only)

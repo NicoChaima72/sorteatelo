@@ -1,10 +1,8 @@
 import { type PrismaClient } from "@prisma/client";
 import { type Session } from "next-auth";
 
-import { env } from "~/env";
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
-import { esOperador, parsearAllowlist } from "~/server/authPolicy";
 import { asistenteDisponible, crearModeloAsistente } from "~/server/ai/gateway";
 import { aplicarMutacionPagina } from "~/server/domain/pagebuilder/aplicarMutacionPagina";
 import { asistente } from "~/server/domain/pagebuilder/asistente";
@@ -56,7 +54,7 @@ import { crearStoragePublicoDeEnv } from "~/server/storage/storagePublicoDeEnv";
  * (`ctx.session`) viene de la cookie wildcard (ADR-0019) — puede ser null (visitante anónimo).
  *
  * Las mutaciones de edición (subida de imágenes F08; guardar/publicar/etc. F09/F10) van GATEADAS por
- * `exigirEditor`: membresía o Operador resueltos server-side (I1/I7 — la cookie es identidad, no
+ * `exigirEditor`: la MEMBRESÍA resuelta server-side (I1/I7 — la cookie es identidad, no
  * autorización). Anónimo o miembro de OTRO tenant ⇒ FORBIDDEN neutral, sin efecto.
  */
 
@@ -74,12 +72,10 @@ export async function exigirEditor(ctx: {
   if (!user) {
     throw new DomainError("FORBIDDEN", "Necesitas iniciar sesión para editar esta tienda.");
   }
-  const esOp = esOperador(user.email, parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS));
   const { puedeEditar } = await puedoEditar({
     db: ctx.db,
     tenantId: ctx.tenant.id, // del host (I1), no del input
     userId: user.id,
-    esOperador: esOp,
   });
   if (!puedeEditar) {
     throw new DomainError("FORBIDDEN", "No administras esta tienda.");
@@ -91,21 +87,16 @@ export const pagebuilderRouter = createTRPCRouter({
   /**
    * ¿El que mira puede editar esta Tienda? (banner "Editar mi tienda", F09). Anónimo ⇒ false (y así
    * la respuesta no depende de sesión para el 99% de los visitantes). Con sesión ⇒ autorización por
-   * `TenantMembership`/Operador server-side (la cookie es identidad, no autorización, I7).
+   * `TenantMembership` server-side (la cookie es identidad, no autorización, I7).
    */
   puedoEditar: tenantProcedure.query(({ ctx }) => {
     const user = ctx.session?.user;
     if (!user) return { puedeEditar: false };
-    const esOp = esOperador(
-      user.email,
-      parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS),
-    );
     return runDomain(() =>
       puedoEditar({
         db: ctx.db,
         tenantId: ctx.tenant.id, // del host (I1), no del input
         userId: user.id,
-        esOperador: esOp,
       }),
     );
   }),

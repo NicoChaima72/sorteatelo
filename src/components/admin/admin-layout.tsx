@@ -2,7 +2,6 @@ import {
   ActionIcon,
   AppShell,
   Avatar,
-  Badge,
   Button,
   ColorSwatch,
   Divider,
@@ -14,7 +13,6 @@ import {
   Skeleton,
   Stack,
   Text,
-  ThemeIcon,
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
@@ -26,9 +24,7 @@ import {
 } from "@mantine/spotlight";
 import {
   IconAlertTriangle,
-  IconArrowRight,
   IconBook,
-  IconBuildingStore,
   IconChevronDown,
   IconExternalLink,
   IconLayoutDashboard,
@@ -36,7 +32,6 @@ import {
   IconMenu2,
   IconSearch,
   IconSettings,
-  IconShieldLock,
   IconShoppingCart,
   IconTicket,
 } from "@tabler/icons-react";
@@ -212,13 +207,11 @@ function RailNavLink({
 function NavbarContent({
   pathname,
   onNavigate,
-  esOperador,
   iconOnly,
   tiendaSlug,
 }: {
   pathname: string;
   onNavigate: () => void;
-  esOperador: boolean;
   iconOnly: boolean;
   /** Slug de la Tienda activa; `null` mientras carga o si el usuario no administra ninguna. */
   tiendaSlug: string | null;
@@ -300,7 +293,7 @@ function NavbarContent({
         ))}
       </div>
 
-      {/* Utilidades ancladas abajo (ajustes / rol), separadas por un divisor — jerarquía tipo
+      {/* Utilidades ancladas abajo (editor / ajustes), separadas por un divisor — jerarquía tipo
           Grillos (Canales/Equipo/Ajustes al pie). */}
       <div className="p-2">
         <Divider color="dark.5" mb={6} />
@@ -331,19 +324,6 @@ function NavbarContent({
             onNavigate={onNavigate}
           />
         ))}
-        {/* Sección del Operador de plataforma: solo visible con el rol (F08/F04). */}
-        {esOperador && (
-          <RailNavLink
-            item={{
-              label: "Operador",
-              href: "/admin/operador",
-              icon: IconShieldLock,
-            }}
-            active={isActive(pathname, "/admin/operador")}
-            iconOnly={iconOnly}
-            onNavigate={onNavigate}
-          />
-        )}
       </div>
     </div>
   );
@@ -452,12 +432,10 @@ function TiendaSwitcher({
   );
 }
 
-/** Menú de cuenta del header (D6): avatar de la sesión, nombre/email, rol y cerrar sesión. */
+/** Menú de cuenta del header (D6): avatar de la sesión, nombre/email y cerrar sesión. */
 function MenuCuenta({
-  esOperador,
   slugActual,
 }: {
-  esOperador: boolean;
   /** Tienda del host, para volver al login DEL APEX al cerrar sesión. `null` en el apex. */
   slugActual: string | null;
 }) {
@@ -497,18 +475,6 @@ function MenuCuenta({
               {user.email}
             </Text>
           )}
-          {esOperador && (
-            <Badge
-              mt={8}
-              size="xs"
-              variant="light"
-              color="sorteatelo"
-              leftSection={<IconShieldLock className="size-3" stroke={2} />}
-              styles={{ label: { textTransform: "none" } }}
-            >
-              Operador de plataforma
-            </Badge>
-          )}
         </div>
         <Menu.Divider />
         <Menu.Item
@@ -519,36 +485,6 @@ function MenuCuenta({
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>
-  );
-}
-
-/**
- * Empty state para un Operador de plataforma SIN Tienda propia (F08): las páginas del
- * Organizador (Resumen/Productos/…) no aplican, pero su superficie es el panel del Operador.
- * Un Organizador nuevo SIN Tienda ve el formulario de alta (`CrearTienda`), no esto.
- */
-function SinTiendaOperador() {
-  return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-      <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-        <IconBuildingStore className="size-6" stroke={1.75} />
-      </ThemeIcon>
-      <Text mt="md" size="lg" fw={600}>
-        No administras una tienda propia
-      </Text>
-      <Text mt={6} size="sm" c="dimmed" className="max-w-sm">
-        Tu cuenta es Operador de plataforma. Supervisa todas las tiendas desde
-        el panel del Operador.
-      </Text>
-      <Button
-        component={Link}
-        href="/admin/operador"
-        mt="xl"
-        rightSection={<IconArrowRight className="size-4" />}
-      >
-        Ir al panel del Operador
-      </Button>
-    </div>
   );
 }
 
@@ -604,7 +540,6 @@ export function AdminLayout({
   // así que es la que el chrome debe mostrar y a la que apuntan "Ver mi tienda" y el editor.
   const tiendaActiva: TiendaAcceso | null = acceso.data?.tiendaActiva ?? null;
   const tiendaSlug = tiendaActiva?.slug ?? null;
-  const esOperador = acceso.data?.esOperador ?? false;
   // "Sin tienda" = la puerta del apex (alta de Tienda). Dentro del subdominio de una tienda que se
   // administra SIEMPRE hay tienda activa (el guard de la página ya rebotó a quien no es miembro,
   // D11), así que el panel se renderiza.
@@ -628,19 +563,6 @@ export function AdminLayout({
         onClick: () => void router.push(item.href),
       };
     }),
-    ...(esOperador
-      ? [
-          {
-            id: "/admin/operador",
-            label: "Operador",
-            description: "Supervisión de todas las tiendas",
-            leftSection: (
-              <IconShieldLock className="size-[18px]" stroke={1.75} />
-            ),
-            onClick: () => void router.push("/admin/operador"),
-          },
-        ]
-      : []),
     ...(tiendaSlug
       ? [
           {
@@ -773,7 +695,7 @@ export function AdminLayout({
                   </ActionIcon>
                 </>
               )}
-              <MenuCuenta esOperador={esOperador} slugActual={tiendaSlug} />
+              <MenuCuenta slugActual={tiendaSlug} />
             </Group>
           </Group>
         </AppShell.Header>
@@ -782,7 +704,6 @@ export function AdminLayout({
           <NavbarContent
             pathname={router.pathname}
             onNavigate={close}
-            esOperador={esOperador}
             iconOnly={iconOnly}
             tiendaSlug={tiendaSlug}
           />
@@ -799,11 +720,7 @@ export function AdminLayout({
             ) : acceso.isError ? (
               <ErrorAcceso onRetry={() => void acceso.refetch()} />
             ) : sinTienda ? (
-              esOperador ? (
-                <SinTiendaOperador />
-              ) : (
-                <CrearTienda />
-              )
+              <CrearTienda />
             ) : (
               <>
                 <PageHeader

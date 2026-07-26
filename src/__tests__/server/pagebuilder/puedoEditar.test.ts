@@ -6,7 +6,7 @@ import { puedoEditar } from "~/server/domain/pagebuilder/puedoEditar";
 
 /**
  * Tests del banner "Editar mi tienda" (F09/D11, ADR-0019): la autorización `puedoEditar` (por
- * TenantMembership/Operador server-side, jamás input del cliente) y la decisión pura de mostrar el
+ * TenantMembership server-side, jamás input del cliente) y la decisión pura de mostrar el
  * banner SOLO post-hidratación (para que el HTML SSR anónimo sea idéntico con/sin cookie ⇒ cacheable).
  */
 
@@ -27,30 +27,46 @@ describe("pagebuilder/puedoEditar (autorización server-side)", () => {
   // page.editar.001 — con membresía para (tenant, user) ⇒ puede editar
   it("con TenantMembership para (tenant, usuario) ⇒ puede editar", async () => {
     const db = fakeDb([{ tenantId: "t1", userId: "u1" }]);
-    expect(await puedoEditar({ db, tenantId: "t1", userId: "u1", esOperador: false })).toEqual({
+    expect(await puedoEditar({ db, tenantId: "t1", userId: "u1" })).toEqual({
       puedeEditar: true,
     });
   });
 
-  // page.editar.002 — sin membresía y sin rol Operador ⇒ NO puede editar
-  it("sin membresía y sin rol Operador ⇒ no puede editar", async () => {
+  // page.editar.002 — sin membresía ⇒ NO puede editar
+  it("sin membresía ⇒ no puede editar", async () => {
     const db = fakeDb([{ tenantId: "t1", userId: "u1" }]);
     // Otro usuario en la misma tienda.
-    expect(await puedoEditar({ db, tenantId: "t1", userId: "ajeno", esOperador: false })).toEqual({
+    expect(await puedoEditar({ db, tenantId: "t1", userId: "ajeno" })).toEqual({
       puedeEditar: false,
     });
     // Mismo usuario, OTRA tienda (no puede editar la ajena) — I1: scopeado por tenantId.
-    expect(await puedoEditar({ db, tenantId: "otra", userId: "u1", esOperador: false })).toEqual({
+    expect(await puedoEditar({ db, tenantId: "otra", userId: "u1" })).toEqual({
       puedeEditar: false,
     });
   });
 
-  // page.editar.003 — el Operador (god-mode) puede editar cualquier tienda, aun sin membresía
-  it("el Operador puede editar cualquier tienda aunque no tenga membresía", async () => {
+  // page.editar.003 — NO existe god-mode: la membresía es la ÚNICA fuente de autorización (I5).
+  // Guardia de regresión contra reintroducir un bypass por flag/rol: una propiedad extra en el
+  // argumento no autoriza nada, porque la decisión sale exclusivamente de la capa de datos.
+  //
+  // NO BORRAR EL CAST: con la firma actual la propiedad extra es inerte, así que la 2ª aserción
+  // hoy es redundante — ese ES el punto. Solo puede ponerse roja el día que alguien reintroduzca
+  // un `esOperador?: boolean` con early-return. Si se "limpia" el cast por parecer ruido, el
+  // guard desaparece en silencio. (El `fakeDb` cubre la otra vía: solo expone `tenantMembership`,
+  // así que autorizar leyendo cualquier otra tabla explota acá mismo.)
+  it("sin membresía no puede editar — ni siquiera con un flag de rol heredado en el input", async () => {
     const db = fakeDb([]); // sin membresías
-    expect(await puedoEditar({ db, tenantId: "cualquiera", userId: "op", esOperador: true })).toEqual({
-      puedeEditar: true,
+    expect(await puedoEditar({ db, tenantId: "cualquiera", userId: "op" })).toEqual({
+      puedeEditar: false,
     });
+
+    const conFlagHeredado = {
+      db,
+      tenantId: "cualquiera",
+      userId: "op",
+      esOperador: true,
+    } as Parameters<typeof puedoEditar>[0];
+    expect(await puedoEditar(conFlagHeredado)).toEqual({ puedeEditar: false });
   });
 });
 

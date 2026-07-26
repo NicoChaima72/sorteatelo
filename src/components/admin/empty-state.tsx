@@ -6,8 +6,8 @@ type IconCmp = ComponentType<{ className?: string; stroke?: number | string }>;
 /**
  * Estado vacío reutilizable del panel (F05/D9.2): ícono Tabler + mensaje en voz al usuario +
  * CTA opcional. Reemplaza los "hueco de texto plano" que había en las tablas/listas (dashboard
- * sin ventas, ventas, participantes del sorteo, tiendas del operador). Tono cercano chileno
- * (dirección §tono). Cero hex inline — el ícono va en `gray` light (neutro), el color lo carga
+ * sin ventas, ventas, participantes del sorteo). Tono cercano chileno
+ * (`docs/design.md` §8, dirección «El Talonario»). Cero hex inline — el ícono va en `gray` light (neutro), el color lo carga
  * el CTA si lo hay.
  */
 interface EmptyStateProps {

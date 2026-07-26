@@ -15,7 +15,7 @@ import { TOS_VERSION } from "~/server/tos/tos";
  * (`evaluarPublicacion`) — no hay dos definiciones del gate. Transiciona {ALTA|CONFIGURACION}→
  * PUBLICADA solo si el gate pasa; si falta un requisito, no publica y devuelve cuál (`INVALID`).
  *
- * Máquina de estados (D6): ya PUBLICADA ⇒ idempotente; SUSPENDIDA ⇒ `CONFLICT` (solo el Operador
+ * Máquina de estados (D6): ya PUBLICADA ⇒ idempotente; SUSPENDIDA ⇒ `CONFLICT` (solo el soporte
  * reactiva, no el Organizador). Scopeado por el `tenantId` server-side (I1); sin membresía ⇒
  * `FORBIDDEN`. La recarga del gate + la transición van en la MISMA tx: el gate no puede quedar
  * obsoleto entre el chequeo y el update.
@@ -41,11 +41,12 @@ export async function publicarTienda({
     if (tenant.estado === "PUBLICADA") {
       return { estado: "PUBLICADA", publicada: true, yaPublicada: true };
     }
-    // Solo el Operador reactiva una Tienda suspendida (D6/D9); el Organizador no se auto-publica.
+    // Una Tienda suspendida la reactiva el soporte de la plataforma (hoy por DB directa); el
+    // Organizador no se auto-publica.
     if (tenant.estado === "SUSPENDIDA") {
       throw new DomainError(
         "CONFLICT",
-        "Tu tienda está suspendida. Contacta al Operador para reactivarla.",
+        "Tu tienda está suspendida. Escríbele al soporte de la plataforma para reactivarla.",
       );
     }
 

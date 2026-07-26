@@ -1,6 +1,6 @@
 /**
  * Decisión PURA de qué documento sirve el storefront (F05, ADR-0016/I5). El público lee SOLO el
- * Publicado; el Borrador se sirve únicamente con un TOKEN válido (para que el Operador revise antes
+ * Publicado; el Borrador se sirve únicamente con un TOKEN válido (para revisarlo desde el editor antes
  * de publicar, R2). Sin token configurado o token incorrecto ⇒ 404 NEUTRAL (no se delata que hay un
  * borrador ni por qué falló). Separado del acceso a env para testear sin manosear `process.env`.
  */

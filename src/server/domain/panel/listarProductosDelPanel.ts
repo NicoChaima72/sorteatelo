@@ -6,7 +6,7 @@ import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
  * Use case del panel (F05): lista los productos de la Tienda del Organizador — TODOS,
  * incluidos los inactivos (a diferencia del catálogo del storefront, que filtra
  * `activo: true`). El `tenantId` se resuelve SERVER-SIDE desde `acceso` (membresía / flag
- * Operador), nunca del input (I1/ADR-0005). Sin membresía ⇒ `FORBIDDEN` (fail-closed).
+ * membresía), nunca del input (I1/ADR-0005). Sin membresía ⇒ `FORBIDDEN` (fail-closed).
  *
  * El `precio` se devuelve como string entero CLP (display-only): el monto autoritativo es
  * `Product.precio` (Decimal); acá se cruza solo en el borde de presentación (nunca aritmética).

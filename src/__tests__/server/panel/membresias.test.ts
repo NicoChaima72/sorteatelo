@@ -135,7 +135,6 @@ describe("panel/membresias — orden canónico (fake db)", () => {
       ]),
       acceso: {
         userId: "u1",
-        esOperador: false,
         tenantIds: membresias.map((m) => m.tenantId),
         tenantIdDelHost: primera?.tenantId ?? null,
       },

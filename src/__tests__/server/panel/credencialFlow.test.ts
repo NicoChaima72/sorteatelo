@@ -16,7 +16,6 @@ import { descifrar, parsearClave } from "~/server/services/cifrado";
 const CLAVE = parsearClave(Buffer.alloc(32, 7).toString("base64"));
 const acceso = (tenantIds: string[]): AccesoPanel => ({
   userId: "u1",
-  esOperador: false,
   tenantIds,
   // ADR-0022: el panel opera la tienda del HOST. Por defecto, el subdominio es el de la
   // tienda del usuario; sin membresía, un host AJENO (el escenario real del fail-closed).

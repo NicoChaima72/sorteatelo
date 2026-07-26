@@ -24,12 +24,6 @@ export const env = createEnv({
     ),
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
-    // Operadores de plataforma (F05/D4): CSV de emails con acceso a TODAS las Tiendas
-    // (rol de plataforma, no de una Tienda). Opcional y fail-closed: ausente/vacía ⇒
-    // nadie es Operador (la autorización normal del panel es la membresía User↔Tenant).
-    // Reemplaza a la `ADMIN_ALLOWLIST` mono-usuario pre-pivote (muerta con la allowlist
-    // como gate del signIn — ahora cualquier cuenta Google obtiene sesión, D2).
-    PLATFORM_OPERATOR_EMAILS: z.string().optional(),
     // Cifrado de credenciales por tenant (BYO-Flow, ADR-0006/S2). Clave AES-256 en
     // base64 (openssl rand -base64 32 → 32 bytes). Opcional: la app arranca sin ella;
     // `parsearClave` (services/cifrado) hace fail-fast al cifrar/descifrar si falta o
@@ -82,16 +76,11 @@ export const env = createEnv({
     // del auth y permite un puerto de dev distinto (:3001) sin tocar NEXTAUTH_URL.
     APP_URL: z.string().url().optional(),
     // Token de PREVIEW del Borrador del page builder (F05, ADR-0016). El storefront público lee
-    // SOLO publishedJson; con `?preview=<STOREFRONT_PREVIEW_TOKEN>` sirve el Borrador para que el
-    // Operador lo revise antes de publicar. Opcional: ausente ⇒ preview deshabilitada (cualquier
-    // `?preview` ⇒ 404 neutral). Secreto de baja sensibilidad (solo abre un draft ya del tenant),
-    // pero no se loguea. Distinto por entorno.
+    // SOLO publishedJson; con `?preview=<STOREFRONT_PREVIEW_TOKEN>` sirve el Borrador para revisarlo
+    // antes de publicar (lo usa el editor del panel). Opcional: ausente ⇒ preview deshabilitada
+    // (cualquier `?preview` ⇒ 404 neutral). Secreto de baja sensibilidad (solo abre un draft ya del
+    // tenant), pero no se loguea. Distinto por entorno.
     STOREFRONT_PREVIEW_TOKEN: z.string().optional(),
-    // Token Bearer del Editor MCP del page builder (F06/PD5, ADR-0016). El endpoint `/api/mcp` es
-    // GOD-MODE del OPERADOR: quien lo presente edita el Borrador de CUALQUIER tienda (elige por
-    // `storeSlug`). SECRETO fuerte, jamás se loguea. Opcional: ausente ⇒ el MCP responde 401 a todo
-    // (fail-closed). OAuth per-tenant queda para fase Pro. El MCP escribe Borrador; publicar es humano.
-    MCP_OPERADOR_TOKEN: z.string().optional(),
     // Asistente de IA del editor (Tanda 3 F14/D21). API key del Vercel AI Gateway (`createGateway`).
     // OPCIONAL y fail-soft: ausente ⇒ el panel "Asistente" NO aparece (cero degradación fea, el editor
     // funciona igual). SECRETA: solo server-side, jamás en el cliente, log ni respuesta (patrón
@@ -125,7 +114,6 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    PLATFORM_OPERATOR_EMAILS: process.env.PLATFORM_OPERATOR_EMAILS,
     CREDENTIALS_ENCRYPTION_KEY: process.env.CREDENTIALS_ENCRYPTION_KEY,
     FLOW_URL_CONFIRMATION: process.env.FLOW_URL_CONFIRMATION,
     FLOW_URL_RETURN: process.env.FLOW_URL_RETURN,
@@ -139,7 +127,6 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     APP_URL: process.env.APP_URL,
     STOREFRONT_PREVIEW_TOKEN: process.env.STOREFRONT_PREVIEW_TOKEN,
-    MCP_OPERADOR_TOKEN: process.env.MCP_OPERADOR_TOKEN,
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     NEXT_PUBLIC_PLATFORM_DOMAIN: process.env.NEXT_PUBLIC_PLATFORM_DOMAIN,
   },

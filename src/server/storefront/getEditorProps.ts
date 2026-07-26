@@ -2,7 +2,6 @@ import { type GetServerSidePropsContext } from "next";
 
 import { env } from "~/env";
 import { getServerAuthSession } from "~/server/auth";
-import { esOperador, parsearAllowlist } from "~/server/authPolicy";
 import { db } from "~/server/db";
 import { puedoEditar } from "~/server/domain/pagebuilder/puedoEditar";
 import { resolverBrandingSSR } from "~/server/storefront/getStorefrontProps";
@@ -10,7 +9,7 @@ import { resolverBrandingSSR } from "~/server/storefront/getStorefrontProps";
 /**
  * Gate SSR del editor visual (`/editor`, catálogo-v2 F09/D6). El editor vive en el SUBDOMINIO del
  * tenant: resuelve la Tienda por HOST (I1), exige sesión (cookie wildcard, ADR-0019) y autoriza por
- * `puedoEditar` (membresía o Operador, SERVER-SIDE — la cookie es identidad, no autorización, I7).
+ * `puedoEditar` (MEMBRESÍA, SERVER-SIDE — la cookie es identidad, no autorización, I7).
  *
  * CUALQUIER fallo ⇒ `notFound` (404 NEUTRAL, D6): no se delata que existe un editor, ni por qué falló
  * (host sin tienda / sin sesión / sin permiso son indistinguibles). Solo tras autorizar se pasa el
@@ -46,19 +45,17 @@ export async function getPropsEditor(
   const session = await getServerAuthSession(ctx);
   if (!session?.user) return { notFound: true };
 
-  // 3. Resolver el tenantId por slug (server-side, I1) y autorizar por membresía/Operador.
+  // 3. Resolver el tenantId por slug (server-side, I1) y autorizar por MEMBRESÍA.
   const tenant = await db.tenant.findUnique({
     where: { slug: branding.branding.slug },
     select: { id: true },
   });
   if (!tenant) return { notFound: true };
 
-  const esOp = esOperador(session.user.email, parsearAllowlist(env.PLATFORM_OPERATOR_EMAILS));
   const { puedeEditar } = await puedoEditar({
     db,
     tenantId: tenant.id,
     userId: session.user.id,
-    esOperador: esOp,
   });
   if (!puedeEditar) return { notFound: true }; // miembro de otra tienda / sin permiso ⇒ 404 neutral
 

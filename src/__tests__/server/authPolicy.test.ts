@@ -3,9 +3,6 @@ import { describe, expect, it } from "vitest";
 import { type Session } from "next-auth";
 
 import {
-  emailEnLista,
-  esOperador,
-  parsearAllowlist,
   resolverGuard,
   resolverTenantAutorizado,
 } from "~/server/authPolicy";
@@ -27,79 +24,14 @@ function codeDeErrorLanzado(fn: () => unknown): DomainErrorCode {
   throw new Error("Se esperaba un DomainError pero la función no lanzó");
 }
 
-describe("authPolicy.parsearAllowlist", () => {
-  it("normaliza a lowercase + trim y descarta entradas vacías", () => {
-    expect(parsearAllowlist("A@Gmail.com, b@x.cl")).toEqual([
-      "a@gmail.com",
-      "b@x.cl",
-    ]);
-  });
-
-  it("devuelve lista vacía para string vacío, solo-espacios o solo-comas", () => {
-    expect(parsearAllowlist("")).toEqual([]);
-    expect(parsearAllowlist("   ")).toEqual([]);
-    expect(parsearAllowlist(" , , ,")).toEqual([]);
-    expect(parsearAllowlist(undefined)).toEqual([]);
-    expect(parsearAllowlist(null)).toEqual([]);
-  });
-});
-
-describe("authPolicy.emailEnLista", () => {
-  const lista = ["autora@gmail.com", "b@x.cl"];
-
-  it("devuelve true para un email presente, ignorando mayúsculas y espacios", () => {
-    expect(emailEnLista("  Autora@Gmail.com ", lista)).toBe(true);
-  });
-
-  it("devuelve false para un email ausente de la lista", () => {
-    expect(emailEnLista("intruso@gmail.com", lista)).toBe(false);
-  });
-
-  it("devuelve false para email undefined/null/vacío (fail-closed)", () => {
-    expect(emailEnLista(undefined, lista)).toBe(false);
-    expect(emailEnLista(null, lista)).toBe(false);
-    expect(emailEnLista("", lista)).toBe(false);
-    expect(emailEnLista("   ", lista)).toBe(false);
-  });
-
-  it("con allowlist vacía devuelve false para cualquier email (fail-closed)", () => {
-    expect(emailEnLista("autora@gmail.com", [])).toBe(false);
-  });
-});
-
-describe("authPolicy.esOperador", () => {
-  // F05: el Operador de plataforma se designa por env var PLATFORM_OPERATOR_EMAILS (D4).
-  // Reusa la política pura (parsearAllowlist + emailEnLista), fail-closed.
-  it("es true para un email presente en la lista de operadores", () => {
-    expect(esOperador("op@x.cl", parsearAllowlist("op@x.cl,otra@x.cl"))).toBe(
-      true,
-    );
-  });
-
-  it("normaliza case y espacios al comparar", () => {
-    expect(esOperador("  OP@X.cl ", parsearAllowlist("op@x.cl"))).toBe(true);
-  });
-
-  it("con var ausente/vacía nadie es Operador (fail-closed)", () => {
-    expect(esOperador("op@x.cl", parsearAllowlist(undefined))).toBe(false);
-    expect(esOperador("op@x.cl", parsearAllowlist(""))).toBe(false);
-    expect(esOperador("op@x.cl", parsearAllowlist("   "))).toBe(false);
-  });
-
-  it("es false para un email ausente de la lista, y para email vacío", () => {
-    expect(esOperador("intruso@x.cl", parsearAllowlist("op@x.cl"))).toBe(false);
-    expect(esOperador(undefined, parsearAllowlist("op@x.cl"))).toBe(false);
-  });
-});
-
 describe("authPolicy.resolverTenantAutorizado", () => {
-  // F05/D5: la AUTORIZACIÓN sale de la membresía o del flag Operador (server-side); el
-  // input solo SELECCIONA (y solo para el Operador). Un tenantId ajeno JAMÁS autoriza (I1).
+  // La AUTORIZACIÓN sale EXCLUSIVAMENTE de la membresía (server-side); el input solo
+  // SELECCIONA entre lo ya autorizado. Un tenantId ajeno JAMÁS autoriza (I1). Desde el retiro
+  // del rol Operador de plataforma no queda ninguna rama que autorice por fuera de la membresía.
 
   it("Organizador con membresía y sin selección resuelve SU tenant", () => {
     expect(
       resolverTenantAutorizado({
-        esOperador: false,
         tenantIdsDeMembresia: ["A"],
         tenantIdSolicitado: null,
       }),
@@ -109,7 +41,6 @@ describe("authPolicy.resolverTenantAutorizado", () => {
   it("Organizador que solicita SU propio tenant lo resuelve", () => {
     expect(
       resolverTenantAutorizado({
-        esOperador: false,
         tenantIdsDeMembresia: ["A", "B"],
         tenantIdSolicitado: "B",
       }),
@@ -120,7 +51,6 @@ describe("authPolicy.resolverTenantAutorizado", () => {
     expect(
       codeDeErrorLanzado(() =>
         resolverTenantAutorizado({
-          esOperador: false,
           tenantIdsDeMembresia: ["A"],
           tenantIdSolicitado: "Z",
         }),
@@ -128,11 +58,10 @@ describe("authPolicy.resolverTenantAutorizado", () => {
     ).toBe("FORBIDDEN");
   });
 
-  it("sesión sin membresía y sin rol Operador ⇒ FORBIDDEN (fail-closed)", () => {
+  it("sesión sin membresía ⇒ FORBIDDEN (fail-closed)", () => {
     expect(
       codeDeErrorLanzado(() =>
         resolverTenantAutorizado({
-          esOperador: false,
           tenantIdsDeMembresia: [],
           tenantIdSolicitado: null,
         }),
@@ -140,36 +69,30 @@ describe("authPolicy.resolverTenantAutorizado", () => {
     ).toBe("FORBIDDEN");
   });
 
-  it("Operador con selección explícita resuelve ese tenant (aunque no sea membresía suya)", () => {
-    expect(
-      resolverTenantAutorizado({
-        esOperador: true,
-        tenantIdsDeMembresia: [],
-        tenantIdSolicitado: "X",
-      }),
-    ).toBe("X");
-  });
+  // Guard de regresión (I5): NO existe god-mode. Antes, un `esOperador: true` hacía que una
+  // selección FUERA de la membresía se resolviera igual, y que la ausencia de membresía diera
+  // `INVALID` ("indica sobre qué Tienda operar") en vez de negar. Las dos ramas murieron: un flag
+  // de rol heredado en el input no cambia NADA, porque la única fuente es `tenantIdsDeMembresia`.
+  //
+  // NO BORRAR EL CAST: con la firma actual la propiedad extra es inerte — ese es el punto. Solo se
+  // pone rojo el día que alguien reintroduzca un `esOperador` que autorice.
+  it("un flag de rol heredado en el input no autoriza nada: selección ajena ⇒ FORBIDDEN", () => {
+    const conFlagHeredado = {
+      esOperador: true,
+      tenantIdsDeMembresia: [],
+      tenantIdSolicitado: "X",
+    } as Parameters<typeof resolverTenantAutorizado>[0];
+    expect(codeDeErrorLanzado(() => resolverTenantAutorizado(conFlagHeredado))).toBe(
+      "FORBIDDEN",
+    );
 
-  it("Operador sin selección y sin membresía propia ⇒ error claro, nunca un tenant por defecto", () => {
-    expect(
-      codeDeErrorLanzado(() =>
-        resolverTenantAutorizado({
-          esOperador: true,
-          tenantIdsDeMembresia: [],
-          tenantIdSolicitado: null,
-        }),
-      ),
-    ).toBe("INVALID");
-  });
-
-  it("Operador con membresía propia y sin selección cae a SU tenant (S8: la primera)", () => {
-    expect(
-      resolverTenantAutorizado({
-        esOperador: true,
-        tenantIdsDeMembresia: ["A"],
-        tenantIdSolicitado: null,
-      }),
-    ).toBe("A");
+    // Y sin selección tampoco hay "indica sobre qué Tienda operar": sin membresía se NIEGA.
+    const sinSeleccion = {
+      esOperador: true,
+      tenantIdsDeMembresia: [],
+      tenantIdSolicitado: null,
+    } as Parameters<typeof resolverTenantAutorizado>[0];
+    expect(codeDeErrorLanzado(() => resolverTenantAutorizado(sinSeleccion))).toBe("FORBIDDEN");
   });
 });
 

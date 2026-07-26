@@ -5,7 +5,7 @@ import { type MembresiaCanonica } from "~/server/panel/membresias";
  * DECISIÓN PURA del guard del panel de administración (admin-multi-tienda F02/D1/D2, ADR-0022).
  *
  * Con el panel scopeado por subdominio, entrar a `/admin` deja de ser "¿hay sesión?" y pasa a ser una
- * MATRIZ: qué host es (apex vs. subdominio de una Tienda), quién sos (sesión, membresías, Operador) y
+ * MATRIZ: qué host es (apex vs. subdominio de una Tienda), quién sos (sesión, membresías) y
  * qué tienda administra ese host. Toda esa política vive acá, pura: sin DB, sin NextAuth, sin request
  * — el borde (`guardPaginaAdmin`) resuelve los hechos y traduce el resultado a la forma que pide
  * `getServerSideProps`.
@@ -24,14 +24,14 @@ import { type MembresiaCanonica } from "~/server/panel/membresias";
  *   pantalla de contenido que queda viva en el apex.
  * - Apex + sin sesión ⇒ login relativo (mismo host) preservando la ruta en el `callbackUrl`.
  *
- * **D11 (2026-07-25) — el Operador de plataforma NO es excepción.** El diseño original le daba
- * acceso al panel de CUALQUIER tienda (con un badge de aviso en el chrome); el usuario lo rechazó:
- * "tiene que haber admin por empresas, yo no puedo ver todas las empresas". El panel de Organizador
- * se administra por MEMBRESÍA y nada más, así que un Operador no miembro rebota al storefront igual
- * que cualquier logueado. Por eso la entrada de esta decisión ni siquiera declara el flag: la
- * excepción no se puede reintroducir por descuido. La vista cross-tienda del Operador sigue viva en
- * su propio panel (`/admin/operador` + `operadorProcedure`), que es otra superficie; un eventual
- * "superadmin" sería una tercera, no una puerta de servicio en esta.
+ * **D11 (2026-07-25) — no hay rol que sea excepción.** El diseño original le daba a un rol de
+ * plataforma acceso al panel de CUALQUIER tienda (con un badge de aviso en el chrome); el usuario lo
+ * rechazó: "tiene que haber admin por empresas, yo no puedo ver todas las empresas". El panel de
+ * Organizador se administra por MEMBRESÍA y nada más, así que un logueado no miembro rebota al
+ * storefront. Por eso la entrada de esta decisión ni siquiera declara un flag de rol: la excepción no
+ * se puede reintroducir por descuido. El rol Operador de plataforma que conservaba una superficie
+ * propia se retiró entero después (2026-07-25, ADR del retiro); un eventual "superadmin" sería una
+ * superficie nueva y aparte, no una puerta de servicio en esta.
  */
 
 /** Zona que administra el host del request, ya resuelta contra la DB por el borde. */
@@ -70,7 +70,7 @@ export interface EntradaAdmin {
 export type DecisionAdmin =
   /** Renderiza el panel de la tienda del host (siempre una tienda de la que el usuario es miembro). */
   | { tipo: "panel"; tenantId: string; slug: string }
-  /** Renderiza la puerta del apex: alta de Tienda (o el empty state del Operador). */
+  /** Renderiza la puerta del apex: el alta de Tienda. */
   | { tipo: "alta" }
   | { tipo: "redirect"; destino: string }
   /** Respuesta neutral de ADR-0007: ni confirma ni desmiente que la tienda exista. */

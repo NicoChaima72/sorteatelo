@@ -1,7 +1,7 @@
 import { type PrismaClient } from "@prisma/client";
 
+import { armarCsv } from "~/lib/csv";
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
-import { armarCsv } from "~/server/domain/panel/_csv";
 import {
   aVentaDelPanel,
   SELECCION_DE_VENTA,
@@ -19,6 +19,21 @@ import {
  * así que hay que decirlo explícitamente.
  */
 const ZONA_HORARIA = "America/Santiago";
+
+/**
+ * Cuántas ventas se leen de la DB por vuelta. **No es el tamaño de una página**: el archivo sale
+ * entero igual (D9 no admite recortarlo), esto solo acota el pico de memoria de la lectura — por eso
+ * no se llama `PAGE_SIZE` como en `listarVentas`, donde el número SÍ es visible para el Organizador.
+ *
+ * Sin el lote, una sola `findMany` hidrataba TODAS las órdenes de la Tienda con sus ítems y sus
+ * respuestas de checkout colgando: un tenant con miles de ventas se comía la memoria de la function
+ * serverless de un saque. Con lote, lo único que se acumula es la forma ya mapeada y liviana
+ * (`VentaDelPanel`, strings), y las filas crudas de Prisma se sueltan al terminar cada vuelta.
+ *
+ * 500 es el orden de magnitud, no un número medido: bastante más que lo que exporta el piloto y
+ * bastante menos que lo que preocupa. Es inyectable solo para los tests.
+ */
+const TAMANO_DEL_LOTE = 500;
 
 const FMT_FECHA_HORA = new Intl.DateTimeFormat("es-CL", {
   timeZone: ZONA_HORARIA,
@@ -161,25 +176,66 @@ function columnasDinamicas(ventas: VentaDelPanel[]): ColumnaDinamica[] {
  *
  * PII (I7): el archivo lleva los datos que el Comprador dejó en el checkout. Solo sale por
  * `panelProcedure`, hacia el Organizador con membresía de la Tienda dueña.
+ *
+ * Se leen TODAS las ventas, pero **de a lotes por cursor** (`TAMANO_DEL_LOTE`): el resultado
+ * observable es idéntico al de una query sin tope —el Organizador no ve páginas ni pierde filas— y
+ * lo que se acota es la memoria. Es lo contrario de ponerle un `take` al export, que sí recortaría
+ * el archivo y rompería D9.
  */
 export async function exportarVentasCsv({
   db,
   acceso,
   ahora = new Date(),
+  lote = TAMANO_DEL_LOTE,
 }: {
   db: PrismaClient;
   acceso: AccesoPanel;
   /** Inyectable para tests: solo nombra el archivo, no filtra nada. */
   ahora?: Date;
+  /** Inyectable para tests: cuántas ventas por vuelta. No cambia lo que sale en el archivo. */
+  lote?: number;
 }): Promise<{ nombreArchivo: string; contenido: string }> {
   const tenantId = resolverTenantDelPanel(acceso);
 
-  const rows = await db.order.findMany({
-    where: { tenantId },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: SELECCION_DE_VENTA,
-  });
-  const ventas = rows.map(aVentaDelPanel);
+  /**
+   * Un lote de ventas, desde la fila siguiente a `desde` (o desde el principio, con `desde: null`).
+   *
+   * Es una función y no la query inline dentro del `for` por una razón de TIPOS, no de estética:
+   * inline, el tipo de las filas sale del `select` pero el objeto de la query depende del narrowing
+   * del cursor, que depende de la asignación que sale de esas mismas filas ⇒ TS detecta el ciclo y
+   * las tipa `any` (TS7022). Con el cursor como PARÁMETRO anotado, el ciclo se corta y las filas
+   * conservan el tipo derivado de `SELECCION_DE_VENTA`.
+   *
+   * El orden total estable `[createdAt desc, id desc]` (el `id` cuid desempata) es el mismo del
+   * listado: es lo que hace que el cursor no repita ni saltee filas en los empates de fecha, y de
+   * paso el archivo sale en el mismo orden que la pantalla que lo exporta (D9).
+   */
+  const leerLote = (desde: string | null) =>
+    db.order.findMany({
+      where: { tenantId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: lote,
+      ...(desde ? { cursor: { id: desde }, skip: 1 } : {}),
+      select: SELECCION_DE_VENTA,
+    });
+
+  const ventas: VentaDelPanel[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const rows = await leerLote(cursor);
+
+    // Mapear ACÁ y no al final es la mitad del punto del lote: `VentaDelPanel` son strings y
+    // números, mucho más liviano que la fila cruda de Prisma con sus `Decimal` y sus relaciones.
+    // Lo crudo queda huérfano al terminar la vuelta.
+    for (const row of rows) ventas.push(aVentaDelPanel(row));
+
+    // Un lote que vuelve INCOMPLETO es el final: no hay más filas después. Pedir `lote + 1` para
+    // detectarlo (el truco del listado) no sirve acá, porque no hay un `nextCursor` que devolver;
+    // el precio de esta versión es una vuelta extra al vacío cuando el total es múltiplo exacto
+    // del lote, y esa vuelta es una query que no trae nada.
+    if (rows.length < lote) break;
+    cursor = rows[rows.length - 1]!.id;
+  }
 
   const dinamicas = columnasDinamicas(ventas);
 

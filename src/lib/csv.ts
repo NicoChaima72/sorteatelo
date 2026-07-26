@@ -1,11 +1,14 @@
 /**
- * Codificación CSV (RFC 4180) — módulo PURO, sin nada del dominio (F07,
- * `tasks/26-07-25-checkout-campos-configurables.md`, D9).
+ * Codificación CSV (RFC 4180) — módulo PURO: recibe `string[][]` y devuelve texto. No importa
+ * Prisma, ni sesión, ni nada del dominio, y por eso vive en `~/lib` y no bajo `domain/panel/`
+ * (nació ahí como `_csv.ts` en F07 de `tasks/26-07-25-checkout-campos-configurables.md`, D9).
  *
- * La separación es el punto: quien lo usa decide QUÉ celdas tiene cada fila (columnas fijas del
- * panel, una por clave respondida); este módulo decide cómo se escriben para que Excel abra el
- * archivo entero y sin sorpresas. Es el único lugar del repo que sabe de separador de campos,
- * comillas dobladas, CRLF y BOM.
+ * La separación es el punto: quien lo usa decide QUÉ celdas tiene cada fila; este módulo decide
+ * cómo se escriben para que Excel abra el archivo entero y sin sorpresas. Es el único lugar del
+ * repo que sabe de separador de campos, comillas dobladas, CRLF y BOM — y las razones de cada una
+ * de esas cuatro decisiones están MEDIDAS en Excel 16 real sobre un Windows es-CL, no supuestas
+ * (ver los comentarios de abajo y `panel.ventas.csv.002` en `tasks/e2e-panel-organizadores.md`).
+ * Si mañana otra superficie exporta una planilla, entra por acá y hereda esas mediciones.
  */
 
 /**

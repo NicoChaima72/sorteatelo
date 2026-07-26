@@ -6,11 +6,16 @@ hooks de `~/utils/api`). Complementa la sección "Data fetching (tRPC)" de
 paginación por cursor, debounce); acá vive el **patrón de mutations con optimistic
 update**, que es más delicado.
 
-> **Seed**: el proyecto aún no tiene features implementadas. Este doc siembra los
-> patrones genéricos de data-fetching (válidos para cualquier app tRPC + React Query) y
-> crece con cada decisión aprobada. Los ejemplos usan el dominio e-book (Libro, Orden,
-> Carrito — ver `CONTEXT.md`); cuando aparezca el primer uso real, anclar acá el patrón
-> con su referencia.
+> **Estado**: el doc nació como seed y sigue **creciendo con cada decisión aprobada** —
+> no inventar reglas que el proyecto no decidió. Pero el proyecto ya tiene features vivas
+> (panel del Organizador, storefront por subdominio, checkout con Flow), así que hay que
+> leerlo en dos velocidades: las secciones ancladas a código real lo dicen con un **«Ej.
+> vivo»** y su archivo (hoy: la acción de un solo tiro sobre un `.query()`), mientras que
+> el **patrón optimista** todavía NO tiene un consumidor en `src/` —cero `onMutate`— y su
+> ejemplo está escrito con vocabulario **pre-pivote** (`api.libro.*`, que no es un router
+> de este repo: el término vigente es Producto, ver `CONTEXT.md`). Ese bloque ilustra el
+> mecanismo, no describe código existente; cuando aparezca el primer uso real, re-anclarlo
+> acá con su referencia.
 
 ## El default: invalidate en `onSuccess`
 

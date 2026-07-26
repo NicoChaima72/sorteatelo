@@ -1,13 +1,16 @@
 import { Badge, Button, Divider, Group, Skeleton, Stack, Text } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import {
+  IconHelpCircle,
   IconPlugConnected,
   IconPlugConnectedX,
   IconSparkles,
 } from "@tabler/icons-react";
 
 import { EmptyState } from "~/components/admin/empty-state";
+import { GuiaConectaIa } from "~/components/admin/guia-ia/guia-conecta-ia";
 import { SettingCard } from "~/components/admin/setting-card";
 import { fechaHora } from "~/lib/formato";
 import { api, type RouterOutputs } from "~/utils/api";
@@ -33,6 +36,7 @@ type Conexion = RouterOutputs["mcp"]["listarConexiones"][number];
  */
 export function ConexionesIaCard() {
   const utils = api.useUtils();
+  const [guiaAbierta, guia] = useDisclosure(false);
   const conexiones = api.mcp.listarConexiones.useQuery(undefined, {
     retry: false,
   });
@@ -73,6 +77,22 @@ export function ConexionesIaCard() {
       icon={IconSparkles}
       title="Conexiones IA"
       description="Las apps de inteligencia artificial a las que le diste permiso para operar tu cuenta. Puedes cortarles el acceso cuando quieras."
+      // La guía se abre desde el HEADER y no desde el estado vacío (F01/D3): el Organizador que ya
+      // tiene una conexión también la necesita —para conectar su segunda app, o para acordarse de
+      // cómo se revoca— y ahí el estado vacío ya no existe.
+      headerAction={
+        <>
+          <Button
+            size="xs"
+            variant="subtle"
+            leftSection={<IconHelpCircle className="size-4" />}
+            onClick={guia.open}
+          >
+            ¿Cómo conecto una app de IA?
+          </Button>
+          <GuiaConectaIa opened={guiaAbierta} onClose={guia.close} />
+        </>
+      }
     >
       {conexiones.isLoading && (
         <Stack gap="sm">

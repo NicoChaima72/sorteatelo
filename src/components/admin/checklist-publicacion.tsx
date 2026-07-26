@@ -6,7 +6,6 @@ import {
   Divider,
   Group,
   Modal,
-  ScrollArea,
   Skeleton,
   Stack,
   Text,
@@ -119,7 +118,6 @@ function TosModal({
       onClose={onClose}
       title="Términos de Servicio"
       size="lg"
-      scrollAreaComponent={ScrollArea.Autosize}
     >
       <Stack gap="md">
         {tos.isLoading ? (

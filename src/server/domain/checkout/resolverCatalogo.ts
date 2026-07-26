@@ -1,4 +1,4 @@
-import { type PrismaClient } from "@prisma/client";
+import { type PrismaClient, type ProductMode } from "@prisma/client";
 
 /**
  * Resolver de RENDER del catálogo de una sección del page builder (F05, ADR-0016/0017). Traduce las
@@ -23,6 +23,16 @@ export interface ProductoCatalogo {
   participaEnSorteo: boolean;
   /** Badge derivado (Tanda 2 F13): `true` sii `createdAt` < 30 días. Read-only; sin campo en el schema. */
   esNuevo: boolean;
+  /** F07: un SOBRE no se agrega al carrito desde la tarjeta — hay que elegir pack en el detalle. */
+  modalidad: ProductMode;
+  /**
+   * Precio del pack ACTIVO más barato de un sobre (el "desde $X" de la tarjeta), o `null` si no es
+   * sobre o no tiene opciones. Display-only, como `precio` (I4).
+   *
+   * En un SOBRE el `precio` de la tarjeta es el `Product.precio`, que es SOLO REFERENCIA: pintarlo
+   * como si fuera el de venta mostraría un número que no se cobra en ninguna parte.
+   */
+  precioDesde: number | null;
 }
 
 /** Ventana del badge "Nuevo" del catálogo (Tanda 2 F13). Derivado de `createdAt`, no persistido. */
@@ -37,6 +47,15 @@ const SELECT = {
   portadaUrl: true,
   participaEnSorteo: true,
   createdAt: true,
+  modalidad: true,
+  // Solo el pack ACTIVO más barato: la tarjeta muestra un "desde", no el menú (ese vive en el
+  // detalle, que es donde se elige). Una fila por producto, no el catálogo entero de opciones.
+  packOptions: {
+    where: { activo: true },
+    orderBy: { precio: "asc" },
+    take: 1,
+    select: { precio: true },
+  },
 } as const;
 
 function mapear(p: {
@@ -47,6 +66,8 @@ function mapear(p: {
   portadaUrl: string | null;
   participaEnSorteo: boolean;
   createdAt: Date;
+  modalidad: ProductMode;
+  packOptions: Array<{ precio: { toNumber: () => number } }>;
 }): ProductoCatalogo {
   return {
     id: p.id,
@@ -55,6 +76,8 @@ function mapear(p: {
     precio: p.precio.toNumber(),
     portadaUrl: p.portadaUrl,
     participaEnSorteo: p.participaEnSorteo,
+    modalidad: p.modalidad,
+    precioDesde: p.packOptions[0]?.precio.toNumber() ?? null,
     // Derivado server-side (el catálogo se consume por tRPC/cliente ⇒ sin mismatch SSR): "Nuevo" si el
     // producto se creó hace menos de DIAS_NUEVO. Solo lectura sobre `createdAt`; no toca el schema Prisma.
     esNuevo: Date.now() - p.createdAt.getTime() < MS_NUEVO,

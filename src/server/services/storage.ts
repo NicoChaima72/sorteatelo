@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -6,6 +8,8 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+import { extensionDeContentType } from "~/lib/archivos/tiposArchivo";
 
 /**
  * Service Storage — adapter S3-compatible al bucket privado de PDFs (Cloudflare R2).
@@ -28,17 +32,43 @@ export const EXPIRACION_DESCARGA_SEGUNDOS = 600;
 /** Expiración de la URL prefirmada de SUBIDA (PUT). 10 min (D6/S6). Constante. */
 export const EXPIRACION_SUBIDA_SEGUNDOS = 600;
 
-/** Content-Type único que aceptamos para el producto (MVP: PDF). */
+/** Content-Type del PDF. Sigue nombrado porque es el default histórico de varios llamadores. */
 export const CONTENT_TYPE_PDF = "application/pdf";
 
 /**
- * Key determinística del PDF de un producto (D3/I6): `<tenantId>/<productId>.pdf`. Helper
- * PURO — una sola definición, la fuente del path per-tenant. El cliente NUNCA la elige: la
- * computa el server tanto para presignar la subida como para persistir `pdfPath`. Reemplazar
- * el PDF de un producto = re-presignar/overwrite la MISMA key (gratis por construcción).
+ * Key de un **archivo de producto** (productos-tipos-digitales F02, D9/I6):
+ * `<tenantId>/<productId>/<ref>.<ext>`. Helper PURO — la única definición del path per-tenant.
+ *
+ * - El cliente NUNCA la elige ni la ve: la computa el server para presignar y la persiste en
+ *   `ProductFile.key`. El cliente solo referencia la fila por su `id`.
+ * - La **extensión sale del `contentType` YA VALIDADO** contra la allowlist, jamás del nombre de
+ *   archivo que mandó el cliente (D9). Un cliente que sube un PNG diciendo `virus.exe` termina en
+ *   una key `.png`.
+ * - `ref` es un segmento **aleatorio** generado por el server (`generarRefArchivo`), no el `id` de
+ *   la fila: rompe el huevo-y-la-gallina de "la key necesita el id y el id lo genera el INSERT" sin
+ *   escrituras en dos tiempos, y de paso deja la key inadivinable (el bucket es privado, pero una
+ *   key adivinable nunca ayuda). La key se persiste igual, así que sigue siendo el dato autoritativo.
+ *
+ * **Formato LEGACY** (pre-F01, todavía vivo en filas migradas y en `Product.pdfPath`):
+ * `<tenantId>/<productId>.pdf`, sin carpeta por producto. Se lee, no se genera más.
  */
-export function keyDePdfProducto(tenantId: string, productId: string): string {
-  return `${tenantId}/${productId}.pdf`;
+export function keyDeArchivoProducto({
+  tenantId,
+  productId,
+  ref,
+  contentType,
+}: {
+  tenantId: string;
+  productId: string;
+  ref: string;
+  contentType: string;
+}): string {
+  return `${tenantId}/${productId}/${ref}.${extensionDeContentType(contentType)}`;
+}
+
+/** Segmento aleatorio de la key (16 bytes hex). Server-side siempre. */
+export function generarRefArchivo(): string {
+  return randomBytes(16).toString("hex");
 }
 
 // Rango de caracteres de control (0x00–0x1F y 0x7F) y de ASCII imprimible (0x20–0x7E),
@@ -48,21 +78,30 @@ const CONTROL_CHARS = new RegExp("[\u0000-\u001f\u007f]", "g");
 const NO_ASCII_PRINTABLE = new RegExp("[^\u0020-\u007e]", "g");
 
 /**
- * Sanea el título de un producto para usarlo como nombre del archivo descargado (S8). Quita
- * caracteres de control y los peligrosos para un header `Content-Disposition` (comillas,
- * barras, CR/LF — anti header-injection), colapsa espacios, recorta el largo y garantiza
- * extensión `.pdf`.
+ * Sanea un nombre para usarlo como nombre del archivo descargado (S8). Quita caracteres de control
+ * y los peligrosos para un header `Content-Disposition` (comillas, barras, CR/LF — anti
+ * header-injection), colapsa espacios, recorta el largo y **garantiza la extensión que corresponde
+ * al `contentType`**.
+ *
+ * Tipo-agnóstico desde F02 (antes forzaba `.pdf` a secas). El `contentType` es OBLIGATORIO a
+ * propósito: un default `application/pdf` dejaría que un caller nuevo bautizara silenciosamente un
+ * MP3 como `.pdf`. La extensión sale SIEMPRE del MIME validado, nunca de lo que el nombre traiga
+ * (D9) — `cancion.exe` con `audio/mpeg` sale `cancion.mp3`.
  */
-export function sanearNombreArchivo(titulo: string): string {
-  const base = titulo
+export function sanearNombreArchivo(nombre: string, contentType: string): string {
+  const extension = extensionDeContentType(contentType);
+  const base = nombre
     .normalize("NFC")
     .replace(CONTROL_CHARS, "")
     .replace(/["\\/\r\n]/g, "") // comillas, barras, saltos de línea
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 120);
-  const limpio = base.length > 0 ? base : "descarga";
-  return limpio.toLowerCase().endsWith(".pdf") ? limpio : `${limpio}.pdf`;
+  // Se descarta la extensión que venga en el nombre (si la hay) y se impone la del MIME: así el
+  // nombre nunca contradice el contenido real.
+  const sinExtension = base.replace(/\.[A-Za-z0-9]{1,8}$/, "").trim();
+  const limpio = sinExtension.length > 0 ? sinExtension : "descarga";
+  return `${limpio}.${extension}`;
 }
 
 /**
@@ -70,10 +109,17 @@ export function sanearNombreArchivo(titulo: string): string {
  * ASCII (`filename="…"`) y la variante RFC 5987 (`filename*=UTF-8''…`) para nombres con
  * acentos/no-ASCII. El adapter lo pasa como `ResponseContentDisposition` de la descarga.
  */
-function contentDispositionAttachment(nombreArchivo: string): string {
+function contentDispositionAttachment(
+  nombreArchivo: string,
+  // `inline` lo usan SOLO las miniaturas de la página de entrega (productos-tipos-digitales F09):
+  // un `<img>` que apunta a una URL con `attachment` no es algo con lo que se pueda contar. NO
+  // cambia nada de la política de acceso — la URL sigue siendo prefirmada, corta y autorizada por
+  // el Entitlement; lo único que cambia es si el navegador la pinta o la baja.
+  disposicion: "attachment" | "inline" = "attachment",
+): string {
   const asciiFallback = nombreArchivo.replace(NO_ASCII_PRINTABLE, "_").replace(/"/g, "");
   const encoded = encodeURIComponent(nombreArchivo);
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+  return `${disposicion}; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }
 
 export interface StorageConfig {
@@ -83,25 +129,47 @@ export interface StorageConfig {
   bucket: string | undefined;
 }
 
+/** Metadata real de un objeto ya almacenado, tal como la reporta R2 (no lo que dijo el cliente). */
+export interface ObjetoAlmacenado {
+  /** Tamaño real en bytes (`ContentLength`). Es la fuente del límite de 20 MB (D7). */
+  bytes: number;
+  /** Content-Type con el que R2 almacenó el objeto; `undefined` si el objeto no lo declara. */
+  contentType: string | undefined;
+}
+
 export interface StorageService {
   /**
    * URL prefirmada PUT para subir el objeto en `key`. El `contentType` va FIRMADO (la URL solo
-   * vale para ese tipo exacto); default `application/pdf` (F03). El bucket público de assets de
-   * marca (ADR-0013) reusa este mismo presigner pasando un `contentType` de imagen.
+   * vale para ese tipo exacto) y es OBLIGATORIO desde F02: con la allowlist abierta a 9 tipos, un
+   * default `application/pdf` sería una trampa silenciosa.
    */
   presignarSubida(input: {
     key: string;
-    contentType?: string;
+    contentType: string;
     expiresEnSegundos?: number;
   }): Promise<string>;
-  /** URL prefirmada GET para descargar `key` como attachment con `nombreArchivo`. */
+  /**
+   * URL prefirmada GET para descargar `key` como attachment con `nombreArchivo`. El `contentType`
+   * viaja como `ResponseContentType`, así el navegador recibe el tipo REAL del archivo (F02/F03).
+   */
   presignarDescarga(input: {
     key: string;
     nombreArchivo: string;
+    contentType: string;
     expiresEnSegundos?: number;
+    /**
+     * `attachment` (default) baja el archivo; `inline` deja que el navegador lo pinte — lo usan las
+     * MINIATURAS de la página de entrega (F09). La política de acceso no cambia: sigue siendo una
+     * URL prefirmada, corta y autorizada por el Entitlement de una orden pagada (ADR-0002).
+     */
+    disposicion?: "attachment" | "inline";
   }): Promise<string>;
-  /** `true` si el objeto existe en el bucket; `false` si no (404 de R2). */
-  headObject(key: string): Promise<boolean>;
+  /**
+   * Metadata del objeto en `key`, o `null` si no existe (404 de R2). Reemplaza al `headObject`
+   * booleano de F03: la confirmación necesita el TAMAÑO real para aplicar el límite de 20 MB (D7),
+   * y ese dato solo lo tiene el bucket — el cliente no es fuente confiable de su propio peso.
+   */
+  statObject(key: string): Promise<ObjetoAlmacenado | null>;
   /** Sube un objeto server-side (scripts/usos futuros; el flujo del panel usa presign). */
   putObject(input: {
     key: string;
@@ -149,7 +217,7 @@ export function crearStorageService(config: StorageConfig): StorageService {
       const comando = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        ContentType: contentType ?? CONTENT_TYPE_PDF,
+        ContentType: contentType,
       });
       return getSignedUrl(s3, comando, {
         expiresIn: expiresEnSegundos ?? EXPIRACION_SUBIDA_SEGUNDOS,
@@ -160,28 +228,43 @@ export function crearStorageService(config: StorageConfig): StorageService {
       });
     },
 
-    async presignarDescarga({ key, nombreArchivo, expiresEnSegundos }) {
+    async presignarDescarga({
+      key,
+      nombreArchivo,
+      contentType,
+      expiresEnSegundos,
+      disposicion,
+    }) {
       const { s3, bucket } = resolver();
       const comando = new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-        ResponseContentDisposition: contentDispositionAttachment(nombreArchivo),
-        ResponseContentType: CONTENT_TYPE_PDF,
+        ResponseContentDisposition: contentDispositionAttachment(
+          nombreArchivo,
+          disposicion,
+        ),
+        // El tipo REAL del archivo (F02): un MP3 llega como `audio/mpeg`, no como PDF.
+        ResponseContentType: contentType,
       });
       return getSignedUrl(s3, comando, {
         expiresIn: expiresEnSegundos ?? EXPIRACION_DESCARGA_SEGUNDOS,
       });
     },
 
-    async headObject(key) {
+    async statObject(key) {
       const { s3, bucket } = resolver();
       try {
-        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-        return true;
+        const salida = await s3.send(
+          new HeadObjectCommand({ Bucket: bucket, Key: key }),
+        );
+        return {
+          bytes: salida.ContentLength ?? 0,
+          contentType: salida.ContentType ?? undefined,
+        };
       } catch (e) {
         // R2/S3 devuelven 404 (NotFound / $metadata 404) para un objeto ausente: eso es
         // "no existe", no un error a propagar. Cualquier otro fallo (auth, red) sí se propaga.
-        if (esNotFound(e)) return false;
+        if (esNotFound(e)) return null;
         throw e;
       }
     },

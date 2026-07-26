@@ -340,7 +340,7 @@ function FilaCorreoFijo() {
               Correo
             </Text>
             <Text size="xs" c="dimmed">
-              Siempre se pide. Es donde llega el PDF y su número del sorteo.
+              Siempre se pide. Es donde llega el archivo y su número del sorteo.
             </Text>
           </div>
         </Group>

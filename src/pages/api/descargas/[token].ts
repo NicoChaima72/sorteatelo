@@ -6,6 +6,7 @@ import {
   type GrantParaDescarga,
   manejarDescarga,
 } from "~/server/descargas/manejarDescarga";
+import { archivosDelGrant } from "~/server/entrega/archivosDelGrant";
 import { crearStorageDeEnv } from "~/server/storage/storageDeEnv";
 
 /**
@@ -56,8 +57,23 @@ export default async function handler(
 }
 
 /**
- * Repo del grant: token ⇒ grant (unique global) ⇒ tenant/producto. Devuelve solo la proyección
- * que el núcleo necesita para decidir y presignar. Un token inexistente ⇒ null (⇒ 404 neutral).
+ * Repo del grant: token ⇒ grant (unique global) ⇒ tenant/producto ⇒ archivo a servir. Devuelve solo
+ * la proyección que el núcleo necesita para decidir y presignar. Un token inexistente ⇒ null (⇒ 404
+ * neutral).
+ *
+ * El archivo se resuelve con `archivosParaEntrega` (productos-tipos-digitales F03), scopeado por el
+ * `tenantId` **del grant** — que es server-authored (sale de la fila, no del request). Así la
+ * generalización a cualquier tipo no abre ningún camino cross-tenant: el mismo tenant que autoriza
+ * es el que scopea la búsqueda del archivo, y el núcleo re-chequea el prefijo de la key igual (I9).
+ *
+ * Sin `?archivo=`, se sirve el PRIMER archivo autorizado: para un producto ESTANDAR hay exactamente
+ * uno (invariante de `confirmarArchivoProducto`, F02) ⇒ el comportamiento no cambió. Un producto
+ * SOBRE tiene N archivos ASIGNADOS a esta orden (F08) y la página de entrega (F09) linkea a cada uno
+ * con `?archivo=<fileId>`.
+ *
+ * El conjunto autorizado lo resuelve `archivosDelGrant` — la MISMA función que usa la página de
+ * entrega (I5). Es importante que sea la misma: en un sobre autoriza solo lo ASIGNADO, nunca el pool
+ * completo, así que ni la página puede mostrar de más ni el endpoint entregar de más.
  */
 async function buscarGrantPorToken(
   token: string,
@@ -67,14 +83,38 @@ async function buscarGrantPorToken(
     select: {
       tenantId: true,
       expiresAt: true,
-      product: { select: { pdfPath: true, titulo: true } },
+      productId: true,
+      orderId: true,
     },
   });
   if (!grant) return null;
+
+  const archivos = await archivosDelGrant({ db, grant });
+  const archivo = archivos[0];
+
   return {
     tenantId: grant.tenantId,
-    pdfPath: grant.product.pdfPath,
-    titulo: grant.product.titulo,
     expiresAt: grant.expiresAt,
+    archivo: archivo
+      ? {
+          key: archivo.key,
+          contentType: archivo.contentType,
+          nombreArchivo: archivo.nombreArchivo,
+        }
+      : null,
+    // Solo los que TIENEN fila (`id`): el fallback legacy del `pdfPath` no es direccionable por id,
+    // y no hace falta que lo sea (es siempre el único archivo de su producto ⇒ se sirve sin query).
+    archivosPorId: Object.fromEntries(
+      archivos
+        .filter((a): a is typeof a & { id: string } => a.id !== null)
+        .map((a) => [
+          a.id,
+          {
+            key: a.key,
+            contentType: a.contentType,
+            nombreArchivo: a.nombreArchivo,
+          },
+        ]),
+    ),
   };
 }

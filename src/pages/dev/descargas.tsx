@@ -3,6 +3,11 @@ import Head from "next/head";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
+import {
+  datosEntregableDeFila,
+  esProductoEntregable,
+  SELECCION_PRODUCTO_ENTREGABLE,
+} from "~/server/productos/productoEntregable";
 
 /**
  * Página DEV throwaway (F03/D7) — puente de E2E hasta que exista el correo transaccional (F04
@@ -15,7 +20,14 @@ import { db } from "~/server/db";
 interface GrantView {
   token: string;
   productoTitulo: string;
-  pdfSubido: boolean;
+  /**
+   * ¿El producto tiene algo que entregar? Desde productos-tipos-digitales F04 se resuelve con la
+   * MISMA regla que la descarga real (`tieneArchivoEntregable`: ≥1 `ProductFile` confirmado **o** el
+   * `pdfPath` legacy) en vez de mirar solo la columna. Antes de este cambio esta página mentía: el
+   * código nuevo ya no escribe `pdfPath`, así que todo producto subido de ahora en adelante se
+   * mostraba como "pendiente — 404" cuando su descarga funcionaba perfecto.
+   */
+  entregable: boolean;
   expiresAt: string;
 }
 
@@ -48,7 +60,12 @@ export const getServerSideProps: GetServerSideProps<{
         select: {
           token: true,
           expiresAt: true,
-          product: { select: { titulo: true, pdfPath: true } },
+          product: {
+            // El `select` de la regla de entregable (trae la columna legacy, el `_count` FILTRADO de
+            // archivos confirmados —sin las `key`, que no tienen por qué llegar acá (I2/ADR-0002)— y
+            // la opción de pack activa más grande) + el título para mostrar.
+            select: { ...SELECCION_PRODUCTO_ENTREGABLE, titulo: true },
+          },
         },
       },
     },
@@ -65,7 +82,9 @@ export const getServerSideProps: GetServerSideProps<{
         grants: o.downloadGrants.map((g) => ({
           token: g.token,
           productoTitulo: g.product.titulo,
-          pdfSubido: g.product.pdfPath !== null,
+          // MISMA regla que la entrega, importada y no re-escrita (I5): si esta página y la descarga
+          // discrepan, la página de dev es inútil justo cuando más se la necesita.
+          entregable: esProductoEntregable(datosEntregableDeFila(g.product)),
           expiresAt: g.expiresAt.toISOString(),
         })),
       })),
@@ -119,7 +138,7 @@ export default function DevDescargasPage({
                 {orden.grants.map((grant) => (
                   <li key={grant.token} style={{ marginBottom: 6 }}>
                     {grant.productoTitulo}{" "}
-                    {grant.pdfSubido ? (
+                    {grant.entregable ? (
                       <a
                         href={`/api/descargas/${grant.token}`}
                         target="_blank"
@@ -128,7 +147,9 @@ export default function DevDescargasPage({
                         descargar
                       </a>
                     ) : (
-                      <span style={{ color: "#c60" }}>(PDF pendiente — 404 hasta subirlo)</span>
+                      <span style={{ color: "#c60" }}>
+                        (archivo pendiente — 404 hasta subirlo)
+                      </span>
                     )}{" "}
                     <span style={{ color: "#999", fontSize: 12 }}>
                       · vence {new Date(grant.expiresAt).toLocaleDateString("es-CL")}

@@ -15,15 +15,34 @@ import {
   reordenarCamposCheckoutInput,
 } from "~/server/domain/camposCheckout/schemas";
 import { reenviarCorreoDescargaDeOrden } from "~/server/domain/correo/reenviarCorreoDescargaDeOrden";
+import { activarPlanTrasRegistro } from "~/server/domain/facturacion/activarPlanTrasRegistro";
+import { cancelarPlan } from "~/server/domain/facturacion/cancelarPlan";
+import { confirmarCambioDeTarjeta } from "~/server/domain/facturacion/confirmarCambioDeTarjeta";
+import { getAvisoFacturacion } from "~/server/domain/facturacion/getAvisoFacturacion";
+import { getEstadoPlan } from "~/server/domain/facturacion/getEstadoPlan";
+import { iniciarCambioDeTarjeta } from "~/server/domain/facturacion/iniciarCambioDeTarjeta";
+import { iniciarRegistroTarjeta } from "~/server/domain/facturacion/iniciarRegistroTarjeta";
+import {
+  activarPlanTrasRegistroInput,
+  confirmarCambioDeTarjetaInput,
+  iniciarRegistroTarjetaInput,
+} from "~/server/domain/facturacion/schemas";
+import { enviarCorreosFacturacion } from "~/server/facturacion/enviarCorreosFacturacion";
+import {
+  crearFlowPlataformaDeEnv,
+  urlRetornoCambioDeTarjeta,
+  urlRetornoPlan,
+} from "~/server/facturacion/flowPlataformaDeEnv";
 import { actualizarProducto } from "~/server/domain/panel/actualizarProducto";
+import { borrarArchivoDeProducto } from "~/server/domain/panel/borrarArchivoDeProducto";
 import { confirmarBasesSubidas } from "~/server/domain/panel/confirmarBasesSubidas";
 import { confirmarImagenSubida } from "~/server/domain/panel/confirmarImagenSubida";
-import { confirmarPdfProducto } from "~/server/domain/panel/confirmarPdfProducto";
+import { confirmarArchivoProducto } from "~/server/domain/panel/confirmarArchivoProducto";
 import { crearProducto } from "~/server/domain/panel/crearProducto";
 import { crearSorteo } from "~/server/domain/panel/crearSorteo";
 import { crearUrlSubidaBases } from "~/server/domain/panel/crearUrlSubidaBases";
 import { crearUrlSubidaImagen } from "~/server/domain/panel/crearUrlSubidaImagen";
-import { crearUrlSubidaPdf } from "~/server/domain/panel/crearUrlSubidaPdf";
+import { crearUrlSubidaArchivo } from "~/server/domain/panel/crearUrlSubidaArchivo";
 import { editarSorteo } from "~/server/domain/panel/editarSorteo";
 import { ejecutarSorteo } from "~/server/domain/panel/ejecutarSorteo";
 import { exportarVentasCsv } from "~/server/domain/panel/exportarVentasCsv";
@@ -47,14 +66,15 @@ import { crearTiendaInput } from "~/server/domain/tenants/schemas";
 import { TOS_TEXTO, TOS_VERSION } from "~/server/tos/tos";
 import {
   actualizarProductoInput,
+  borrarArchivoDeProductoInput,
   confirmarBasesSubidasInput,
   confirmarImagenSubidaInput,
-  confirmarPdfProductoInput,
+  confirmarArchivoProductoInput,
   crearProductoInput,
   crearSorteoInput,
   crearUrlSubidaBasesInput,
   crearUrlSubidaImagenInput,
-  crearUrlSubidaPdfInput,
+  crearUrlSubidaArchivoInput,
   editarSorteoInput,
   ejecutarSorteoInput,
   guardarConfiguracionTiendaInput,
@@ -119,6 +139,105 @@ export const panelRouter = createTRPCRouter({
     runDomain(() => despublicarTienda({ db: ctx.db, acceso: ctx.acceso })),
   ),
 
+  // ── Facturación de la plataforma (F03/F10, ADR-0026) ─────────────────────
+  // El OTRO mundo del dinero: acá Sortéatelo cobra SU mensualidad con SU cuenta de Flow, cuyas
+  // credenciales viven solo en env (I1/I7). El service se cablea con `crearFlowPlataformaDeEnv()`
+  // —único productor de la app— y JAMÁS con las `FlowCredential` BYO del tenant.
+  //
+  // El plan y el precio los calcula el DOMINIO contando las suscripciones activas del Pagador (I4):
+  // ningún procedure de acá acepta un plan ni un monto por input, a propósito.
+  getEstadoPlan: panelProcedure.query(({ ctx }) =>
+    runDomain(() => getEstadoPlan({ db: ctx.db, acceso: ctx.acceso })),
+  ),
+
+  // Aviso de morosidad del CHROME (F05/D4): lo consulta el layout en toda página del panel para el
+  // banner y para reducir el rail cuando la Tienda está en pausa. Es PRESENTACIÓN — la restricción
+  // real la aplica `guardPaginaAdmin` server-side en cada `getServerSideProps`.
+  getAvisoFacturacion: panelProcedure.query(({ ctx }) =>
+    runDomain(() => getAvisoFacturacion({ db: ctx.db, acceso: ctx.acceso })),
+  ),
+
+  iniciarRegistroTarjeta: panelProcedure
+    .input(iniciarRegistroTarjetaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        iniciarRegistroTarjeta({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          flow: crearFlowPlataformaDeEnv(),
+          input,
+          // El panel corre en el subdominio de ESTA Tienda (ADR-0022), así que el origen del
+          // request ya trae el host correcto: la vuelta de Flow aterriza en el panel de la tienda
+          // que activó el plan, con su marca. Server-side, nunca del cliente.
+          urlRetorno: urlRetornoPlan(ctx.origin),
+        }),
+      ),
+    ),
+
+  activarPlanTrasRegistro: panelProcedure
+    .input(activarPlanTrasRegistroInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        activarPlanTrasRegistro({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          flow: crearFlowPlataformaDeEnv(),
+          input,
+        }),
+      ),
+    ),
+
+  // Cambio de tarjeta con el plan ya activo (F10/D12). Mismas dos mitades que la activación —salir
+  // a Flow y volver con confirmación server-side (I3)— pero con OTRA página de retorno y sin crear
+  // ninguna suscripción: en Flow la tarjeta vive en el customer, así que el plan sigue igual y pasa
+  // a cobrarse con el medio de pago nuevo. SIN input en la primera mitad: no hay nada que elegir.
+  iniciarCambioDeTarjeta: panelProcedure.mutation(({ ctx }) =>
+    runDomain(() =>
+      iniciarCambioDeTarjeta({
+        db: ctx.db,
+        acceso: ctx.acceso,
+        flow: crearFlowPlataformaDeEnv(),
+        urlRetorno: urlRetornoCambioDeTarjeta(ctx.origin),
+      }),
+    ),
+  ),
+
+  confirmarCambioDeTarjeta: panelProcedure
+    .input(confirmarCambioDeTarjetaInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        confirmarCambioDeTarjeta({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          flow: crearFlowPlataformaDeEnv(),
+          input,
+        }),
+      ),
+    ),
+
+  // Cancelación explícita del plan (F06/D6): `cancel_at_period_end` — la tienda sigue vendiendo
+  // hasta cerrar el período ya pagado. SIN input: no hay nada que elegir, se cancela el plan de la
+  // Tienda del host y la confirmación es cosa de la UI.
+  //
+  // El correo (5) sale DESPUÉS de que el use case terminó y su fallo no revierte nada (I9): el
+  // dominio decide qué correo corresponde, el borde lo despacha — mismo reparto que el webhook.
+  cancelarPlan: panelProcedure.mutation(async ({ ctx }) => {
+    const resultado = await runDomain(() =>
+      cancelarPlan({
+        db: ctx.db,
+        acceso: ctx.acceso,
+        flow: crearFlowPlataformaDeEnv(),
+      }),
+    );
+
+    await enviarCorreosFacturacion({
+      correo: crearCorreoDeEnv(),
+      correos: resultado.correos,
+    });
+
+    return { cancelacionEfectivaAtIso: resultado.cancelacionEfectivaAtIso };
+  }),
+
   // ── Productos (F02) ──────────────────────────────────────────────────────
   listarProductos: panelProcedure.query(({ ctx }) =>
     runDomain(() =>
@@ -140,14 +259,16 @@ export const panelRouter = createTRPCRouter({
       ),
     ),
 
-  // ── Subida del PDF a R2 (F03/D4): presigned PUT + confirmación server-side ──
-  // El storage se cabla desde env en el borde (crearStorageDeEnv, I7); el use case lo
-  // recibe inyectado. El cliente NUNCA elige la key (la computa el server, I6).
-  crearUrlSubidaPdf: panelProcedure
-    .input(crearUrlSubidaPdfInput)
+  // ── Subida del ARCHIVO del producto a R2 (productos-tipos-digitales F02, D1/D7/D9) ──
+  // Generaliza a `crearUrlSubidaPdf`/`confirmarPdfProducto` (PDF-only) sin duplicar el
+  // pipeline (I5): mismo presigned PUT + confirmación server-side contra el bucket PRIVADO
+  // (crearStorageDeEnv, I7). El cliente NUNCA elige la key (la computa el server, I6) y el
+  // tipo se DERIVA del MIME contra la allowlist cerrada, jamás del nombre del archivo (D9).
+  crearUrlSubidaArchivo: panelProcedure
+    .input(crearUrlSubidaArchivoInput)
     .mutation(({ ctx, input }) =>
       runDomain(() =>
-        crearUrlSubidaPdf({
+        crearUrlSubidaArchivo({
           db: ctx.db,
           acceso: ctx.acceso,
           input,
@@ -156,11 +277,11 @@ export const panelRouter = createTRPCRouter({
       ),
     ),
 
-  confirmarPdfProducto: panelProcedure
-    .input(confirmarPdfProductoInput)
+  confirmarArchivoProducto: panelProcedure
+    .input(confirmarArchivoProductoInput)
     .mutation(({ ctx, input }) =>
       runDomain(() =>
-        confirmarPdfProducto({
+        confirmarArchivoProducto({
           db: ctx.db,
           acceso: ctx.acceso,
           input,
@@ -168,6 +289,31 @@ export const panelRouter = createTRPCRouter({
         }),
       ),
     ),
+
+  // Saca un archivo del producto — una lámina del pool de un sobre, o el archivo único de un
+  // estándar (F06/D4/I7). Rechaza si ya le tocó a alguien que pagó, y si dejaría sin nada que
+  // entregar a un producto que está a la venta.
+  borrarArchivoDeProducto: panelProcedure
+    .input(borrarArchivoDeProductoInput)
+    .mutation(({ ctx, input }) =>
+      runDomain(() =>
+        borrarArchivoDeProducto({
+          db: ctx.db,
+          acceso: ctx.acceso,
+          input,
+          storage: crearStorageDeEnv(),
+        }),
+      ),
+    ),
+
+  // ── Opciones de pack del SOBRE: BORRADAS (ENMIENDA v2, E13/E14) ─────────────
+  // `crearOpcionDePack` / `actualizarOpcionDePack` / `borrarOpcionDePack` existieron hasta el
+  // 2026-07-26. Murieron con el CONCEPTO: un pack ya no es una «opción» dentro de un sobre sino un
+  // PRODUCTO más (`Product.fuenteId` + `unidadesPorPack`), así que se crea y se edita con
+  // `crearProducto`/`actualizarProducto` como cualquier otro. No re-agregar: la tabla
+  // `ProductPackOption` sigue en la DB por la fase EXPANDIR (V-I3) pero no tiene lectores ni
+  // escritores. Con esta UI murió también el bug del `<form>` anidado que el feature-tester encontró
+  // en F06 — no había fix que hacer, porque no queda superficie donde el bug pueda existir.
 
   // ── Subida de assets de marca al bucket PÚBLICO (plantilla-rica F03/ADR-0013) ──
   // Mismo patrón presigned PUT + confirmación server-side que el PDF, pero contra el

@@ -42,6 +42,19 @@ export const iniciarCheckoutInput = z.object({
       z.object({
         productId: z.string().cuid(),
         cantidad: z.number().int().min(1).max(MAX_CANTIDAD_POR_ITEM),
+        /**
+         * Opción de pack elegida, SOLO para productos modalidad SOBRE (F07/D3). Es lo ÚNICO que el
+         * cliente aporta sobre el precio, y ni siquiera es el precio: es un id que SELECCIONA entre
+         * las opciones ACTIVAS de ESE producto (que ya está scopeado por el tenant del subdominio,
+         * I1). El monto y el tamaño del pack los lee el server de la fila vigente y los congela en
+         * el `OrderItem` (I4) — un `precio` que viaje del cliente no existe en este input y no debe
+         * existir nunca.
+         *
+         * Opcional porque un producto ESTANDAR no lleva ninguna; que FALTE en un sobre (o que
+         * SOBRE en un estándar) lo rechaza el use case con mensaje, no Zod: la modalidad es un dato
+         * de la DB y el schema no la conoce.
+         */
+        packOptionId: z.string().cuid().optional(),
       }),
     )
     .min(1)

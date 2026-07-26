@@ -8,6 +8,9 @@ import { db } from "~/server/db";
  * columnas nuevas (`Product.participaEnSorteo`, `OrderItem.cantidad`, `OrderItem.participaEnSorteo`,
  * `RaffleEntry.ordinal`) y el nuevo `@@unique([raffleId, orderId, ordinal])` (idempotencia por-ticket).
  *
+ * Desde ADR-0024 cubre además el `@@unique([raffleId, numero])` del Número del sorteo (004): la capa
+ * final de I4, que ningún test de use case alcanza porque el contador de `Raffle` los coordina antes.
+ *
  * Slugs `test-schema-sorteo-*` scopeados y limpiados antes/después (FK-safe: hijos antes que padres).
  */
 
@@ -144,6 +147,7 @@ describe("schema/sorteo-por-producto (DB-backed)", () => {
         orderId: orden.id,
         email: "fan@example.cl",
         ordinal,
+        numero: ordinal + 1, // Número del sorteo (ADR-0024): NOT NULL, lo asigna el writer
       })),
     });
     expect(
@@ -151,6 +155,8 @@ describe("schema/sorteo-por-producto (DB-backed)", () => {
     ).toBe(3);
 
     // Repetir un ordinal existente (0) para el mismo (raffle, orden) ⇒ viola el unique.
+    // El `numero` va LIBRE (99, no emitido) a propósito: si reusáramos uno, el rechazo lo podría
+    // estar causando `@@unique([raffleId, numero])` y el test dejaría de probar lo que dice probar.
     await expect(
       db.raffleEntry.create({
         data: {
@@ -159,8 +165,71 @@ describe("schema/sorteo-por-producto (DB-backed)", () => {
           orderId: orden.id,
           email: "fan@example.cl",
           ordinal: 0,
+          numero: 99,
         },
       }),
     ).rejects.toThrow();
+  });
+
+  // sorteo.schema.004 — el @@unique([raffleId, numero]) de ADR-0024 §3 existe EN LA DB: dos tickets
+  //                     no pueden compartir Número del sorteo, y el namespace es POR RAFFLE.
+  // Es la capa final de I4 y el único test que se pone rojo si el schema no está pusheado en un
+  // entorno nuevo (los use cases coordinan con el contador y nunca llegan a chocar contra ella).
+  it("rechaza dos RaffleEntry con el mismo numero en un raffle, pero el mismo numero convive en raffles distintos", async () => {
+    const t = await crearTenant("d");
+    const p = await db.product.create({
+      data: { tenantId: t.id, titulo: "P", descripcion: "d", precio: "1000" },
+      select: { id: true },
+    });
+    const crearRaffle = (nombre: string) =>
+      db.raffle.create({
+        data: {
+          tenantId: t.id,
+          nombre,
+          premio: "premio",
+          estado: "CERRADO",
+          fechaInicio: new Date(Date.UTC(2026, 0, 1)),
+          fechaFin: new Date(Date.UTC(2026, 11, 31)),
+        },
+        select: { id: true },
+      });
+    const raffleA = await crearRaffle("Sorteo A");
+    const raffleB = await crearRaffle("Sorteo B");
+    const crearOrden = () =>
+      db.order.create({
+        data: {
+          tenantId: t.id,
+          email: "fan@example.cl",
+          estado: "PAGADO",
+          total: "1000",
+          items: { create: [{ tenantId: t.id, productId: p.id, precio: "1000" }] },
+        },
+        select: { id: true },
+      });
+    const orden1 = await crearOrden();
+    const orden2 = await crearOrden();
+
+    const entry = (raffleId: string, orderId: string, numero: number) => ({
+      tenantId: t.id,
+      raffleId,
+      orderId,
+      email: "fan@example.cl",
+      ordinal: 0,
+      numero,
+    });
+
+    await db.raffleEntry.create({ data: entry(raffleA.id, orden1.id, 7) });
+
+    // Mismo número, MISMO raffle, otra orden (así el unique de ordinal no interfiere) ⇒ rechazado.
+    await expect(
+      db.raffleEntry.create({ data: entry(raffleA.id, orden2.id, 7) }),
+    ).rejects.toThrow();
+
+    // Mismo número en OTRO raffle ⇒ permitido: cada sorteo numera desde 1 en su propio namespace.
+    const enB = await db.raffleEntry.create({
+      data: entry(raffleB.id, orden1.id, 7),
+      select: { numero: true },
+    });
+    expect(enB.numero).toBe(7);
   });
 });

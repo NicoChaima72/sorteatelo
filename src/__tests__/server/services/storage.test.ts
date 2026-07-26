@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   crearStorageService,
   EXPIRACION_DESCARGA_SEGUNDOS,
-  keyDePdfProducto,
+  keyDeArchivoProducto,
   sanearNombreArchivo,
   type StorageConfig,
 } from "~/server/services/storage";
@@ -30,25 +30,45 @@ const configFake: StorageConfig = {
   bucket: BUCKET,
 };
 
-describe("services/storage — keyDePdfProducto (helper puro)", () => {
-  // storage.key.001 — key determinística per-tenant
-  it("produce exactamente `<tenantId>/<productId>.pdf`", () => {
-    expect(keyDePdfProducto("tenantABC", "prod123")).toBe(
-      "tenantABC/prod123.pdf",
-    );
+describe("services/storage — keyDeArchivoProducto (helper puro)", () => {
+  // storage.key.001 — key per-tenant/per-producto con la extensión derivada del MIME (F02/D9)
+  it("produce `<tenantId>/<productId>/<ref>.<ext>` con la extensión del contentType validado", () => {
+    expect(
+      keyDeArchivoProducto({
+        tenantId: "tenantABC",
+        productId: "prod123",
+        ref: "deadbeef",
+        contentType: "audio/mpeg",
+      }),
+    ).toBe("tenantABC/prod123/deadbeef.mp3");
+  });
+
+  // storage.key.002 — un contentType fuera de la allowlist es un bug del caller, no un caso de negocio
+  it("lanza si el contentType no está en la allowlist (el caller debió validarlo antes)", () => {
+    expect(() =>
+      keyDeArchivoProducto({
+        tenantId: "T",
+        productId: "P",
+        ref: "r",
+        contentType: "video/mp4",
+      }),
+    ).toThrow(/allowlist/);
   });
 });
 
 describe("services/storage — sanearNombreArchivo (helper puro)", () => {
   // storage.saneo.001 — quita chars peligrosos para el header y garantiza .pdf
-  it("elimina comillas/barras/CRLF, colapsa espacios y garantiza extensión .pdf", () => {
-    expect(sanearNombreArchivo('Cómo "enriquecer"/a tu idol')).toBe(
-      "Cómo enriquecera tu idol.pdf",
-    );
+  it("elimina comillas/barras/CRLF, colapsa espacios y fuerza la extensión del contentType", () => {
+    expect(
+      sanearNombreArchivo('Cómo "enriquecer"/a tu idol', "application/pdf"),
+    ).toBe("Cómo enriquecera tu idol.pdf");
     // ya termina en .pdf ⇒ no duplica extensión (case-insensitive)
-    expect(sanearNombreArchivo("Mi Libro.PDF")).toBe("Mi Libro.PDF");
-    // título vacío ⇒ fallback
-    expect(sanearNombreArchivo("   ")).toBe("descarga.pdf");
+    expect(sanearNombreArchivo("Mi Libro.PDF", "application/pdf")).toBe("Mi Libro.pdf");
+    // nombre vacío ⇒ fallback
+    expect(sanearNombreArchivo("   ", "application/pdf")).toBe("descarga.pdf");
+    // F02/D9: la extensión SIEMPRE sale del MIME, aunque el nombre del cliente diga otra cosa.
+    expect(sanearNombreArchivo("cancion.exe", "audio/mpeg")).toBe("cancion.mp3");
+    expect(sanearNombreArchivo("sticker.pdf", "image/png")).toBe("sticker.png");
   });
 });
 
@@ -63,10 +83,12 @@ describe("services/storage — fail-fast de config", () => {
       bucket: undefined,
     });
     await expect(
-      service.presignarSubida({ key: "T/P.pdf" }),
+      service.presignarSubida({ key: "T/P.pdf", contentType: "application/pdf" }),
     ).rejects.toThrow(/R2_BUCKET/);
     // El mensaje jamás contiene el valor de un secreto (I4).
-    await service.presignarSubida({ key: "T/P.pdf" }).catch((e: Error) => {
+    await service
+      .presignarSubida({ key: "T/P.pdf", contentType: "application/pdf" })
+      .catch((e: Error) => {
       expect(e.message).not.toContain(SECRET);
     });
   });
@@ -79,6 +101,7 @@ describe("services/storage — presignarDescarga (GET)", () => {
     const url = await service.presignarDescarga({
       key: "tenantABC/prod123.pdf",
       nombreArchivo: "cómo enriquecer.pdf",
+      contentType: "application/pdf",
       expiresEnSegundos: EXPIRACION_DESCARGA_SEGUNDOS,
     });
 
@@ -101,14 +124,55 @@ describe("services/storage — presignarDescarga (GET)", () => {
     // La secretKey NUNCA aparece en la URL firmada (I4).
     expect(url).not.toContain(SECRET);
   });
+
+  // storage.presignDescarga.002 — F09: `inline` para las MINIATURAS de la página de entrega. Es el
+  // único caso que lo usa: un `<img>` apuntando a una URL con `attachment` no es algo con lo que se
+  // pueda contar. No cambia la política de acceso — sigue siendo prefirmada y corta.
+  it("con disposicion inline firma el mismo GET pero con content-disposition inline", async () => {
+    const service = crearStorageService(configFake);
+    const url = await service.presignarDescarga({
+      key: "tenantABC/prod123/aaa.png",
+      nombreArchivo: "sticker.png",
+      contentType: "image/png",
+      expiresEnSegundos: 300,
+      disposicion: "inline",
+    });
+
+    const disposition = decodeURIComponent(
+      new URL(url).searchParams.get("response-content-disposition") ?? "",
+    );
+    expect(disposition).toContain("inline");
+    expect(disposition).not.toContain("attachment");
+    // El nombre se sigue saneando igual: `inline` cambia el verbo, no las defensas.
+    expect(disposition).toContain('filename="sticker.png"');
+    expect(url).toContain("X-Amz-Expires=300");
+    expect(url).not.toContain(SECRET);
+  });
+
+  // storage.presignDescarga.003 — el DEFAULT sigue siendo attachment (cero regresión para todos los
+  // callers de siempre, que no pasan `disposicion`)
+  it("sin disposicion explícita sigue siendo attachment", async () => {
+    const service = crearStorageService(configFake);
+    const url = await service.presignarDescarga({
+      key: "tenantABC/prod123.pdf",
+      nombreArchivo: "guia.pdf",
+      contentType: "application/pdf",
+    });
+
+    const disposition = decodeURIComponent(
+      new URL(url).searchParams.get("response-content-disposition") ?? "",
+    );
+    expect(disposition).toContain("attachment");
+  });
 });
 
 describe("services/storage — presignarSubida (PUT)", () => {
   // storage.presignSubida.001 — PUT para la key exacta con content-type firmado y expiración
-  it("firma un PUT para la key pedida con content-type application/pdf y expiración corta", async () => {
+  it("firma un PUT para la key pedida con el content-type firmado y expiración corta", async () => {
     const service = crearStorageService(configFake);
     const url = await service.presignarSubida({
       key: "tenantABC/prod123.pdf",
+      contentType: "application/pdf",
       expiresEnSegundos: 600,
     });
 
@@ -155,11 +219,15 @@ describe("services/storage — roundtrip real contra R2 (integración)", () => {
 
       try {
         await service.putObject({ key, body: contenido });
-        expect(await service.headObject(key)).toBe(true);
+        // `statObject` trae existencia Y tamaño real: es lo que alimenta el límite de 20 MB (F02/D7).
+        const stat = await service.statObject(key);
+        expect(stat).not.toBeNull();
+        expect(stat?.bytes).toBe(Buffer.byteLength(contenido));
 
         const url = await service.presignarDescarga({
           key,
           nombreArchivo: "roundtrip.pdf",
+          contentType: "application/pdf",
         });
         const res = await fetch(url);
         expect(res.status).toBe(200);
@@ -175,7 +243,7 @@ describe("services/storage — roundtrip real contra R2 (integración)", () => {
         await service.deleteObject(key).catch(() => undefined);
       }
 
-      expect(await service.headObject(key)).toBe(false); // borrado efectivo
+      expect(await service.statObject(key)).toBeNull(); // borrado efectivo
     },
     30_000,
   );

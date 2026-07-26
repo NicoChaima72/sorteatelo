@@ -14,6 +14,25 @@ const precioClp = z
   .refine((v) => Number(v) > 0, "El precio debe ser mayor que 0");
 
 /**
+ * Cuántas unidades del contenido de la fuente entrega un PACK (ENMIENDA v2, E15).
+ *
+ * Entero ≥1 con tope 50: no es una restricción del dominio sino un cinturón contra el dedo pesado —
+ * un pack de 5.000 unidades no es un producto, es una colección entera, y el gate «la fuente
+ * alcanza» volvería el pack inactivable sin que se entienda por qué. El tope real lo pone ese gate.
+ *
+ * `.default(1)` para que un producto NORMAL no tenga que mandarlo: 1 es un hecho verdadero (vende 1
+ * unidad de sí mismo), igual que en la columna. Ojo: el default NO es la garantía del invariante
+ * «sin fuente ⇒ 1» — esa la impone el use case escribiendo el valor derivado, porque un cliente a
+ * mano puede mandar `{fuenteId: null, unidadesPorPack: 5}` y eso serían 5 tickets por 1 archivo.
+ */
+const unidadesPorPackDeUnPack = z
+  .number()
+  .int("Las unidades del pack tienen que ser un número entero")
+  .min(1, "El pack tiene que entregar al menos 1 archivo")
+  .max(50, "Un pack de más de 50 archivos es demasiado grande")
+  .default(1);
+
+/**
  * El seam de texto `pdfPath` de F05 MURIÓ con F03 (D4/I6): el cliente ya no escribe paths
  * (cerró el vector de un path arbitrario/ajeno como input). El `pdfPath` lo escribe SOLO
  * `confirmarPdfProducto` = key determinística `<tenantId>/<productId>.pdf`, computada
@@ -30,6 +49,27 @@ export const crearProductoInput = z.object({
   // Opt-in al sorteo (ADR-0012/D1): comprarlo genera Tickets. Default false vía el form; se
   // persiste tal cual en el Product (scoped por tenant, nunca del input el tenantId, I1).
   participaEnSorteo: z.boolean(),
+  // Modalidad de venta (F05/F06, D2/D9): lo ÚNICO que el Organizador declara sobre la forma del
+  // producto (el TIPO de archivo lo deriva el server del MIME, D9). `ESTANDAR` = un archivo fijo;
+  // `SOBRE` = pool con asignación aleatoria por compra.
+  //
+  // Se elige al CREAR y no se edita después: `actualizarProductoInput` no la acepta a propósito. Un
+  // cambio de modalidad sobre un producto que ya tiene pool y opciones rompería el invariante
+  // "ESTANDAR ⇒ exactamente 1 archivo confirmado" (F02) y dejaría opciones de pack huérfanas, y las
+  // reglas de esa migración (¿qué archivo del pool sobrevive? ¿qué pasa si ya se vendió?) son
+  // decisión de producto, no algo que el implementer pueda inventar. Un producto recién creado con
+  // la modalidad equivocada se borra y se crea de nuevo.
+  modalidad: z.enum(["ESTANDAR", "SOBRE"]),
+  // ── Un pack es un producto más (ENMIENDA v2, E13/E15) ──────────────────────
+  // `fuenteId` = de dónde salen los archivos que entrega. `null` (el default) ⇒ producto normal:
+  // entrega los suyos, exactamente como siempre. No-null ⇒ es un PACK y entrega `unidadesPorPack`
+  // del contenido de ESE producto.
+  //
+  // El id SELECCIONA entre los productos de la Tienda ya resuelta server-side; quién es fuente
+  // válida (mismo tenant, no es a su vez un pack) lo decide `resolverFuenteDePack`, no este schema
+  // (I1 — el input jamás autoriza).
+  fuenteId: z.string().cuid().nullable().default(null),
+  unidadesPorPack: unidadesPorPackDeUnPack,
 });
 export type CrearProductoInput = z.infer<typeof crearProductoInput>;
 
@@ -42,24 +82,72 @@ export const actualizarProductoInput = z.object({
   // flujo de subida. Ver `crearProductoInput`.
   activo: z.boolean(),
   participaEnSorteo: z.boolean(), // ADR-0012/D1 — editable en el panel; el snapshot al comprar es de OrderItem
+  // `unidadesPorPack` SÍ es editable (E15): subir un «Pack 4 libros» a 6 es un cambio de producto
+  // normal, y la historia la protege el snapshot del `OrderItem` (las órdenes viejas conservan el
+  // pack que se compró). El use case lo IGNORA si el producto no es un pack — ver ahí por qué.
+  unidadesPorPack: unidadesPorPackDeUnPack,
+  // `fuenteId` NO está acá y es deliberado (V-I1c): la fuente se elige al CREAR y no se edita, mismo
+  // patrón que `modalidad`. Re-apuntar un pack a otra fuente cambiaría en silencio QUÉ compró la
+  // gente que ya lo compró, y las reglas de esa migración (¿qué pasa con las asignaciones ya
+  // sorteadas?) son decisión de producto, no algo que el implementer pueda inventar.
 });
 export type ActualizarProductoInput = z.infer<typeof actualizarProductoInput>;
 
 /**
- * Subida del PDF (F03/D4): el cliente pide una URL prefirmada para SU producto — NUNCA elige
- * la key (la computa el server con `keyDePdfProducto(tenantId, productId)`, I6) ni manda el
- * `tenantId` (sale del acceso, I1). Solo referencia el producto por id.
+ * Subida de un ARCHIVO de producto (productos-tipos-digitales F02, D1/D9). Generaliza a
+ * `crearUrlSubidaPdfInput`, que era PDF-only y ni siquiera declaraba el tipo.
+ *
+ * El cliente NUNCA elige la key (la computa el server con `keyDeArchivoProducto`, I6) ni manda el
+ * `tenantId` (sale del acceso, I1). Aporta tres cosas: qué producto, qué MIME reporta el navegador
+ * y con qué nombre mostrar el archivo.
+ *
+ * `contentType` es un `z.string()` y NO un `z.enum(MIMES_ARCHIVO_PRODUCTO)` a propósito: el
+ * navegador manda ALIAS reales (`application/x-zip-compressed` en Windows, `audio/x-m4a` en
+ * Safari) que un enum del set canónico rechazaría con un falso negativo. La allowlist la aplica
+ * `resolverTipoArchivo` en el use case, que además normaliza el alias — un solo lugar donde vive
+ * la política (D1/I4), en vez de dos definiciones que pueden discrepar. El largo acotado evita que
+ * entre un header absurdo.
+ *
+ * `nombreArchivo` es SOLO para mostrar/descargar: el server lo sanea y le impone la extensión del
+ * MIME validado. No influye en la key ni en el tipo (D9).
  */
-export const crearUrlSubidaPdfInput = z.object({
+export const crearUrlSubidaArchivoInput = z.object({
   productId: z.string().cuid(),
+  contentType: z.string().trim().min(1).max(120),
+  nombreArchivo: z.string().trim().min(1).max(200),
 });
-export type CrearUrlSubidaPdfInput = z.infer<typeof crearUrlSubidaPdfInput>;
+export type CrearUrlSubidaArchivoInput = z.infer<typeof crearUrlSubidaArchivoInput>;
 
-/** Confirmación de la subida (F03/D4): verifica con headObject y persiste `pdfPath`. */
-export const confirmarPdfProductoInput = z.object({
-  productId: z.string().cuid(),
+/**
+ * Confirmación de la subida (F02/D7): `statObject` verifica existencia + tamaño (≤20 MB) y marca
+ * la fila entregable. Referencia el ARCHIVO por su id (no el producto): un sobre tiene M archivos
+ * y hay que poder confirmar exactamente el que se acaba de subir.
+ */
+export const confirmarArchivoProductoInput = z.object({
+  fileId: z.string().cuid(),
 });
-export type ConfirmarPdfProductoInput = z.infer<typeof confirmarPdfProductoInput>;
+export type ConfirmarArchivoProductoInput = z.infer<
+  typeof confirmarArchivoProductoInput
+>;
+
+/**
+ * Borrado de un archivo del producto (F06/D4/I7): una lámina del pool de un sobre, o el archivo de un
+ * producto estándar. Solo el `fileId` — la Tienda sale del acceso (I1) y el use case decide si el
+ * borrado es admisible (sin asignaciones, y sin dejar sin entregar a un producto que está a la venta).
+ */
+export const borrarArchivoDeProductoInput = z.object({
+  fileId: z.string().cuid(),
+});
+export type BorrarArchivoDeProductoInput = z.infer<
+  typeof borrarArchivoDeProductoInput
+>;
+
+/**
+ * Los inputs de OPCIONES DE PACK (`crearOpcionDePackInput`/`actualizarOpcionDePackInput`/
+ * `borrarOpcionDePackInput`) MURIERON el 2026-07-26 con la ENMIENDA v2 (E13/E14): un pack ya no es
+ * una «opción» dentro de un sobre sino un PRODUCTO más, así que se crea y se edita con
+ * `crearProductoInput`/`actualizarProductoInput` como cualquier otro. Ver `fuenteDeArchivos.ts`.
+ */
 
 /** Listado de ventas del panel, paginado por cursor (backend-conventions § Paginación). */
 export const listarVentasInput = z.object({
@@ -149,6 +237,35 @@ export const guardarConfiguracionTiendaInput = z.object({
     .string()
     .trim()
     .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Usa un color hex (ej. #ffc530)")
+    .optional()
+    .or(z.literal("")),
+  /**
+   * Prefijo de los Números del sorteo de esta Tienda (F08/D12): `ARMY` ⇒ `ARMY-1043`. Identidad de
+   * la Tienda —como el logo y los colores— y por eso se edita en esta misma card.
+   *
+   * Se guarda DESNUDO: el «-» lo pone el formateador (`~/lib/numerosDelSorteo`), así que `ARMY-` es
+   * inválido a propósito — si se aceptara, la mitad de las tiendas guardaría el guion y la otra
+   * mitad no, y la salida sería `ARMY--1043` para unas y `ARMY-1043` para otras.
+   *
+   * La normalización a MAYÚSCULAS vive ACÁ y no en el formulario porque este esquema es el borde
+   * COMPARTIDO por las dos puertas a la columna (el panel y la tool MCP `configurar_tienda`, misma
+   * lección que `colorPrimario`/`colorAcento`): con la normalización en el componente, un guardado
+   * por MCP escribiría minúsculas y el mismo tenant mostraría `army-1043` en una superficie y
+   * `ARMY-1043` en otra.
+   *
+   * Solo `[A-Za-z0-9]`: el prefijo se imprime en el correo y en el panel, y acotarlo a ASCII
+   * alfanumérico lo deja utilizable en cualquier superficie futura (incluidos los `tags` de Resend,
+   * que rechazan tildes y espacios con un 422 de TODO el lote). El tope de 8 es cosmético —un
+   * prefijo largo empuja el rango fuera de la columna del panel—, no una restricción del dominio.
+   */
+  prefijoTicket: z
+    .string()
+    .trim()
+    .regex(
+      /^[A-Za-z0-9]{1,8}$/,
+      "Usa entre 1 y 8 letras o números, sin espacios ni símbolos (el «-» lo agregamos nosotros)",
+    )
+    .transform((v) => v.toUpperCase())
     .optional()
     .or(z.literal("")),
   // `basesSorteo` MURIÓ como campo de configuración (admin-bases-pdf F03/D2/D3): las bases legales

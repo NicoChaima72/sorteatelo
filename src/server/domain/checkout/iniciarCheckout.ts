@@ -1,10 +1,11 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient, type ProductMode } from "@prisma/client";
 
 import { SELECCION_CAMPO_DEL_CHECKOUT } from "~/server/domain/camposCheckout/camposActivos";
 import { ordenDeCamposCheckout } from "~/server/domain/camposCheckout/reglas";
 import { validarRespuestasDeCheckout } from "~/server/domain/camposCheckout/validarRespuestas";
 import { DomainError } from "~/server/domain/errors";
 import { type IniciarCheckoutInput } from "~/server/domain/checkout/schemas";
+import { cargarGateVenta } from "~/server/domain/facturacion/cargarGateVenta";
 import { type FlowService } from "~/server/services/flow";
 
 /**
@@ -30,6 +31,78 @@ import { type FlowService } from "~/server/services/flow";
  * El `flow` entra inyectado (instanciado en el borde con las credenciales del tenant,
  * nunca dentro del dominio, I7).
  */
+/** Lo que el checkout necesita saber del producto para resolver el precio de una línea (F07). */
+interface ProductoParaLinea {
+  precio: Prisma.Decimal;
+  modalidad: ProductMode;
+  _count: { files: number };
+  packOptions: Array<{ id: string; unidades: number; precio: Prisma.Decimal }>;
+}
+
+/**
+ * Resuelve **qué se congela en el `OrderItem`** de una línea: el precio y cuántos archivos del pool
+ * entrega un pack (F07/D3).
+ *
+ * Es UNA función para las dos modalidades a propósito: el resto del use case (el total, el Payment,
+ * el monto a Flow) no debe saber si compró un archivo o un sobre. Devuelve siempre las dos cosas, así
+ * `unidadesPorPack` nunca queda implícito — para un ESTANDAR es **1**, que es un hecho VERDADERO
+ * (comprar 3 unidades son 3 tickets = 1×3) y no un relleno.
+ *
+ * `packOptions` ya viene filtrado a las ACTIVAS y del producto del tenant resuelto server-side, así
+ * que buscar el `packOptionId` acá dentro es a la vez la validación de vigencia y la de pertenencia
+ * (I1): un id de otra Tienda, de otro producto o de una opción apagada simplemente no está en la
+ * lista. Nunca se confía en un precio que venga del cliente — no existe tal campo en el input (I4).
+ */
+function snapshotDeLinea(
+  producto: ProductoParaLinea,
+  packOptionId: string | undefined,
+): { precio: Prisma.Decimal; unidadesPorPack: number } {
+  if (producto.modalidad !== "SOBRE") {
+    if (packOptionId !== undefined) {
+      // Ignorarlo en silencio sería peor: el Comprador creería que se lleva un pack.
+      throw new DomainError(
+        "INVALID",
+        "Este producto no se vende por packs.",
+      );
+    }
+    return { precio: producto.precio, unidadesPorPack: 1 };
+  }
+
+  if (packOptionId === undefined) {
+    throw new DomainError(
+      "INVALID",
+      "Elige cuántos archivos quieres antes de comprar este sobre.",
+    );
+  }
+
+  const opcion = producto.packOptions.find((o) => o.id === packOptionId);
+  if (!opcion) {
+    // Neutral y accionable: cubre "ya no existe", "la apagaron" y "es de otro producto/Tienda" con
+    // la misma respuesta, sin fugar cuál de los tres fue (I1).
+    throw new DomainError(
+      "INVALID",
+      "Esa opción ya no está disponible. Vuelve a elegir un pack.",
+    );
+  }
+
+  // Gate del pool (D4/I7), recomputado acá con los datos VIGENTES: sin esto, F08 intentaría sortear
+  // más archivos distintos de los que hay y reventaría contra el
+  // `@@unique([orderItemId, packOrdinal, productFileId])` DESPUÉS de que el Comprador pagó. El
+  // rechazo es ANTES de crear la Order y antes de tocar Flow: preferimos no vender a no poder
+  // entregar. El mensaje no dice cuántos archivos tiene la colección — el inventario de la Tienda no
+  // es asunto del Comprador, y "elige otro pack" es lo accionable.
+  if (producto._count.files < opcion.unidades) {
+    throw new DomainError(
+      "INVALID",
+      "Ese pack no está disponible por ahora. Prueba con uno más chico.",
+    );
+  }
+
+  // El precio del PACK COMPLETO (nunca el `Product.precio`, que en un sobre es solo referencia, ni
+  // un precio por unidad: multiplicarlo por `unidades` cobraría de más).
+  return { precio: opcion.precio, unidadesPorPack: opcion.unidades };
+}
+
 export async function iniciarCheckout({
   db,
   flow,
@@ -42,6 +115,22 @@ export async function iniciarCheckout({
   input: IniciarCheckoutInput;
 }): Promise<{ orderId: string; total: string; redirectUrl: string }> {
   const { order, subject } = await db.$transaction(async (tx) => {
+    // GATE DE VENTA por facturación (F05, D4/D5, ADR-0026), lo PRIMERO de la transacción: una Tienda
+    // en pausa —dunning de Flow agotado, plan cancelado o cortesía vencida— deja de vender. El SSR ya
+    // sirve la página neutral en vez del checkout, pero ese es el aviso; ESTE es el gate: recomputado
+    // server-side dentro de la $tx, no se saltea con un POST a mano (mismo criterio que el gate de
+    // publicación recomputado dentro de la $tx de `publicarTienda`).
+    //
+    // El mensaje es NEUTRAL a propósito: la mora es un asunto entre la Plataforma y el Organizador, y
+    // el Comprador no tiene por qué enterarse de que esta tienda no pagó su plan.
+    const gate = await cargarGateVenta({ db: tx, where: { id: tenantId } });
+    if (!gate.puedeVender) {
+      throw new DomainError(
+        "INACTIVE",
+        "Esta tienda no está recibiendo pedidos por ahora.",
+      );
+    }
+
     // Scoping por tenant (I1): solo productos de ESTA Tienda. Un productId de otra
     // Tienda no aparece acá ⇒ cae en el NOT_FOUND de abajo (aislamiento por construcción).
     const productos = await tx.product.findMany({
@@ -52,6 +141,18 @@ export async function iniciarCheckout({
         precio: true,
         activo: true,
         participaEnSorteo: true,
+        // F07 — lo que hace falta para vender un SOBRE. Todo cuelga del producto, que ya está
+        // scopeado por `tenantId`: el pack elegido no puede ser de otra Tienda por construcción (I1).
+        modalidad: true,
+        // Tamaño del POOL: solo los confirmados (un archivo a medio subir no es entregable, F06).
+        _count: { select: { files: { where: { confirmadoAt: { not: null } } } } },
+        // Solo las ACTIVAS: apagar una opción es sacarla de la venta (mismo criterio que los Campos
+        // de checkout, releídos VIGENTES dentro de esta misma $tx — nunca lo que el cliente tenía
+        // renderizado).
+        packOptions: {
+          where: { activo: true },
+          select: { id: true, unidades: true, precio: true },
+        },
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
@@ -82,14 +183,22 @@ export async function iniciarCheckout({
       respuestas: input.respuestas,
     });
 
-    const items = input.items.map(({ productId, cantidad }) => {
+    const items = input.items.map(({ productId, cantidad, packOptionId }) => {
       const producto = porId.get(productId)!;
+      const { precio, unidadesPorPack } = snapshotDeLinea(
+        producto,
+        packOptionId,
+      );
       return {
         tenantId,
         productId,
-        precio: producto.precio, // snapshot UNITARIO (I4/D5)
-        cantidad, // unidades de la línea (ADR-0012)
+        precio, // snapshot del precio de LO QUE SE COMPRA (I4/D5): el Product en ESTANDAR, el pack en SOBRE
+        cantidad, // unidades de la línea (ADR-0012); en un SOBRE, cuántos PACKS
         participaEnSorteo: producto.participaEnSorteo, // snapshot del flag (D2)
+        // EXPLÍCITO en las dos modalidades aunque la columna tenga `@default(1)`: el default está
+        // para las filas históricas y para el código viejo deployado (ADR-0015), no para relevar a
+        // este writer. De acá salen la asignación y los tickets de F08.
+        unidadesPorPack,
       };
     });
     // total = Σ (precio unitario × cantidad), todo en Decimal server-side (I4) — el

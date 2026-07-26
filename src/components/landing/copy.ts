@@ -157,18 +157,24 @@ export const CONFIANZA = [
   },
   {
     titulo: "Cada número queda registrado al tiro",
-    // Misma corrección de honestidad que la FAQ «¿Cómo sabe el comprador que su compra entró al
-    // sorteo?»: la versión anterior («quien compró ve su número en pantalla y en su correo»)
-    // prometía una superficie que no existe. Lo verificable es el REGISTRO automático del ordinal,
-    // no que alguien lo vea.
+    // HONESTIDAD (I9), tercera versión y la primera que puede prometer algo. Las dos anteriores
+    // decían de menos por buenas razones: «quien compró ve su número en pantalla y en su correo»
+    // era falso (ninguna superficie lo mostraba) y se recortó a solo el registro automático.
+    // **F03/C1 lo volvió cierto por el lado del correo**: la confirmación de compra lleva los
+    // números —con el prefijo de la Tienda si lo configuró— y nombra el sorteo. Lo que sigue sin
+    // existir es la PANTALLA (retorno post-pago / buscador de tickets, backlog de
+    // `landing-reposicionamiento`), así que la frase habla de correo y no de ver.
     // Ojo con lo que NO se puede afirmar acá: el Organizador SÍ puede arrastrar participantes de un
     // sorteo anterior (modal de importar en `src/pages/admin/sorteo.tsx`), así que un "nadie agrega
     // participantes después" sería falso. Lo cierto es que la compra pagada entra sola.
     texto:
-      "Apenas se confirma el pago, esa compra entra al sorteo con su número correlativo. Automático: nadie tiene que anotarla en un cuaderno.",
+      "Apenas se confirma el pago, esa compra entra al sorteo con sus números correlativos y le llegan por correo a quien compró. Automático: nadie tiene que anotar nada en un cuaderno.",
   },
   {
-    titulo: "Tus PDFs, solo para quien compró",
+    // "Tus PDFs" hasta productos-tipos-digitales F04: la promesa de entrega privada nunca fue del
+    // PDF en particular (el enlace por token y su expiración son iguales para las 9 extensiones),
+    // así que nombrar un solo tipo acá dejaba la tarjeta contradiciendo a la FAQ de abajo.
+    titulo: "Tus archivos, solo para quien compró",
     texto:
       "Cada compra genera un enlace privado que expira. Tu trabajo no termina circulando gratis por ahí.",
   },
@@ -202,7 +208,9 @@ export const FAQ_INTRO = {
  * - la respuesta de «¿Cómo me llega la plata?» es la **única** de toda la landing que puede nombrar
  *   a Flow, y siempre como *el procesador* (D10/I3);
  * - las respuestas de producto son HONESTAS (I9): un sorteo ACTIVO a la vez por tienda (el guard
- *   secuencial real del dominio) y solo PDF por ahora. Prometer de más acá se paga en soporte.
+ *   secuencial real del dominio) y el set de tipos + el límite de 20 MB por archivo que el pipeline
+ *   realmente acepta (productos-tipos-digitales D1/D7). Prometer de más acá se paga en soporte —
+ *   y prometer de MENOS espanta al Organizador que sí calza.
  */
 export const FAQ = [
   {
@@ -212,8 +220,12 @@ export const FAQ = [
   },
   {
     pregunta: "¿Qué puedo vender?",
+    // productos-tipos-digitales F04/D1/D7: dejó de ser PDF-only. La letra chica que SÍ va acá es el
+    // límite de peso (un WAV largo o un ZIP grande no entran) y que video todavía no — las dos
+    // preguntas que llegarían a soporte igual. El límite lo verifica `landing.faq.006` contra
+    // `LIMITE_BYTES_ARCHIVO_PRODUCTO`, así que no puede quedar desactualizado en silencio.
     respuesta:
-      "Productos digitales. Hoy trabajamos con archivos PDF: tu novela, tu fanzine, tu guía, tus plantillas. Le pones precio, se entrega solo apenas se confirma el pago, y cada compra participa en el sorteo.",
+      "Productos digitales: PDF, EPUB, imágenes (PNG, JPG, WebP), audio (MP3, M4A, WAV) y ZIP para armar packs — tu novela, tu fanzine, tu guía, tus plantillas, tus stickers. Hasta 20 MB por archivo; video todavía no. Le pones precio, se entrega solo apenas se confirma el pago, y cada compra participa en el sorteo.",
   },
   {
     pregunta: "¿Necesito saber de páginas web?",
@@ -226,17 +238,18 @@ export const FAQ = [
       "Directo a tu cuenta: tu plata nunca pasa por nosotros. Los pagos con tarjeta los recibe Flow, el procesador que gestiona el cobro de tu tienda; creas tu cuenta gratis mientras configuras y te vamos guiando paso a paso. El procesador cobra su tarifa por transacción y la ves en tu propia cuenta.",
   },
   {
-    // HONESTIDAD (I9) — la pregunta se reformuló porque la anterior («¿con qué número quedó?») no
-    // tiene respuesta verdadera hoy: el ordinal del `RaffleEntry` se genera automático pero NADIE lo
-    // ve. Ni el Comprador (`src/pages/checkout/retorno.tsx` solo confirma el pago;
-    // `src/server/domain/correo/plantillaDescarga.ts` solo lleva enlaces + disclaimer; sin cuenta de
-    // Comprador, ADR-0004) ni el Organizador (`src/server/domain/panel/getSorteoDelPanel.ts` agrupa
-    // las entries por correo y expone CONTEO de tickets, no ordinales). Lo verificable —y lo que la
-    // respuesta afirma— es: registro automático, conteo público en la tienda
-    // (`getSorteoActivoStorefront`) y participantes con su cantidad de tickets en el panel.
+    // HONESTIDAD (I9) — la pregunta nació reformulada porque la original («¿con qué número quedó?»)
+    // no tenía respuesta verdadera: el número se generaba pero NADIE lo veía.
+    // **F03/C1 (Q1-e) la volvió respondible**: el correo de confirmación lleva los Números del
+    // sorteo de esa compra y nombra el sorteo, así que ahora la respuesta puede decir exactamente
+    // eso — que es, además, lo que el Comprador realmente pregunta.
+    // Lo que sigue SIN existir, y por eso no se promete: una pantalla donde consultarlos
+    // (`src/pages/checkout/retorno.tsx` solo confirma el pago, y no hay cuenta de Comprador —
+    // ADR-0004). El panel del Organizador sí los muestra, pero es SU panel, no una superficie del
+    // Comprador: por eso la frase del panel habla de lo que ve el Organizador.
     pregunta: "¿Cómo sabe el comprador que su compra entró al sorteo?",
     respuesta:
-      "Al confirmarse el pago, su compra entra al sorteo automáticamente y le llega el correo con la descarga de lo que compró. En tu tienda se ve el total de participaciones al día, y en tu panel ves quién participó y con cuántos tickets. Nadie tiene que anotar nada a mano.",
+      "Al confirmarse el pago le llega un correo con sus números del sorteo, el nombre del sorteo y cuándo cierra, junto con la descarga de lo que compró. En tu tienda se ve el total de participaciones al día, y en tu panel ves quién participó, con cuántos tickets y con qué números. Nadie tiene que anotar nada a mano.",
   },
   {
     pregunta: "¿Cómo se elige al ganador del sorteo?",

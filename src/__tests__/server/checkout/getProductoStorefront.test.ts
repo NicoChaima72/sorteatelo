@@ -19,6 +19,14 @@ interface ProductoFake {
   portadaUrl: string | null;
   participaEnSorteo: boolean;
   activo: boolean;
+  /** F07 — modalidad y menú de packs del sobre. */
+  modalidad: "ESTANDAR" | "SOBRE";
+  packOptions: Array<{
+    id: string;
+    unidades: number;
+    precio: Prisma.Decimal;
+    activo: boolean;
+  }>;
 }
 
 function fakeDb(productos: ProductoFake[]) {
@@ -26,15 +34,41 @@ function fakeDb(productos: ProductoFake[]) {
     product: {
       findFirst: async ({
         where,
+        select,
       }: {
         where: { id: string; tenantId: string; activo: boolean };
-      }) =>
-        productos.find(
-          (p) =>
-            p.id === where.id &&
-            p.tenantId === where.tenantId &&
-            p.activo === where.activo,
-        ) ?? null,
+        select?: {
+          packOptions?: {
+            where?: { activo?: boolean };
+            orderBy?: { unidades: "asc" };
+          };
+        };
+      }) => {
+        const p = productos.find(
+          (x) =>
+            x.id === where.id &&
+            x.tenantId === where.tenantId &&
+            x.activo === where.activo,
+        );
+        if (!p) return null;
+        return {
+          ...p,
+          // HONRA el `where` del select (misma razón que en `iniciarCheckout.test.ts`): si el use
+          // case se olvidara de pedir solo las ACTIVAS, las apagadas llegarían al Comprador y
+          // `checkout.producto.storefront.006` lo caza.
+          packOptions: p.packOptions
+            .filter((o) =>
+              select?.packOptions?.where?.activo === true ? o.activo : true,
+            )
+            // También honra el `orderBy`: el orden del selector es parte del contrato (el más chico
+            // primero), y emularlo acá es lo que hace que la aserción de orden signifique algo.
+            .sort((a, b) =>
+              select?.packOptions?.orderBy?.unidades === "asc"
+                ? a.unidades - b.unidades
+                : 0,
+            ),
+        };
+      },
     },
   } as unknown as PrismaClient;
 }
@@ -52,6 +86,8 @@ const producto = (over: Partial<ProductoFake>): ProductoFake => ({
   portadaUrl: null,
   participaEnSorteo: false,
   activo: true,
+  modalidad: "ESTANDAR",
+  packOptions: [],
   ...over,
 });
 
@@ -108,5 +144,53 @@ describe("domain/checkout/getProductoStorefront (fake db, tenant-scoped)", () =>
     await expect(
       getProductoStorefront({ db, tenantId: TENANT_A, input: { id: "nope" } }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  // checkout.producto.storefront.006 — F07: el menú del sobre llega al Comprador con SOLO las
+  // opciones activas, de la más chica a la más grande, y sin filtrar nada del pool.
+  it("un SOBRE devuelve su menú de packs ordenado, solo las activas, y jamás el contenido del pool", async () => {
+    const db = fakeDb([
+      producto({
+        id: "sobre-1",
+        modalidad: "SOBRE",
+        packOptions: [
+          { id: "pack-4u", unidades: 4, precio: dec("10000"), activo: true },
+          { id: "pack-1u", unidades: 1, precio: dec("3000"), activo: true },
+          // Apagada: no se ofrece (y el checkout la rechaza igual, `checkout.pack.004`).
+          { id: "pack-8u", unidades: 8, precio: dec("18000"), activo: false },
+        ],
+      }),
+    ]);
+
+    const res = await getProductoStorefront({
+      db,
+      tenantId: TENANT_A,
+      input: { id: "sobre-1" },
+    });
+
+    expect(res.modalidad).toBe("SOBRE");
+    expect(res.opcionesDePack).toEqual([
+      { id: "pack-1u", unidades: 1, precio: 3000 },
+      { id: "pack-4u", unidades: 4, precio: 10000 },
+    ]);
+    // Display-only, como `precio` (I4).
+    expect(typeof res.opcionesDePack[0]!.precio).toBe("number");
+    // El "desde" lo computa el server (una sola definición, compartida con la tarjeta del catálogo)
+    // y sale del pack ACTIVO más barato — la de 8 unidades a $18.000 está apagada y no cuenta.
+    expect(res.precioDesde).toBe(3000);
+    // D10: qué archivos hay adentro del sobre es justamente lo que NO se muestra antes de comprar.
+    expect(JSON.stringify(res)).not.toMatch(/archivo|files|key/i);
+  });
+
+  // checkout.producto.storefront.007 — un ESTANDAR sigue respondiendo igual que siempre
+  it("un producto estándar devuelve modalidad ESTANDAR y el menú vacío", async () => {
+    const db = fakeDb([producto({ id: "p1" })]);
+    const res = await getProductoStorefront({
+      db,
+      tenantId: TENANT_A,
+      input: { id: "p1" },
+    });
+    expect(res.modalidad).toBe("ESTANDAR");
+    expect(res.opcionesDePack).toEqual([]);
   });
 });

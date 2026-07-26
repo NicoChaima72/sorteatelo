@@ -174,7 +174,10 @@ export function crearStoragePublicoService(
       }
       return base.presignarSubida({ key, contentType, expiresEnSegundos });
     },
-    headObject: (key) => base.headObject(key),
+    // El bucket PÚBLICO solo necesita saber si el objeto está (no aplica el límite de 20 MB de los
+    // archivos de producto, que es política del bucket privado). Se adapta el `statObject` del
+    // adapter base a ese booleano acá, para no duplicar el manejo del 404 de R2 (I5).
+    headObject: async (key) => (await base.statObject(key)) !== null,
     urlPublica: (key) =>
       componerUrlPublica({ baseUrl: config.baseUrl, key, version: Date.now() }),
     putObject: (input) => base.putObject(input),

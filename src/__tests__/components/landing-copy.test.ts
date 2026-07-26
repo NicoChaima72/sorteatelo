@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import * as COPY from "~/components/landing/copy";
 import { APP_CONFIG } from "~/config/app";
+import { LIMITE_BYTES_ARCHIVO_PRODUCTO } from "~/lib/archivos/tiposArchivo";
 import { clp } from "~/lib/formato";
 
 /**
@@ -125,13 +126,40 @@ describe("landing/copy — FAQ", () => {
     expect(respuesta).not.toMatch(/en definición/i);
   });
 
-  // landing.faq.004 — I9: no prometer lo que el producto no hace (1 sorteo ACTIVO por tienda, solo PDF)
+  // landing.faq.004 — I9: no prometer lo que el producto no hace (1 sorteo ACTIVO por tienda)
   it("responde honesto sobre los límites reales del producto", () => {
     const sorteos = COPY.FAQ.find((f) => f.pregunta === "¿Puedo hacer más de un sorteo?");
     expect(sorteos?.respuesta).toMatch(/un sorteo activo a la vez/i);
+  });
 
+  // landing.faq.006 — productos-tipos-digitales F04/D1/D7: «¿Qué puedo vender?» dejó de ser PDF-only.
+  //
+  // Reemplaza a la vieja aserción `/PDF/` de landing.faq.004, que se volvió una MENTIRA por omisión
+  // el día que el pipeline aceptó 9 tipos: la landing prometía menos de lo que el producto hace, y
+  // eso también es copy desalineado (un Organizador con un EPUB o un pack de stickers se iba
+  // creyendo que no era para él).
+  //
+  // El test nombra las CINCO familias de D1 por separado, no un `/EPUB|imagen/` laxo, porque el
+  // riesgo real es que una reescritura futura del copy se coma una: el `accept` del form seguiría
+  // aceptando audio y la landing ya no lo diría. Y exige el **límite de peso** (D7) porque es la
+  // única letra chica de esta respuesta: un WAV o un ZIP grande NO entran, y prometer de más acá se
+  // paga en soporte (misma razón que el resto de las aserciones de honestidad).
+  it("«¿Qué puedo vender?» nombra las 5 familias de tipos y su límite de peso, sin ser PDF-only", () => {
     const vender = COPY.FAQ.find((f) => f.pregunta === "¿Qué puedo vender?");
-    expect(vender?.respuesta).toMatch(/PDF/);
+    expect(vender).toBeDefined();
+    const respuesta = vender!.respuesta;
+
+    // Las 5 familias de la allowlist (D1). PDF sigue estando: se sumaron tipos, no se cambiaron.
+    expect(respuesta).toMatch(/\bPDF\b/);
+    expect(respuesta).toMatch(/\bEPUB\b/i);
+    expect(respuesta).toMatch(/im[áa]gen/i);
+    expect(respuesta).toMatch(/audio/i);
+    expect(respuesta).toMatch(/\bZIP\b/i);
+
+    // El límite se DERIVA del código, no se escribe a mano: si mañana D7 sube a 50 MB y nadie
+    // actualiza la landing, este test cae en vez de dejar una promesa vieja publicada.
+    const limiteMb = LIMITE_BYTES_ARCHIVO_PRODUCTO / (1024 * 1024);
+    expect(respuesta).toContain(`${limiteMb} MB`);
   });
 
   // landing.faq.005 — I9, regresión REAL encontrada en review (dos veces, con dos mentiras
@@ -148,18 +176,41 @@ describe("landing/copy — FAQ", () => {
   // fantasma" (habla de que NO se crean participaciones). Lo prohibido es la construcción «alguien
   // VE el número» / «el número está EN tal pantalla». Este test se borra el día que alguna
   // superficie muestre el ordinal de verdad.
-  it("no promete que el número de cada compra sea visible en alguna pantalla", () => {
+  //
+  // **ACTUALIZADO por F03/C1 (Q1-e cerrada: SÍ).** El correo de confirmación ahora SÍ manda los
+  // números («tus números son ARMY-1043–1092», con el sorteo nombrado), así que la mitad «en su
+  // correo» de la prohibición dejó de ser mentira y salió. Lo que sigue prohibido es la otra mitad:
+  // NINGUNA pantalla los muestra todavía —ni el retorno post-pago (`src/pages/checkout/retorno.tsx`)
+  // ni un buscador público de tickets, los dos en el backlog de `landing-reposicionamiento`— y el
+  // panel del Organizador muestra los del ORGANIZADOR, no una superficie del Comprador.
+  it("no promete que el número de cada compra sea visible en una PANTALLA (el correo sí, desde F03)", () => {
     const PROHIBIDOS = [
-      // "ve su número", "muestra el número", "ves los números"
-      /\b(ve|ves|vea|ver|verá|muestra|mostramos|mostrar)\s+(su|el|los|tu|sus)?\s*n[úu]meros?\b/i,
-      // "número en pantalla", "números en tu panel", "su número correlativo en tu panel"
+      // "número en pantalla", "números en tu panel" — el correo ya NO está en la lista.
       // (el `\w+` opcional deja pasar un adjetivo entre medio: «número CORRELATIVO en tu panel»)
-      /n[úu]meros?(\s+\w+)?\s+(en pantalla|en tu panel|en el panel|en su correo|en el correo)/i,
+      /n[úu]meros?(\s+\w+)?\s+(en pantalla|en tu panel|en el panel|en la tienda)/i,
       // "los números los ves", "el número lo ve"
       /n[úu]meros?\s+(los|lo|las)\s+(ves|ve|vemos|ven)\b/i,
     ];
     const promesas = LANDING.filter((t) => PROHIBIDOS.some((re) => re.test(t)));
     expect(promesas).toEqual([]);
+  });
+
+  // landing.faq.007 — Q1-e, la otra mitad: la landing tiene que DECIRLO. El correo con los números
+  // es lo que cierra la promesa que la landing venía haciendo a medias, y si el copy no lo cuenta,
+  // la feature existe para nadie. Se exige en los dos lugares que el plan nombró — la FAQ «¿Cómo
+  // sabe el comprador…?» y la tarjeta de confianza de los números — porque son los dos sitios donde
+  // el lector se hace justo esa pregunta.
+  it("la FAQ y la tarjeta de confianza dicen que el Comprador recibe sus números por correo", () => {
+    const faq = COPY.FAQ.find((f) =>
+      f.pregunta.includes("entró al sorteo"),
+    );
+    expect(faq).toBeDefined();
+    expect(faq!.respuesta).toMatch(/n[úu]meros?/i);
+    expect(faq!.respuesta).toMatch(/correo/i);
+
+    const tarjeta = COPY.CONFIANZA[1]!;
+    expect(tarjeta.texto).toMatch(/n[úu]meros?/i);
+    expect(tarjeta.texto).toMatch(/correo/i);
   });
 });
 

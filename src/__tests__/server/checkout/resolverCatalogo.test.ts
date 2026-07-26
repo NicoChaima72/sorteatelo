@@ -19,6 +19,9 @@ interface ProductoFake {
   participaEnSorteo: boolean;
   activo: boolean;
   createdAt: Date;
+  /** F07 — un SOBRE se muestra con "desde $X" y manda al detalle a elegir pack. */
+  modalidad: "ESTANDAR" | "SOBRE";
+  packOptions: Array<{ precio: Prisma.Decimal; activo: boolean }>;
 }
 
 const dec = (v: string) => new Prisma.Decimal(v);
@@ -33,6 +36,8 @@ const prod = (over: Partial<ProductoFake>): ProductoFake => ({
   participaEnSorteo: false,
   activo: true,
   createdAt: new Date(),
+  modalidad: "ESTANDAR",
+  packOptions: [],
   ...over,
 });
 
@@ -42,9 +47,17 @@ function fakeDb(productos: ProductoFake[]) {
       findMany: async ({
         where,
         orderBy,
+        select,
       }: {
         where: { tenantId: string; activo?: boolean; id?: { in: string[] } };
         orderBy?: { createdAt: "desc" };
+        select?: {
+          packOptions?: {
+            where?: { activo?: boolean };
+            orderBy?: { precio: "asc" };
+            take?: number;
+          };
+        };
       }) => {
         let res = productos.filter(
           (p) =>
@@ -55,7 +68,19 @@ function fakeDb(productos: ProductoFake[]) {
         if (orderBy?.createdAt === "desc") {
           res = [...res].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }
-        return res;
+        // Emula el sub-select de `packOptions` HONRANDO su where/orderBy/take: el "desde $X" tiene
+        // que ser el pack ACTIVO más barato, y un fake que devolviera la lista cruda dejaría pasar
+        // tanto una opción apagada como un orden equivocado.
+        const sub = select?.packOptions;
+        return res.map((p) => ({
+          ...p,
+          packOptions: [...p.packOptions]
+            .filter((o) => (sub?.where?.activo === true ? o.activo : true))
+            .sort((a, b) =>
+              sub?.orderBy?.precio === "asc" ? a.precio.comparedTo(b.precio) : 0,
+            )
+            .slice(0, sub?.take ?? undefined),
+        }));
       },
     },
   } as unknown as PrismaClient;

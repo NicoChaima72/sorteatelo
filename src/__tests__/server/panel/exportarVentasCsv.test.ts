@@ -41,16 +41,33 @@ interface ArgsFindMany {
   where: { tenantId: string };
   orderBy: unknown;
   select: Record<string, unknown>;
+  take?: number;
+  cursor?: { id: string };
+  skip?: number;
 }
 
-/** Fake db: filtra por tenant y devuelve las órdenes YA ordenadas (desc, como el listado). */
+/**
+ * Fake db: filtra por tenant y devuelve las órdenes YA ordenadas (desc, como el listado).
+ *
+ * Honra `take`/`cursor`/`skip` con la MISMA semántica que Prisma —el cursor apunta a una fila del
+ * resultado ordenado y `skip: 1` arranca después de ella— porque el use case lee en lotes (csv.011)
+ * y un fake que devolviera todo de una haría pasar por igual a una implementación que se olvida de
+ * pedir el segundo lote.
+ */
 function fakeDb(ordenesOrdenadas: OrdenFake[]) {
   const args: ArgsFindMany[] = [];
   const db = {
     order: {
       findMany: async (a: ArgsFindMany) => {
         args.push(a);
-        return ordenesOrdenadas.filter((o) => o.tenantId === a.where.tenantId);
+        const delTenant = ordenesOrdenadas.filter(
+          (o) => o.tenantId === a.where.tenantId,
+        );
+        const desde = a.cursor
+          ? delTenant.findIndex((o) => o.id === a.cursor!.id) + (a.skip ?? 0)
+          : 0;
+        const ventana = delTenant.slice(desde);
+        return a.take === undefined ? ventana : ventana.slice(0, a.take);
       },
     },
   } as unknown as PrismaClient;
@@ -440,8 +457,11 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
     // Encabezado + 40 filas. El listado del panel pagina de a 15 (`PAGE_SIZE`); el archivo NO —
     // exportar «lo que se ve en pantalla» sería entregar un CSV incompleto sin decirlo.
     expect(lineas(contenido)).toHaveLength(41);
-    // Y la query no lleva `take` ni `cursor`: la ausencia es el mecanismo, no una casualidad.
-    expect(args[0]).not.toHaveProperty("take");
+    // El `take` que sí viaja a la DB es el LOTE de memoria (csv.011) y NO recorta el archivo: es
+    // holgado, así que estas 40 ventas entran en una sola vuelta. Y la primera lectura nunca lleva
+    // `cursor`: el export arranca del principio siempre, no continúa la página que el panel dejó
+    // abierta — no hereda NADA de la paginación del listado.
+    expect(args).toHaveLength(1);
     expect(args[0]).not.toHaveProperty("cursor");
   });
 
@@ -502,5 +522,49 @@ describe("domain/panel/exportarVentasCsv (fake db, tenant-scoped)", () => {
       "Pérez, Ana",
     ]);
     expect(contenido).not.toContain('"');
+  });
+
+  // panel.ventas.csv.011 — el archivo sale entero, pero la DB se lee de a lotes
+  it("lee las ventas por cursor en lotes acotados, sin dejar ninguna afuera ni repetir", async () => {
+    // 5 ventas con fechas distintas (desc, como llegan de la DB) ⇒ con lote 2 hacen falta 3 vueltas.
+    const muchas = Array.from({ length: 5 }, (_, i) => ({
+      ...ORDENES[1]!,
+      id: `x${i}`,
+      email: `c${i}@x.cl`,
+    }));
+    const { db, args } = fakeDb(muchas);
+
+    const { contenido } = await exportarVentasCsv({
+      db,
+      acceso: acceso(["A"]),
+      lote: 2,
+    });
+    const filas = lineas(contenido);
+
+    // Lo OBSERVABLE no cambia: el archivo trae las 5 ventas, en su orden y sin repetidas.
+    expect(filas).toHaveLength(6);
+    expect(filas.slice(1).map((f) => f.split(";")[1])).toEqual([
+      "c0@x.cl",
+      "c1@x.cl",
+      "c2@x.cl",
+      "c3@x.cl",
+      "c4@x.cl",
+    ]);
+
+    // Y lo que cambia es el TECHO: ninguna lectura pide más de un lote, así que el pico de memoria
+    // del export no crece con el número de ventas de la Tienda (lo que sí crece es el acumulado ya
+    // mapeado, que es la forma liviana). Sin esto, una Tienda con miles de órdenes hidrataba TODAS
+    // sus filas crudas —con sus ítems y sus respuestas— en una sola query.
+    expect(args.map((a) => a.take)).toEqual([2, 2, 2]);
+    // Cursor forward-only, el mismo patrón del listado (backend-conventions § Paginación por
+    // cursor): la primera vuelta parte del principio, las siguientes desde la última fila vista y
+    // la saltean para no repetirla.
+    expect(args[0]).not.toHaveProperty("cursor");
+    expect(args[1]).toMatchObject({ cursor: { id: "x1" }, skip: 1 });
+    expect(args[2]).toMatchObject({ cursor: { id: "x3" }, skip: 1 });
+    // El lote que vuelve INCOMPLETO (1 de 2) es la señal de fin: no hay una cuarta vuelta al vacío.
+    expect(args).toHaveLength(3);
+    // Y el aislamiento por tenant se recomputa en CADA vuelta, no solo en la primera (I1/ADR-0005).
+    expect(args.every((a) => a.where.tenantId === "A")).toBe(true);
   });
 });

@@ -29,7 +29,16 @@ interface ProductoFake {
   activo: boolean;
   participaEnSorteo: boolean;
   portadaUrl: string | null;
-  pdfPath: string;
+  pdfPath: string | null;
+  modalidad: "ESTANDAR" | "SOBRE";
+  files: { id: string; tipo: "PDF"; nombreArchivo: string; bytes: number | null }[];
+  /** Menú de opciones de pack (F06/D3). Vacío en un ESTANDAR, que es lo que son estos fixtures. */
+  packOptions: {
+    id: string;
+    unidades: number;
+    precio: Prisma.Decimal;
+    activo: boolean;
+  }[];
   createdAt: Date;
 }
 
@@ -51,7 +60,12 @@ const producto = (id: string, tenantId: string): ProductoFake => ({
   activo: true,
   participaEnSorteo: false,
   portadaUrl: null,
-  pdfPath: `${tenantId}/${id}.pdf`,
+  pdfPath: null,
+  modalidad: "ESTANDAR" as const,
+  files: [
+    { id: `f-${id}`, tipo: "PDF" as const, nombreArchivo: `${id}.pdf`, bytes: 1024 },
+  ],
+  packOptions: [],
   createdAt: new Date("2026-01-01"),
 });
 

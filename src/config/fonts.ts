@@ -93,6 +93,12 @@ const bebasNeue = Bebas_Neue({ subsets: ["latin"], weight: ["400"], display: "sw
 export interface ParFont {
   display: string;
   texto: string;
+  /**
+   * `true` ⇒ la fuente display trae UN solo peso (Anton, Bebas Neue): cualquier `fw` alto haría que
+   * el navegador SINTETICE la negrita (smear feo). `_app` lo usa para inyectar
+   * `font-synthesis-weight: none` en esos tenants — el peso pedido degrada al real de la fuente.
+   */
+  displayDeUnSoloPeso?: true;
 }
 
 /**
@@ -104,8 +110,8 @@ export const PARES_FONT: Record<ParTipografico, ParFont> = {
   editorial: { display: fraunces.style.fontFamily, texto: inter.style.fontFamily },
   energia: { display: spaceGrotesk.style.fontFamily, texto: inter.style.fontFamily },
   dulce: { display: poppins.style.fontFamily, texto: nunitoSans.style.fontFamily },
-  impacto: { display: anton.style.fontFamily, texto: roboto.style.fontFamily },
+  impacto: { display: anton.style.fontFamily, texto: roboto.style.fontFamily, displayDeUnSoloPeso: true },
   clasica: { display: playfair.style.fontFamily, texto: sourceSans.style.fontFamily },
   tecnica: { display: plexSans.style.fontFamily, texto: sourceSans.style.fontFamily },
-  cartel: { display: bebasNeue.style.fontFamily, texto: spaceGrotesk.style.fontFamily },
+  cartel: { display: bebasNeue.style.fontFamily, texto: spaceGrotesk.style.fontFamily, displayDeUnSoloPeso: true },
 };

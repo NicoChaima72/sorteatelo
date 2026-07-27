@@ -74,9 +74,15 @@ const MyApp: AppType<{
   // en Fraunces. Ahora escribe AMBAS (`--font-heading` = lo que el theme consume hoy + `--font-display`
   // por compat con el Wordmark), y `--font-instrument` para el cuerpo.
   const par = temaPagina ? PARES_FONT[temaPagina.tipografia] : null;
+  // `displayDeUnSoloPeso` (Anton, Bebas Neue): sin esta regla, los `fw={800}` del storefront obligan
+  // al navegador a SINTETIZAR una negrita que la fuente no trae (smear — visto en el h1 de demo-noche).
+  // Con `font-synthesis-weight: none` el peso pedido degrada al ÚNICO real de la fuente. Global a
+  // propósito: en las fuentes de texto con varios pesos reales nunca hay síntesis (el matching de
+  // @font-face elige el peso más cercano), así que para ellas es no-op.
   const fontOverrideCss =
     par && temaPagina && temaPagina.tipografia !== "plataforma"
-      ? `:root{--font-heading:${par.display};--font-display:${par.display};--font-instrument:${par.texto};}`
+      ? `:root{--font-heading:${par.display};--font-display:${par.display};--font-instrument:${par.texto};}` +
+        (par.displayDeUnSoloPeso ? `body{font-synthesis-weight:none;}` : "")
       : "";
   // Escala de títulos de sección `poster` (fidelidad landing_idol): SOLO para tenants poster se inyecta la
   // regla que agranda `.st-titulo-poster` (los títulos de sección marcados) al tamaño Bebas del mockup

@@ -92,7 +92,7 @@ const actualizarProductoTool = definirToolDeTienda({
   nombre: "actualizar_producto",
   titulo: "Editar un producto",
   descripcion:
-    "Edita un producto existente: título, descripción, precio, si está activo y si participa en el sorteo. Hay que mandar todos los campos (los valores actuales salen de listar_productos). Desactivar un producto lo saca de la tienda sin borrarlo: no existe una tool para borrar productos. El archivo y la portada no se tocan por acá.",
+    "Edita un producto existente: título, descripción, precio, si está activo y si participa en el sorteo. Hay que mandar todos los campos (los valores actuales salen de listar_productos). Desactivar un producto lo saca de la tienda sin borrarlo: no existe una tool para borrar productos. El archivo, la portada y las unidades que entrega un pack no se tocan por acá (las unidades se editan desde el panel).",
   entrada: {
     id: z.string().describe("Id del producto, de listar_productos."),
     titulo: z.string().describe("Nombre del producto."),
@@ -105,8 +105,22 @@ const actualizarProductoTool = definirToolDeTienda({
       .boolean()
       .describe("Si comprarlo entrega tickets para el sorteo."),
   },
-  manejar: async (args, ctx, acceso) =>
-    actualizarProducto({
+  manejar: async (args, ctx, acceso) => {
+    // `unidadesPorPack` no es argumento de esta tool, pero el input del panel lo trae con
+    // `.default(1)` — parsear sin él RESETEARÍA las unidades de un pack a 1 en cada edición
+    // (bug real: le pasó al «Pack 4 Libros» de iselk, 2026-07-27). La tool PRESERVA el valor
+    // vigente leyéndolo por el MISMO listado tenant-scoped que alimenta a listar_productos:
+    // un id ajeno o inexistente no aparece ahí ⇒ NOT_FOUND neutral, sin tocar nada.
+    const productos = await listarProductosDelPanel({ db: ctx.db, acceso });
+    const actual = productos.find((p) => p.id === args.id);
+    if (!actual) {
+      throw new DomainError(
+        "NOT_FOUND",
+        "Ese producto no existe en esta tienda. El id sale de listar_productos.",
+      );
+    }
+
+    return actualizarProducto({
       db: ctx.db,
       acceso,
       input: actualizarProductoInput.parse({
@@ -116,8 +130,10 @@ const actualizarProductoTool = definirToolDeTienda({
         precio: args.precio,
         activo: args.activo,
         participaEnSorteo: args.participaEnSorteo,
+        unidadesPorPack: actual.unidadesPorPack,
       }),
-    }),
+    });
+  },
 });
 
 // ── Sorteo ───────────────────────────────────────────────────────────────────────

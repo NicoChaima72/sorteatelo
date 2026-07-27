@@ -1,4 +1,4 @@
-import { Box, Button, Container, Group, Stack, Text, ThemeIcon, Title } from "@mantine/core";
+import { Button, Container, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
 import {
   IconClock,
@@ -12,9 +12,9 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { type ComponentType, useEffect, useRef, useState } from "react";
 
+import { BoletosDelSorteo } from "~/components/storefront/boletos-del-sorteo";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { faseDelRetorno, type FaseRetorno } from "~/lib/faseRetornoCheckout";
-import { bloquesDeNumerosDelSorteo } from "~/lib/numerosDelSorteo";
 import {
   getPropsPaginaEntrega,
   type PropsStorefront,
@@ -39,7 +39,9 @@ import { api } from "~/utils/api";
  *
  * Números del sorteo (`checkout-retorno-numeros-sorteo` F02/D1): esa MISMA query trae, al confirmar,
  * los Números del sorteo de la compra (ADR-0024) y el prefijo de la Tienda — la celebración los dibuja
- * como boletos (`BoletosDelSorteo`). Son identidad pública del ticket, no PII; el correo, el total y
+ * como boletos (`BoletosDelSorteo`, hoy en `~/components/storefront/boletos-del-sorteo`: se extrajo de
+ * acá al estrenarse su segundo consumidor, la página `/verificar` — `verificador-tickets` F02/D9 —,
+ * extracción 1:1 sin cambio visual). Son identidad pública del ticket, no PII; el correo, el total y
  * los ítems siguen sin viajar. Una orden pagada sin tickets celebra sin ese bloque (D4).
  *
  * Cinco fases, no dos (F03/D2 + D6, `COPY_FASE`): a la celebración y al «estamos confirmando» se
@@ -181,78 +183,6 @@ const COPY_FASE: Record<FaseRetorno, CopyFase> = {
       "Estamos confirmando tu pago. Apenas quede confirmado, te llega un correo con el enlace para descargar tu producto. Si no lo ves en unos minutos, revisa tu carpeta de spam.",
   },
 };
-
-/**
- * Los **Números del sorteo** de la compra, dibujados como boletos — uno por BLOQUE contiguo
- * (`checkout-retorno-numeros-sorteo` F02/D3). Es lo que la landing le promete al Comprador: ver su
- * número apenas se confirma el pago.
- *
- * El plegado en rangos y el prefijo salen del punto ÚNICO de presentación (`~/lib/numerosDelSorteo`,
- * I4/I12): esta pantalla dice EXACTAMENTE lo mismo que el correo de confirmación y que el panel del
- * Organizador — un boleto por bloque, `ARMY-1043–1092` y no `ARMY-1043–ARMY-1092`. Acá se comparte el
- * formateador, nunca el markup del correo (D3).
- *
- * Sin bloques ⇒ `null`: una orden PAGADA sin tickets (productos que no participan del sorteo, o sin
- * sorteo activo al pagar, D4) celebra SIN este bloque. No se promete un número que no existe.
- *
- * Cero hex (I5): el borde punteado y el chip salen de la escala del tenant, con el acento degradando a
- * marca por fallback de `var()`. Misma gramática de boleto que el widget `momento_ticket` del
- * storefront (perforación dashed + número en mono), que es donde el Comprador vio el ejemplo.
- */
-function BoletosDelSorteo({
-  numeros,
-  prefijo,
-}: {
-  numeros: number[];
-  prefijo: string | null;
-}) {
-  const bloques = bloquesDeNumerosDelSorteo(numeros, prefijo);
-  if (bloques.length === 0) return null;
-
-  // Acento del tenant con fallback a marca (I-T2), igual que `momento-ticket.tsx`.
-  const acento = "var(--mantine-color-acento-filled, var(--mantine-primary-color-filled))";
-
-  return (
-    <Stack align="center" gap="xs" w="100%">
-      <Text fz="sm" fw={600} ta="center">
-        {bloques.length === 1 && numeros.length === 1
-          ? "Tu número del sorteo"
-          : "Tus números del sorteo"}
-      </Text>
-      <Group justify="center" gap="xs">
-        {bloques.map((bloque) => (
-          <Box
-            key={bloque}
-            px="md"
-            py={6}
-            style={{
-              borderRadius: "var(--mantine-radius-md)",
-              border: `2px dashed color-mix(in srgb, ${acento} 45%, transparent)`,
-              background: "var(--mantine-primary-color-0)",
-            }}
-          >
-            <Text
-              component="span"
-              fw={700}
-              fz="lg"
-              ff="monospace"
-              className="tabular-nums"
-              style={{
-                letterSpacing: "0.06em",
-                color: "var(--mantine-primary-color-filled)",
-              }}
-            >
-              {bloque}
-            </Text>
-          </Box>
-        ))}
-      </Group>
-      <Text fz="xs" c="dimmed" ta="center">
-        También quedan guardados en tu correo de confirmación.
-      </Text>
-    </Stack>
-  );
-}
 
 function RetornoContenido({ branding }: { branding: TenantBranding }) {
   const router = useRouter();

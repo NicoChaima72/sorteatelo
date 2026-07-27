@@ -1,55 +1,29 @@
-=== feature-tester run ===
-modo   : feature
-slug   : productos-tipos-digitales (F14 — cierre E2E de la ENMIENDA v2), 3ª pasada
-scope  : panel packs / storefront tarjetas / compra con Flow + tunel / entrega / correo / 307 / tRPC apex
-server : http://localhost:3001 (200) · apex www.localhost:3001 (200) · una sola instancia
-tunel  : https://aging-twin-impressive-brakes.trycloudflare.com/api/webhooks/flow -> 405 (gate 1) = VIVO
-inicio : 2026-07-26 23:40
+# Corrida E2E — feature-tester
+modo: feature (slug=storefront-verificador-tickets)
+scope: Vitest del área + 9 checkboxes E2E del plan
+server: http://localhost:3001 (200 OK)
+inicio: 2026-07-27 01:51
 
-## Reconstruccion desde disco (los 2 testers anteriores murieron sin anotar)
-[drift ] frontend-conventions.md: los 2 drifts de F14 YA APLICADOS por un tester cortado   OK
-[check ] e2e-panel-organizadores.md + e2e-storefront.md: SIN reescribir al flujo v2        PENDIENTE
-[censo ] insumos v2 estan en `iselk` (3 packs), NO en `prueba` (FlowCredential = null)     OK
-[censo ] orden historica cms2apsqx...lnr0y INTACTA (PENDIENTE $10.000, uxp=4)              OK
-[resto ] orden cms2ex69q0009g4g1ynyxgifv (PENDIENTE $3.000, 23:11) = resto del corte
+## Vitest
+[01:52] limiteDeIntentos 4/4 · verificarTickets 9/9 · getVerificarProps 4/4
+[01:52] temaEnPaginasDePlataforma 10/10 · paginas 12/12 · getEstadoOrden 9/9 · basesDelSorteo 7/7
+[01:52] slugTienda 3/3 · faseRetornoCheckout 6/6
+[01:52] TOTAL 64/64 VERDE — E2E habilitado
 
-## 🔴 BUG BLOQUEANTE REENCONTRADO (webhookFlow.ts:107) — preexistente, no de la enmienda
-[flow  ] getStatus REAL devuelve amount:"20000" (string); montoEsperado 20000 (number)
-[flow  ] gate 5 `amount !== montoEsperado` => TRUE => TODO pago legitimo se rechaza
-[flow  ] consecuencia: orden PENDIENTE para siempre, sin grant/tickets/correo, ack 200 sin reintento
-[flow  ] webhookFlow.test.ts:37 arma el fake con amount:number => el fake codifica el contrato malo
+## Censo read-only de insumos
+[01:53] iselk PUBLICADA, sorteo "Entrada para ver a BTS", 12 tickets, prefijoTicket=null
+[01:53]   nikochaima72+f14@gmail.com => 1..8 ; nikochaima72+f14t3@gmail.com => 9..12
+[01:53] NINGUNA tienda PUBLICADA sin sorteo activo (bcac/demo-*/iselk/prueba todas con ACTIVO)
+[01:53]   e2e-alta-2707 y e2e-numeros estan en CONFIGURACION => /verificar les da 404 por zona
+[01:53] carriles: chrome-devtools OCUPADO, playwright OCUPADO => claude-in-chrome
 
-## E2E — F11 panel (carril chrome-devtools, tienda iselk sandbox)
-[panel ] crear pack: 1 form / 0 anidados / 1 submit real                                  PASS
-[panel ] submit NO navega: window.__ftMarca vive y location.search vacio (crear Y editar) PASS
-[db    ] pack persistido: fuenteId=coleccion, unidadesPorPack=2, modalidad=ESTANDAR (V-I7) PASS
-[panel ] select de fuentes: coleccion + libro; los 3 packs NO se ofrecen (sin cadenas)     PASS
-[panel ] pack sin seccion de subida (y sin select de modalidad); linea explicativa          PASS
-[panel ] edicion: fuente como DATO inmutable, unidades editable (V-I1c en la UI)           PASS
-[gate  ] unidades 6 con pool 4 => 400 + mensaje con los DOS numeros; bajar a 2 => 200      PASS
-[meta  ] falso positivo mio corregido: Mantine monta 6 Notifications-root, no 1
+## E2E
 
-## E2E — F13 storefront (iselk)
-[home  ] 5 tarjetas con "Agregar" directo + aria-label contextual                         PASS
-[home  ] coleccion (SOBRE) AUSENTE del catalogo con pool lleno y 3 packs vendiendola      PASS
-[home  ] derivados: SOBRE "Entrega 4 unidades, elegidas al azar" / ESTANDAR "Entrega 4 u" PASS
-[home  ] nota menor: pack de 1 unidad no muestra el "al azar" derivado
-[chkout] "$6.000 por pack de 2" / "$10.000 por pack de 4" (V-I5, sin c/u)                  PASS
-
-## 🔴 COMPRA REAL CON WEBHOOK REAL — bug reproducido
-[flow  ] $16.000 pagados en sandbox (Webpay + tarjeta Transbank + Aceptar)                 OK
-[hook  ] POST /api/webhooks/flow 200 in 2297ms  => LLEGO por el tunel                      OK
-[hook  ] amount_mismatch: esperado 16000 (number) vs recibido '16000' (string)             FAIL
-[db    ] orden PENDIENTE · 0 grants · 0 assignments · 0 tickets · 0 correos                FAIL
-[db    ] PERO los snapshots de OrderItem quedaron OK: unidadesPorPack 2 y 4, participa f/t PASS
-
-## E2E — efectos v2 con el pago real (gate 5 salteado por harness, resto identico)
-[efec  ] pack SOBRE 2u  -> 2 PackAssignment distintas del pool de la FUENTE                PASS
-[efec  ] pack ESTANDAR 4u -> 0 PackAssignment + 1 DownloadGrant (copias derivadas, V-I2)   PASS
-[efec  ] tickets = 4 (solo la linea que participa; la de 2u no participa aporta 0)         PASS
-[entre ] pagina: 2 asignados con miniatura prefirmada (300s) + 4 copias del PDF            PASS
-[auth  ] asignado 302 · pool no asignado 404 · id inexistente 404 · token basura 404       PASS
-[desc  ] descargas reales: PNG 12.434 B (\x89PNG) y PDF 303.102 B (%PDF-1.7)               PASS
-[mail  ] delivered · boletos 9-12 · 1 enlace /entrega por producto · total $16.000         PASS
-[307   ] /producto/<id> existente | inexistente | de otro tenant -> 307 al home propio     PASS
-[apex  ] /entrega en apex SIN sesion (contexto aislado): 2 queries tRPC 200, 0 errores     PASS
+## Cierre
+VEREDICTO: F05 y F06 VERDES — listas para `passing`.
+Vitest 205/205 (1 flake ajeno de F04, verde en retry).  E2E 12/12.  Design findings: 1 (repetido).
+Findings: F1 barrido global de retirarRecordatoriosObsoletos + `ahora` sintético en tests vs DB prod
+          F2 «exactamente lo mismo» de correo.baja.012 sobreafirma (el válido nombra la Tienda)
+          F3 recordatorios sin reply-to (C1/C4/C5 sí lo llevan)
+NO se tocó `state` ni `status`; NO se corrió `npm run check`; NO hay commit.
+fin: 2026-07-27 02:00

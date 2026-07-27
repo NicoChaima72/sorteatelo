@@ -1,5 +1,6 @@
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
+import { cotizarCarrito } from "~/server/domain/checkout/cotizarCarrito";
 import { getEstadoOrden } from "~/server/domain/checkout/getEstadoOrden";
 import { getSorteoActivoStorefront } from "~/server/domain/checkout/getSorteoActivoStorefront";
 import { getSorteoResumenStorefront } from "~/server/domain/checkout/getSorteoResumenStorefront";
@@ -7,14 +8,27 @@ import { iniciarCheckout } from "~/server/domain/checkout/iniciarCheckout";
 import { listarProductos } from "~/server/domain/checkout/listarProductos";
 import { resolverCatalogo } from "~/server/domain/checkout/resolverCatalogo";
 import {
+  cotizarCarritoInput,
   getEstadoOrdenInput,
   getSorteoResumenStorefrontInput,
   iniciarCheckoutInput,
   listarProductosDeCatalogoInput,
+  verificarTicketsInput,
 } from "~/server/domain/checkout/schemas";
+import { verificarTickets } from "~/server/domain/checkout/verificarTickets";
 import { env } from "~/env";
 import { crearFlowServiceDeTenant } from "~/server/pago/flowDeTenant";
 import { construirUrlRetorno } from "~/server/pago/urlRetorno";
+import { crearLimitadorDeIntentos } from "~/server/security/limiteDeIntentos";
+
+/**
+ * Cuota del verificador público de tickets (F01/D5): 10 búsquedas por minuto y por `tenant+IP`.
+ * Vive a nivel de MÓDULO —una instancia por proceso— porque su estado es la memoria del proceso;
+ * en Vercel eso significa «por lambda», y está aceptado a propósito (ver el módulo del limitador).
+ * Diez por minuto no molesta a nadie corrigiendo un typo en su correo y sí le arruina el día a un
+ * script que quiera barrer direcciones.
+ */
+const limiteVerificarTickets = crearLimitadorDeIntentos({ limite: 10, ventanaMs: 60_000 });
 
 /**
  * Router de checkout — borde de cara al Comprador, que vive SIEMPRE en el subdominio de
@@ -80,6 +94,56 @@ export const checkoutRouter = createTRPCRouter({
     .query(({ ctx, input }) =>
       runDomain(() =>
         getEstadoOrden({ db: ctx.db, tenantId: ctx.tenant.id, token: input.token }),
+      ),
+    ),
+
+  /*
+    Verificador público de tickets (`storefront-verificador-tickets` F01): el Comprador entra a
+    `/verificar`, tipea su correo y ve sus Números del sorteo ACTIVO. Sin cuenta (ADR-0004): el
+    correo ES la identidad. Tenant-scoped por el contexto (I1) y sin PII en la respuesta (I2).
+
+    Es una QUERY porque no escribe nada, y el rate limit no lo cambia: contar intentos no es un
+    efecto de dominio. La CLAVE de la cuota se arma acá, en el borde, porque la IP es del transporte
+    y el use case no la conoce — recibe un gate ya cerrado sobre esta clave.
+
+    La clave lleva el `tenantId` SIEMPRE: sin él, el tráfico de una tienda grande le comería la
+    cuota a las demás en la misma lambda. Sin IP resoluble (proxy que no la declara) la clave queda
+    solo-tenant: todos esos requests comparten un balde, que es lo conservador — es preferible a
+    dejar sin cuota a quien no trae cabecera.
+  */
+  verificarTickets: tenantProcedure
+    .input(verificarTicketsInput)
+    .query(({ ctx, input }) =>
+      runDomain(() =>
+        verificarTickets({
+          db: ctx.db,
+          tenantId: ctx.tenant.id,
+          email: input.email,
+          permitirIntento: () =>
+            limiteVerificarTickets.permitirIntento(
+              ctx.ip ? `${ctx.tenant.id}:${ctx.ip}` : ctx.tenant.id,
+            ),
+        }),
+      ),
+    ),
+
+  /*
+    Cotización del carrito (F01 de `storefront-carrito-total-y-drawer`): el total que el drawer y el
+    resumen del checkout MUESTRAN, calculado en `Decimal` server-side sobre los precios vigentes.
+
+    Es una QUERY y no una mutation porque no escribe nada: no hay Order, no hay Flow, no hay efecto
+    (I3). Y no se llama `getX` a pesar de la convención de prefijos porque el principio rector es
+    espejar el nombre del use case, y este es un CÓMPUTO sobre lo que el cliente trae —cotizar— y no
+    la lectura de una entidad que ya existe.
+
+    El `tenantId` sale del contexto (I1) y el cliente no aporta ni un peso: el input son
+    `{productId, cantidad}` y nada más, el MISMO schema que consume `iniciarCheckout`.
+  */
+  cotizarCarrito: tenantProcedure
+    .input(cotizarCarritoInput)
+    .query(({ ctx, input }) =>
+      runDomain(() =>
+        cotizarCarrito({ db: ctx.db, tenantId: ctx.tenant.id, items: input.items }),
       ),
     ),
 

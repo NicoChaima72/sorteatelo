@@ -93,7 +93,9 @@ export function ventanasDeRecordatorio(ahora: Date): VentanaRecordatorio[] {
     const siguiente = OFFSETS_RECORDATORIO[i + 1] ?? 0;
     return {
       offsetHoras,
-      desde: new Date(base + (siguiente === 0 ? 0 : siguiente + VENTANA_HORAS) * HORA_MS),
+      desde: new Date(
+        base + (siguiente === 0 ? 0 : siguiente + VENTANA_HORAS) * HORA_MS,
+      ),
       hasta: new Date(base + (offsetHoras + VENTANA_HORAS) * HORA_MS),
     };
   });

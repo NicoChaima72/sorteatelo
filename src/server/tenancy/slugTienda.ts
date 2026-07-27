@@ -91,6 +91,11 @@ export const SLUGS_PAGINA_RESERVADOS: ReadonlySet<string> = new Set([
   // ADR-0008). Además de ser una ruta estática que taparía a la página del Organizador, es el destino
   // del enlace LEGAL del footer y de la vitrina: no puede quedar bajo contenido que el tenant edita.
   "bases",
+  // `/verificar` = el verificador público de tickets del sorteo ACTIVO (verificador-tickets F03,
+  // D3, ADR-0024). Misma razón que `bases`: además de ser una ruta estática que taparía a la página
+  // del Organizador, es el destino de un enlace PINNED en el header y el footer de TODAS las
+  // tiendas (D8) — no puede quedar bajo contenido que el tenant edita.
+  "verificar",
   // `/en-pausa` = la página neutral de PLATAFORMA que se sirve cuando la Tienda dejó de vender por
   // facturación (facturación F05/D4). Ruta estática que taparía a una página del Organizador, y
   // además el destino del gate: no puede quedar bajo contenido que el tenant edita.

@@ -161,6 +161,9 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
     const linea = entrega!.lineas[0]!;
     expect(linea.esSobre).toBe(true);
     expect(linea.unidadesPorPack).toBe(2);
+    // F05: un producto SIN portada la reporta como `null` (la página degrada al gradiente de marca,
+    // §5.2) — nunca `undefined`, que Next rechazaría al serializar las props del SSR.
+    expect(linea.portadaUrl).toBeNull();
     // 2 archivos, EXACTAMENTE los asignados — y no los 6 del pool.
     expect(linea.archivos).toHaveLength(2);
     expect(linea.archivos.map((a) => a.id).sort()).toEqual([...tocaron].sort());
@@ -285,6 +288,9 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
         activo: true,
         fuenteId: libro.id,
         unidadesPorPack: 4,
+        // F05: la portada del PRODUCTO, que es lo que la página de entrega va a usar como visual de
+        // cada copia (un PDF no tiene miniatura presignada, así que sin esto se ve un ícono pelado).
+        portadaUrl: "https://cdn.example/tapa-libro.png",
       },
       select: { id: true },
     });
@@ -327,6 +333,17 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
     // NO es una entrega al azar: la fuente es ESTANDAR, no una colección. El copy de la página
     // cuelga de acá, y decir «al azar» de un libro sería mentir.
     expect(linea.esSobre).toBe(false);
+
+    /*
+      F05 — la PORTADA del producto viaja con la línea, y es la del producto COMPRADO (el pack), no
+      la de su fuente. Es exactamente este caso el que motivó la feature: 4 copias de un PDF, que no
+      tienen miniatura presignada (de un PDF no se deriva un preview — sería derivar contenido del
+      archivo vendible, D10) y hasta ahora se veían como 4 íconos genéricos indistinguibles.
+    */
+    expect(linea.portadaUrl).toBe("https://cdn.example/tapa-libro.png");
+    // Y sigue sin filtrarse una sola key del bucket en lo que devuelve el use case (I2/ADR-0002):
+    // las `keyServerOnly` existen para que el BORDE presigne y ahí mueren.
+    expect(JSON.stringify({ ...linea, archivos: [] })).not.toContain("libro.pdf");
 
     // El enlace es el del correo de SIEMPRE, sin `?archivo=`: 4 copias del mismo archivo no son
     // algo entre lo que elegir, y ensuciar la URL de una compra normal sería una regresión.

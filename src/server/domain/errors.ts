@@ -9,7 +9,13 @@ export type DomainErrorCode =
   | "FORBIDDEN"
   | "INVALID"
   | "CONFLICT"
-  | "INACTIVE";
+  | "INACTIVE"
+  // Cuota de intentos agotada (verificador-tickets F01/D5). Es una condición de negocio y no solo
+  // de transporte: el use case decide que NO va a trabajar, y el mensaje que acompaña al código lo
+  // lee una persona esperando ver sus tickets. Va acá y no como `TRPCError` suelto en el router
+  // para que el corte quede testeable sin levantar tRPC (que la DB no se toque es la mitad del
+  // valor del gate).
+  | "TOO_MANY_REQUESTS";
 
 export class DomainError extends Error {
   constructor(

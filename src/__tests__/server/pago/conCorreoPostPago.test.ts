@@ -71,8 +71,34 @@ describe("pago/conCorreoPostPago — decorator post-commit del correo (D1/D2)", 
     expect(enviar).not.toHaveBeenCalled();
   });
 
-  // correo.decorator.004 — el envío falla ⇒ log-and-continue: el resultado se devuelve intacto
-  it("si el envío falla, NO propaga el error: devuelve el resultado del confirmarPago (⇒ webhook 200) y loguea sin secretos", async () => {
+  // correo.decorator.004 — el envío falla ASYNC ⇒ el resultado se devuelve intacto y la promesa
+  // rechazada no queda sin manejar (F03: el envío es fire-and-forget; el log del fallo async es de
+  // QUIEN ENVÍA — enviarConfirmacionDeCompra — no del decorator, y el cron del ledger reintenta).
+  it("si el envío falla, NO propaga el error: devuelve el resultado del confirmarPago (⇒ webhook 200)", async () => {
+    const tareas: Promise<unknown>[] = [];
+    const enviar = vi
+      .fn<(orderId: string) => Promise<void>>()
+      .mockRejectedValue(new Error("Resend respondió 500."));
+    const decorado = conCorreoPostPago(
+      confirmarPagoFake({ yaProcesado: false, transicion: "PAGADO" }),
+      enviar,
+      (tarea) => tareas.push(tarea),
+    );
+
+    // NO lanza: el fallo del correo no compromete la confirmación (I1).
+    const res = await decorado(INPUT);
+
+    expect(res).toEqual({ yaProcesado: false, transicion: "PAGADO" });
+    // La tarea SÍ se programó (con el orderId autoritativo) y su rechazo es observable por el
+    // recolector del seam — no por el webhook, que ya respondió.
+    expect(tareas).toHaveLength(1);
+    expect(enviar).toHaveBeenCalledWith("order-42");
+    await expect(tareas[0]).rejects.toThrow("500");
+  });
+
+  // correo.decorator.005 — el callback rompe SÍNCRONO ⇒ ese fallo sí lo loguea el decorator (I3:
+  // orderId no es secreto; jamás token ni email) y el ack a Flow sale igual.
+  it("si programar el envío rompe síncrono, loguea sin secretos y el webhook responde igual", async () => {
     const errores: string[] = [];
     const spy = vi
       .spyOn(console, "error")
@@ -80,22 +106,20 @@ describe("pago/conCorreoPostPago — decorator post-commit del correo (D1/D2)", 
         errores.push(args.map(String).join(" "));
       });
 
-    const enviar = vi
-      .fn<(orderId: string) => Promise<void>>()
-      .mockRejectedValue(new Error("Resend respondió 500."));
+    const enviar = vi.fn<(orderId: string) => Promise<void>>(() => {
+      throw new Error("rompió antes de devolver la promesa");
+    });
     const decorado = conCorreoPostPago(
       confirmarPagoFake({ yaProcesado: false, transicion: "PAGADO" }),
       enviar,
     );
 
-    // NO lanza: el fallo del correo no compromete la confirmación (I1).
     const res = await decorado(INPUT);
     spy.mockRestore();
 
     expect(res).toEqual({ yaProcesado: false, transicion: "PAGADO" });
-    // Se logueó el fallo con el orderId (no secreto), sin token ni email del comprador (I3).
     const salida = errores.join("\n");
     expect(salida).toContain("order-42");
-    expect(salida).toContain("500");
+    expect(salida).not.toContain("Resend"); // sin detalles del adapter que no vinieron
   });
 });

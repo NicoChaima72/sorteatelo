@@ -69,6 +69,13 @@ Paquetes instalados: `@mantine/core`, `@mantine/hooks`, `@mantine/form`, `@manti
   - **error** → mensaje en `c="red"` + botón "Reintentar" (`refetch`);
   - **data vacía** → estado vacío con ícono (Tabler) y mensaje en voz al usuario, no un hueco en blanco.
   - **no autorizado** (pantallas gateadas por rol/membresía, p. ej. Operador o el panel de tienda) → si el procedure responde `FORBIDDEN`/`UNAUTHORIZED`, mostrar un estado explícito "no tienes acceso" (no dejarlo caer al skeleton perpetuo ni a un error crudo) — es la 4ª rama de estas pantallas.
+  - **Variante — dato AUXILIAR async que no bloquea la acción**: cuando lo que falla no es el contenido
+    de la pantalla sino un dato de apoyo que el server va a recalcular igual (el total del carrito, que
+    `iniciarCheckout` computa de nuevo dentro de su `$tx`), el error va en `c="dimmed"` con el copy
+    honesto de lo que sí se sabe + un «Reintentar», y **el CTA NO se apaga**. Rojo es para el contenido
+    que no cargó; teñir de alarma el pie del carrito de alguien que puede comprar perfectamente es lo
+    que design.md §8 pide evitar. Lo que sí apaga el CTA es que el server AFIRME que no hay nada que
+    hacer (`sinNadaQueCobrar`), no un fallo de red. Ej.: `TotalDelCarrito` en `carrito-ui.tsx`.
 - **Diálogos con submit**: el botón con `loading={isPending}` (OR compuesto si hay varias mutations) — Mantine deshabilita y muestra spinner en un solo prop.
 - **Listas paginadas por cursor** (ver `backend-conventions.md` § Paginación por cursor): `useInfiniteQuery` — `getNextPageParam: (ultima) => ultima.nextCursor ?? undefined`; filas con `data?.pages.flatMap((p) => p.items) ?? []`; UI **forward-only con botón "Cargar más"** (`hasNextPage` + `fetchNextPage()`, `loading={isFetchingNextPage}`), no un paginador de saltar-a-página-N. Ej.: `src/pages/admin/ventas.tsx`.
 - **Mutation por-fila en una tabla** (una sola instancia de `useMutation` compartida por N filas): aislar el `loading` a la fila que la disparó con `mutation.isPending && mutation.variables?.<id> === fila.id` — nunca un hook por fila ni un `useState` de id-en-vuelo. El `loading` de Mantine ya deshabilita el botón (evita doble submit). Ej.: botón "Reenviar" de `src/pages/admin/ventas.tsx`.
@@ -110,6 +117,16 @@ Patrón de las superficies que dicen una cosa distinta por cada valor de un unio
 ## Diálogos y destructivos
 
 - Modales con contenido/form → `Modal` de `@mantine/core`. **Sin `scrollAreaComponent`** (decisión del usuario 2026-07-26): el scroll de un modal largo es el default de Mantine (scrollea la página), nunca una `ScrollArea` interna. Y para guías/ayuda dentro del panel: **`Modal`, no `Drawer`** (mismo día, guía «Conecta tu IA»).
+- **`Drawer` con footer FIJO (lista que scrollea + resumen al pie)**: hacen falta TRES cosas por
+  `styles`, y la que se olvida es la tercera. (1) `content: {display:"flex", flexDirection:"column"}`;
+  (2) `body: {flex:1, minHeight:0, display:"flex", flexDirection:"column", padding:0}` — el
+  `minHeight:0` es lo que permite que un hijo `overflow-y:auto` se ENCOJA, y el `padding:0` pisa el
+  prop `padding` del Drawer (que aplica a header y body por igual) para que lo aporten por separado
+  la lista y el footer; (3) **`content: {overflow:"hidden"}`**, que APAGA el `overflow-y:auto` que
+  Mantine le pone a esa parte por default — su modelo es «scrollea el drawer entero con el header
+  sticky». Sin (3) quedan dos regiones scrolleables anidadas y el rebote elástico de iOS puede
+  arrastrar header y footer fuera de pantalla, o sea despegar el footer que el patrón vino a fijar.
+  Va por `styles` y no `classNames` porque es estático. Ej.: `CarritoDrawer` en `carrito-ui.tsx`.
 - **Confirmaciones destructivas** → `openConfirmModal` de `@mantine/modals` con `confirmProps: { color: "red" }`, título claro y `children` que diga QUÉ se va a borrar. No armar diálogos de confirmación ad-hoc.
 - **Labels**: por defecto `labels: { confirm: "<Verbo>", cancel: "Cancelar" }` — el escape se llama «Cancelar» y punto. **Única excepción: cuando el verbo de la acción ES «cancelar»** (cancelar el plan, cancelar un sorteo), porque «Cancelar el plan» junto a «Cancelar» deja al usuario sin saber cuál botón cancela QUÉ, y equivocarse ahí es caro. En ese caso el escape pasa a una negativa en voz de persona («Mejor no»), nunca a un sinónimo técnico tipo «Volver» o «Descartar». Precedente vivo: `admin/plan/index.tsx` (F06). Los otros seis `openConfirmModal` del panel usan el default.
 - El **cuerpo dice la consecuencia Y qué se conserva** — «deja de recibir compras» + «no se borra nada: tus productos y ventas quedan donde están». Un destructivo que solo enumera lo que se pierde produce cancelaciones por susto y llamadas de soporte evitables.

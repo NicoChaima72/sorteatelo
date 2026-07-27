@@ -95,11 +95,14 @@ describe("gate de venta en los bordes (F05)", () => {
     );
 
     // El enlace que el Comprador recibe por correo apunta al APEX de la plataforma (el correo no
-    // conoce subdominios). TODOS los helpers de este módulo exigen `zona === "storefront"` vía
+    // conoce subdominios). Los helpers que resuelven por HOST exigen `zona === "storefront"` vía
     // `resolverBrandingSSR`, así que usar cualquiera de ellos acá haría que esa página diera 404 en
     // la ÚNICA puerta que el Comprador tiene para llegar a lo que compró. La marca sale del tenant
-    // del GRANT (server-authored desde el token), no del host.
-    expect(importados).toEqual([]);
+    // del GRANT (server-authored desde el token), no del host — por eso los ÚNICOS imports
+    // permitidos de este módulo son los parametrizados por `tenantSlug` (el follow-up del navbar
+    // le dio a la entrega el chrome/nav de la Tienda alimentados por el slug del grant, 2026-07-27).
+    // Cualquier import nuevo aparece acá y hay que justificar que NO lee el host.
+    expect(importados.sort()).toEqual(["resolverChrome", "resolverNavPaginas"]);
   });
 
   // facturacion.gate.borde.003 — las superficies de VENTA entran por un helper gateado

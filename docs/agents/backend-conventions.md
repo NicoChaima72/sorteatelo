@@ -84,6 +84,11 @@ El contexto tRPC resuelve el tenant re-parseando `req.headers.host` con el parse
 - **Naming de procedures**: el dominio de libros-iselk está escrito en **español** y el router **espeja el nombre del use case** que llama (trazabilidad router→dominio). El principio rector es **espejar el use case en español**; los prefijos son consecuencia de eso:
   - Queries que devuelven **una entidad o un agregado**: prefijo `get*` (p. ej. `getLibro`, `getOrden`).
   - Queries que **listan una colección**: prefijo `listar*`, espejando el use case (p. ej. `listarLibros`, `listarOrdenes`).
+  - Queries que son un **CÓMPUTO sobre el input** y no la lectura de una entidad que ya existe: van
+    con el **verbo del use case, sin prefijo** (p. ej. `cotizarCarrito`, que suma el total de un
+    carrito que el cliente trae). El principio rector sigue siendo espejar el use case; `get*` es
+    consecuencia de que haya una entidad que buscar, y acá no la hay. El precedente parcial es
+    `estadoOrden`. Que no escriba nada la mantiene como query: el borde se elige por el EFECTO.
   - Mutations: español espejando el use case (p. ej. `crearLibro`, `actualizarLibro`, `iniciarCheckout`, `confirmarPago`).
 - **Inputs siempre validados con Zod**. Nunca `z.any()`.
 - Todo procedure del panel filtra/autoriza contra `ctx.session` — nunca confiar en un identificador (userId, email del comprador) que venga del input sin validarlo contra el estado del servidor.

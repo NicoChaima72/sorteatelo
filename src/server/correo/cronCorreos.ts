@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto";
 
 import { type ResultadoDrenado } from "~/server/domain/correo/drenarCorreosPendientes";
+import { type ResultadoPlanificacion } from "~/server/domain/correo/planificarRecordatorios";
 
 /**
  * Núcleo del endpoint de cron de correos (F02, ADR-0027 §4) — la POLÍTICA del borde, separada del
@@ -43,11 +44,18 @@ function bearerValido(header: string | undefined, secret: string): boolean {
 export async function manejarCronCorreos({
   req,
   secret,
+  planificar,
   drenar,
 }: {
   req: ReqCron;
   /** `CRON_SECRET` de env. `undefined` ⇒ el endpoint responde 500 y no hace nada. */
   secret: string | undefined;
+  /**
+   * Paso PRODUCTOR de la corrida (F06): encola los recordatorios vencidos y retira los que dejaron
+   * de corresponder. Va ANTES del drenado a propósito — lo que se encola en esta corrida sale en
+   * esta misma, en vez de esperar una hora más. Es el único paso que puede escribir filas nuevas.
+   */
+  planificar: () => Promise<ResultadoPlanificacion>;
   drenar: () => Promise<ResultadoDrenado>;
 }): Promise<RespuestaCron> {
   if (!secret) {
@@ -65,8 +73,13 @@ export async function manejarCronCorreos({
   }
 
   try {
+    // Planificar y drenar son dos mitades independientes: si la planificación falla, el drenado
+    // NO se hace igual — un fallo acá suele ser la DB, y drenar con la DB a maltraer sería reclamar
+    // filas que no vamos a poder confirmar (I2). El cron reintenta a la hora siguiente y la
+    // reconciliación se encarga: nada se pierde por saltarse una corrida.
+    const planificado = await planificar();
     const resumen = await drenar();
-    return { status: 200, body: { ok: true, ...resumen } };
+    return { status: 200, body: { ok: true, ...planificado, ...resumen } };
   } catch (e) {
     // El detalle va al log del servidor, NUNCA al body: el mensaje del adapter puede arrastrar
     // texto del proveedor (I6). El cron reintenta a la hora siguiente; las filas ya reclamadas

@@ -144,64 +144,75 @@ Pasos en orden de dependencia. El schema (paso 1) lo revisa `schema-guardian` an
 ### F01 — Alta self-service de Tienda
 
 **Vitest** (integration):
-- [ ] `crearTienda` con slug válido y libre crea el `Tenant` en estado CONFIGURACION + la
-  `TenantMembership` del usuario, en una sola transacción. — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.001`
-- [ ] Slug inválido (no cumple `esSlugValido`) ⇒ error de validación; slug reservado (`www`, `api`,
-  `admin`…) ⇒ rechazo; slug ya existente ⇒ `CONFLICT` sin crear membresía huérfana. — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.002a/002b/002c` + `src/__tests__/server/tenancy/slugTienda.test.ts::tenants.slug.001/002/003`
-- [ ] Un usuario que ya tiene una membresía no puede crear otra Tienda (`CONFLICT`, D8). — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.003`
-- [ ] El `userId` de la membresía sale del acceso server-side, nunca del input (no hay `userId`/
-  `tenantId` en el input del use case). — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.004`
+- [x] `crearTienda` con slug válido y libre crea el `Tenant` en estado CONFIGURACION + la
+  `TenantMembership` del usuario, en una sola transacción. — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.001` ✅ 2026-07-27
+- [x] Slug inválido (no cumple `esSlugValido`) ⇒ error de validación; slug reservado (`www`, `api`,
+  `admin`…) ⇒ rechazo; slug ya existente ⇒ `CONFLICT` sin crear membresía huérfana. — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.002a/002b/002c` + `src/__tests__/server/tenancy/slugTienda.test.ts::tenants.slug.001/002/003` ✅ 2026-07-27
+- [x] Un usuario que ya tiene una membresía no puede crear otra Tienda (`CONFLICT`, D8). — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.003` ⚠️ el test pasa, pero **D8 ya NO rige en producto** (ADR-0022 multi-tienda; nikochaima72 tiene 9 membresías). Ver Bitácora 2026-07-27.
+- [x] El `userId` de la membresía sale del acceso server-side, nunca del input (no hay `userId`/
+  `tenantId` en el input del use case). — `src/__tests__/server/tenants/crearTienda.test.ts::tenants.alta.004` ✅ 2026-07-27
 
 **E2E** (browser):
-- [ ] En dev: un usuario Google recién logueado SIN tienda ve el formulario de alta; crea una con
+- [x] En dev: un usuario Google recién logueado SIN tienda ve el formulario de alta; crea una con
   slug+nombre y el panel pasa a mostrar su Tienda (nombre en el nav, sin empty state). Un slug ya
-  tomado muestra el error correspondiente.
+  tomado muestra el error correspondiente. ✅ 2026-07-27 — cuenta Google REAL `nicolas.chaima@datawalt.cl`
+  con 0 membresías; `www` ⇒ «reservado por la plataforma», `autora` ⇒ «ya está en uso por otra tienda»,
+  `e2e-alta-2707` ⇒ Tenant CONFIGURACION + membresía. **Salvedad de dev**: el redirect post-alta al
+  subdominio rebota a `/login` porque la cookie es host-only en `localhost` (en prod es wildcard,
+  ADR-0019); se puenteó con el mismo `sessionToken` en el subdominio.
 
 ### F02 — Aceptación de ToS registrada
 
 **Vitest** (integration):
-- [ ] `aceptarTos` graba `tosVersion` = versión vigente, `tosAceptadoAt` y `tosAceptadoPor` (email del
-  aceptante) sobre la Tienda del acceso; scopeado por membresía (sin membresía ⇒ FORBIDDEN). — `src/__tests__/server/tenants/aceptarTos.test.ts::tenants.tos.001/001b/003`
-- [ ] Re-aceptar la misma versión es idempotente (no falla; re-sella el timestamp). — `src/__tests__/server/tenants/aceptarTos.test.ts::tenants.tos.002`
-- [ ] `getEstadoPublicacion` reporta el requisito ToS como pendiente si `tosVersion` es null o distinta
-  de la vigente, y como cumplido si coincide. — `src/__tests__/server/tenants/getEstadoPublicacion.test.ts::tenants.publicacion.tos.001`
+- [x] `aceptarTos` graba `tosVersion` = versión vigente, `tosAceptadoAt` y `tosAceptadoPor` (email del
+  aceptante) sobre la Tienda del acceso; scopeado por membresía (sin membresía ⇒ FORBIDDEN). — `src/__tests__/server/tenants/aceptarTos.test.ts::tenants.tos.001/001b/003` ✅ 2026-07-27
+- [x] Re-aceptar la misma versión es idempotente (no falla; re-sella el timestamp). — `src/__tests__/server/tenants/aceptarTos.test.ts::tenants.tos.002` ✅ 2026-07-27
+- [x] `getEstadoPublicacion` reporta el requisito ToS como pendiente si `tosVersion` es null o distinta
+  de la vigente, y como cumplido si coincide. — `src/__tests__/server/tenants/getEstadoPublicacion.test.ts::tenants.publicacion.tos.001` ✅ 2026-07-27
 
 **E2E** (browser):
-- [ ] En el checklist del panel, aceptar el ToS marca ese ítem como cumplido y el registro queda en la
-  Tienda (verificable en Prisma Studio: version/fecha/email).
+- [x] En el checklist del panel, aceptar el ToS marca ese ítem como cumplido y el registro queda en la
+  Tienda (verificable en Prisma Studio: version/fecha/email). ✅ 2026-07-27 — `tosVersion=2026-07-17`,
+  `tosAceptadoAt=2026-07-27T05:26:59Z`, `tosAceptadoPor=nicolas.chaima@datawalt.cl`. **Hallazgo legal**:
+  el texto del ToS NO menciona la suscripción de $25.000/mes de la Plataforma (ADR-0026) — ver Bitácora.
 
 ### F03 — Checklist de publicación + publicar/despublicar
 
 **Vitest** (integration):
-- [ ] `getEstadoPublicacion` marca cumplidos exactamente los requisitos presentes: ToS vigente,
+- [x] `getEstadoPublicacion` marca cumplidos exactamente los requisitos presentes: ToS vigente,
   `FlowCredential` cargada, ≥1 `Product` activo con `pdfPath` no-null, y bases (`basesSorteo` no vacío)
-  solo si hay un `Raffle` ACTIVO. `puedePublicar` = todos cumplidos. — `src/__tests__/server/tenants/getEstadoPublicacion.test.ts::tenants.publicacion.001/001b` + núcleo puro `src/__tests__/server/tenants/evaluarPublicacion.test.ts::tenants.publicacion.eval.001-005`
-- [ ] `publicarTienda` recomputa el gate server-side y transiciona CONFIGURACION→PUBLICADA solo si
+  solo si hay un `Raffle` ACTIVO. `puedePublicar` = todos cumplidos. — `src/__tests__/server/tenants/getEstadoPublicacion.test.ts::tenants.publicacion.001/001b` + núcleo puro `src/__tests__/server/tenants/evaluarPublicacion.test.ts::tenants.publicacion.eval.001-005` ✅ 2026-07-27
+- [x] `publicarTienda` recomputa el gate server-side y transiciona CONFIGURACION→PUBLICADA solo si
   pasa; con cualquier requisito faltante NO publica y devuelve el requisito faltante (`INVALID`/
-  `CONFLICT`). — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.002/002b/002c/002d`
-- [ ] Con `Raffle` ACTIVO y `basesSorteo` vacío, `publicarTienda` falla (gate ADR-0008); sin sorteo
-  activo, ese requisito no aplica y puede publicar. — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.003` + `src/__tests__/server/tenants/evaluarPublicacion.test.ts::tenants.publicacion.eval.005`
-- [ ] `despublicarTienda` transiciona PUBLICADA→CONFIGURACION; ambas operaciones scopeadas por
-  membresía (tienda ajena ⇒ FORBIDDEN). — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.004/004b/004c`
+  `CONFLICT`). — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.002/002b/002c/002d` ✅ 2026-07-27
+- [x] Con `Raffle` ACTIVO y `basesSorteo` vacío, `publicarTienda` falla (gate ADR-0008); sin sorteo
+  activo, ese requisito no aplica y puede publicar. — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.003` + `src/__tests__/server/tenants/evaluarPublicacion.test.ts::tenants.publicacion.eval.005` ✅ 2026-07-27
+- [x] `despublicarTienda` transiciona PUBLICADA→CONFIGURACION; ambas operaciones scopeadas por
+  membresía (tienda ajena ⇒ FORBIDDEN). — `src/__tests__/server/tenants/publicarDespublicar.test.ts::tenants.publicacion.004/004b/004c` ✅ 2026-07-27
 
 **E2E** (browser):
-- [ ] Con todos los requisitos cumplidos, Publicar deja la Tienda PUBLICADA y `<slug>.localhost` sirve
+- [x] Con todos los requisitos cumplidos, Publicar deja la Tienda PUBLICADA y `<slug>.localhost` sirve
   el storefront; Despublicar la baja y el subdominio vuelve a respuesta neutral. Con un requisito
-  faltante, el botón Publicar está deshabilitado y el checklist muestra qué falta.
+  faltante, el botón Publicar está deshabilitado y el checklist muestra qué falta. ✅ 2026-07-27 —
+  las tres ramas ejercidas en vivo sobre `e2e-alta-2707`: con pasos pendientes el botón venía
+  `disabled` + «Completa los pasos pendientes»; con todo cumplido, Publicar ⇒ PUBLICADA y storefront
+  200 con catálogo/vitrina/disclaimer; Despublicar ⇒ CONFIGURACION y subdominio 404 neutral.
+  **El checklist creció** desde el plan original: hoy son 5 ítems (ToS, Flow, producto, bases si hay
+  sorteo ACTIVO, **«Activa tu plan»** de ADR-0026) — el 5º no existía en F08.
 
-### F04 — Panel del Operador
+### F04 — Panel del Operador — **SUPERSEDED por ADR-0023 (2026-07-26), NO TESTEABLE**
+
+El rol Operador fue **extirpado del producto**: `domain/operador/`, `src/pages/admin/operador.tsx`,
+el router `operador`, la env `PLATFORM_OPERATOR_EMAILS` y los tests `operadorTiendas.test.ts` ya no
+existen (commit `2260667`, carril `plataforma-retiro-operador`). Hoy hay **una sola puerta de
+autorización: la membresía**. Los 3 checkboxes de abajo quedan como registro histórico.
 
 **Vitest** (integration):
-- [ ] `listarTiendas` devuelve TODAS las Tiendas (con estado) solo si `acceso.esOperador`; un no-operador
-  ⇒ FORBIDDEN. — `src/__tests__/server/operador/operadorTiendas.test.ts::operador.tiendas.001/001b`
-- [ ] `suspenderTienda` transiciona a SUSPENDIDA y `reactivarTienda` SUSPENDIDA→CONFIGURACION; ambas
-  exigen `esOperador` (no-operador ⇒ FORBIDDEN aunque pase el `tenantId` por input — el input
-  selecciona, no autoriza, I1). — `src/__tests__/server/operador/operadorTiendas.test.ts::operador.tiendas.002/002b/002c/002d`
+- [ ] ⏭️ SUPERSEDED — `listarTiendas` … — el archivo `src/__tests__/server/operador/operadorTiendas.test.ts` fue borrado por ADR-0023.
+- [ ] ⏭️ SUPERSEDED — `suspenderTienda`/`reactivarTienda` … — ídem.
 
 **E2E** (browser):
-- [ ] Un Operador (email en `PLATFORM_OPERATOR_EMAILS`) ve la tabla de todas las Tiendas; suspender una
-  PUBLICADA hace caer su storefront a respuesta neutral; reactivarla la deja en CONFIGURACION (deja de
-  vender hasta re-publicar).
+- [ ] ⏭️ SUPERSEDED — no hay panel del Operador ni allowlist de plataforma que ejercer.
 
 ## Invariantes
 
@@ -373,3 +384,51 @@ Pasos en orden de dependencia. El schema (paso 1) lo revisa `schema-guardian` an
   sin aplicar (whitespace-pre-wrap; estado "no autorizado"); (3) seed tenants autora/prueba están
   PUBLICADA con tos=null y sin bases pese a raffle ACTIVO (se sembraron directo a PUBLICADA, bypass del
   gate — para demo del checklist conviene un tenant fresco creado por el alta).
+- [2026-07-27 02:00] [feature-tester] **Corrida E2E completa del alta self-service, 10 meses de features
+  después.** Vitest del carril `tenants`+`tenancy`: **88/88 verde** (11 archivos). E2E: **alta de punta a
+  punta con una cuenta Google REAL de un desconocido** (`nicolas.chaima@datawalt.cl`, 0 membresías) hasta
+  storefront vivo y cobro real en el sandbox de Flow. Evidencia: Tienda `e2e-alta-2707`
+  (`cms2s8nuh000d14igr0trktih`), hoy en CONFIGURACION (despublicada a propósito al cierre).
+  **DIAGNÓSTICO DEL BUG DE LOGIN que reportó el usuario** («entré con datawalt pero sigue con
+  nikochaima72»): NO era cookie vieja. En la tabla `Account` había **dos cuentas Google colgando del
+  MISMO `User`** — el `sub` de `nicolas.chaima@datawalt.cl` (hd=datawalt.cl) apuntaba a
+  `cmrogd2yz…` = nikochaima72@gmail.com. Es el comportamiento estándar del PrismaAdapter de NextAuth v4:
+  si hay **sesión activa** cuando vuelve el callback de OAuth, la cuenta nueva se **linkea al usuario de
+  la sesión** en vez de crear uno. O sea: entrar con datawalt era, literalmente, entrar como nikochaima72,
+  y `User` con email datawalt no existía. Agravante: `GoogleProvider` (`src/server/auth.ts:99`) no pasa
+  `prompt=select_account`, así que Google nunca mostraba el chooser. Para correr el E2E se **desvinculó
+  temporalmente** esa fila y se forzó el chooser a mano sobre la URL de authorize (sin tocar código);
+  **al cierre se restauró** el link exacto (Account `sub 118316…` → userId nikochaima72), así que el
+  mundo del usuario quedó como estaba. *Decisión pendiente del usuario*: si quiere que datawalt sea una
+  cuenta separada de verdad, hay que borrar esa fila `Account` y volver a entrar (y considerar
+  `authorization: { params: { prompt: "select_account" } }` en el provider).
+  **RESULTADO HONESTO: sí, un desconocido puede montar y publicar su tienda solo.** Tropieza en 4 puntos,
+  ninguno bloqueante: (UX-1) el producto **nace en «Borrador»** y la única acción de la fila es «Editar» —
+  el checklist pide «un producto activo» pero nada dice que el que acabas de crear no lo está; (UX-2) el
+  preview del slug dice literal **«tu-tienda.tudominio»** en vez del dominio real; (UX-3) el panel contra
+  la DB remota tarda **~8 s** en refrescar tras guardar (las credenciales de Flow siguen diciendo «No
+  conectada» un rato largo después de guardarlas bien — funciona, pero invita a re-guardar); (UX-4) un
+  desconocido sin tienda ve el **nav completo** (Productos/Ventas/Sorteo/Plan/Configuración) y todos los
+  links vuelven al mismo formulario de alta.
+  **HALLAZGO LEGAL (F10)**: el ToS vigente `2026-07-17` **no menciona la suscripción de $25.000/mes**
+  (ADR-0026) y su §3 dice que la Plataforma «no retiene comisión» — cierto para las ventas, pero el
+  Organizador acepta el texto ANTES de ver el precio y el contrato no habla del cobro recurrente.
+  Candidato firme a bump de `TOS_VERSION` cuando se revise con abogado.
+  **DEUDA DEL PLAN — (a) es un HALLAZGO DE PRODUCTO, no un detalle**: el guard **D8 sigue VIVO y es
+  autoritativo** (`crearTienda.ts:58-80`, recuento dentro de la `$tx` ⇒ CONFLICT si el usuario ya tiene
+  UNA membresía), y `<CrearTienda/>` se renderiza en **un solo lugar**: el empty-state «no tienes tienda»
+  de `admin-layout.tsx:767`. Consecuencia: **por self-service NADIE puede crear una segunda Tienda** —
+  no hay entrada en el switcher ni en ningún otro lado. Pero el resto del producto ya asume lo contrario:
+  ADR-0022 trae panel multi-tienda + switcher, y la facturación tiene un plan **ADICIONAL de $12.500
+  «segunda tienda a mitad de precio»** con el `PlatformBillingCustomer` único por usuario diseñado
+  explícitamente para eso (`iniciarRegistroTarjeta.ts`, `planParaNuevaSuscripcion`). Hoy ese plan
+  **es inalcanzable sin meter mano por script** (`scripts/otorgar-membresia.ts`). O se retira D8 y se
+  agrega «crear otra tienda» al switcher, o el precio ADICIONAL no tiene camino. Decisión del usuario;
+  (b) **F04 completa quedó SUPERSEDED** por ADR-0023
+  (no hay Operador); (c) el checklist tiene hoy **5 ítems**, no 4: se sumó «Activa tu plan».
+  **Salvedad de dev, no bug**: la cookie de sesión es host-only en `localhost`, así que el redirect
+  post-alta al subdominio rebota a `/login` (en prod la cookie va al wildcard, ADR-0019).
+  Higiene al cierre: suscripción `sus_w4cab9c03c` cancelada (Flow status 4, `next_invoice=null`) y
+  customer `cus_gd085472bd` borrado (status 0); tienda despublicada; `src/config.ts` restaurado a
+  `devTienda.enabled: true`; túnel cloudflared apagado y `.env` anotado; 9 exenciones GRANDFATHER
+  intactas (ninguna de la tienda nueva: pagó de verdad). Log completo: `tasks/.e2e-run-selfservice.log`.

@@ -49,6 +49,16 @@ export interface ItemCarrito {
    * en localStorage, manda la DB.
    */
   unidadesPorPack?: number;
+  /**
+   * Portada del producto tal como la vio el Comprador al agregarlo (F03, display-only). Sirve para
+   * pintar la miniatura del drawer/checkout AL INSTANTE, sin esperar a la red.
+   *
+   * Opcional por dos motivos distintos: un producto puede no tener portada (la UI degrada al
+   * gradiente de marca, design.md §5.2) y un carrito guardado antes de F03 no trae la clave. En
+   * cuanto llega `cotizarCarrito`, **manda la `portadaUrl` del server** — igual que con el precio:
+   * lo de localStorage es un rótulo viejo, no la verdad.
+   */
+  portadaUrl?: string;
 }
 
 interface CarritoContextValue {
@@ -77,17 +87,28 @@ function normalizarCantidad(valor: unknown): number {
   return Math.min(n, MAX_CANTIDAD_POR_ITEM);
 }
 
-/** Lee el carrito persistido; tolera JSON corrupto / ausente / sin `cantidad` (carritos viejos). */
-function leerPersistido(slug: string): ItemCarrito[] {
-  if (typeof window === "undefined") return [];
+/**
+ * **Rehidrata el carrito desde lo que hay guardado**, tolerando todo lo que puede venir mal: JSON
+ * corrupto, una forma que no es un array, ítems incompletos, y —lo que de verdad importa— **el
+ * formato de una versión anterior del sitio**.
+ *
+ * El `localStorage` de un Comprador es un formato versionado sin migración: cada campo nuevo
+ * (`cantidad` en ADR-0012, `portadaUrl` en F03) aterriza en navegadores que tienen guardado el
+ * formato viejo. La única alternativa a tolerarlo sería vaciarle el carrito a alguien que estaba por
+ * comprar, así que la ausencia de una clave nunca invalida el ítem: se completa con un default
+ * honesto (cantidad 1, sin portada) y el server manda igual.
+ *
+ * Es PURA y recibe el string —en vez de leer `window` adentro— para poder testear exactamente eso
+ * sin DOM; el borde que toca `localStorage` es `leerPersistido`.
+ */
+export function rehidratarCarrito(guardado: string | null): ItemCarrito[] {
+  if (!guardado) return [];
   try {
-    const crudo = window.localStorage.getItem(claveDe(slug));
-    if (!crudo) return [];
-    const parsed = JSON.parse(crudo) as unknown;
+    const parsed = JSON.parse(guardado) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter(
-        (x): x is { id: string; titulo: string; precio: number; cantidad?: unknown } =>
+        (x): x is { id: string; titulo: string; precio: number } =>
           typeof x === "object" &&
           x !== null &&
           typeof (x as ItemCarrito).id === "string" &&
@@ -100,18 +121,27 @@ function leerPersistido(slug: string): ItemCarrito[] {
           id: x.id,
           titulo: x.titulo,
           precio: x.precio,
-          cantidad: normalizarCantidad(x.cantidad), // carritos viejos sin cantidad ⇒ 1
-          // Se rehidrata tal cual: un carrito viejo (o el de un producto normal) no lo trae. Es
-          // display-only, así que un valor viejo no puede hacer daño: el server no lo lee.
+          cantidad: normalizarCantidad(crudo.cantidad), // carritos viejos sin cantidad ⇒ 1
+          // Los dos display-only se rehidratan tal cual: un carrito viejo (o el de un producto
+          // normal sin portada) no los trae. Un valor viejo acá no puede hacer daño — el server no
+          // los lee, y la cotización devuelve los vigentes.
           unidadesPorPack:
             typeof crudo.unidadesPorPack === "number"
               ? crudo.unidadesPorPack
               : undefined,
+          portadaUrl:
+            typeof crudo.portadaUrl === "string" ? crudo.portadaUrl : undefined,
         };
       });
   } catch {
     return [];
   }
+}
+
+/** Borde: lee la clave del slug y delega el parseo tolerante en `rehidratarCarrito`. */
+function leerPersistido(slug: string): ItemCarrito[] {
+  if (typeof window === "undefined") return [];
+  return rehidratarCarrito(window.localStorage.getItem(claveDe(slug)));
 }
 
 export function CarritoProvider({

@@ -5,6 +5,7 @@ import {
   IconBrandTiktok,
   IconBrandWhatsapp,
   IconMail,
+  IconTicket,
 } from "@tabler/icons-react";
 import Head from "next/head";
 import Link from "next/link";
@@ -67,9 +68,12 @@ function estiloFondoHeader(
  * La marca de la PLATAFORMA sigue PENDIENTE: acá NO se inventa (I7) — el footer lleva una
  * atribución NEUTRAL sin nombre de marca de plataforma (D8/design.md §5.1 pto 7).
  *
- * Header sticky (con blur sutil) = logo/nombre + nav de anclas (desktop) + chip de countdown del
- * sorteo (D9) + carrito. Footer = redes (ocultables), contacto, enlace a bases y atribución neutral.
- * Envuelve todo en el `CarritoProvider` namespaced por slug (ADR-0004).
+ * Header sticky (con blur sutil) = logo/nombre + nav de anclas (desktop) + verificador de tickets +
+ * carrito. Footer = redes (ocultables), contacto, enlaces a bases y al verificador, y atribución
+ * neutral. Envuelve todo en el `CarritoProvider` namespaced por slug (ADR-0004).
+ *
+ * Los enlaces PINNED (`verificador-tickets` F04/D8, ADR-0008) los pone la PLATAFORMA alrededor de lo
+ * configurable: no salen del chrome del Organizador y no hay input suyo que los quite.
  */
 export function StorefrontLayout({
   branding,
@@ -259,6 +263,7 @@ function Header({
             {/* Sin CountdownChip en el header (usuario 2026-07-26): la urgencia vive en la página
                 (widget `urgencia_countdown`); el chip duplicaba el mensaje. `aviso_barra` conserva
                 el suyo (opt-in del Organizador). */}
+            <LinkVerificarTickets />
             {/* Acción de sesión (F09c): junto al carrito, chrome neutro, post-hidratación (I5). */}
             <AccesoSesion slug={branding.slug} />
             <BotonCarrito onOpen={onAbrirCarrito} />
@@ -266,6 +271,47 @@ function Header({
         </Group>
       </Container>
     </Box>
+  );
+}
+
+/**
+ * Enlace PINNED al verificador público de tickets (`verificador-tickets` F04/D8, ADR-0024).
+ *
+ * Pinned **por construcción** (patrón I-U2 del chrome): la plataforma lo renderiza alrededor de lo
+ * configurable y no existe input del Organizador que lo quite — más fuerte que un flag. Va SIEMPRE,
+ * haya o no sorteo activo: el header es puro y sin DB, y `/verificar` resuelve sola el caso vacío
+ * con un mensaje honesto. Ocupa el espacio que dejó el estado anónimo de `AccesoSesion` al ocultarse
+ * (usuario 2026-07-27), que es justo lo que se había pre-conversado.
+ *
+ * Chrome NEUTRO de plataforma (`c="dimmed"`), igual que su vecino `AccesoSesion`: no usa el color de
+ * marca del tenant. Texto solo en ≥sm y `aria-label` siempre — a 320 px el header ya carga logo +
+ * carrito, y una etiqueta más ahí adentro empujaría al nombre de la tienda fuera de la pantalla
+ * (misma regla que ya aplica `AccesoSesion`: cuando conviven un texto que identifica y un control
+ * que actúa, el que sobrevive al ancho es el texto que identifica).
+ *
+ * `component={Link}` y no un `<a>` pelado porque es **navegación interna del mismo subdominio**, y
+ * por el mismo criterio lo usa la copia del footer: es el MISMO destino en dos superficies, así que
+ * no puede navegar distinto según por dónde se entre. (El vecino `AccesoSesion` usa `<a>` pelado,
+ * pero sus destinos son el APEX o una ruta con guard que quiere recarga completa; y el enlace a
+ * Bases del footer se deja como está a propósito — tocarlo excede el alcance de esta feature.)
+ */
+function LinkVerificarTickets() {
+  return (
+    <Anchor
+      component={Link}
+      href="/verificar"
+      c="dimmed"
+      underline="never"
+      aria-label="Verificar tickets"
+      className="shrink-0"
+    >
+      <Group gap={6} wrap="nowrap">
+        <IconTicket className="size-4" stroke={1.75} />
+        <Text size="sm" fw={500} visibleFrom="sm">
+          Verificar tickets
+        </Text>
+      </Group>
+    </Anchor>
   );
 }
 
@@ -325,6 +371,16 @@ function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrom
                   Bases del sorteo
                 </Anchor>
               )}
+              {/* Verificador de tickets (F04/D8): PINNED como el de Bases, pero **incondicional**.
+                  La diferencia con su vecino es deliberada: las bases solo existen si hay un sorteo
+                  cargado, mientras que `/verificar` tiene algo honesto que decir en los dos casos y
+                  además es la respuesta a «¿me llegó mi número?», que es justo la pregunta de quien
+                  no encuentra su correo. Sin `target="_blank"`, y con el MISMO `component={Link}`
+                  que su gemelo del header: un solo destino no puede navegar de dos maneras según
+                  desde qué parte de la página se lo toque. */}
+              <Anchor component={Link} href="/verificar" c="dimmed" size="sm">
+                Verificar tickets
+              </Anchor>
             </Stack>
 
             {redes.length > 0 && (

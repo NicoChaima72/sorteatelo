@@ -96,6 +96,8 @@ interface LineaDeLaPagina {
   /** No es secreto (no es una key de bucket) y da un `key` de React estable. */
   productoId: string;
   titulo: string;
+  /** Portada pública del producto (F05); `null` ⇒ gradiente temático. Nunca es una key. */
+  portadaUrl: string | null;
   esSobre: boolean;
   unidadesPorPack: number;
   cantidad: number;
@@ -165,6 +167,7 @@ export const getServerSideProps: GetServerSideProps<PropsEntrega> = async (
     lineas.push({
       productoId: linea.productoId,
       titulo: linea.titulo,
+      portadaUrl: linea.portadaUrl,
       esSobre: linea.esSobre,
       unidadesPorPack: linea.unidadesPorPack,
       cantidad: linea.cantidad,
@@ -312,6 +315,7 @@ function LineaEntrega({
                 // ordenada del server y no se reordena ni filtra en el cliente.
                 key={`${archivo.nombreArchivo}-${i}`}
                 archivo={archivo}
+                portadaUrl={linea.portadaUrl}
                 colorPrimario={colorPrimario}
               />
             ))}
@@ -324,18 +328,43 @@ function LineaEntrega({
 
 function TarjetaArchivo({
   archivo,
+  portadaUrl,
   colorPrimario,
 }: {
   archivo: ArchivoDeLaPagina;
+  /** Portada del producto de la línea (F05): el visual de todo lo que no es una IMAGEN. */
+  portadaUrl: string | null;
   colorPrimario: string | null;
 }) {
   const Icono = ICONO_TIPO[archivo.tipo];
-  // La miniatura puede fallar en el navegador aunque la URL se haya firmado bien (URL vencida
-  // mientras la pestaña estaba abierta, glitch de red). La convención del storefront es dura: nunca
-  // un `<img>` roto — se cae al gradiente temático, igual que `ImagenConFallback`.
+  // Cualquiera de las dos imágenes puede fallar en el navegador aunque la URL esté bien (miniatura
+  // vencida mientras la pestaña estaba abierta, glitch de red, objeto borrado del bucket público).
+  // La convención del storefront es dura: nunca un `<img>` roto — se cae al escalón siguiente.
   const [falloMiniatura, setFalloMiniatura] = useState(false);
+  const [falloPortada, setFalloPortada] = useState(false);
   const hayMiniatura = archivo.miniaturaUrl !== null && !falloMiniatura;
   const esImagen = archivo.tipo === "IMAGEN";
+
+  /*
+    Tres escalones, en este orden (F05):
+
+    1. **Miniatura presignada** — solo para archivos IMAGEN, y es LO QUE SE COMPRÓ: el sticker de
+       verdad. Manda siempre que exista; F05 no la toca.
+    2. **Portada del producto** — para todo lo demás (PDF, EPUB, MP3, ZIP), que no tiene preview y
+       hasta acá se veía como un ícono genérico: 4 copias de un libro eran 4 cuadrados iguales sin
+       una sola pista de qué libro. De un PDF NO se deriva un preview a propósito (sería derivar
+       contenido del archivo vendible, D10); la portada es un asset de marca que el Organizador ya
+       subió y que el Comprador ya vio en el catálogo.
+    3. **Ícono del tipo** sobre gradiente/superficie neutra — el fallback de siempre.
+
+    El `!esImagen` del escalón 2 es load-bearing y lo cazó el `frontend-reviewer`: sin él, una IMAGEN
+    cuya miniatura falla (R2 sin configurar, URL vencida con la pestaña abierta, glitch de red) caería
+    en la portada del PRODUCTO — o sea, en un sobre sorpresa se mostraría la tapa genérica del pack
+    en el lugar donde va el sticker que te tocó, que es exactamente lo que la persona vino a ver. El
+    visual de una IMAGEN es su propio contenido o nada; para eso está el gradiente del escalón 3.
+  */
+  const hayPortada = portadaUrl !== null && !falloPortada;
+  const usarPortada = !hayMiniatura && !esImagen && hayPortada;
 
   return (
     <Stack gap="xs">
@@ -344,28 +373,50 @@ function TarjetaArchivo({
           aspectRatio: "1 / 1",
           borderRadius: "var(--mantine-radius-md)",
           overflow: "hidden",
-          // Para una IMAGEN sin miniatura, el gradiente de la Tienda (§5.2); para los demás tipos,
-          // la superficie neutra sobre la que se lee el ícono del tipo de archivo.
+          // Para una IMAGEN sin miniatura ni portada, el gradiente de la Tienda (§5.2); para los
+          // demás casos sin imagen, la superficie neutra sobre la que se lee el ícono del tipo.
           background:
-            !hayMiniatura && esImagen
-              ? gradienteTematico(colorPrimario)
-              : "var(--mantine-color-default-hover)",
+            hayMiniatura || usarPortada
+              ? undefined
+              : esImagen
+                ? gradienteTematico(colorPrimario)
+                : "var(--mantine-color-default-hover)",
         }}
         className="flex items-center justify-center"
       >
+        {/*
+          `alt=""` en las DOS imágenes: el nombre real del archivo se renderiza siempre como texto
+          justo debajo (para las dos ramas), así que un `alt` con el mismo nombre haría que un lector
+          de pantalla lo anuncie dos veces. La asimetría anterior —miniatura con `alt`, portada
+          sin— no tenía fundamento y la levantó el `frontend-reviewer`. Es el mismo criterio de
+          `MiniaturaProducto` en el carrito: imagen muda, el texto de al lado es la fuente única.
+        */}
         {hayMiniatura ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={archivo.miniaturaUrl!}
-            alt={archivo.nombreArchivo}
+            alt=""
             onError={() => setFalloMiniatura(true)}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : usarPortada ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={portadaUrl!}
+            alt=""
+            onError={() => setFalloPortada(true)}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
           <Icono
             className="size-8"
             stroke={1.5}
-            color={esImagen ? "white" : "var(--mantine-color-dimmed)"}
+            // Token y no el keyword `white`: los íconos de Tabler no pasan por el resolver de
+            // Mantine, así que la convención pide la CSS var explícita
+            // (frontend-conventions § Degradación elegante de imágenes).
+            color={
+              esImagen ? "var(--mantine-color-white)" : "var(--mantine-color-dimmed)"
+            }
           />
         )}
       </Box>

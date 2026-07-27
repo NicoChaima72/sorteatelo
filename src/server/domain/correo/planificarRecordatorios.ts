@@ -1,5 +1,7 @@
 import { type PrismaClient } from "@prisma/client";
 
+import { evaluarGateVenta } from "~/server/domain/facturacion/_gateVenta";
+
 import {
   claveRecordatorio,
   type CorreoAEncolar,
@@ -38,6 +40,51 @@ import { ventanasDeRecordatorio } from "~/server/domain/correo/ventanasDeRecorda
 /** Cuántos sorteos mira una corrida. Cota de cordura: hoy hay ~8 Raffle ACTIVO en toda la DB. */
 const MAX_SORTEOS_POR_CORRIDA = 50;
 
+/**
+ * Los hechos que decide si una Tienda puede recibir avisos. **Los MISMOS tres que lee el gate de
+ * venta** (`cargarGateVenta`), y a propósito: la decisión la toma `evaluarGateVenta`, que es la
+ * única fuente de verdad de «¿esta Tienda puede vender AHORA?» en toda la app.
+ *
+ * Por qué importa acá, y no es celo: `TenantStatus` y facturación son **ejes separados** — una
+ * Tienda `EN_PAUSA_POR_PAGO` sigue `PUBLICADA` y su storefront sirve la página neutral de pausa. Con
+ * solo mirar `estado === "PUBLICADA"`, el T-6h le mandaría «si quieres sumar más números, todavía
+ * alcanzas» con un enlace a una tienda que no puede venderle nada. Es la misma clase de promesa
+ * falsa que el `frontend-reviewer` bloqueó en F04 con la notification del sorteo.
+ */
+export const SELECCION_GATE_DE_AVISOS = {
+  estado: true,
+  platformSubscription: { select: { estado: true } },
+  platformExemption: { select: { exentaHasta: true } },
+} as const;
+
+/** Forma mínima del tenant que `puedeRecibirAvisos` necesita (la que produce el select de arriba). */
+export interface TenantParaAvisos {
+  estado: Parameters<typeof evaluarGateVenta>[0]["estadoTienda"];
+  platformSubscription: { estado: Parameters<typeof evaluarGateVenta>[0]["estadoSuscripcion"] } | null;
+  platformExemption: { exentaHasta: Date | null } | null;
+}
+
+/**
+ * ¿La Tienda puede recibir avisos AHORA? Delega en `evaluarGateVenta` en vez de reimplementar el
+ * criterio: si mañana aparece un motivo nuevo por el que una Tienda deja de vender, este camino se
+ * entera solo.
+ *
+ * Se evalúa EN MEMORIA sobre un select batch y no con `cargarGateVenta` (que es `findUnique`)
+ * porque una corrida mira decenas de sorteos y ahí serían decenas de round-trips contra el pooler.
+ * Lo que se comparte es la DECISIÓN —la función pura—, que es lo que no puede divergir.
+ */
+export function puedeRecibirAvisos(
+  tenant: TenantParaAvisos,
+  ahora: Date,
+): boolean {
+  return evaluarGateVenta({
+    estadoTienda: tenant.estado,
+    estadoSuscripcion: tenant.platformSubscription?.estado ?? null,
+    exencion: tenant.platformExemption,
+    ahora,
+  }).puedeVender;
+}
+
 export interface ResultadoPlanificacion {
   /** Filas nuevas en el ledger. Las claves ya presentes no cuentan (eso ES la idempotencia). */
   encolados: number;
@@ -62,6 +109,9 @@ export async function planificarRecordatorios({
       where: {
         estado: "ACTIVO",
         fechaFin: { gt: ventana.desde, lte: ventana.hasta },
+        // El eje OPERATIVO va en el WHERE (es indexable y descarta el grueso); el COMERCIAL se
+        // evalúa abajo con el gate compartido. Los dos son necesarios: una Tienda puede estar
+        // PUBLICADA y en pausa por pago al mismo tiempo.
         tenant: { estado: "PUBLICADA" },
       },
       orderBy: { fechaFin: "asc" },
@@ -69,6 +119,7 @@ export async function planificarRecordatorios({
       select: {
         id: true,
         tenantId: true,
+        tenant: { select: SELECCION_GATE_DE_AVISOS },
         // Los emails de los participantes, con repetidos (una fila por TICKET). La identidad se
         // resuelve después: `Ana@x.cl` y `ana@x.cl` son la misma persona y un solo correo.
         entries: { select: { email: true } },
@@ -77,6 +128,10 @@ export async function planificarRecordatorios({
 
     for (const sorteo of sorteos) {
       if (sorteo.entries.length === 0) continue;
+      // Gate de venta (ADR-0026): una Tienda en pausa por pago no le escribe a nadie. Su storefront
+      // está sirviendo la página neutral, así que el CTA del T-6h apuntaría a una tienda que no
+      // puede venderle nada al Comprador.
+      if (!puedeRecibirAvisos(sorteo.tenant, ahora)) continue;
 
       // El filtro de I5, en UNA llamada por sorteo: consentimiento Y no supresión. Lo que no está
       // en el mapa no recibe — la ausencia es la respuesta segura.
@@ -144,15 +199,21 @@ async function retirarRecordatoriosObsoletos({
   const raffleIds = [
     ...new Set(pendientes.map((f) => f.clave.split(":")[0]!)),
   ];
-  const vigentes = await db.raffle.findMany({
-    where: {
-      id: { in: raffleIds },
-      estado: "ACTIVO",
-      fechaFin: { gt: ahora },
-      tenant: { estado: "PUBLICADA" },
-    },
-    select: { id: true, tenantId: true },
-  });
+  const vigentes = (
+    await db.raffle.findMany({
+      where: {
+        id: { in: raffleIds },
+        estado: "ACTIVO",
+        fechaFin: { gt: ahora },
+        tenant: { estado: "PUBLICADA" },
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        tenant: { select: SELECCION_GATE_DE_AVISOS },
+      },
+    })
+  ).filter((r) => puedeRecibirAvisos(r.tenant, ahora));
   // La comparación lleva el `tenantId` además del `raffleId` (I1): una fila cuyo tenant no calza
   // con el del sorteo es un bug de scoping en algún productor, y lo correcto es NO mandarla.
   const vivos = new Set(vigentes.map((r) => `${r.id}:${r.tenantId}`));

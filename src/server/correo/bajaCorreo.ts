@@ -57,6 +57,23 @@ const CABECERAS: Record<string, string> = {
 };
 
 /**
+ * Hex de esta página. **Misma excepción declarada que `layoutCorreo.ts`** (design.md §9): un HTML
+ * que se abre desde un cliente de correo no puede leer `var(--mantine-color-*)`. Y la excepción
+ * autoriza COPIAR tonos del theme, no inventarlos — por eso cada valor lleva anotado su token, para
+ * que sea auditable de un vistazo y haya algo concreto que actualizar si la paleta se mueve.
+ */
+const COLOR = {
+  /** `gray[1]` — el fondo de la página. */
+  fondo: "#eef0f5",
+  /** `white` — la tarjeta. */
+  tarjeta: "#ffffff",
+  /** `gray[9]` / `black` — tinta: el texto y el botón. */
+  tinta: "#191b22",
+  /** `gray[6]` — tinta-suave (`dimmed`): la firma del pie. */
+  tintaSuave: "#565b68",
+} as const;
+
+/**
  * Página mínima, autocontenida y sin assets (F05). No es una página de Next a propósito: la abre un
  * cliente de correo, muchas veces en un webview sin JS, y tiene que renderizar sola. Estilos inline
  * por el mismo motivo que en los correos.
@@ -78,14 +95,14 @@ function pagina({
     `<meta name="viewport" content="width=device-width, initial-scale=1" />` +
     `<meta name="robots" content="noindex" />` +
     `<title>${escaparHtml(titulo)}</title></head>` +
-    `<body style="margin:0;padding:0;background-color:#eef0f5;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;color:#191b22;">` +
+    `<body style="margin:0;padding:0;background-color:${COLOR.fondo};font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;color:${COLOR.tinta};">` +
     `<div style="max-width:520px;margin:0 auto;padding:48px 20px;">` +
-    `<div style="background-color:#ffffff;border-radius:18px;padding:28px;">` +
+    `<div style="background-color:${COLOR.tarjeta};border-radius:18px;padding:28px;">` +
     `<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;">${escaparHtml(titulo)}</h1>` +
     `<p style="margin:0;font-size:15px;line-height:1.6;">${escaparHtml(mensaje)}</p>` +
     (formulario ?? "") +
     `</div>` +
-    `<p style="margin:16px 0 0;text-align:center;font-size:12px;color:#565b68;">${escaparHtml(APP_CONFIG.name)}</p>` +
+    `<p style="margin:16px 0 0;text-align:center;font-size:12px;color:${COLOR.tintaSuave};">${escaparHtml(APP_CONFIG.name)}</p>` +
     `</div></body></html>`
   );
 }
@@ -98,7 +115,7 @@ function pagina({
 function formularioDeConfirmacion(): string {
   return (
     `<form method="post" style="margin:20px 0 0;">` +
-    `<button type="submit" style="display:inline-block;background-color:#191b22;color:#ffffff;border:0;border-radius:10px;padding:12px 20px;font-size:15px;cursor:pointer;">` +
+    `<button type="submit" style="display:inline-block;background-color:${COLOR.tinta};color:${COLOR.tarjeta};border:0;border-radius:10px;padding:12px 20px;font-size:15px;cursor:pointer;">` +
     `Sí, darme de baja</button></form>`
   );
 }

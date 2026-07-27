@@ -5,6 +5,7 @@ import {
   type FilaPendiente,
   type ResolvedorDeCorreos,
 } from "~/server/domain/correo/drenarCorreosPendientes";
+import { armarRecordatoriosDeSorteo } from "~/server/domain/correo/recordatorioDelSorteo";
 import { armarCorreosDeResultado } from "~/server/domain/correo/resultadoDelSorteo";
 import { type CorreoInput } from "~/server/services/correo";
 
@@ -43,7 +44,7 @@ export function resolvedorDeCorreos({
       "CONFIRMACION_COMPRA", // F03/C1
       "RESULTADO_GANADOR", // F04/C4
       "RESULTADO_NO_GANADOR", // F04/C5
-      // F06 suma acá `RECORDATORIO_SORTEO` junto con su sección de abajo.
+      "RECORDATORIO_SORTEO", // F06/C2-C3
     ],
     armar: async (filas: FilaPendiente[]) => {
       const mensajes = new Map<string, CorreoInput>();
@@ -84,6 +85,24 @@ export function resolvedorDeCorreos({
         for (const [filaId, correo] of await armarCorreosDeResultado({
           db,
           filas: resultados,
+        })) {
+          mensajes.set(filaId, correo);
+        }
+      }
+
+      // ── RECORDATORIO_SORTEO (F06/C2-C3) ──────────────────────────────────
+      // El ÚNICO tipo de la clase `avisos`: sale solo con consentimiento y sin supresión, y lleva
+      // las cabeceras RFC 8058 (I5). El filtro se re-pregunta adentro y no acá porque el momento
+      // que vale es el del ENVÍO: bajo la cuota de Resend Free una fila puede esperar días, y quien
+      // se dio de baja el martes no puede recibir el correo encolado el lunes.
+      const recordatorios = filas.filter(
+        (f) => f.tipo === "RECORDATORIO_SORTEO",
+      );
+      if (recordatorios.length > 0) {
+        for (const [filaId, correo] of await armarRecordatoriosDeSorteo({
+          db,
+          filas: recordatorios,
+          baseUrl,
         })) {
           mensajes.set(filaId, correo);
         }

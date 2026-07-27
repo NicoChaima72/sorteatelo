@@ -50,3 +50,133 @@ espejo.e2e.002 => PASS (entrega confirmada por el proveedor; la bandeja la mira 
         27 ago 2026», «Tarjeta Visa terminada en 6623», tabla Cobros = 27 jul 2026 / $25.000 / «PAGADO»
         teal (NO «En curso» ámbar), sin botón «Pagar», SIN banner y rail COMPLETO. Montos tabular-nums.
 espejo.e2e.003 => PASS
+
+[00:20-00:24] activar plan de `demo-dreamy` (B): «$12.500 /mes» + «Es tu segunda tienda en adelante: va a
+              mitad de precio» del server. Registro real (misma VISA) => plan=ADICIONAL, montoBruto=12500,
+              flowSubscriptionId=sus_j003e79030.
+[00:24:06] espejo de B: PlatformInvoice 1180182 PAGADA $12.500 pagadaAt=04:21:13Z + comprobante entregado
+           («Comprobante del plan de borahae», 04:24:08, delivered) => 2º cobro real espejado bien.
+
+== F06 / blocker 6 — la promoción no cobra de más ==
+[baseline] FLOW B antes de cancelar A: planId=sorteatelo-tienda-adicional, invoices=[1180182 $12.500 status 1],
+           newPlanId=null, new_plan_scheduled_change_date=null, in_new_plan_next_attempt_date=null
+[00:25:04] cancelar la FULL de `autora` por UI: modal «Tu tienda sigue vendiendo hasta el 26 ago 2026, el
+           fin del período que ya pagaste» + «No se borra nada…» -> «Cancelar el plan».
+           Pantalla: «Cancelado: tu tienda vende hasta el 26 ago 2026», «Cancelar mi plan» desaparece.
+           DB A: cancelacionSolicitadaAt 04:25:04.987Z, cancelacionEfectivaAt 2026-08-26T04:00Z, estado AL_DIA (D6).
+[00:25:10] FLOW B INMEDIATAMENTE después: planId SIGUE `sorteatelo-tienda-adicional`, invoices SIGUEN
+           siendo [1180182] — **cero «Cambio de plan a …»**. En la 4ª pasada acá aparecía 1179474 cobrando
+           $12.500 de más. DB B: plan=ADICIONAL, planProgramado=FULL,
+           planProgramadoDesde=2026-08-27T04:00Z = la MÁS TARDÍA entre el próximo cobro de B (27-ago) y el
+           fin del período de A (26-ago).
+cancelar.e2e.004 => PASS
+[00:25:10] correo (5) «Cancelamos el plan de Tienda de la Autora (piloto)» -> delivered; nombra «26 ago 2026»
+           y el «no se borra nada». Re-disparada la mutation: 200 con la MISMA fecha, cancelacionSolicitadaAt
+           intacto y **ningún segundo correo**.
+cancelar.e2e.002 => PASS (entrega confirmada por Resend; bandeja física = usuario)
+[00:26] cron con el período viejo de B corriendo => {"promociones":0}; FLOW B intacto (1 invoice, plan
+        adicional); DB B intacta.
+cancelar.e2e.005 => PASS
+[00:27:30] forzado por DB el escenario del período nuevo: planProgramadoDesde := periodoInicio de B
+           (2026-07-27) => predicado periodoInicio >= planProgramadoDesde = true.
+[00:27:42] cron => {"ok":true,"renovaciones":0,"exenciones":0,"promociones":1,"enviados":0,"fallidos":0}
+           FLOW B: planId pasa a `sorteatelo-tienda-full`.
+           >>> EL DATO QUE FALTABA: Flow emite y cobra el invoice **1180183 = $12.500**, subject
+           «Cambio de plan a Sortéatelo — plan tienda - período: 2026-07-27 / 2026-08-26»,
+           payment.status 2 a las 00:27:45, fee 361, balance 12070. Es el DELTA (25.000 − 12.500).
+           TOTAL del período 27-jul→26-ago = 12.500 + 12.500 = **$25.000** = el precio full del período.
+           DB B: plan=FULL, montoBruto=25000, planProgramado=null; invoice 1180183 espejado PAGADA.
+           Comprobante del delta también entregado (04:28:08).
+[00:28] cron de nuevo => {"promociones":0} y FLOW B sigue con 2 invoices (1180182, 1180183). Sin cobro nuevo.
+cancelar.e2e.006 => PASS
+
+== F04 / espejo.e2e.004 — DUNNING: se pudo producir (primera vez en 5 pasadas) ==
+[00:30] Intento 1 — tarjeta de RECHAZO de Transbank (MASTERCARD 5186 0595 5959 0568): **falla en la
+        INSCRIPCIÓN**, no en el cobro => «No pudimos activar tu plan / Flow no confirmó el registro de tu
+        tarjeta», 0 filas creadas. Descartado como vía al dunning (pero confirma el guard del registro).
+[00:32] Intento 2 — la vía que SÍ funciona: `customer/unRegister` deja al customer en `pay_mode: manual`
+        («no se podrá hacer cargos automáticos», dice la propia doc de Flow) y entonces cualquier invoice
+        nuevo nace IMPAGO. Antes: `subscription/changePlan` full->adicional dejó `balance -12500` y una
+        factura de **$0** (dato de contrato: el downgrade NO devuelve plata, emite un invoice en 0), y ese
+        crédito se comió el delta del siguiente upgrade (otro $0) — por eso el 1er intento de forzar el
+        impago por cron no sirvió.
+[00:34:23] `subscription/create` sobre el customer sin tarjeta => sus_j24c234751 con
+           **invoice 1180186 `status: 0` (IMPAGO)**, amount 12500, attemp_count 1, attemped 0,
+           due_date 2026-07-30, `payment.status: 1` (pendiente) y
+           **`paymentLink` = https://sandbox.flow.cl/app/web/pay.php?token=1AC42DA0…** (solo en invoice/get).
+           Subscription con **`morose: 2`** (valor nuevo: D15 asumía 0/1).
+           `invoice/getOverDue` antes de esto => total 0: NUNCA había existido un impago en este sandbox.
+
+>>> LA TRAMPA, CONFIRMADA CON LOS DOS PAYLOADS REALES LADO A LADO:
+    invoice PAGADO   1180181: status=1 attemp_count=1 attemped=0
+    invoice IMPAGO   1180186: status=0 attemp_count=1 attemped=0
+    Son idénticos salvo `status`. Derivar de `attemp_count`/`attemped` era imposible; `status` es el único
+    campo que distingue. La decisión del fix queda validada por datos, no por documentación.
+
+[00:35] `derivarEstadoInvoice` REAL corrida contra los payloads REALES (tmp/ft5-derivacion.mts):
+        PAGADA  <- invoice/get 1180181 pagado (real)
+        FALLIDA <- invoice/get 1180186 impago (real)
+        FALLIDA <- el mismo impago EMBEBIDO (sin bloque payment) = lo que ve el webhook
+        PAGADA  <- el pagado embebido
+        VENCIDA <- el impago real con attemp_count=3 (el camino a la suspensión, sobre el shape real)
+[00:35:52] Pipeline COMPLETO con el impago real (fila local ligada a `demo-noche`):
+           webhook => {"received":true,"ruteo":"PROCESADA","estado":"COBRO_PENDIENTE"}
+           DB: invoice 1180186 estado=**FALLIDA**, intentos=1 (= attemp_count), **paymentLink poblado**
+               (enriquecido con invoice/get: el embebido NO lo trae) ; suscripción **COBRO_PENDIENTE**
+[00:35:54] **correo (2)** «No pudimos cobrar el plan de borahae» -> delivered, con el link EXACTO de Flow
+           y el copy correcto de D4 («Vamos a reintentarlo… tu tienda sigue vendiendo con normalidad»).
+[00:36] Panel de demo-noche: banner **ÁMBAR rgb(160,107,8) = #a06b08** con ícono `alert-triangle`,
+        «No pudimos cobrar tu plan» + «Pagar ahora» cuyo href ES el paymentLink real (target=_blank,
+        rel=noreferrer); **rail COMPLETO**; badge «COBRO PENDIENTE» ámbar; tabla Cobros con
+        «NO SE PUDO COBRAR» ámbar + botón «Pagar» al mismo link. Storefront de las 3 tiendas: **200**
+        (D4: en reintentos la tienda SIGUE vendiendo). Cero rojo en todo el camino de COBRO_PENDIENTE.
+espejo.e2e.004 => PASS con salvedad: lo único que NO se pudo producir es el agotamiento de los 3
+        reintentos (Flow los espacia en días) => la transición FALLIDA->VENCIDA->EN_PAUSA_POR_PAGO con
+        datos reales sigue sin ejercerse; sí quedó ejercida la derivación sobre el shape real (attemp_count=3
+        => VENCIDA) y la pausa en pantalla ya estaba ✅ desde la 2ª pasada con estado inducido.
+
+[HALLAZGO nuevo, no bloqueante] `esCobroAbandonadoSinSuspender` devuelve **true para un impago normal
+        recién emitido** (attemped=0, 1 intento) — o sea que el log «ruidoso» que el implementer agregó
+        para el punto ciego va a dispararse en CADA cobro impago, no solo en el caso ambiguo. Ahora
+        sabemos por payload real que `attemped: 0` es el estado NORMAL (lo trae hasta un invoice ya
+        pagado), así que el predicado `attemped === FLOW_NO_SE_COBRARA` no discrimina nada. La lectura
+        conservadora del estado es correcta; la alerta, como está, es ruido en vez de señal.
+
+== HIGIENE ==
+FLOW: las 3 suscripciones de la corrida (sus_k192dd0650 autora, sus_j003e79030 demo-dreamy,
+      sus_j24c234751 demo-noche) => `status 4`, `next_invoice_date` vacío. Barrido por los 5 customers
+      históricos: 10 suscripciones, TODAS status 4, morose 0 => **cero cobro recurrente vivo**.
+      El invoice impago 1180186 se ANULÓ (`invoice/cancel` => status 2) y `invoice/getOverDue` => total 0:
+      no queda deuda viva ni cobro por email pendiente.
+      `customer/delete cus_fcef29e32f` => status 0. `customer/list status=1` => total 0.
+      Los 2 planes reales siguen vivos (status 1, $25.000 / $12.500) con el urlCallback del túnel.
+      Cupones: no se creó ninguno en esta pasada.
+DB:   0 filas en PlatformSubscription / PlatformInvoice / PlatformBillingCustomer / PlatformCoupon /
+      PlatformCouponRedemption. 7 exenciones GRANDFATHER repuestas (autora, bcac, demo-dreamy,
+      demo-editorial, demo-noche, iselk, prueba), todas perpetuas. Las 7 tiendas PUBLICADA y sus
+      7 storefronts en 200.
+      Residuo: NINGUNO. (Las 3 exenciones quitadas para la corrida quedaron repuestas.)
+
+== VITEST ==
+src/__tests__/server/facturacion              => 24 archivos, **224/224 verde**
+scripts + services + panel + tenants          => 39 archivos, 274 passed + 1 skipped
+src/__tests__/server/storefront               => **4 rojos, los 4 AJENOS** (ver abajo)
+
+ROJOS AJENOS (HEAD se movió durante la corrida: la sesión arrancó en 4208c80 y terminó en 15c1c4e;
+la facturación quedó commiteada en 56ecc20 «integrar carriles en vuelo»):
+  (a) temaEnPaginasDePlataforma.test.ts ×3 — `db.raffle.findFirst` undefined en el fake:
+      el carril checkout agregó una query de sorteo a `getPropsCheckout` (getStorefrontProps.ts:203)
+      y no actualizó el doble. Nada que ver con facturación.
+  (b) gateVentaEnElBorde.test.ts::facturacion.gate.borde.005 — guard ESTRUCTURAL de facturación,
+      roto por el carril del navbar (c248164): `pages/entrega/[token].tsx` ahora importa
+      `resolverChrome` y `resolverNavPaginas` de MODULO_PROPS y el guard exige la lista VACÍA.
+      **Verificado que NO es un bug**: los dos helpers reciben `tenantSlug` explícito y no tocan el
+      host ni llaman a `resolverBrandingSSR`, así que la invariante que el guard protege (la página de
+      entrega es host-agnóstica porque el correo apunta al apex) SIGUE en pie. Lo que quedó viejo es
+      la aserción `toEqual([])`. NO lo toqué: cambiar el guard es decisión del dueño de ese carril.
+
+== RESULTADO ==
+espejo.e2e.001   PASS   espejo.e2e.002   PASS   espejo.e2e.003   PASS   espejo.e2e.004   PASS (con salvedad)
+cancelar.e2e.002 PASS   cancelar.e2e.004 PASS   cancelar.e2e.005 PASS   cancelar.e2e.006 PASS
+7/7 del scope + el 🟡 cerrado. Auto-retries usados: 0. Design findings: 0.
+fin: 2026-07-27 ~00:45

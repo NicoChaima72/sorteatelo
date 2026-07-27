@@ -248,6 +248,10 @@ function TarjetaProducto({
                     // Display-only: es lo que le permite al drawer decir «$10.000 por pack de 4»
                     // (E13). El monto que se COBRA lo relee el server de la fila vigente (I4).
                     unidadesPorPack: producto.unidadesPorPack,
+                    // Display-only (F03): la miniatura del drawer/checkout se pinta al instante con
+                    // esto, sin esperar a la red. La `portadaUrl` VIGENTE llega igual con la
+                    // cotización y gana sobre esta, como pasa con el precio.
+                    portadaUrl: producto.portadaUrl ?? undefined,
                   })
                 }
               >

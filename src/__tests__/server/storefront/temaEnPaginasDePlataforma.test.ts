@@ -21,6 +21,9 @@ vi.mock("~/server/db", () => ({
   db: {
     storefrontPage: { findFirst: vi.fn(), findMany: vi.fn() },
     tenant: { findUnique: vi.fn() },
+    // `/verificar` (verificador-tickets F03/D10) lee el sorteo ACTIVO con su propio loader, sin
+    // stub: es la única de las páginas de plataforma que consulta `raffle` directo desde el borde.
+    raffle: { findFirst: vi.fn() },
   },
 }));
 // Solo el data-loader de las bases se stubea; `serializarBases` (puro, el borde JSON) queda REAL.
@@ -48,6 +51,7 @@ import { listarCamposActivosDelStorefront } from "~/server/domain/camposCheckout
 import { cargarGateVenta } from "~/server/domain/facturacion/cargarGateVenta";
 import { resolverBasesDelSorteo } from "~/server/storefront/basesDelSorteo";
 import { getPropsBases } from "~/server/storefront/getBasesProps";
+import { getPropsVerificar } from "~/server/storefront/getVerificarProps";
 import {
   getPropsCheckout,
   getPropsPaginaComprador,
@@ -65,6 +69,8 @@ const mockFindFirst = vi.mocked(db.storefrontPage.findFirst);
 const mockFindMany = vi.mocked(db.storefrontPage.findMany);
 // eslint-disable-next-line @typescript-eslint/unbound-method -- idem
 const mockTenant = vi.mocked(db.tenant.findUnique);
+// eslint-disable-next-line @typescript-eslint/unbound-method -- idem
+const mockRaffle = vi.mocked(db.raffle.findFirst);
 
 const ctx = { req: { headers: { host: "iselk.sorteatelo.cl" } }, query: {} } as GetServerSidePropsContext;
 
@@ -102,6 +108,8 @@ beforeEach(() => {
   mockFindMany.mockReset();
   mockTenant.mockReset();
   mockBases.mockReset();
+  mockRaffle.mockReset();
+  mockRaffle.mockResolvedValue(null as never); // sin sorteo activo ⇒ `/verificar` en estado vacío
   // Defaults del camino feliz: tienda publicada, al día, sin campos extra de checkout.
   mockBranding.mockResolvedValue(brandingStorefront);
   mockGate.mockResolvedValue({ puedeVender: true } as never);
@@ -212,6 +220,42 @@ describe("storefront — /bases hereda el tema de la Tienda (F03)", () => {
     mockBranding.mockResolvedValue(brandingApex);
 
     expect(await getPropsBases(ctx)).toEqual({ notFound: true });
+    expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("storefront — /verificar hereda el tema de la Tienda (verificador-tickets F03/D10)", () => {
+  // storefront.tema.props.008 — la página nueva entra a la MISMA cobertura que sus hermanas: si
+  // alguien la hubiera escrito sin `resolverHerenciaDeLaHome`, saldría con el body blanco de
+  // plataforma en una tienda tematizada. La deriva entre páginas ES el defecto que este harness
+  // vino a cerrar, y una página nueva es justo cuando reaparece.
+  it("getPropsVerificar incluye el temaPagina, el nav compuesto y el chrome", async () => {
+    const res = await getPropsVerificar(ctx);
+
+    expect(res).toHaveProperty("props");
+    const props = (res as {
+      props: { temaPagina: Tema | null; navItems: unknown[]; chrome: unknown; sorteo: unknown };
+    }).props;
+    expect(props.temaPagina).toMatchObject({ fondoPagina: "marca_suave", tipografia: "dulce" });
+    expect(props.navItems).toEqual([]);
+    expect(props.chrome).toBeNull();
+    expect(props.sorteo).toBeNull(); // el default del harness: sin sorteo activo
+  });
+
+  // storefront.tema.props.009 — D7/I6: tienda con tema default ⇒ `null` (no-op byte-idéntico)
+  it("tienda con tema default ⇒ temaPagina null", async () => {
+    mockFindFirst.mockResolvedValue(docPublicado({}));
+
+    const res = await getPropsVerificar(ctx);
+    expect((res as { props: { temaPagina: Tema | null } }).props.temaPagina).toBeNull();
+  });
+
+  // storefront.tema.props.010 — apex/host ajeno ⇒ 404 neutral, sin consultar el tema (misma
+  // semántica de zona que las otras cinco páginas de plataforma)
+  it("fuera de un storefront da notFound sin tocar el tema", async () => {
+    mockBranding.mockResolvedValue(brandingApex);
+
+    expect(await getPropsVerificar(ctx)).toEqual({ notFound: true });
     expect(mockFindFirst).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,6 @@ import {
   Checkbox,
   Container,
   Divider,
-  Group,
   Stack,
   Text,
   TextInput,
@@ -23,16 +22,17 @@ import Link from "next/link";
 
 import { TEXTO_CONSENTIMIENTO_RECORDATORIOS } from "~/config/correo";
 import { useCarrito } from "~/components/storefront/carrito";
+import { TotalDelCarrito } from "~/components/storefront/carrito-ui";
 import { CamposCheckout } from "~/components/storefront/campos-checkout";
+import { FilaCarrito } from "~/components/storefront/fila-carrito";
 import {
   erroresDeCampos,
   respuestasParaEnviar,
   valoresInicialesDeCampos,
   type ValoresCheckout,
 } from "~/components/storefront/respuestas-checkout";
-import { StepperCantidad } from "~/components/storefront/stepper-cantidad";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
-import { clp } from "~/lib/formato";
+import { useCotizacionCarrito } from "~/components/storefront/use-cotizacion-carrito";
 import { type CampoDelCheckout } from "~/server/domain/camposCheckout/camposActivos";
 import {
   getPropsCheckout,
@@ -123,6 +123,10 @@ function ResumenYPago({
     },
   });
 
+  // El total del resumen sale del server (F01/I4): esta página no suma ni multiplica un peso. Va
+  // después del form y antes de la mutation, según el orden de frontend-conventions § Estructura.
+  const cotizacion = useCotizacionCarrito();
+
   const iniciar = api.checkout.iniciarCheckout.useMutation({
     onSuccess: ({ redirectUrl }) => {
       vaciar();
@@ -173,45 +177,28 @@ function ResumenYPago({
       </Title>
 
       <Card withBorder radius="md" padding="lg">
-        <Stack gap="sm">
+        <Stack gap="md">
+          {/*
+            La MISMA fila que el drawer (F03): miniatura + título + a qué corresponde el precio +
+            stepper. Compartir el componente es lo que garantiza que el resumen y el carrito no se
+            contradigan — escritos por separado ya habían derivado una vez (el «por pack de 1»).
+          */}
           {items.map((item) => (
-            <Group key={item.id} justify="space-between" wrap="nowrap" gap="sm">
-              <div className="min-w-0">
-                <Text size="sm" truncate>
-                  {item.titulo}
-                </Text>
-                <Text size="xs" c="dimmed" className="tabular-nums">
-                  {/*
-                    En un sobre la "unidad" es UN PACK, así que "c/u" solo sería honesto diciendo
-                    de qué pack se trata: el Comprador tiene que poder verificar en el resumen que
-                    va a pagar el pack de 4 y no el de 1.
-                  */}
-                  {clp(item.precio)}{" "}
-                  {item.unidadesPorPack
-                    ? `por pack de ${item.unidadesPorPack}`
-                    : "c/u"}
-                </Text>
-              </div>
-              <Group gap="xs" wrap="nowrap">
-                <StepperCantidad id={item.id} size="sm" />
-                <Anchor
-                  size="xs"
-                  c="dimmed"
-                  onClick={() => quitar(item.id)}
-                  component="button"
-                  type="button"
-                >
-                  Quitar
-                </Anchor>
-              </Group>
-            </Group>
+            <FilaCarrito
+              key={item.id}
+              item={item}
+              cotizacion={cotizacion}
+              onQuitar={() => quitar(item.id)}
+              quitarComo="texto"
+              tamanoMiniatura={48}
+            />
           ))}
           <Divider />
-          <Text size="xs" c="dimmed">
-            {cantidad} {cantidad === 1 ? "producto" : "productos"}. El total a
-            pagar (según las cantidades elegidas) se calcula de forma segura y
-            lo confirmas en el siguiente paso.
-          </Text>
+          {/*
+            El MISMO total que muestra el drawer, del mismo hook y con el mismo componente: si esta
+            página lo calculara aparte, las dos superficies se contradirían apenas cambie un precio.
+          */}
+          <TotalDelCarrito cotizacion={cotizacion} cantidad={cantidad} />
         </Stack>
       </Card>
 
@@ -260,7 +247,19 @@ function ResumenYPago({
             </Text>
           </Alert>
 
-          <Button type="submit" size="md" loading={iniciar.isPending} fullWidth>
+          {/*
+            Se apaga SOLO cuando el server ya dijo que nada del carrito se puede comprar (misma
+            regla que el drawer): un submit que va a volver con `NOT_FOUND`/`INACTIVE` después de
+            que la persona tipeó su correo es la peor forma de enterarse. Un fallo de la cotización
+            NO lo apaga — el total y la validación reales los hace igual `iniciarCheckout`.
+          */}
+          <Button
+            type="submit"
+            size="md"
+            loading={iniciar.isPending}
+            disabled={cotizacion.sinNadaQueCobrar}
+            fullWidth
+          >
             Ir a pagar
           </Button>
         </Stack>

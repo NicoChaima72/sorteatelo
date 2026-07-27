@@ -5,6 +5,7 @@ import { manejarCronCorreos } from "~/server/correo/cronCorreos";
 import { baseUrlApp, crearCorreoDeEnv } from "~/server/correo/correoDeEnv";
 import { db } from "~/server/db";
 import { drenarCorreosPendientes } from "~/server/domain/correo/drenarCorreosPendientes";
+import { planificarRecordatorios } from "~/server/domain/correo/planificarRecordatorios";
 import { resolvedorDeCorreos } from "~/server/domain/correo/resolvedorDeCorreos";
 
 /**
@@ -33,6 +34,9 @@ export default async function handler(
   const { status, body } = await manejarCronCorreos({
     req,
     secret: env.CRON_SECRET,
+    // Productor (F06): encola los recordatorios vencidos y retira los obsoletos. Igual que el
+    // drenado, se compone DENTRO del callback ⇒ después del gate.
+    planificar: () => planificarRecordatorios({ db }),
     // La factory se compone DENTRO del callback, o sea después del gate: nada se instancia hasta
     // que el método y el secreto están validados (backend-conventions § Gate antes de cualquier
     // efecto). Hoy `crearCorreoDeEnv` es inocua, pero el orden no puede depender de eso.

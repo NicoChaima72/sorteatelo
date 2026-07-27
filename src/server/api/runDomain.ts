@@ -19,6 +19,7 @@ const MAPA: Record<DomainErrorCode, TRPC_ERROR_CODE_KEY> = {
   INVALID: "BAD_REQUEST",
   CONFLICT: "CONFLICT",
   INACTIVE: "BAD_REQUEST",
+  TOO_MANY_REQUESTS: "TOO_MANY_REQUESTS",
 };
 
 export async function runDomain<T>(fn: () => Promise<T> | T): Promise<T> {

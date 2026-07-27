@@ -1,0 +1,109 @@
+=== E2E RUN — carril selfservice-operador (alta self-service de punta a punta) ===
+Modo: feature (slug=selfservice-operador) + smoke de alta HOY (post-facturación)
+Inicio: 2026-07-27 01:05
+Server: http://localhost:3001 (PID propio, UNA instancia; :3000 es grillos-ai, otro proyecto)
+DB: Supabase remoto (COMPARTIDA con producción — hygiene obligatoria al cierre)
+Túnel: https://push-characteristics-sandy-briefing.trycloudflare.com (nuevo, levantado por esta corrida)
+Flow plataforma: SANDBOX (FLOW_PLATAFORMA_SANDBOX=true) — verificado
+Flow BYO de la tienda de prueba: credenciales FLOW_AUTORA_* (sandbox)
+
+--- SETUP ---
+[01:03] Túnel cloudflared nuevo levantado. .env actualizado: FLOW_URL_CONFIRMATION + FLOW_PLATAFORMA_URL_CALLBACK.
+[01:05] plans/edit EXISTE en la API de Flow (200) — los 2 planes sandbox actualizados al túnel nuevo, verificados por plans/list (status 1).
+[01:05] Vitest tenants+tenancy: 88/88 PASS.
+[01:06] F04 (panel del Operador) NO EXISTE: domain/operador/, pages/admin/operador.tsx y sus tests fueron borrados por ADR-0023. SUPERSEDED.
+[01:07] src/config.ts devTienda.enabled true->false (el apex pelado impersonaba `autora` y tapaba el alta). A RESTAURAR al cierre.
+[01:08] Apex verificado: / = landing de plataforma; /admin sin sesión -> /login?callbackUrl=%2Fadmin.
+
+--- RELEVO #2 (02:16-) — diagnostico del login + alta de punta a punta ---
+[01:17] Tunel cloudflared MUERTO (curl 530, cero procesos cloudflared.exe). Habra que levantar uno nuevo antes del tramo webhook.
+[01:20] DIAGNOSTICO «sigue con nikochaima72» — RESUELTO. NO era cookie vieja (esa era solo el sintoma visible).
+        Causa raiz: en la tabla `Account` habia DOS cuentas Google apuntando al MISMO `User`:
+          - sub 113596446395068718556 -> user cmrogd2yz (nikochaima72@gmail.com)
+          - sub 118316636732858834541 -> user cmrogd2yz  <-- id_token claim email=nicolas.chaima@datawalt.cl, hd=datawalt.cl
+        Es el comportamiento estandar del PrismaAdapter de NextAuth v4: si hay SESION ACTIVA cuando vuelve
+        el callback de OAuth, la cuenta nueva se LINKEA al usuario de la sesion en vez de crear uno nuevo.
+        El usuario entro con datawalt teniendo abierta la sesion de nikochaima72 => datawalt quedo linkeada
+        a ese User para siempre. `User` con email datawalt: NO EXISTIA (0 filas).
+        Agravante: `GoogleProvider` (src/server/auth.ts:99) no pasa `prompt=select_account`, asi que Google
+        auto-elegia la cuenta sin mostrar el chooser (y ademas nikochaima72 ya NO esta logueada en el perfil
+        del MCP: el chooser lista SOLO datawalt).
+[01:22] FIX aplicado: backup completo de la fila en tmp/e2e-account-backup.json (gitignored) y DELETE del
+        Account cms2rso92000114igodzzxn06. Re-login forzando `prompt=select_account` a mano sobre la URL de
+        authorize que devuelve `/api/auth/signin/google?json=true` (sin tocar codigo).
+        => NextAuth creo el User NUEVO cms2s6us3000614igi7x6gah9 / nicolas.chaima@datawalt.cl, 0 membresias.
+        La app en el apex esta logueada como datawalt. Ese ES el «desconocido» del guion.
+        A RESTAURAR AL CIERRE: Account sub 118316... vuelve a userId cmrogd2yz (deja el mundo como estaba).
+
+--- ALTA E2E (todo con la sesion datawalt, «desconocido» real) ---
+[01:24] Apex localhost:3001/admin con 0 membresias => FORMULARIO DE ALTA (no empty state). OK.
+        slug `www`    => "Ese identificador esta reservado por la plataforma. Elige otro."  (D7 reservados) OK
+        slug `autora` => "Ese identificador ya esta en uso por otra tienda. Elige otro."    (unicidad DB)  OK
+        slug `e2e-alta-2707` + nombre "Sorteos de Prueba 27-07" => Tenant cms2s8nuh000d14igr0trktih
+        estado=CONFIGURACION (D1) + TenantMembership de datawalt, en la misma $tx. OK
+[01:25] LIMITACION DEV CONFIRMADA: tras crear, la app hace window.location.assign a
+        e2e-alta-2707.localhost:3001/admin y ahi NO hay cookie (host-only en localhost) => rebota a
+        /login?callbackUrl=... En PROD no pasa (cookie al wildcard .sorteatelo.cl, ADR-0019).
+        Puenteado con el patron autorizado: mismo sessionToken de DB puesto por document.cookie en el
+        subdominio (no invente sesion nueva; es la MISMA fila Session).
+[01:26] ToS aceptado desde el checklist => tosVersion=2026-07-17, tosAceptadoAt=05:26:59Z,
+        tosAceptadoPor=nicolas.chaima@datawalt.cl. F02 E2E OK.
+[01:29] Producto creado con archivo real: presigned PUT a R2 200, path per-tenant
+        <tenantId>/<productId>/<hash>.pdf; confirmarArchivoProducto 200. Nace en BORRADOR: hubo que
+        entrar a Editar y cambiar Estado -> "A la venta" (ver hallazgo UX-2).
+[01:31] Flow BYO guardado (FLOW_AUTORA_* sandbox, cifrado, sandbox=true). Las claves NUNCA pasaron por
+        el transcript: relay HTTP efimero en 127.0.0.1:4599 que las leia del .env y las inyectaba en el
+        form; apagado despues (I6).
+[01:35] Sorteo "Sorteo de estreno" ACTIVO + bases PDF al bucket publico
+        (<tenantId>/sorteo/<raffleId>/bases.pdf). El checklist SUMO el item "Sube las bases de tu
+        sorteo" recien cuando hubo sorteo ACTIVO (D5.d / ADR-0008). OK
+[01:36] Tunel nuevo https://tonight-projector-orchestra-cannon.trycloudflare.com (el heredado estaba
+        MUERTO). .env actualizado (2 callbacks) + dev server hizo "Reload env: .env" solo.
+        plans/edit de los 2 planes al tunel nuevo, verificado por plans/get (status=1 ambos).
+[01:39] "Activa tu plan" => $25.000/mes FULL (correcto: Pagador nuevo, sin otras suscripciones) =>
+        Flow sandbox => Transbank OneClick (VISA 4051..6623, 12/28, CVV 123, RUT 11.111.111-1/123).
+[01:41] Retorno a /admin/plan/retorno => "Tu plan esta activo y tu tienda publicada".
+        PlatformBillingCustomer cus_gd085472bd (datawalt) / PlatformSubscription sus_w4cab9c03c
+        FULL $25.000 AL_DIA, periodo 27-jul->26-ago, proximo cobro 27-ago. Tenant => PUBLICADA.
+[01:41] Storefront VIVO en e2e-alta-2707.localhost:3001 (200): hero, catalogo con el producto $3.000
+        badge Sorteo+Nuevo, vitrina del sorteo con countdown y "Ver bases", DISCLAIMER ADR-0008,
+        como funciona, footer. Marca por defecto (cobalto) degradada con elegancia sin branding propio.
+[01:44] WEBHOOK ESPEJADO: POST /api/webhooks/flow-suscripciones 200 => PlatformInvoice 1180187
+        PAGADA $25.000 pagadaAt=05:41:12Z intentos=1. Flow: invoice status=1, payment.status=2.
+        /admin/plan muestra AL DIA, proximo cobro 27 ago, "Visa terminada en 6623" y el cobro PAGADO.
+
+--- F03 publicar/despublicar por UI ---
+[01:46] Despublicar (modal de confirmacion) => CONFIGURACION + storefront 404 neutral. OK
+[01:47] Reload: los 5 items del checklist en verde y "Publicar mi tienda" HABILITADO.
+        Publicar (boton explicito, sin modal) => PUBLICADA + storefront 200, y NO se creo una 2a
+        suscripcion (misma fila sus_w4cab9c03c intacta). OK
+[01:50] Despublicar final => CONFIGURACION. Estado con el que queda la tienda (evidencia).
+
+--- HIGIENE ---
+[01:49] "Cancelar mi plan" por UI: modal honesto ("vende hasta el 26 ago 2026, el fin del periodo que
+        ya pagaste"); DB cancelacionSolicitadaAt=05:49:45Z, cancelacionEfectivaAt=2026-08-26; tras
+        recargar, /admin/plan dice "Cancelado: tu tienda vende hasta el 26 ago 2026" y desaparece el
+        boton. Flow: next_invoice_date=null, cancel_at_period_end=1.
+[01:53] Flow rechazo borrar el customer con la suscripcion viva ("Customer has active subscriptions"),
+        asi que se forzo subscription/cancel at_period_end=0 => status 4, y recien ahi
+        customer/delete cus_gd085472bd => status 0 (igual que los 5 customers de corridas anteriores).
+        NOTA: la DB queda diciendo "cancelacion efectiva 26-ago" y Flow dice "cancelada ya". Divergencia
+        DELIBERADA: se privilegio "cero cobro vivo" y NO se edito la DB a mano (las filas son evidencia
+        de lo que escribio la app, no de lo que escribi yo).
+[01:55] Tunel cloudflared apagado (PID 40360). .env anotado con el bloque "TUNEL MUERTO" + el recordatorio
+        de que `plans/edit` hay que re-correrlo a mano (el bootstrap no actualiza urlCallback existente).
+[01:55] src/config.ts restaurado: devTienda.enabled true. `git diff src/config.ts` VACIO.
+[01:55] Account de datawalt re-linkeada a userId nikochaima72 (estado original); sesiones del User
+        datawalt borradas (eran inducidas); cookie del apex devuelta a una sesion PREEXISTENTE de
+        nikochaima72 (d6a86159..., creada 02:08 antes de esta corrida). Verificado: /api/auth/session
+        en el apex responde nikochaima72@gmail.com. tmp/e2e-account-backup.json BORRADO (tenia tokens).
+[01:56] Vitest tenants+tenancy re-corrido al cierre: 88/88 (11 archivos).
+[01:57] Censo final: 12 tenants (e2e-alta-2707 en CONFIGURACION, el resto sin tocar; autora/prueba/bcac/
+        demo-*/iselk siguen PUBLICADA); 9 exenciones GRANDFATHER, ninguna de la tienda nueva; 1 sub +
+        1 customer + 1 invoice en DB = los de esta corrida (evidencia).
+        OJO: hay OTRO CARRIL escribiendo en la misma DB en paralelo (fixtures test-recordatorio-*,
+        test-correo-a y 1 correo PENDIENTE creados 05:55, ajenos a esta corrida: NO los toque).
+[01:58] Verificacion del entorno restaurado: apex = storefront de autora (devTienda ON), /admin 307,
+        autora.localhost 200, e2e-alta-2707.localhost 404.
+
+=== FIN 2026-07-27 01:58 ===

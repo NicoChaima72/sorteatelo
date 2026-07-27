@@ -45,6 +45,20 @@ export interface ArchivoEntregado {
 export interface LineaEntregada {
   productoId: string;
   titulo: string;
+  /**
+   * Portada pública del producto COMPRADO (F05). Es lo que la página usa como visual de cada
+   * archivo que no tiene miniatura presignada — o sea, todo lo que no es una IMAGEN: un PDF, un
+   * EPUB, un MP3, un ZIP. Hasta acá esas líneas se veían como íconos genéricos indistinguibles, que
+   * es el caso que reportó el usuario (las 4 copias de un libro).
+   *
+   * Es la del producto que se compró y NO la de su fuente, aunque sea un pack: el título de la
+   * línea también es el del pack, y es la misma imagen que el Comprador vio en el catálogo cuando
+   * lo eligió. `null` ⇒ la página degrada al gradiente de marca (§5.2), nunca a un hueco.
+   *
+   * No es un secreto: es una URL del bucket PÚBLICO de assets de marca (ADR-0013), la misma que ya
+   * sirve el catálogo. Nada que ver con las `key` del bucket privado, que siguen sin salir de acá.
+   */
+  portadaUrl: string | null;
   /** Archivos por pack (SOBRE) o el archivo único (ESTANDAR). Vacío = todavía no hay nada. */
   archivos: ArchivoEntregado[];
   /** Cuántos archivos entrega un pack de lo que se compró; 1 en un producto estándar. */
@@ -121,6 +135,8 @@ export async function getEntregaDeOrden({
                 select: {
                   titulo: true,
                   modalidad: true,
+                  // Visual de la línea (F05); URL del bucket PÚBLICO, no una key del privado.
+                  portadaUrl: true,
                   // La FUENTE (E15): decide si lo entregado fue al azar (pool) o son copias.
                   fuente: { select: { modalidad: true } },
                 },
@@ -200,6 +216,7 @@ export async function getEntregaDeOrden({
     lineas.push({
       productoId: item.productId,
       titulo: item.product.titulo,
+      portadaUrl: item.product.portadaUrl,
       unidadesPorPack: item.unidadesPorPack,
       cantidad: item.cantidad,
       esSobre: alAzar,

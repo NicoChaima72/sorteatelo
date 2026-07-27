@@ -19,6 +19,40 @@ const MAX_LARGO_CLAVE = 80; // el filtro REAL es pertenecer a las definiciones v
 const MAX_LARGO_VALOR = 1000;
 
 /**
+ * **Los ítems de un carrito**: `{productId, cantidad}` y NADA más. Es el contrato compartido por las
+ * dos superficies que miran el mismo carrito — `iniciarCheckout` (que COBRA) y `cotizarCarrito` (que
+ * solo MUESTRA el total, F01 de `storefront-carrito-total-y-drawer`).
+ *
+ * Está extraído a una constante y no duplicado a propósito: si la cotización aceptara un carrito que
+ * el checkout rechaza (o al revés), el Comprador vería un total para algo que después no puede pagar
+ * — que es exactamente el defecto que la cotización vino a cerrar. Un solo schema ⇒ un solo veredicto.
+ *
+ * Lo que NO tiene, y no debe tener nunca, es un precio: el monto sale siempre de la fila vigente del
+ * `Product` (I4). El `refine` garantiza un `productId` único por carrito — una línea por producto
+ * (`@@unique([orderId, productId])`), con la cantidad en la línea y no en filas repetidas.
+ */
+const itemsDeCarrito = z
+  .array(
+    z.object({
+      productId: z.string().cuid(),
+      cantidad: z.number().int().min(1).max(MAX_CANTIDAD_POR_ITEM),
+      /*
+        `packOptionId` MURIÓ acá con la ENMIENDA v2 (E13). El carrito volvió a ser
+        `{productId, cantidad}` y punto: un pack es un PRODUCTO más, así que elegir «4 stickers»
+        es elegir un `productId`, no un producto + una opción adentro. Lo que se gana no es solo
+        simplicidad de input — es que el cliente dejó de aportar NADA sobre el precio: el monto y
+        el tamaño del pack salen los dos de la fila del producto y se congelan en el `OrderItem`
+        (I4). Un `precio` que viaje del cliente no existe en este input y no debe existir nunca.
+      */
+    }),
+  )
+  .min(1)
+  .refine(
+    (items) => new Set(items.map((i) => i.productId)).size === items.length,
+    { message: "Cada producto puede aparecer una sola vez en la orden." },
+  );
+
+/**
  * Input del inicio de checkout: el correo del comprador (su identidad, ADR-0004)
  * y los ítems a comprar — cada uno con su `cantidad` (≥1, ADR-0012). Sin cuenta de
  * comprador en el MVP.
@@ -37,26 +71,7 @@ const MAX_LARGO_VALOR = 1000;
  */
 export const iniciarCheckoutInput = z.object({
   email: z.string().email(),
-  items: z
-    .array(
-      z.object({
-        productId: z.string().cuid(),
-        cantidad: z.number().int().min(1).max(MAX_CANTIDAD_POR_ITEM),
-        /*
-          `packOptionId` MURIÓ acá con la ENMIENDA v2 (E13). El carrito volvió a ser
-          `{productId, cantidad}` y punto: un pack es un PRODUCTO más, así que elegir «4 stickers»
-          es elegir un `productId`, no un producto + una opción adentro. Lo que se gana no es solo
-          simplicidad de input — es que el cliente dejó de aportar NADA sobre el precio: el monto y
-          el tamaño del pack salen los dos de la fila del producto y se congelan en el `OrderItem`
-          (I4). Un `precio` que viaje del cliente no existe en este input y no debe existir nunca.
-        */
-      }),
-    )
-    .min(1)
-    .refine(
-      (items) => new Set(items.map((i) => i.productId)).size === items.length,
-      { message: "Cada producto puede aparecer una sola vez en la orden." },
-    ),
+  items: itemsDeCarrito,
   /**
    * Consentimiento de recordatorios del sorteo (F05/D5, CONTEXT § Consentimiento de recordatorios).
    *
@@ -99,6 +114,18 @@ export const iniciarCheckoutInput = z.object({
 });
 
 export type IniciarCheckoutInput = z.infer<typeof iniciarCheckoutInput>;
+
+/**
+ * Input de la **cotización del carrito** (F01): los mismos ítems del checkout y nada más — sin
+ * correo (no hay compra que identificar) y sin `tenantId`, que sale del subdominio (I1/ADR-0005).
+ *
+ * Comparte `itemsDeCarrito` con `iniciarCheckoutInput` a propósito: el total que se muestra y el que
+ * se cobra tienen que hablar del mismo carrito. Mismo tope de cantidad, misma unicidad, mismo cero
+ * aporte del cliente sobre el precio.
+ */
+export const cotizarCarritoInput = z.object({ items: itemsDeCarrito });
+
+export type CotizarCarritoInput = z.infer<typeof cotizarCarritoInput>;
 
 /*
   `getProductoStorefrontInput` murió con su use case y con `/producto/[id]` (ENMIENDA v2, E2/F13):
@@ -145,3 +172,18 @@ export const getEstadoOrdenInput = z.object({
 });
 
 export type GetEstadoOrdenInput = z.infer<typeof getEstadoOrdenInput>;
+
+/**
+ * Input del **verificador público de tickets** (verificador-tickets F01/D1): el correo con el que
+ * se compró, y NADA más. Sin `tenantId` (sale del subdominio, I1) y sin ninguna otra clave de
+ * búsqueda — no se busca por número de ticket ni por código de orden (out of scope explícito).
+ *
+ * `.trim()` antes de `.email()` para que un espacio pegado al copiar desde el correo no se lea como
+ * dirección inválida (D6; el use case vuelve a normalizar por su cuenta). El tope es el largo máximo
+ * real de una dirección (RFC 5321): corta el payload absurdo sin opinar sobre direcciones legítimas.
+ */
+export const verificarTicketsInput = z.object({
+  email: z.string().trim().min(1).max(254).email(),
+});
+
+export type VerificarTicketsInput = z.infer<typeof verificarTicketsInput>;

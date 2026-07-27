@@ -132,6 +132,18 @@ describe("pagebuilder/paginas — reservados (F04/D7)", () => {
     expect(esSlugPaginaReservado("BASES")).toBe(true); // normaliza
     expect(esSlugPaginaReservado(" bases ")).toBe(true); // normaliza
   });
+
+  // page.pag.001c — `verificar` es RESERVADO (verificador-tickets F03/D3)
+  // `/verificar` es el verificador público de tickets, página de PLATAFORMA. Misma razón que
+  // `bases`: la ruta estática taparía a la página del Organizador, y el enlace va PINNED en el
+  // header y el footer de TODAS las tiendas (D8) — no puede apuntar a contenido que él controla.
+  it("marca `verificar` como reservado (el verificador de tickets es de plataforma)", () => {
+    expect(esSlugPaginaReservado("verificar")).toBe(true);
+    expect(esSlugPaginaReservado("VERIFICAR")).toBe(true); // normaliza
+    expect(esSlugPaginaReservado(" verificar ")).toBe(true); // normaliza
+    // Y no se lleva puesto un slug legítimo que apenas se le parece.
+    expect(esSlugPaginaReservado("verificar-tickets")).toBe(false);
+  });
 });
 
 describe("pagebuilder/paginas — crearPagina (F04)", () => {
@@ -142,6 +154,9 @@ describe("pagebuilder/paginas — crearPagina (F04)", () => {
     expect(await codigo(() => crearPagina({ db, tenantId: "t1", slug: "Sobre Mí" }))).toBe("INVALID");
     expect(await codigo(() => crearPagina({ db, tenantId: "t1", slug: "checkout" }))).toBe("INVALID");
     expect(await codigo(() => crearPagina({ db, tenantId: "t1", slug: "home" }))).toBe("INVALID");
+    // `verificar` entra a la misma familia desde verificador-tickets F03/D3: no se puede crear una
+    // página del builder que tape la ruta de plataforma.
+    expect(await codigo(() => crearPagina({ db, tenantId: "t1", slug: "verificar" }))).toBe("INVALID");
     expect(pages).toHaveLength(1); // nada creado
   });
 

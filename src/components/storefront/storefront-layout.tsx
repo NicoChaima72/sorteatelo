@@ -324,9 +324,8 @@ function NavAncla({ href, children }: { href: string; children: ReactNode }) {
 }
 
 function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrome | null }) {
-  const sorteo = useSorteoActivo();
-  // Chrome footer (Tanda 3 F06/D10): `texto` editorial + `links` de menú. La atribución neutral y el
-  // enlace a Bases (abajo) son PINNED (I-U2/ADR-0008): se renderizan SIEMPRE, no salen del chrome.
+  // Chrome footer (Tanda 3 F06/D10): `texto` editorial + `links` de menú. La atribución neutral y los
+  // enlaces a Bases y Verificar (abajo) son PINNED (I-U2/ADR-0008): se renderizan SIEMPRE, no salen del chrome.
   const chromeLinks = chrome?.footer.links ?? [];
   const chromeTexto = chrome?.footer.texto;
 
@@ -365,19 +364,19 @@ function Footer({ branding, chrome }: { branding: TenantBranding; chrome?: Chrom
               )}
               {/* Enlace PINNED a las bases (ADR-0008). Desde admin-bases-pdf F04/D4/D5 apunta SIEMPRE
                   a `/bases` —la página con el PDF del sorteo ACTIVO—, no a la URL externa del raffle
-                  ni al ancla `#sorteo`. Es navegación interna: sin `target="_blank"`. */}
-              {sorteo.data && (
-                <Anchor href="/bases" c="dimmed" size="sm">
-                  Bases del sorteo
-                </Anchor>
-              )}
-              {/* Verificador de tickets (F04/D8): PINNED como el de Bases, pero **incondicional**.
-                  La diferencia con su vecino es deliberada: las bases solo existen si hay un sorteo
-                  cargado, mientras que `/verificar` tiene algo honesto que decir en los dos casos y
-                  además es la respuesta a «¿me llegó mi número?», que es justo la pregunta de quien
-                  no encuentra su correo. Sin `target="_blank"`, y con el MISMO `component={Link}`
-                  que su gemelo del header: un solo destino no puede navegar de dos maneras según
-                  desde qué parte de la página se lo toque. */}
+                  ni al ancla `#sorteo`. INCONDICIONAL y server-rendered: es el enlace LEGAL de la
+                  tienda y tiene que existir en el primer paint y sin JS — `/bases` resuelve sola el
+                  estado vacío (D5: «no hay un sorteo activo»), así que no hay nada que gatear. (Antes
+                  colgaba de `useSorteoActivo()`, una query de CLIENTE: aparecía recién post-hidratación.)
+                  Es navegación interna: sin `target="_blank"`. */}
+              <Anchor component={Link} href="/bases" c="dimmed" size="sm">
+                Bases del sorteo
+              </Anchor>
+              {/* Verificador de tickets (F04/D8): PINNED e incondicional, igual que Bases. `/verificar`
+                  también tiene algo honesto que decir sin sorteo activo, y es la respuesta a «¿me llegó
+                  mi número?», que es justo la pregunta de quien no encuentra su correo. Sin
+                  `target="_blank"`, y con el MISMO `component={Link}` que su gemelo del header: un solo
+                  destino no puede navegar de dos maneras según desde qué parte de la página se lo toque. */}
               <Anchor component={Link} href="/verificar" c="dimmed" size="sm">
                 Verificar tickets
               </Anchor>

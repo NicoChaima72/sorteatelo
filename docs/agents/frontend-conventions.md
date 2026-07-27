@@ -219,7 +219,7 @@ Patrón de las guías paso a paso que viven DENTRO del panel en vez de en una p�
 ## Herencia del tema de la Tienda en páginas de PLATAFORMA (storefront)
 
 - Las páginas que NO son Documento de Página (`/checkout`, `/producto/[id]`, `/checkout/retorno`,
-  `/bases`, `/entrega/[token]`) heredan un tema **MÍNIMO** de la Tienda: fondo de página, par
+  `/bases`, `/entrega/[token]`, `/verificar`) heredan un tema **MÍNIMO** de la Tienda: fondo de página, par
   tipográfico, radio y modo — **nunca** `ambiente` (los glows de stage-lights no van sobre un form de
   pago), `anchoContenido` ni `escalaTitulos`. El recorte es ESTRUCTURAL, en `resolverTemaPagina`
   (`~/server/storefront/temaPagina`), no disciplina de cada página: `_app` inyecta una regla CSS

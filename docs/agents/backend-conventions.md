@@ -78,6 +78,26 @@ Definidos en `src/server/api/trpc.ts`. Hoy hay **4 procedures**:
 
 El contexto tRPC resuelve el tenant re-parseando `req.headers.host` con el parser puro de `src/server/tenancy/` — NO lee el header `x-tenant-slug` que escribe el middleware (defensa en profundidad: no depende del `matcher`). Si una feature futura necesita un guard distinto, se agrega como middleware nuevo en `trpc.ts` y se compone explícitamente — no autoencadenar middlewares dentro de handlers.
 
+## Rate limiting de un borde público
+
+Superficie sin sesión que se puede repetir en bucle (hoy: el verificador de tickets) ⇒ limitador
+**in-memory de ventana fija** (`src/server/security/limiteDeIntentos.ts`), instanciado UNA vez a
+nivel de módulo en el router. Reglas:
+
+- **Es fricción anti-script, no un perímetro**: en Vercel la memoria no se comparte entre lambdas,
+  así que el techo real es por instancia. Solo sirve donde el dato expuesto es público por diseño.
+  Si alguna vez hay que proteger algo que NO lo es, esto no alcanza y hay que decirlo en voz alta.
+- **La clave la arma el BORDE** (`tenantId + IP`, la IP desde `ctx.ip`), nunca el dominio: la IP es
+  transporte. El `tenantId` va SÍ o SÍ — sin él, el tráfico de una Tienda le come la cuota a otra.
+- **El gate se consulta dentro del use case, vía un seam `permitirIntento: () => boolean`**, y no
+  como un `TRPCError` suelto en el router. Lo que se compra es poder TESTEAR que con la cuota
+  agotada no se toca la DB — que es la mitad del valor de un rate limit.
+- El corte es un `DomainError("TOO_MANY_REQUESTS")`; `runDomain` lo mapea a su `TRPCError` (429) por
+  el `Record` exhaustivo, que es lo que obliga a `tsc` a no dejar un código nuevo sin mapear.
+- **Falla ABIERTO bajo presión de memoria** (tope de claves ⇒ poda ⇒ vaciado): el peor caso de
+  fallar abierto es un scraper viendo datos públicos; el de fallar cerrado, un usuario legítimo sin
+  servicio por culpa de otro.
+
 ## Routers
 
 - Viven en `src/server/api/routers/`, se componen en `src/server/api/root.ts`.

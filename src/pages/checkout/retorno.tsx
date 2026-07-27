@@ -1,12 +1,20 @@
-import { Button, Container, Stack, Text, ThemeIcon, Title } from "@mantine/core";
+import { Box, Button, Container, Group, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
-import { IconMailCheck, IconSparkles } from "@tabler/icons-react";
+import {
+  IconClock,
+  IconCreditCardOff,
+  IconLinkOff,
+  IconMailCheck,
+  IconSparkles,
+} from "@tabler/icons-react";
 import { type GetServerSideProps, type InferGetServerSidePropsType } from "next";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { type ComponentType, useEffect, useRef, useState } from "react";
 
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
+import { faseDelRetorno, type FaseRetorno } from "~/lib/faseRetornoCheckout";
+import { bloquesDeNumerosDelSorteo } from "~/lib/numerosDelSorteo";
 import {
   getPropsPaginaEntrega,
   type PropsStorefront,
@@ -24,10 +32,22 @@ import { api } from "~/utils/api";
  * llega por correo (DownloadGrant, ADR-0002/0010). Esta página SOLO informa — no linkea el PDF (I7).
  *
  * Confetti de celebración (builder-tanda-1 F08/D12): con el `token` de Flow en la URL, sondea la
- * query pública de SOLO-ESTADO `estadoOrden` (sin PII, I-T6); cuando el webhook ya confirmó `PAGADO`,
- * la página pasa a celebración y dispara `canvas-confetti` UNA vez (dynamic import lazy, colores de la
- * escala del tenant, `useReducedMotion` lo apaga). La query solo LEE el resultado del webhook — no
- * confirma nada (I6/I-T6).
+ * query pública `estadoOrden` (sin PII, I-T6); cuando el webhook ya confirmó `PAGADO`, la página pasa
+ * a celebración y dispara `canvas-confetti` UNA vez (dynamic import lazy, colores de la escala del
+ * tenant, `useReducedMotion` lo apaga). La query solo LEE el resultado del webhook — no confirma nada
+ * (I6/I-T6).
+ *
+ * Números del sorteo (`checkout-retorno-numeros-sorteo` F02/D1): esa MISMA query trae, al confirmar,
+ * los Números del sorteo de la compra (ADR-0024) y el prefijo de la Tienda — la celebración los dibuja
+ * como boletos (`BoletosDelSorteo`). Son identidad pública del ticket, no PII; el correo, el total y
+ * los ítems siguen sin viajar. Una orden pagada sin tickets celebra sin ese bloque (D4).
+ *
+ * Cinco fases, no dos (F03/D2 + D6, `COPY_FASE`): a la celebración y al «estamos confirmando» se
+ * sumaron los finales que antes caían en el genérico — el pago RECHAZADO (terminal, sin prometer
+ * correo ni números), el cap de 2 min del polling (suave: la orden todavía puede confirmarse y la
+ * entrega va por correo) y la llegada SIN `?token=` (D6: no hay compra que consultar). Cuál de las
+ * cinco es se decide en `faseDelRetorno` (`~/lib/faseRetornoCheckout`, puro y testeado); acá vive el
+ * copy. El polling en sí no se tocó (I7): son ramas de presentación.
  *
  * Superficie de ENTREGA, no de venta (facturación F05/I5): entra por `getPropsPaginaEntrega`, que NO
  * gatea por la facturación del tenant. Si la Tienda entrara en pausa mientras un Comprador vuelve de
@@ -88,6 +108,152 @@ async function dispararConfetti(colors: string[]): Promise<void> {
   }, 220);
 }
 
+/** Mismo alias que los siblings del panel (`admin-layout`, `banner-facturacion`, `empty-state`…). */
+type IconCmp = ComponentType<{ className?: string; stroke?: number | string }>;
+
+interface CopyFase {
+  icono: IconCmp;
+  /** Token semántico del theme; `null` = el primario de la Tienda (design.md §2: `red` solo para el
+   *  rechazo, «en proceso» NUNCA en rojo). Unión literal y no `string`, para que un typo no compile;
+   *  y explícito y no opcional-con-default, porque que una fase nueva tenga que declarar su color es
+   *  justo lo que este `Record` compra. */
+  color: "red" | "pendiente" | null;
+  titulo: string;
+  cuerpo: string;
+}
+
+/**
+ * Copy por fase, fuera del componente y con TODA propiedad requerida (frontend-conventions § Avisos y
+ * tablas de copy por estado): una fase nueva no compila hasta que alguien le escribe su copy, su
+ * ícono y su color. El ícono comunica la NATURALEZA del final —tarjeta tachada = el cobro no pasó,
+ * reloj = todavía está en camino— y no la entidad.
+ */
+const COPY_FASE: Record<FaseRetorno, CopyFase> = {
+  pagado: {
+    icono: IconSparkles,
+    color: null,
+    titulo: "¡Pago confirmado!",
+    cuerpo:
+      "Tu compra quedó lista. Te enviamos un correo con el enlace para descargar tu producto — si no lo ves en unos minutos, revisa tu carpeta de spam.",
+  },
+  // Terminal y honesto: no se promete correo ni números, porque no hay compra que entregar. El
+  // «ningún cargo definitivo» es lo primero que la persona necesita saber al ver una pantalla así.
+  fallido: {
+    icono: IconCreditCardOff,
+    color: "red",
+    titulo: "El pago no se concretó",
+    cuerpo:
+      "No se hizo ningún cargo definitivo. Puedes volver a la tienda e intentarlo de nuevo cuando quieras.",
+  },
+  // Se acabó el cap del polling sin respuesta. NO es un fracaso: el webhook puede confirmar después,
+  // y la entrega va por correo (ADR-0002/0010) — así que la pantalla deja de sondear pero no cierra
+  // la puerta. Ámbar (`pendiente`), nunca rojo.
+  //
+  // El copy dice «tu compra» a secas y NO «tu compra y tus números» (D2 corregida por el usuario):
+  // acá todavía no se sabe si la orden participa del sorteo, y una compra sin tickets (D4) no
+  // tendría número que mandar. Prometerlo en la única fase donde el dato no existe es justo la
+  // promesa que esta tanda vino a poder cumplir.
+  timeout: {
+    icono: IconClock,
+    color: "pendiente",
+    titulo: "Seguimos confirmando tu pago",
+    cuerpo:
+      "La confirmación está tardando más de lo normal. Apenas se confirme, te llega el correo con tu compra.",
+  },
+  // Alguien llegó a esta URL sin el `?token=` de Flow (D6): un enlace pegado a medias, un favorito
+  // viejo, la URL escrita a mano. No hay compra que consultar —la query ni siquiera corre— así que
+  // la pantalla lo dice y ofrece la salida al inicio, en vez de dejar girando para siempre un
+  // «estamos confirmando tu pago» sobre un pago que nunca existió. Rojo como el rechazo, porque las
+  // dos son un final con problema; lo que las separa es el ícono (enlace roto vs. cobro que no pasó),
+  // que es la 2ª dimensión que pide frontend-conventions cuando dos casos comparten color.
+  sin_token: {
+    icono: IconLinkOff,
+    color: "red",
+    titulo: "No encontramos tu compra",
+    cuerpo:
+      "Este enlace no trae la referencia del pago, así que no hay ninguna compra que mostrar acá. Si acabas de comprar, revisa tu correo: ahí te llega la confirmación con el enlace de descarga.",
+  },
+  esperando: {
+    icono: IconMailCheck,
+    color: null,
+    titulo: "¡Gracias por tu compra!",
+    cuerpo:
+      "Estamos confirmando tu pago. Apenas quede confirmado, te llega un correo con el enlace para descargar tu producto. Si no lo ves en unos minutos, revisa tu carpeta de spam.",
+  },
+};
+
+/**
+ * Los **Números del sorteo** de la compra, dibujados como boletos — uno por BLOQUE contiguo
+ * (`checkout-retorno-numeros-sorteo` F02/D3). Es lo que la landing le promete al Comprador: ver su
+ * número apenas se confirma el pago.
+ *
+ * El plegado en rangos y el prefijo salen del punto ÚNICO de presentación (`~/lib/numerosDelSorteo`,
+ * I4/I12): esta pantalla dice EXACTAMENTE lo mismo que el correo de confirmación y que el panel del
+ * Organizador — un boleto por bloque, `ARMY-1043–1092` y no `ARMY-1043–ARMY-1092`. Acá se comparte el
+ * formateador, nunca el markup del correo (D3).
+ *
+ * Sin bloques ⇒ `null`: una orden PAGADA sin tickets (productos que no participan del sorteo, o sin
+ * sorteo activo al pagar, D4) celebra SIN este bloque. No se promete un número que no existe.
+ *
+ * Cero hex (I5): el borde punteado y el chip salen de la escala del tenant, con el acento degradando a
+ * marca por fallback de `var()`. Misma gramática de boleto que el widget `momento_ticket` del
+ * storefront (perforación dashed + número en mono), que es donde el Comprador vio el ejemplo.
+ */
+function BoletosDelSorteo({
+  numeros,
+  prefijo,
+}: {
+  numeros: number[];
+  prefijo: string | null;
+}) {
+  const bloques = bloquesDeNumerosDelSorteo(numeros, prefijo);
+  if (bloques.length === 0) return null;
+
+  // Acento del tenant con fallback a marca (I-T2), igual que `momento-ticket.tsx`.
+  const acento = "var(--mantine-color-acento-filled, var(--mantine-primary-color-filled))";
+
+  return (
+    <Stack align="center" gap="xs" w="100%">
+      <Text fz="sm" fw={600} ta="center">
+        {bloques.length === 1 && numeros.length === 1
+          ? "Tu número del sorteo"
+          : "Tus números del sorteo"}
+      </Text>
+      <Group justify="center" gap="xs">
+        {bloques.map((bloque) => (
+          <Box
+            key={bloque}
+            px="md"
+            py={6}
+            style={{
+              borderRadius: "var(--mantine-radius-md)",
+              border: `2px dashed color-mix(in srgb, ${acento} 45%, transparent)`,
+              background: "var(--mantine-primary-color-0)",
+            }}
+          >
+            <Text
+              component="span"
+              fw={700}
+              fz="lg"
+              ff="monospace"
+              className="tabular-nums"
+              style={{
+                letterSpacing: "0.06em",
+                color: "var(--mantine-primary-color-filled)",
+              }}
+            >
+              {bloque}
+            </Text>
+          </Box>
+        ))}
+      </Group>
+      <Text fz="xs" c="dimmed" ta="center">
+        También quedan guardados en tu correo de confirmación.
+      </Text>
+    </Stack>
+  );
+}
+
 function RetornoContenido({ branding }: { branding: TenantBranding }) {
   const router = useRouter();
   const reduce = useReducedMotion();
@@ -121,37 +287,28 @@ function RetornoContenido({ branding }: { branding: TenantBranding }) {
     void dispararConfetti(coloresConfetti(branding));
   }, [pagado, reduce, branding]);
 
-  if (pagado) {
-    return (
-      <Stack align="center" gap="md" maw={480} mx="auto">
-        <ThemeIcon size={56} radius="xl" variant="light">
-          <IconSparkles className="size-7" stroke={1.75} />
-        </ThemeIcon>
-        <Title order={1} fz="xl" ta="center">
-          ¡Pago confirmado!
-        </Title>
-        <Text c="dimmed" ta="center">
-          Tu compra quedó lista. Te enviamos un correo con el enlace para descargar tu producto —
-          si no lo ves en unos minutos, revisa tu carpeta de spam.
-        </Text>
-        <Button component={Link} href="/" variant="default" mt="sm">
-          Volver a la tienda
-        </Button>
-      </Stack>
-    );
-  }
+  // Fase de la pantalla (F03/D2 + D6): la decide una función pura y testeada, no un ternario acá.
+  // Lo que se compra es la PRECEDENCIA — sin token gana sobre todo lo demás, incluido el cap de
+  // tiempo, que se enciende igual aunque nunca haya habido nada que confirmar.
+  const fase: FaseRetorno = faseDelRetorno({ token, estado, detenido });
+  const copy = COPY_FASE[fase];
+  const Icono = copy.icono;
 
   return (
     <Stack align="center" gap="md" maw={480} mx="auto">
-      <ThemeIcon size={56} radius="xl" variant="light">
-        <IconMailCheck className="size-7" stroke={1.75} />
+      <ThemeIcon size={56} radius="xl" variant="light" color={copy.color ?? undefined}>
+        <Icono className="size-7" stroke={1.75} />
       </ThemeIcon>
       <Title order={1} fz="xl" ta="center">
-        ¡Gracias por tu compra!
+        {copy.titulo}
       </Title>
+      {/* Los números van ARRIBA del párrafo de la descarga: son lo que el Comprador vino a ver en
+          este momento (la promesa de la landing). Sin tickets el bloque no se renderiza (D4). */}
+      {fase === "pagado" && (
+        <BoletosDelSorteo numeros={q.data?.numeros ?? []} prefijo={q.data?.prefijo ?? null} />
+      )}
       <Text c="dimmed" ta="center">
-        Estamos confirmando tu pago. Apenas quede confirmado, te llega un correo con el enlace para
-        descargar tu producto. Si no lo ves en unos minutos, revisa tu carpeta de spam.
+        {copy.cuerpo}
       </Text>
       <Button component={Link} href="/" variant="default" mt="sm">
         Volver a la tienda

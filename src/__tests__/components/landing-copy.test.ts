@@ -162,38 +162,16 @@ describe("landing/copy — FAQ", () => {
     expect(respuesta).toContain(`${limiteMb} MB`);
   });
 
-  // landing.faq.005 — I9, regresión REAL encontrada en review (dos veces, con dos mentiras
-  // distintas). El `RaffleEntry.ordinal` se genera automático al pagar, pero **NINGUNA superficie lo
-  // muestra**: ni la pantalla de retorno del Comprador (`src/pages/checkout/retorno.tsx`), ni su
-  // correo (`src/server/domain/correo/plantillaDescarga.ts`), ni el panel del Organizador
-  // (`src/server/domain/panel/getSorteoDelPanel.ts` agrupa por correo y devuelve CONTEO de tickets;
-  // `src/pages/admin/sorteo.tsx` pinta Cliente / Tickets / Última participación). Tampoco hay cuenta
-  // de Comprador donde consultarlo (ADR-0004).
+  // landing.faq.005 — BORRADO por `checkout-retorno-numeros-sorteo` F02 (2026-07-26).
   //
-  // Los patrones son ESTRECHOS a propósito — una ventana de proximidad genérica daba falsos
-  // positivos sobre frases que sí son ciertas: "sortea entre esos números y te muestra el resultado"
-  // (se muestra el RESULTADO, no el número) y "queda marcado tal cual en tu panel — sin números
-  // fantasma" (habla de que NO se crean participaciones). Lo prohibido es la construcción «alguien
-  // VE el número» / «el número está EN tal pantalla». Este test se borra el día que alguna
-  // superficie muestre el ordinal de verdad.
-  //
-  // **ACTUALIZADO por F03/C1 (Q1-e cerrada: SÍ).** El correo de confirmación ahora SÍ manda los
-  // números («tus números son ARMY-1043–1092», con el sorteo nombrado), así que la mitad «en su
-  // correo» de la prohibición dejó de ser mentira y salió. Lo que sigue prohibido es la otra mitad:
-  // NINGUNA pantalla los muestra todavía —ni el retorno post-pago (`src/pages/checkout/retorno.tsx`)
-  // ni un buscador público de tickets, los dos en el backlog de `landing-reposicionamiento`— y el
-  // panel del Organizador muestra los del ORGANIZADOR, no una superficie del Comprador.
-  it("no promete que el número de cada compra sea visible en una PANTALLA (el correo sí, desde F03)", () => {
-    const PROHIBIDOS = [
-      // "número en pantalla", "números en tu panel" — el correo ya NO está en la lista.
-      // (el `\w+` opcional deja pasar un adjetivo entre medio: «número CORRELATIVO en tu panel»)
-      /n[úu]meros?(\s+\w+)?\s+(en pantalla|en tu panel|en el panel|en la tienda)/i,
-      // "los números los ves", "el número lo ve"
-      /n[úu]meros?\s+(los|lo|las)\s+(ves|ve|vemos|ven)\b/i,
-    ];
-    const promesas = LANDING.filter((t) => PROHIBIDOS.some((re) => re.test(t)));
-    expect(promesas).toEqual([]);
-  });
+  // Prohibía que la landing dijera que el Comprador ve su número «en pantalla», y su premisa escrita
+  // era «NINGUNA pantalla los muestra todavía —ni el retorno post-pago—». Desde F02 el retorno
+  // post-pago (`src/pages/checkout/retorno.tsx`) los dibuja como boletos apenas el webhook confirma
+  // el pago, así que el guard pasó a prohibir una promesa VERDADERA: el copy de la landing ya puede
+  // decirlo. El backlog de `landing-reposicionamiento` pedía justamente borrarlo al aterrizar esta
+  // feature («al aterrizar hay que borrar el test landing.faq.005»). Su otra mitad —la del correo—
+  // ya la había cerrado `sistema-correos-comprador` F03, y lo que la landing SÍ tiene que decir lo
+  // sigue exigiendo `landing.faq.007`, acá abajo.
 
   // landing.faq.007 — Q1-e, la otra mitad: la landing tiene que DECIRLO. El correo con los números
   // es lo que cierra la promesa que la landing venía haciendo a medias, y si el copy no lo cuenta,

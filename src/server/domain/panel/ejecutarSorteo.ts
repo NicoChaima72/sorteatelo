@@ -85,8 +85,14 @@ export async function ejecutarSorteo({
     // El sorteo es entre TICKETS (ADR-0012): cada fila es una chance. Se lee también su Número del
     // sorteo porque lo que gana es un TICKET CONCRETO, no "un correo" — dos tickets del mismo
     // comprador son dos filas distintas con números distintos (ADR-0024 §5).
+    // `orderBy` OBLIGATORIO: sin él Postgres devuelve las filas en orden arbitrario (de plan de
+    // query, no de inserción) y el índice elegido no señala un ticket definido — el sorteo dejaría
+    // de ser reproducible/auditable ante el mismo índice. `numero asc` es el orden natural del
+    // dominio (único por raffle, ADR-0024 §3) y no toca la equidad: un índice uniforme sobre
+    // CUALQUIER orden fijo sigue siendo uniforme.
     const participaciones = await tx.raffleEntry.findMany({
       where: { raffleId: input.raffleId, tenantId },
+      orderBy: { numero: "asc" },
       select: { email: true, numero: true },
     });
     if (participaciones.length === 0) {

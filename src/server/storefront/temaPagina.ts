@@ -1,4 +1,5 @@
 import { leerDocumentoParaRender } from "~/lib/pagebuilder/migrate";
+import { derivarNav, reanclarNavALaHome, type NavItem } from "~/lib/pagebuilder/nav";
 import { TemaSchema, type Tema } from "~/lib/pagebuilder/schema";
 import { db } from "~/server/db";
 
@@ -66,21 +67,35 @@ function esTemaDefault(tema: Tema): boolean {
   );
 }
 
+/** Lo que las páginas de plataforma heredan de la home publicada: el tema mínimo + su nav derivado. */
+export interface HerenciaDeLaHome {
+  /** Tema mínimo recortado (D1/D6), o `null` si la Tienda tiene el tema default (D7). */
+  temaPagina: Tema | null;
+  /**
+   * Nav derivado de las secciones `nav.incluir` de la home, ya RE-ANCLADO (`#x` → `/#x`) para navegar
+   * desde fuera de la home. `[]` ⇒ ninguna sección marcada (el layout cae al nav hardcodeado, I-H).
+   */
+  navDeLaHome: NavItem[];
+}
+
+const SIN_HERENCIA: HerenciaDeLaHome = { temaPagina: null, navDeLaHome: [] };
+
 /**
- * Tema del `TemaPagina` PUBLICADO de la home de una Tienda, recortado a lo heredable (D1/D6), o `null`
- * si no hay nada que heredar. `tenantSlug` sale del subdominio/grant resuelto SERVER-SIDE (I1) — jamás
- * de input del cliente.
+ * Herencia COMPLETA de la home publicada de una Tienda en UNA query: el tema mínimo (D1/D6/D7) + el nav
+ * derivado del Documento (follow-up del navbar: la home de iselk decía «El libro / Preguntas» y su
+ * checkout el nav hardcodeado «Catálogo / Cómo funciona»). `tenantSlug` sale del subdominio/grant
+ * resuelto SERVER-SIDE (I1) — jamás de input del cliente.
  *
  * **Defensiva por contrato** (D3/I2, mismo patrón que `resolverChrome`): sin fila, sin `publishedJson`,
  * con JSON podrido o con la query lanzando (cliente Prisma stale durante un deploy sin restart, fallo
- * transitorio) devuelve `null`. El storefront NUNCA 500ea por el tema: quedarse sin el fondo lila es un
- * defecto cosmético; caerse en `/checkout` es una venta perdida.
+ * transitorio) devuelve la herencia vacía. El storefront NUNCA 500ea por el tema: quedarse sin el fondo
+ * lila es un defecto cosmético; caerse en `/checkout` es una venta perdida.
  */
-export async function resolverTemaPagina({
+export async function resolverHerenciaDeLaHome({
   tenantSlug,
 }: {
   tenantSlug: string;
-}): Promise<Tema | null> {
+}): Promise<HerenciaDeLaHome> {
   try {
     const page = await db.storefrontPage.findFirst({
       // Tenant scopeado server-side por slug (I1). SOLO `publishedJson` (I7): un borrador jamás se
@@ -88,15 +103,28 @@ export async function resolverTemaPagina({
       where: { slug: "home", tenant: { slug: tenantSlug } },
       select: { publishedJson: true },
     });
-    if (page?.publishedJson == null) return null;
+    if (page?.publishedJson == null) return SIN_HERENCIA;
 
     // Lectura TOLERANTE (I9): un documento con secciones podridas igual entrega su `root.props`.
     const doc = leerDocumentoParaRender(page.publishedJson);
     const tema = soloLoHeredable(doc.root.props);
-    // Tienda sin tematizar ⇒ `null`, no un `Tema` de defaults: así el render queda BYTE-idéntico al de
-    // hoy (D7/I6) en vez de "visualmente igual pero con un `style=` de más".
-    return esTemaDefault(tema) ? null : tema;
+    return {
+      // Tienda sin tematizar ⇒ `null`, no un `Tema` de defaults: así el render queda BYTE-idéntico al
+      // de hoy (D7/I6) en vez de "visualmente igual pero con un `style=` de más".
+      temaPagina: esTemaDefault(tema) ? null : tema,
+      navDeLaHome: reanclarNavALaHome(derivarNav(doc.secciones)),
+    };
   } catch {
-    return null; // degradación elegante (I2)
+    return SIN_HERENCIA; // degradación elegante (I2)
   }
+}
+
+/**
+ * Solo el tema (D1/D6/D7) — el contrato original de F01, conservado para los call sites que no
+ * necesitan el nav (`/entrega/[token]`, host-agnóstica: su nav de anclas apuntaría al apex).
+ */
+export async function resolverTemaPagina(args: {
+  tenantSlug: string;
+}): Promise<Tema | null> {
+  return (await resolverHerenciaDeLaHome(args)).temaPagina;
 }

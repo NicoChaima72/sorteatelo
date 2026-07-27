@@ -41,9 +41,12 @@ export const getServerSideProps: GetServerSideProps<PropsStorefront> = async (
 export default function RetornoPage({
   tenantBranding,
   temaPagina,
+  chrome,
+  navItems,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Fondo heredado de la Tienda (tema-paginas F02). Es la página donde MÁS pesa la continuidad visual:
   // el Comprador vuelve de pagar en Flow y tiene que reconocer que aterrizó en la misma tienda.
+  // El chrome + navItems (follow-up del navbar) completan esa continuidad en el header.
   const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
 
   return (
@@ -51,6 +54,8 @@ export default function RetornoPage({
       branding={tenantBranding}
       estiloShell={estiloShell}
       colorPagina={colorPagina}
+      chrome={chrome}
+      navItems={navItems}
     >
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
         <RetornoContenido branding={tenantBranding} />

@@ -130,6 +130,16 @@ export function anclasSemanticas(secciones: SeccionNode[]): Record<string, strin
 }
 
 /**
+ * Re-ancla items de nav para usarse FUERA de la home (tema-paginas follow-up): un target de scroll
+ * `#ancla` solo existe dentro del Documento de la home, así que desde `/checkout` o `/bases` el mismo
+ * ítem tiene que navegar a `/#ancla`. Las rutas (`/bases`, `/sobre-mi`) y URLs externas pasan intactas.
+ * IDEMPOTENTE (un href ya re-anclado no empieza con `#`) y PURO.
+ */
+export function reanclarNavALaHome(items: NavItem[]): NavItem[] {
+  return items.map((i) => (i.href.startsWith("#") ? { ...i, href: `/${i.href}` } : i));
+}
+
+/**
  * Deriva los items del nav desde las secciones marcadas con `nav.incluir`, en ORDEN del documento. El
  * `href` apunta al ancla semántica del tipo (si esta sección es la primera de su tipo) o al `id` del
  * propio nodo (fallback robusto — siempre existe como target). La etiqueta sale de `nav.etiqueta`

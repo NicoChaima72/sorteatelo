@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { componerNavDelHeader, chromeDefault } from "~/lib/pagebuilder/chrome";
 import {
   ANCLAS_QUE_SON_RUTA,
   anclasSemanticas,
   derivarNav,
   hrefDeAncla,
   humanizarSlug,
+  reanclarNavALaHome,
 } from "~/lib/pagebuilder/nav";
 import {
   OverlayNodeSchema,
@@ -219,5 +221,60 @@ describe("nav — el ítem «Bases» abre SIEMPRE el PDF (admin-bases-pdf D13)",
     expect(hrefDeAncla("no-existe")).toBe("#no-existe");
     // la tabla es la MISMA que consume `derivarNav` (una sola entrada hoy)
     expect(Object.keys(ANCLAS_QUE_SON_RUTA)).toEqual(["bases"]);
+  });
+});
+
+// ── Re-anclaje del nav fuera de la home (follow-up navbar de tema-paginas) ─────────────────────
+
+describe("reanclarNavALaHome — el nav de la home usable desde /checkout", () => {
+  // nav.reancla.001 — anclas de scroll pasan a rutas absolutas a la home
+  it("re-ancla `#x` a `/#x` y deja rutas y URLs intactas", () => {
+    expect(
+      reanclarNavALaHome([
+        { label: "El libro", href: "#beneficios" },
+        { label: "Bases", href: "/bases" },
+        { label: "IG", href: "https://instagram.com/x" },
+      ]),
+    ).toEqual([
+      { label: "El libro", href: "/#beneficios" },
+      { label: "Bases", href: "/bases" },
+      { label: "IG", href: "https://instagram.com/x" },
+    ]);
+  });
+
+  // nav.reancla.002 — idempotente: aplicarlo dos veces no double-prefija
+  it("es idempotente", () => {
+    const una = reanclarNavALaHome([{ label: "A", href: "#a" }]);
+    expect(reanclarNavALaHome(una)).toEqual(una);
+  });
+});
+
+describe("componerNavDelHeader — mismas reglas que la home", () => {
+  const derivado = [{ label: "El libro", href: "#beneficios" }];
+  const paginas = [{ label: "Sobre mi", href: "/sobre-mi" }];
+
+  // nav.componer.001 — sin chrome: derivado + páginas enNav
+  it("sin chrome compone derivado + páginas", () => {
+    expect(componerNavDelHeader({ chrome: null, navDerivado: derivado, navPaginas: paginas })).toEqual([
+      ...derivado,
+      ...paginas,
+    ]);
+  });
+
+  // nav.componer.002 — el menú del chrome MANDA sobre el derivado
+  it("el menú del chrome manda", () => {
+    const chrome = chromeDefault();
+    chrome.header.menu = [{ etiqueta: "Solo esto", destino: { tipo: "ancla", ancla: "sorteo" } }];
+    expect(
+      componerNavDelHeader({ chrome, navDerivado: derivado, navPaginas: paginas }),
+    ).toEqual([{ label: "Solo esto", href: "#sorteo" }]);
+  });
+
+  // nav.componer.003 — basesPdf agrega «Bases» al final venga de donde venga el resto
+  it("basesPdf agrega Bases al final", () => {
+    const chrome = chromeDefault();
+    chrome.header.basesPdf = { tipo: "url", url: "https://r2.example.com/bases.pdf" };
+    const nav = componerNavDelHeader({ chrome, navDerivado: derivado, navPaginas: [] });
+    expect(nav[nav.length - 1]).toEqual({ label: "Bases", href: "https://r2.example.com/bases.pdf" });
   });
 });

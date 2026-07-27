@@ -15,7 +15,6 @@ import Head from "next/head";
 
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { DISCLAIMER_SORTEO } from "~/lib/disclaimerSorteo";
-import { hrefMenuItem } from "~/lib/pagebuilder/chrome";
 import { fecha } from "~/lib/formato";
 import { getPropsBases, type PropsBases } from "~/server/storefront/getBasesProps";
 import { estiloHeredadoDeTema } from "~/styles/estiloSeccion";
@@ -38,7 +37,7 @@ export const getServerSideProps: GetServerSideProps<PropsBases> = (ctx) =>
 
 export default function BasesPage({
   tenantBranding,
-  navPaginas,
+  navItems,
   chrome,
   temaPagina,
   pdfUrl,
@@ -46,15 +45,9 @@ export default function BasesPage({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Fondo heredado de la Tienda (tema-paginas F03); `_app` aplica radio/tipografía/modo. Tema default ⇒
   // `undefined` en ambas ⇒ la página queda byte-idéntica a como salía antes (I6).
+  // El nav llega YA COMPUESTO del borde (follow-up navbar): las mismas reglas que la home, incluido el
+  // nav derivado del Documento re-anclado a `/#x` — antes acá solo salía menú-chrome o páginas `enNav`.
   const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
-
-  // Nav: el menú del chrome manda; si no, las páginas `enNav` del tenant. Acá NO hay anclas de
-  // sección que derivar (esta página no es un Documento), así que el nav derivado no aplica.
-  const menuChrome = chrome?.header.menu ?? [];
-  const navItems =
-    menuChrome.length > 0
-      ? menuChrome.map((m) => ({ label: m.etiqueta, href: hrefMenuItem(m.destino) }))
-      : navPaginas;
 
   return (
     <StorefrontLayout

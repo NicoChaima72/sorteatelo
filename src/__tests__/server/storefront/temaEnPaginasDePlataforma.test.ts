@@ -195,14 +195,15 @@ describe("storefront — /bases hereda el tema de la Tienda (F03)", () => {
 
     expect(res).toHaveProperty("props");
     const props = (res as {
-      props: { temaPagina: Tema | null; pdfUrl: string | null; sorteo: unknown; navPaginas: unknown[]; chrome: unknown };
+      props: { temaPagina: Tema | null; pdfUrl: string | null; sorteo: unknown; navItems: unknown[]; chrome: unknown };
     }).props;
     expect(props.temaPagina).toMatchObject({ fondoPagina: "marca_suave", tipografia: "dulce" });
     // El resto de la página sigue igual: es la URL legal que el footer publica en toda la tienda
-    // (ADR-0008) y el estado vacío neutral (D5) no se puede haber movido.
+    // (ADR-0008) y el estado vacío neutral (D5) no se puede haber movido. El nav llega COMPUESTO
+    // (follow-up navbar): sin secciones `nav.incluir` en el doc del mock ni páginas `enNav` ⇒ `[]`.
     expect(props.pdfUrl).toBeNull();
     expect(props.sorteo).toBeNull();
-    expect(props.navPaginas).toEqual([]);
+    expect(props.navItems).toEqual([]);
     expect(props.chrome).toBeNull();
   });
 

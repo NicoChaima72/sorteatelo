@@ -107,14 +107,14 @@ describe("gate de venta en los bordes (F05)", () => {
     const GATEADOS = [
       "getPropsHome", // `/`
       "getPropsPaginaTienda", // `/[slug]`
-      "getPropsPaginaComprador", // `/producto/[id]`
       "getPropsCheckout", // `/checkout`
     ];
 
+    // `/producto/[id]` salió de esta lista al RETIRARSE (productos-tipos-digitales v2, E2/F13): hoy es
+    // un redirect incondicional a `/` que no lee dato alguno ⇒ no necesita gate ni branding.
     const esperado: Record<string, string> = {
       "pages/index.tsx": "getPropsHome",
       "pages/[slug].tsx": "getPropsPaginaTienda",
-      "pages/producto/[id].tsx": "getPropsPaginaComprador",
       "pages/checkout/index.tsx": "getPropsCheckout",
     };
 

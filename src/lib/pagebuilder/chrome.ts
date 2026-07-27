@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { hrefDeAncla } from "~/lib/pagebuilder/nav";
+import { hrefDeAncla, type NavItem } from "~/lib/pagebuilder/nav";
 import { DestinoLinkSchema, type DestinoLink } from "~/lib/pagebuilder/widgets";
 
 /**
@@ -130,4 +130,32 @@ export function hrefMenuItem(destino: DestinoLink): string {
     case "url":
       return destino.url;
   }
+}
+
+/**
+ * Compone los items del NAV del header con las MISMAS reglas que la home (`index.tsx` F06/D10): el
+ * `menu` del chrome MANDA si está configurado; si no, el nav derivado del Documento + las páginas
+ * `enNav`; y `basesPdf` AGREGA «Bases» al final venga de donde venga el resto. PURO.
+ *
+ * Existe para que las páginas de PLATAFORMA del storefront (checkout/producto/retorno/bases) armen el
+ * mismo nav que la home en vez del hardcodeado — la deriva entre ambos era visible: la home de iselk
+ * decía «El libro / Preguntas» y su checkout «Catálogo / Cómo funciona» (follow-up de tema-paginas).
+ */
+export function componerNavDelHeader({
+  chrome,
+  navDerivado,
+  navPaginas,
+}: {
+  chrome: Chrome | null;
+  navDerivado: NavItem[];
+  navPaginas: NavItem[];
+}): NavItem[] {
+  const menu = chrome?.header.menu ?? [];
+  const base =
+    menu.length > 0
+      ? menu.map((m) => ({ label: m.etiqueta, href: hrefMenuItem(m.destino) }))
+      : [...navDerivado, ...navPaginas];
+  return chrome?.header.basesPdf
+    ? [...base, { label: "Bases", href: hrefMenuItem(chrome.header.basesPdf) }]
+    : base;
 }

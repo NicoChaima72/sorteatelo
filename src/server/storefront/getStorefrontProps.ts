@@ -1,8 +1,12 @@
 import { type GetServerSidePropsContext } from "next";
 
-import { leerChromeParaRender, type Chrome } from "~/lib/pagebuilder/chrome";
+import {
+  componerNavDelHeader,
+  leerChromeParaRender,
+  type Chrome,
+} from "~/lib/pagebuilder/chrome";
 import { leerDocumentoParaRender } from "~/lib/pagebuilder/migrate";
-import { humanizarSlug, type NavItem } from "~/lib/pagebuilder/nav";
+import { humanizarSlug, reanclarNavALaHome, type NavItem } from "~/lib/pagebuilder/nav";
 import { type PageDocument, type Tema } from "~/lib/pagebuilder/schema";
 import { env } from "~/env";
 import { db } from "~/server/db";
@@ -17,7 +21,7 @@ import {
   resolverBrandingDesdeHost,
 } from "~/server/storefront/resolverBranding";
 import { resolverModoPreview } from "~/server/storefront/previewToken";
-import { resolverTemaPagina } from "~/server/storefront/temaPagina";
+import { resolverHerenciaDeLaHome } from "~/server/storefront/temaPagina";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
 import { esSlugPaginaReservado } from "~/server/tenancy/slugTienda";
 import { type TenantBranding } from "~/styles/tenantTheme";
@@ -55,6 +59,17 @@ export interface PropsStorefront {
    * feature (D7/I6) — por eso es `null` y no un `Tema` de defaults.
    */
   temaPagina: Tema | null;
+  /**
+   * Chrome GLOBAL del tenant (follow-up del navbar de tema-paginas): el header de estas páginas se pinta
+   * con el MISMO `fondo`/`sticky` que la home (p.ej. `fondo:"pagina"` fundido con el lila) en vez del
+   * `vidrio` default sobre el body blanco. `null` ⇒ header/footer actuales (byte-idéntico, I-U8).
+   */
+  chrome: Chrome | null;
+  /**
+   * Items del nav del header, compuestos con las MISMAS reglas que la home (`componerNavDelHeader`) y
+   * RE-ANCLADOS a `/#ancla` (desde `/checkout` un `#sorteo` no existe). `[]` ⇒ nav hardcodeado (I-H).
+   */
+  navItems: NavItem[];
 }
 
 /** Ruta de la página neutral que se sirve cuando la Tienda está en pausa por facturación (F05/D4). */
@@ -93,14 +108,27 @@ async function zonaComprador(
 ): Promise<{ props: PropsStorefront } | { notFound: true }> {
   const res = await resolverBrandingSSR(ctx);
   if (res.zona !== "storefront") return { notFound: true };
-  // El tema se resuelve ACÁ, en el único lugar por donde pasan las tres páginas del Comprador, y no en
-  // cada helper público: era justamente la deriva entre páginas lo que produjo el defecto que esta
-  // feature arregla (la home tematizada y el checkout con el body blanco). El `tenantSlug` sale del
-  // branding ya resuelto server-side por subdominio (I1), nunca de `ctx.query` ni de otro input.
-  // Cuesta una query en el camino del redirect por pausa (que no la necesita); es el precio de tener un
-  // solo call site, y es una fila chica por request.
-  const temaPagina = await resolverTemaPagina({ tenantSlug: res.branding.slug });
-  return { props: { tenantBranding: res.branding, temaPagina } };
+  // La herencia se resuelve ACÁ, en el único lugar por donde pasan las tres páginas del Comprador, y no
+  // en cada helper público: era justamente la deriva entre páginas lo que produjo el defecto que esta
+  // feature arregla (la home tematizada y el checkout con el body blanco; luego el navbar — home con
+  // «El libro / Preguntas», checkout con el hardcodeado). El `tenantSlug` sale del branding ya resuelto
+  // server-side por subdominio (I1), nunca de `ctx.query` ni de otro input. Cuesta estas queries en el
+  // camino del redirect por pausa (que no las necesita); es el precio de tener un solo call site, y son
+  // filas chicas por request, en paralelo.
+  const tenantSlug = res.branding.slug;
+  const [herencia, chrome, navPaginas] = await Promise.all([
+    resolverHerenciaDeLaHome({ tenantSlug }),
+    resolverChrome({ tenantSlug }),
+    resolverNavPaginas({ tenantSlug }),
+  ]);
+  // Mismas reglas que la home (menú del chrome manda; si no, derivado + páginas `enNav`; `basesPdf`
+  // agrega «Bases») + re-anclado idempotente: un `menu` de anclas también tiene que navegar a `/#x`.
+  const navItems = reanclarNavALaHome(
+    componerNavDelHeader({ chrome, navDerivado: herencia.navDeLaHome, navPaginas }),
+  );
+  return {
+    props: { tenantBranding: res.branding, temaPagina: herencia.temaPagina, chrome, navItems },
+  };
 }
 
 /**
@@ -399,9 +427,11 @@ export async function getPropsEnPausa(
     return { redirect: { destination: "/", permanent: false } };
   }
 
-  // `temaPagina: null` DELIBERADO (tema-paginas I4): esta página queda NEUTRAL, sin heredar el tema de
-  // la Tienda. No es un olvido — es la única página del storefront que se sirve *en nombre de la
-  // Plataforma* y no de la Tienda, y vestirla con la marca de la Tienda sugeriría que la pausa es una
-  // decisión de ella. Tampoco usa `StorefrontLayout`.
-  return { props: { tenantBranding: res.branding, temaPagina: null } };
+  // `temaPagina/chrome: null` + `navItems: []` DELIBERADOS (tema-paginas I4): esta página queda
+  // NEUTRAL, sin heredar tema ni chrome de la Tienda. No es un olvido — es la única página del
+  // storefront que se sirve *en nombre de la Plataforma* y no de la Tienda, y vestirla con la marca de
+  // la Tienda sugeriría que la pausa es una decisión de ella. Tampoco usa `StorefrontLayout`.
+  return {
+    props: { tenantBranding: res.branding, temaPagina: null, chrome: null, navItems: [] },
+  };
 }

@@ -1,7 +1,7 @@
 import { type GetServerSidePropsContext } from "next";
 
-import { type Chrome } from "~/lib/pagebuilder/chrome";
-import { type NavItem } from "~/lib/pagebuilder/nav";
+import { componerNavDelHeader, type Chrome } from "~/lib/pagebuilder/chrome";
+import { reanclarNavALaHome, type NavItem } from "~/lib/pagebuilder/nav";
 import { db } from "~/server/db";
 import {
   resolverBasesDelSorteo,
@@ -13,7 +13,7 @@ import {
   resolverChrome,
   resolverNavPaginas,
 } from "~/server/storefront/getStorefrontProps";
-import { resolverTemaPagina } from "~/server/storefront/temaPagina";
+import { resolverHerenciaDeLaHome } from "~/server/storefront/temaPagina";
 import { type Tema } from "~/lib/pagebuilder/schema";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
@@ -38,7 +38,12 @@ import { type TenantBranding } from "~/styles/tenantTheme";
 
 export interface PropsBases extends BasesDelSorteoSerializable {
   tenantBranding: TenantBranding;
-  navPaginas: NavItem[];
+  /**
+   * Nav del header YA COMPUESTO con las mismas reglas que la home (`componerNavDelHeader` + re-anclado
+   * `/#x`) — follow-up del navbar de tema-paginas: antes esta página componía menú-chrome‖páginas por su
+   * cuenta y perdía el nav derivado del Documento (la home decía «El libro / Preguntas» y acá no).
+   */
+  navItems: NavItem[];
   chrome: Chrome | null;
   /** Tema mínimo heredado de la Tienda (tema-paginas F03). `null` ⇒ tienda sin tematizar (no-op, I6). */
   temaPagina: Tema | null;
@@ -54,19 +59,23 @@ export async function getPropsBases(
   // El tema entra al `Promise.all` que ya existía (tema-paginas F03/D8): en paralelo con bases/nav/chrome,
   // el costo en latencia es ≈ 0. Igual que sus vecinos, es defensivo: si falla, `null` y la página sale
   // sin heredar en vez de romperse — esta URL se cita en documentos legales (ADR-0008).
-  const [bases, navPaginas, chrome, temaPagina] = await Promise.all([
+  const [bases, navPaginas, chrome, herencia] = await Promise.all([
     resolverBasesDelSorteo({ db, tenantSlug }),
     resolverNavPaginas({ tenantSlug, paginaActual: "bases" }),
     resolverChrome({ tenantSlug }),
-    resolverTemaPagina({ tenantSlug }),
+    resolverHerenciaDeLaHome({ tenantSlug }),
   ]);
+  // Mismo nav que la home y que el resto de las páginas de plataforma (una sola regla, cero deriva).
+  const navItems = reanclarNavALaHome(
+    componerNavDelHeader({ chrome, navDerivado: herencia.navDeLaHome, navPaginas }),
+  );
 
   return {
     props: {
       tenantBranding: res.branding,
-      navPaginas,
+      navItems,
       chrome,
-      temaPagina,
+      temaPagina: herencia.temaPagina,
       ...serializarBases(bases),
     },
   };

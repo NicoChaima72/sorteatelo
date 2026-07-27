@@ -58,11 +58,14 @@ export const getServerSideProps: GetServerSideProps<PropsCheckout> = async (
 export default function CheckoutPage({
   tenantBranding,
   temaPagina,
+  chrome,
+  navItems,
   campos,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Tema MÍNIMO heredado de la Tienda (tema-paginas F02): el fondo de página. El radio, el par
   // tipográfico y el modo claro/oscuro los aplica `_app` desde el mismo `temaPagina`. Con la Tienda en
   // tema default esto es `undefined`/`undefined` ⇒ el shell sale sin `style=`, byte-idéntico a antes (I6).
+  // El chrome + navItems (follow-up del navbar) hacen que el header sea el MISMO que el de la home.
   const { estiloShell, colorPagina } = estiloHeredadoDeTema(temaPagina);
 
   return (
@@ -70,6 +73,8 @@ export default function CheckoutPage({
       branding={tenantBranding}
       estiloShell={estiloShell}
       colorPagina={colorPagina}
+      chrome={chrome}
+      navItems={navItems}
     >
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
         <ResumenYPago campos={campos} />

@@ -19,6 +19,7 @@ import {
   IconTicket,
 } from "@tabler/icons-react";
 
+import { CorazonesFlotantes } from "~/components/storefront/corazones-flotantes";
 import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
 import { ImagenConFallback } from "~/components/storefront/imagen-tenant";
 import { LucesAmbiente } from "~/components/storefront/luces-ambiente";
@@ -727,16 +728,24 @@ function HeroImagenFondo({
   // pintarse en el `<section>` y pasa a un box interior EN FLUJO, que tapa la capa ⇒ las luces no se
   // ven. Degrada a "sin luces", no rompe nada, y no se corta acá porque anularlas sería una excepción
   // ad-hoc entre dos props que no tienen relación — justo la combinatoria que D2 quiso evitar.
-  // Intensidad 2.6×: los porcentajes del shell (14-22%) están curados como TINTE sobre un fondo plano;
-  // sobre la imagen oscura + overlay del hero quedan por debajo del umbral perceptible. 2.6 los lleva a
-  // ~36-57%, que sí lee como foco de recital sin lavar el póster (tope 85% en capaDeLuces).
-  const luces = capaDeLuces(props.luces, props.lucesAnimadas, 2.6);
+  // Intensidad 1.5×: los porcentajes del shell (14-22%) están curados como TINTE sobre un fondo plano;
+  // sobre la imagen oscura + overlay del hero quedan bajo el umbral perceptible. 1.5 (≈21-33%) da el
+  // ambiente aprobado en la maqueta — el protagonismo del movimiento lo llevan las `particulas`.
+  const luces = capaDeLuces(props.luces, props.lucesAnimadas, 1.5);
+  const corazones = props.particulas === "corazones";
   return (
     <SeccionWrapper
       id={nodo.id}
       estilo={estilo}
       divisorColor={divisorColor}
-      capaFondo={luces ? <LucesAmbiente capa={luces} /> : undefined}
+      capaFondo={
+        luces || corazones ? (
+          <>
+            {luces && <LucesAmbiente capa={luces} />}
+            {corazones && <CorazonesFlotantes />}
+          </>
+        ) : undefined
+      }
     >
       <Stack gap="lg" align="center" ta="center" maw={760} mx="auto" style={{ paddingBlock: 24 }}>
         <HeroEyebrow props={props} />

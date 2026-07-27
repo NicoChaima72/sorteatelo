@@ -1,0 +1,61 @@
+/*
+  CORAZONES FLOTANTES (focos-animados, iteración de diseño con el usuario 2026-07-27 — aprobado sobre
+  la maqueta tmp/test-corazones.html).
+
+  Mismas reglas duras que `luces-ambiente.module.css`:
+   - I3: se animan SOLO `transform` y `opacity` (GPU).
+   - I4: TODO dentro de `prefers-reduced-motion: no-preference`. Los corazones nacen con `opacity: 0`
+     y solo la animación los hace visibles ⇒ con movimiento reducido la capa simplemente NO se ve
+     (un corazón congelado flotando a mitad del aire se vería roto, no calmado).
+   - I5: cero JS. I6: `pointer-events: none` + `aria-hidden` en el componente.
+   - Colores por custom property `--cz-col` (tokens del tenant, los pone el componente) — cero hex.
+
+  El vaivén y el fade viven en un solo keyframe: sube ~112vh (de abajo del fold a arriba del hero),
+  balanceándose ±3vw y rotando suave. `--cz-*` por corazón (posición/tamaño/ritmo/delay/opacidad pico)
+  desde el set CURADO del componente — determinista, jamás Math.random (SSR = cliente).
+*/
+
+.capa {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.corazon {
+  position: absolute;
+  bottom: -8vh;
+  left: var(--cz-x, 50%);
+  font-size: var(--cz-tam, 22px);
+  color: var(--cz-col, currentColor);
+  opacity: 0;
+  text-shadow: 0 0 14px currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .corazon {
+    will-change: transform, opacity;
+    animation: sube var(--cz-dur, 14s) linear infinite var(--cz-delay, 0s);
+  }
+}
+
+@keyframes sube {
+  0% {
+    transform: translateY(0) translateX(0) rotate(-8deg) scale(0.9);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--cz-op, 0.8);
+  }
+  45% {
+    transform: translateY(-52vh) translateX(3vw) rotate(7deg) scale(1);
+  }
+  85% {
+    opacity: var(--cz-op, 0.8);
+  }
+  100% {
+    transform: translateY(-112vh) translateX(-2vw) rotate(-6deg) scale(1.05);
+    opacity: 0;
+  }
+}

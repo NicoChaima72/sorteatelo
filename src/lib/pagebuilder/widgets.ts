@@ -780,6 +780,9 @@ export function runsDeTituloAcento(
  * un run con la marca equivalente, LOSSLESS, migrate.ts). Un hero v2 con `titulo:string` + `tituloAcento`
  * migra byte-idéntico. `efectoTitulo`/`tituloTamano`/`tituloMayusculas` siguen como props del `<Title>`.
  */
+/** Partículas decorativas del hero `imagen_fondo`. Enum cerrado (curado); crece por decisión de diseño. */
+export const PARTICULAS_HERO = ["ninguno", "corazones"] as const;
+
 export const heroProps = z
   .object({
     titulo: RichTextoSchema.optional(),
@@ -836,6 +839,13 @@ export const heroProps = z
     // A diferencia del shell, acá la capa se pinta también SIN animar: en el hero la capa ES la luz.
     luces: z.enum(AMBIENTE_FONDO).default("ninguno"),
     lucesAnimadas: z.boolean().default(false),
+    // Partículas decorativas SOBRE la imagen (focos-animados, iteración con el usuario 2026-07-27):
+    // el glow que respira resultó demasiado abstracto — lo que el ojo espera son ELEMENTOS moviéndose.
+    // `corazones` = set CURADO de corazones que flotan hacia arriba con vaivén (posiciones/tamaños/
+    // ritmos fijos en el componente, jamás aleatorios — SSR y cliente pintan lo mismo), en tokens de
+    // marca/acento del tenant (cero hex, I-A). `ninguno` (DEFAULT) ⇒ sin capa (no-op, I1). Con
+    // `prefers-reduced-motion` la capa no aparece (los corazones solo existen animados, I4).
+    particulas: z.enum(PARTICULAS_HERO).default("ninguno"),
   })
   .strict();
 export type HeroProps = z.infer<typeof heroProps>;

@@ -200,12 +200,14 @@ function Ctas({ props, oscuro }: { props: HeroProps; oscuro?: boolean }) {
   const ctaTexto = props.ctaTexto ?? "Ver el catálogo";
   return (
     <Group gap="sm" align="center">
+      {/* Siempre `filled` (pedido del usuario 2026-07-27): el botón de MARCA también sobre hero oscuro —
+          el violeta lleno pop sobre near-black; el `white` de antes leía como botón fantasma. */}
       <Button
         component="a"
         href={hrefDeAncla(props.ctaAncla)}
         size="md"
         radius="md"
-        variant={oscuro ? "white" : "filled"}
+        variant="filled"
         className="animar-pulso-cta"
       >
         {ctaTexto}

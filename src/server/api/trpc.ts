@@ -16,6 +16,7 @@ import { ZodError } from "zod";
 import { getServerAuthSession } from "~/server/auth";
 import { type AccesoPanel } from "~/server/authPolicy";
 import { db } from "~/server/db";
+import { ipDeRequest } from "~/server/ipDeRequest";
 import { origenDeRequest } from "~/server/pago/urlRetorno";
 import { cargarMembresiasCanonicas } from "~/server/panel/membresias";
 import { configPlataformaDesdeEnv } from "~/server/tenancy/configPlataforma";
@@ -59,6 +60,13 @@ interface CreateContextOptions {
    * URL de retorno de Flow del subdominio (D6) — NUNCA para scopear queries (eso es `tenant`).
    */
   origin: string | null;
+  /**
+   * IP del cliente (F05/D5), o `null`. La usa SOLO el checkout, como parte del registro verificable
+   * del consentimiento de recordatorios. **Es evidencia, no identidad**: jamás autoriza nada ni
+   * scopea una query (para eso está `tenant`, resuelto del host). Viaja acá y no se lee de `req` en
+   * el dominio, por la misma razón que `origin`: el dominio no conoce el transporte.
+   */
+  ip: string | null;
 }
 
 /**
@@ -78,6 +86,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
     tenant: opts.tenant,
     tenantDelHost: opts.tenantDelHost,
     origin: opts.origin,
+    ip: opts.ip,
   };
 };
 
@@ -134,6 +143,9 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
       host: req.headers.host,
       forwardedProto: req.headers["x-forwarded-proto"],
     }),
+    // IP del cliente para el registro verificable del consentimiento (F05/D5). Se deriva acá, en
+    // el borde, por la misma razón que el origen: el dominio recibe datos, no cabeceras.
+    ip: ipDeRequest(req.headers),
   });
 };
 

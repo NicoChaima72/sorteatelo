@@ -6,6 +6,7 @@ import {
 } from "~/server/domain/correo/ledgerCorreos";
 import { DomainError } from "~/server/domain/errors";
 import { type EfectosPostPago } from "~/server/domain/pago/efectosPostPago";
+import { origenDeArchivos } from "~/server/productos/fuenteDeArchivos";
 import { muestrearPacks } from "~/server/productos/muestrearPacks";
 
 /**
@@ -64,8 +65,17 @@ interface LineaConSobre {
   productId: string;
   cantidad: number;
   unidadesPorPack: number;
-  product: { modalidad: "ESTANDAR" | "SOBRE" };
+  product: {
+    modalidad: "ESTANDAR" | "SOBRE";
+    /** ENMIENDA v2: si la línea es un PACK, de qué producto salen sus archivos (E15). */
+    fuenteId: string | null;
+    fuente: { modalidad: "ESTANDAR" | "SOBRE" } | null;
+  };
 }
+
+/** De dónde salen los archivos de esta línea (E15/V-I1) — la regla vive en `fuenteDeArchivos`. */
+const origenDe = (item: LineaConSobre) =>
+  origenDeArchivos(item.productId, item.product);
 
 /**
  * Sortea y persiste los archivos que le tocan a cada pack de cada línea SOBRE de la orden
@@ -99,7 +109,11 @@ async function asignarArchivosDeSobres({
   tx: Parameters<EfectosPostPago>[0]["tx"];
   order: { id: string; tenantId: string; items: LineaConSobre[] };
 }): Promise<void> {
-  const sobres = order.items.filter((i) => i.product.modalidad === "SOBRE");
+  // Solo las líneas cuyo ORIGEN es un pool (E15). Un pack de fuente ESTANDAR —el caso libro— no
+  // entra: sus N copias son el MISMO archivo derivado en presentación (V-I2).
+  const sobres = order.items.filter(
+    (i) => origenDe(i).modalidad === "SOBRE",
+  );
   if (sobres.length === 0) return; // el 100% de las órdenes de hoy: ni una query de más
 
   for (const item of sobres) {
@@ -116,13 +130,15 @@ async function asignarArchivosDeSobres({
       continue;
     }
 
-    // El pool se resuelve DESDE el producto de la línea y filtrando los confirmados. Es la única
-    // garantía de que un `PackAssignment` no apunte a un archivo de otro producto: las dos FKs de
-    // esa tabla no se cruzan entre sí, así que no hay red de DB detrás de esto. El `tenantId` va
-    // explícito aunque `productId` ya sea tenant-bound (defensa en profundidad, I1).
+    // El pool se resuelve DESDE LA FUENTE de la línea (E15) y filtrando los confirmados. Es la
+    // única garantía de que un `PackAssignment` no apunte a un archivo de otro producto: las dos
+    // FKs de esa tabla no se cruzan entre sí, así que no hay red de DB detrás de esto. El
+    // `tenantId` va explícito aunque `productId` ya sea tenant-bound (defensa en profundidad, I1),
+    // y encima la fuente ya nació validada como del mismo tenant (`resolverFuenteDePack`) y es
+    // inmutable, así que no hay ventana para que apunte a otra Tienda.
     const pool = await tx.productFile.findMany({
       where: {
-        productId: item.productId,
+        productId: origenDe(item).productId,
         tenantId: order.tenantId,
         confirmadoAt: { not: null },
       },
@@ -187,9 +203,15 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
           // estables ante replay aunque el Organizador edite o BORRE la opción viva: cuántos
           // archivos se sortean y cuántos tickets se emiten (D6).
           unidadesPorPack: true,
-          // La modalidad se lee del producto y no del ítem: es lo que decide si esta línea tiene
-          // un sorteo de archivos que resolver.
-          product: { select: { modalidad: true } },
+          // La modalidad y la FUENTE se leen del producto y no del ítem: son lo que decide si esta
+          // línea tiene un sorteo de archivos que resolver y de qué pool sale (E15).
+          product: {
+            select: {
+              modalidad: true,
+              fuenteId: true,
+              fuente: { select: { modalidad: true } },
+            },
+          },
         },
       },
     },

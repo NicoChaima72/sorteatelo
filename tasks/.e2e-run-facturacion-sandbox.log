@@ -1,0 +1,158 @@
+=== feature-tester — 3ª pasada: SANDBOX REAL DE FLOW ===
+Modo:    feature (slug=plataforma-facturacion-suscripciones)
+Scope:   los 8 checks ⏭️ pendiente-sandbox + lista "A VERIFICAR CONTRA EL SANDBOX REAL" (9 items)
+Server:  http://localhost:3001 (200) · túnel https://aging-twin-impressive-brakes.trycloudflare.com (webhook GET → 405, OK)
+Cuenta:  Flow sandbox de PLATAFORMA (nikochaima72@gmail.com), FLOW_PLATAFORMA_* en .env, SANDBOX=true
+Carril:  chrome-devtools (autorizado por el usuario)
+Inicio:  2026-07-26 20:00
+
+--- BASELINE DB ---
+8 tenants · 7 exenciones GRANDFATHER perpetuas (todos menos e2e-numeros) · 0 PlatformSubscription/Invoice/BillingCustomer/Coupon/Redemption
+autora=PUBLICADA (ToS+credencial+producto entregable OK) · e2e-numeros=CONFIGURACION (sin ToS, sin credencial, producto sin archivo)
+
+--- SONDAS API (antes del navegador) ---
+[20:01] plans/list (PLURAL) → 200: los 2 planes existen. full $25.000 / adicional $12.500, interval 3 (mensual),
+        interval_count 1, trial 0, days_until_due 3, charges_retries 3, urlCallback = túnel. status 1.
+[20:01] plan/get (SINGULAR) → 400 {"code":105,"message":"No services available"}  ← DRIFT confirmado
+[20:02] npm run flow:planes → ✗ "Flow (plataforma) /api/plan/create respondió 400" — el bootstrap está ROTO contra el sandbox real
+[20:02] plans/get (PLURAL) planId=sorteatelo-tienda-full → 200  ← el endpoint correcto es el PLURAL
+[20:02] plans/get planId=27690 (id numérico) → 401 code 501 "the plan 27690 was not found" (la clave es el planId string)
+[20:03] plans/create con planId EXISTENTE → 401 code 501 "This planId has already been used"  ← NO hace upsert silencioso
+        (responde la pregunta (1) de la lista de F02: el miedo del backend-reviewer no se materializa)
+[20:03] plans/create con planId nuevo → 200 (creado) ; plans/delete → 200
+[20:04] plans/list DESPUÉS del delete: el plan borrado SIGUE en la lista con status 0
+        ⇒ un "existe?" por plans/list DEBE filtrar status === 1
+
+--- activar.e2e.001 (autora) ---
+[20:05] Checklist de autora (sin exención, CONFIGURACION): 4 ítems cumplidos (teal circle-check) y
+        «Activa tu plan» ÚNICO pendiente (gris circle-dashed), último de la lista. «Publicar mi tienda» deshabilitado.
+[20:05] «Ver el precio» → modal «Activa tu plan» con «Plan de tu tienda» **$25.000 /mes**, IVA incluido,
+        sin comisión, input «¿Tienes un código?» y «Tu tarjeta la guarda Flow, no Sortéatelo».
+[20:06] «Continuar» → ❌ **BLOCKER 1**: el navegador aterriza en
+        https://sandbox.flow.cl/app/customer/disclaimer.php SIN ?token= ⇒ «¡Ups! Ha ocurrido un error /
+        Error Processing Request». customer/register devuelve {token, url} y hay que ir a `url?token=`;
+        iniciarRegistroTarjeta.ts:102 devuelve solo `registro.url` (idem iniciarCambioDeTarjeta.ts:44).
+        El service BYO lo hace bien: flow.ts:144 `${res.url}?token=${res.token}`.
+[20:07] Con la URL armada a mano (?token=…) la pantalla de Flow SÍ carga → Transbank OneClick →
+        VISA 4051.., 12/30, CVV 123, «Es mi correo» → banco RUT 11.111.111-1 / clave 123 → Aceptar.
+[20:08] ❌ **BLOCKER 2**: Flow vuelve con **POST** a url_return ⇒ `POST /admin/plan/retorno 307 → /login`
+        (cookie de sesión SameSite=Lax no viaja en un POST cross-site) y además retorno.tsx:62 lee el token
+        de `router.query` (query string), que en un POST no existe. La activación no ocurre por la vía real.
+[20:12] INCIDENTE AJENO: aparecieron DOS `next dev` de este repo (PID 45868 en :3001 desde 20:08 y PID 45196
+        en :3002 desde 20:13) compartiendo `.next` ⇒ TODO el server en 404 fantasma (memoria «dev server:
+        una sola instancia»). Se detuvo la instancia intrusa de :3002; :3001 se recuperó solo (307/200).
+[20:21] Con el retorno forzado por GET (?token=… válido) el flujo REAL sigue y termina bien:
+        pantalla «¡Tu plan está activo y tu tienda publicada!».
+        DB: PlatformSubscription plan=FULL, montoBruto=25000, estado=AL_DIA, flowSubscriptionId=sus_r4eaeefdbc,
+        flowPlanId=sorteatelo-tienda-full, período 26-jul→25-ago, proximoCobro 26-ago; BillingCustomer con
+        tarjetaMarca="Visa" ultimos4="6623" y NADA más; Tenant=PUBLICADA.
+        getRegisterStatus server-side: {status:"1" (STRING), customerId, creditCardType:"Visa", last4CardDigits:"6623"}.
+
+--- cupones (F08) ---
+[20:23] ❌ **BLOCKER 3**: `npm run flow:cupones -- crear` NO puede crear NINGÚN cupón contra el sandbox real.
+        `coupon/create` (SINGULAR, el endpoint es correcto — el plural da 105) responde 401/501 en las DOS ramas:
+          · con --meses N  ⇒ duration=2 ⇒ "The duration must be 0 or 1"
+          · sin --meses    ⇒ duration=1 sin times ⇒ "If duration = 1 times must be sent"
+        Mapeo REAL verificado: duration=0 (sin times) = PARA SIEMPRE · duration=1 + times=N = N períodos.
+        flowPlataforma.ts:370 tiene `duration: duracionPeriodos === undefined ? 1 : 2` — invertido y corrido en 1.
+        Bonus: Flow NORMALIZA el `name` quitando no-alfanuméricos ("E2E-PROBE-D1" → "E2EPROBED1").
+[20:24] Cupón creado A MANO en Flow (id 1263, 50%, times 1, max 1) + fila local sembrada ⇒ se pudo seguir con el canje.
+[20:26] `listar` ⇒ `● E2E50 — 50% por 1 mes · canjes 0/1`.
+[20:27] cupon.e2e.001 código inválido: mensaje NEUTRAL «Ese código no es válido o ya no se puede usar. Revísalo,
+        o continúa sin código.» en notificación (no delata el motivo). ✅
+[20:28] cupon.e2e.001 código válido en MINÚSCULA («e2e50») ⇒ normaliza a E2E50, RESERVA (canjes 1, redención con
+        subscriptionId NULL) y `listar` dice `canjes 0/1 (+1 reserva/s en curso)` con la línea de trazabilidad. ✅
+[20:29] Tras activar e2e-numeros: redención LIGADA a la suscripción, `listar` ⇒ `canjes 1/1` con fecha/Tienda/correo. ✅
+        En Flow la suscripción sus_q0b648d031 trae `discount: [{coupon:{id:1263, percent_off:"50.00"}, start:2026-07-26,
+        end:2026-08-26, status:1}]` ⇒ **el cupón viajó y quedó aplicado**. El cupón pasó a status 0 (agotado por max_redemptions).
+[20:30] Guards del CLI: repetir `crear` con el mismo código ⇒ «Ya existe un cupón con el código E2E50» ANTES de tocar Flow;
+        `--maxCanjes` (flag inexistente) ⇒ «No conozco el flag --maxCanjes. Los válidos son: …». ✅
+
+--- activar.e2e.002 (e2e-numeros, segunda tienda) ---
+[20:27] Con la FULL de autora REALMENTE activa, el modal de e2e-numeros dice «Tienda adicional / **$12.500 /mes** /
+        Es tu segunda tienda en adelante: va a mitad de precio.» ✅ (precio server-side)
+[20:29] Retorno (forzado por GET): «Tu plan está activo» + «Antes de publicar debes aceptar los Términos de Servicio»
+        (la rama honesta: el plan queda activo y la publicación no miente). DB: plan=ADICIONAL, montoBruto=12500,
+        flowPlanId=sorteatelo-tienda-adicional, flowSubscriptionId=sus_q0b648d031, estado=AL_DIA. ✅
+
+--- plan.e2e.002 (cambiar tarjeta) ---
+[20:35] «Cambiar tarjeta» reproduce el BLOCKER 1 (mismo redirect sin token, iniciarCambioDeTarjeta.ts:44).
+[20:39] Registro manual con tarjeta DÉBITO Transbank 4051 8842 3993 7763 ⇒ getRegisterStatus: RedCompra / 7763.
+[20:40] Token INVENTADO en /admin/plan/retorno-tarjeta ⇒ «No pudimos cambiar tu tarjeta … Tu plan sigue activo con la
+        tarjeta anterior» y CERO cambios. ✅ (nit: el texto expone el mensaje crudo «Flow (plataforma)
+        /api/customer/getRegisterStatus respondió 401» — copy interno filtrado a la UI)
+[20:40] Token real ⇒ «Listo, cambiamos tu tarjeta / Los próximos cobros van a la tarjeta RedCompra terminada en 7763».
+        DIFF de DB: cambian SOLO tarjetaMarca/tarjetaUltimos4 (+updatedAt del customer). La suscripción queda
+        BYTE-IDÉNTICA: flowSubscriptionId, estado, periodoFin, proximoCobroAt y hasta su updatedAt. ✅
+[20:41] `customer/get` en Flow: creditCardType RedCompra, last4 7763, **tbkUser NUEVO** ⇒ la tarjeta vive en el CUSTOMER
+        y la suscripción lo referencia ⇒ item (7) de la lista sandbox: la premisa de «Cambiar tarjeta» SE SOSTIENE.
+
+--- WEBHOOK (F04) — item (1) de la lista sandbox, RESUELTO ---
+[20:32] Sonda: plan desechable con urlCallback a un bin público + suscripción ⇒ Flow POSTeó:
+        `POST application/x-www-form-urlencoded` con **`token=7F6099DD1D30A5BFF4736170208961612EBE87AP`**
+        — NO manda `subscriptionId` ni `subscription_id`.
+[20:42] ❌ **BLOCKER 4**: `CLAVES_ID = ["subscriptionId","subscription_id"]` (webhookSuscripciones.ts:55) NUNCA matchea
+        ⇒ toda notificación se ackea 200 con `missing_subscription_id` y NADA se procesa. Evidencia local: Flow YA
+        cobró $25.000 (invoice 1179461 con payment.status=2) y `PlatformInvoice` sigue VACÍA; `/admin/plan` no muestra
+        tabla «Cobros».
+[20:43] El token se resuelve con **`payment/getStatus?token=`** (200) igual que el webhook BYO; su `commerceOrder` es
+        `sus_df7ebcc91c_1179464_2026-07-26 20:32` = `<subscriptionId>_<invoiceId>_<fecha>`, y trae status 2 (pagado),
+        amount, payer y paymentData{fee, balance, transferDate}. Ese es el hilo para llegar a la suscripción/invoice.
+
+--- cancelar.e2e.001 / .002 (autora, FULL) ---
+[20:42] Modal: «Tu tienda sigue vendiendo hasta el 25 ago 2026, el fin del período que ya pagaste» + «No se borra nada…»;
+        botones «Mejor no» / «Cancelar el plan» con fondo ROJO rgb(192,62,46) = #c03e2e. ✅
+[20:42] Confirmado ⇒ «Cancelado: tu tienda vende hasta el 25 ago 2026», el botón «Cancelar mi plan» DESAPARECE,
+        notificación «Plan cancelado. Tu tienda vende hasta el 25 ago 2026».
+        DB: cancelacionSolicitadaAt + cancelacionEfectivaAt(25-ago) sellados y **estado SIGUE AL_DIA**.
+        Flow: cancel_at_period_end=1, cancel_at=2026-08-25, status=1 (viva). Storefront de autora: 200. ✅
+[20:43] **D7 recálculo REAL**: e2e-numeros quedó planProgramado=FULL desde 2026-08-26 en NUESTRA DB…
+        …pero en FLOW su `planId` YA es `sorteatelo-tienda-full` (cambio INMEDIATO) y
+        `new_plan_scheduled_change_date` quedó **null** ⇒ item (5): `temporality: 2` NO produce un cambio programado
+        visible. Lo que sí se cumple: la factura ya emitida del período sigue en $6.250 (12.500 con el 50%),
+        o sea el cambio NO fue retroactivo al período cobrado.
+[20:44] Segunda cancelación (mutation a mano): 200 con la MISMA fecha y `cancelacionSolicitadaAt` INTACTO ⇒
+        el guard atómico cortó: ni segunda llamada a Flow ni segundo correo. ✅
+[20:48] Item (4): `subscription/cancel` repetido sobre una ya cancelada ⇒ **200** (idempotente).
+        `subscription/changePlan` repetido ⇒ **400 code 1001 "The selected plan is the same as the current one"**
+        ⇒ NO es idempotente: el recálculo tiene que tragarse ese 1001 o una carrera lo hace fallar.
+
+--- cortesia.e2e.003 (demo-dreamy) ---
+[20:45] Sin exención, PUBLICADA ⇒ /admin/plan muestra «Activar mi plan»; modal con «Tienda adicional $12.500».
+        «Continuar» ⇒ arranca el registro (customer resuelto) y muere en el BLOCKER 1.
+[20:46] Insertada PlatformExemption(GRANDFATHER) EN EL MEDIO y vuelto al retorno con token válido ⇒
+        «Tu tienda quedó con plan cortesía: no se creó ningún cobro y no necesitas registrar una tarjeta.»
+        DB: **0 PlatformSubscription** para demo-dreamy. En Flow, el customer quedó con 3 suscripciones
+        (autora, e2e-numeros y la sonda) — **ninguna de demo-dreamy**. ✅
+
+--- item (6): el `expires` de los cupones ---
+[20:47] Cupón creado con expires=HOY ⇒ Flow lo guarda como "2026-07-26 00:00:00" (00:00 de ESE día), pero
+        `subscription/create` con ese cupón EL MISMO DÍA lo **aplica igual** (invoice 1.000 → 900).
+        ⇒ El riesgo que levantó el backend-reviewer NO se materializa: nuestro corte estricto es compatible.
+
+--- HIGIENE ---
+[20:49] Flow: las 4 suscripciones creadas (2 reales + 2 sonda) quedaron **status 4 (canceladas)** — cero cobro
+        recurrente vivo. Cupones 1263/1264/1265 borrados. Customer cus_h4452942e8 borrado. Plan sonda borrado.
+        RESIDUO justificado: `plans/list` sigue listando los 2 planes de sonda con **status 0** (Flow no los saca):
+        `e2e-probe-borrable-2607` y `e2e-sonda-callback-2607`. Los 2 planes reales intactos con status 1.
+[20:50] DB: 0 PlatformSubscription / Invoice / BillingCustomer / Coupon / CouponRedemption.
+        Las 7 exenciones GRANDFATHER perpetuas en sus 7 tenants (las de `autora` y `demo-dreamy` son filas NUEVAS:
+        se borraron y recrearon, `id`/`createdAt` nuevos, contenido idéntico). autora=PUBLICADA,
+        e2e-numeros=CONFIGURACION. Los 7 storefronts responden 200.
+
+--- VITEST (confirmación de que la suite NO cazaba nada de esto) ---
+[20:51] npx vitest run src/__tests__/server/facturacion src/__tests__/server/scripts flowPlataforma.test.ts
+        ⇒ 24 archivos / **209 tests PASS**, 0 fallos. Verde con los 4 blockers vivos.
+
+=== CIERRE 2026-07-26 21:00 ===
+Checks pendiente-sandbox: 2 ✅ (cancelar.e2e.001, cortesia.e2e.003)
+                          5 ❌ (activar.e2e.001, activar.e2e.002, cupon.e2e.001, cupon.e2e.002, plan.e2e.002 → 5 IDs
+                                en 4 causas raíz)
+                          1 🟡 (cancelar.e2e.002 — entrega del correo, la confirma el usuario)
+Además pasan a ❌ dos líneas que estaban como «no aplica — backend-only»: el E2E de F02 (flow:planes roto)
+y el de F04 (webhook sordo), porque con la cuenta real SÍ se pudieron ejercer.
+Lista «A VERIFICAR CONTRA EL SANDBOX REAL»: 8 de 9 respondidos; queda abierto el caso incobrable/outstanding
+(no hay tarjeta de prueba que registre y falle el cobro) y el «¿Flow desactiva el callback tras N 5xx?»,
+que no se probó a propósito para no arriesgar el callback de la cuenta.
+Retries: 0 por flakiness. Los reintentos fueron de diagnóstico (2 registros de tarjeta extra).
+No se tocó: código de la app, el dev server de :3001, la sesión del navegador, los 2 planes reales de Flow.

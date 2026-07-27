@@ -156,6 +156,18 @@ model Tenant {
   tiktokUrl      String? // URL del perfil de TikTok; null = ícono oculto
   whatsappUrl    String? // enlace de WhatsApp; null = ícono oculto
   contactoEmail  String? // email de contacto PÚBLICO del Organizador (footer). Distinto de Order.email (identidad del comprador, ADR-0004)
+  // Identidad legal del Organizador responsable de la venta y del Sorteo (F05/D6, ADR-0008):
+  // nombre de la persona o razón social, impreso en el PIE de todo correo al Comprador. TEXTO
+  // LIBRE a propósito (ni RUT ni dirección: eso sería otro plan) y `String?` porque el pie degrada
+  // elegante cuando falta — ningún dato de identidad de la Tienda es obligatorio (§ Plantilla).
+  // Largo/forma en Zod, NO en la DB (sin `@db.VarChar`): mismo criterio que `prefijoTicket`.
+  // No queriable (se lee por el tenant ya resuelto) ⇒ sin @@index.
+  //
+  // ⚠️ Entra por las MISMAS DOS puertas que `prefijoTicket` (form de Configuración + tool MCP
+  // `configurar_tienda`) y se borra en silencio por las mismas dos vías si se olvida una: sin
+  // leerla en `getConfiguracionTienda`, el primer «Guardar cambios» la nulea; sin sumarla a
+  // `CAMPOS_CONFIG`, cada llamada de la tool la nulea. F08/D12 llegó justo así.
+  identidadLegal String? // nombre o razón social del Organizador para el pie del correo; null = pie sin identidad legal
   // Prefijo PRESENTACIONAL de los Números del sorteo de esta Tienda (F08/D12, invariante I12) —
   // ocupa el seam que ADR-0024 §6 dejó abierto ("si mañana hay prefijo, es presentacional; el
   // `numero` no se re-significa"). Es identidad de la TIENDA, como `logoUrl`/`colorPrimario`, y por
@@ -224,6 +236,8 @@ model Tenant {
   storefrontPageVersions    StorefrontPageVersion[] // Snapshots de publicación (F12, ADR-0016)
   pageAssets                PageAsset[] // imágenes libres del editor de la Página (catálogo-v2 F08, ADR-0013/0016)
   correosEnviados           CorreoEnviado[] // ledger de correos al Comprador de esta Tienda (F02, ADR-0027)
+  consentimientosRecordatorios ConsentimientoRecordatorios[] // opt-in verificable de recordatorios en ESTA Tienda (F05/D5)
+  supresionesCorreo         SupresionCorreo[] // bajas de avisos de ESTA Tienda (F05, RFC 8058)
   // Facturación de la PLATAFORMA (ADR-0026): las tres FK son IDENTIDAD, no scoping de dominio (D14).
   platformSubscription      PlatformSubscription? // 1-1: el cobro mensual de la Plataforma a esta Tienda (Restrict desde el hijo — registro de plata)
   platformExemption         PlatformExemption? // 1-1: exención del cobro (D8); Cascade desde el hijo — es configuración, no un hecho
@@ -381,6 +395,7 @@ model Order {
   downloadGrants    DownloadGrant[] // efectos post-pago F02
   raffleEntries     RaffleEntry[] // efectos post-pago F02
   checkoutResponses CheckoutFieldResponse[] // Respuestas de checkout congeladas al comprar (F01)
+  consentimientosRecordatorios ConsentimientoRecordatorios[] // el opt-in de recordatorios dado EN esta compra (F05/D5)
 
   @@index([tenantId, email]) // búsquedas siempre tenant-scoped; sirve tenant-only por prefijo
   @@index([tenantId, estado])
@@ -1416,4 +1431,146 @@ model CorreoEnviado {
   // Panel del Organizador: sus FALLIDO, más recientes primero. Su prefijo [tenantId] cubre además
   // el chequeo del Restrict al borrar Tenant y cualquier lectura tenant-wide.
   @@index([tenantId, estado, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Consentimiento y supresión de correos de AVISOS (F05, D5/D6 + ADR-0027/0004;
+// CONTEXT § Consentimiento de recordatorios / § Supresión de correo).
+// Aprobado por schema-guardian 2026-07-27 (APPROVE-WITH-CHANGES: `emailNormalizado`
+// vs `email`, fuera los @@index([tenantId]) redundantes, fuera el updatedAt).
+//
+// DOS tablas y no una `PreferenciaCorreo` con `suprimidoAt`, por tres razones y en
+// este orden: (1) la supresión tiene que poder existir SIN consentimiento —una baja
+// de quien nunca consintió, y mañana C8 = supresión por REBOTE DURO, que la escribe
+// el webhook del proveedor—; (2) fundirlas dejaría NULLABLE todo el registro
+// verificable (otorgadoAt/ip/textoMostrado/orderId/tokenBaja), que es el smell
+// clásico de dos conceptos en una fila; (3) y la decisiva: le daría al endpoint
+// PÚBLICO de baja (sin login, ADR-0004) un camino de escritura hacia las columnas
+// de la PRUEBA LEGAL del consentimiento. Con dos tablas ese camino no existe en la
+// DB — la baja INSERTA en su tabla y no tiene forma de tocar la otra.
+//
+// Regla que se desprende y que el use case NO puede olvidar: **darse de baja NO
+// borra el consentimiento** (borrarlo destruiría la prueba de que los envíos
+// anteriores fueron lícitos) ⇒ el filtro de F06 es «tiene consentimiento Y NO tiene
+// supresión», las DOS consultas, siempre. Postgres no puede expresarlo (es
+// cross-tabla): es invariante de use case, como «1 Raffle ACTIVO por tenant» (S5).
+// Corolario para no descubrirlo con un correo de más: las dos consultas viven en UN
+// solo helper del dominio (`domain/correo/preferenciasDeCorreo.ts`), no sueltas en
+// cada caller.
+//
+// Push ADITIVO PURO: 2 CREATE TABLE + 1 ADD COLUMN nullable en Tenant. Cero enum,
+// cero ALTER de columna viva, cero cambio de índice existente ⇒ sin --accept-data-loss.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// El opt-in VERIFICABLE de recordatorios de UNA Tienda (CONTEXT § Consentimiento de
+// recordatorios; Ley 21.719: casilla jamás premarcada, consentimiento demostrable).
+// Es de PLATAFORMA, no configurable por el Organizador ⇒ no es un CheckoutField.
+model ConsentimientoRecordatorios {
+  id               String   @id @default(cuid())
+  tenantId         String
+  // IDENTIDAD de la persona (trim + lowercase), la MISMA regla que `identidadDeCorreo` de
+  // domain/correo/ledgerCorreos.ts. Se llama `emailNormalizado` y NO `email` a propósito: es la
+  // columna del @@unique y de TODA lectura, y el unique de Postgres es case-sensitive ⇒ un
+  // `where: { email: <string crudo del Comprador> }` es un miss SILENCIOSO (segundo
+  // consentimiento para la misma persona, o una supresión que no se ve). El nombre obliga a que
+  // la omisión se lea en el call site. Ojo especialmente con `CorreoEnviado.email`, que es lo
+  // CONTRARIO (snapshot sin normalizar): comparar esas dos columnas entre sí es el bug.
+  emailNormalizado String
+  // Snapshot de lo que el Comprador ESCRIBIÓ al consentir. No es un duplicado de la identidad:
+  // es parte del registro verificable —"con este correo, ese día, dijo que sí"— junto a
+  // `otorgadoAt`/`ip`/`textoMostrado`, y es el mismo criterio que `CorreoEnviado.email` (la clave
+  // normaliza IDENTIDAD, no el destinatario). JAMÁS se usa como clave de búsqueda.
+  email            String
+  // La compra en la que se dio ESTE consentimiento (el vigente). Restrict: `Order` es padre
+  // auditable y no es borrable por diseño (ya es indeleble por su `Payment`) ⇒ el patrón
+  // "snapshot + FK nullable SetNull" NO aplica — ese se reserva para definiciones BORRABLES
+  // (CheckoutField). Se PISA en cada re-consentimiento y está bien: las cuatro columnas del
+  // evento (orderId/otorgadoAt/ip/textoMostrado) describen el MISMO consentimiento vigente y se
+  // mueven juntas — modelo write-many, igual que `Tenant.tos*` (el historial legal completo está
+  // diferido, § Out of scope del plan).
+  orderId          String
+  // El consentimiento VIGENTE: el que se exhibe si alguien lo reclama. Distinto de `createdAt`,
+  // que es la PRIMERA vez que esta persona consintió en esta Tienda — el único rastro de historia
+  // que este modelo write-many conserva.
+  otorgadoAt       DateTime @default(now())
+  // IP del request en que se marcó la casilla (verificabilidad). Nullable a propósito: si el
+  // borde no la entrega se guarda null, no se inventa (mismo criterio que `ProductFile.bytes`).
+  // Es PII: jamás en logs, respuestas públicas ni CSV.
+  ip               String?
+  // El texto EXACTO que el Comprador LEYÓ. Se copia ENTERO en vez de guardar una "versión": la
+  // prueba tiene que leerse sola dentro de tres años, aunque la constante del código haya
+  // cambiado — mismo criterio que `CheckoutFieldResponse.etiqueta`. Lo pone el SERVER desde la
+  // constante que también renderiza el checkbox; jamás llega del cliente (sería dejar que el
+  // evaluado escriba su propia prueba).
+  textoMostrado    String
+  // Token opaco del enlace de baja one-click (RFC 8058), generado en la app con
+  // `randomBytes(32).toString("base64url")` — NO `@default(cuid())`: acá el token ES la autoridad
+  // (mismo patrón que `DownloadGrant.token`). @unique GLOBAL y no compuesto con tenantId: es un
+  // token de RUTEO (token ⇒ fila ⇒ tenant), la excepción ya vigente para `Payment.token` /
+  // `DownloadGrant.token`. Vive acá y no en la supresión porque el enlace tiene que existir ANTES
+  // que la baja. **SE CONSERVA en el re-consentimiento**: el `update` del upsert no lo toca —
+  // reescribirlo mataría el enlace de baja de todos los correos YA enviados, que es exactamente
+  // lo que RFC 8058 promete que funciona. En claro, como `DownloadGrant.token`: su única
+  // capacidad es dejar de recibir avisos de UNA Tienda.
+  tokenBaja        String   @unique
+  // Primera vez que esta persona consintió en esta Tienda (ver `otorgadoAt`). SIN `updatedAt`: la
+  // ÚNICA mutación de la fila es el re-consentimiento y ese evento ya tiene su propio timestamp —
+  // un `updatedAt` sería un segundo reloj para el mismo hecho (criterio de `McpAuthCode.usedAt`).
+  createdAt        DateTime @default(now())
+
+  // Restrict hacia Tenant: registro de un HECHO + PII de terceros (mismo bucket que Order/Payment/
+  // CheckoutFieldResponse/CorreoEnviado), no configuración re-creable — el Organizador no puede
+  // volver a tipear el consentimiento de otra persona. No vuelve indeleble a ningún tenant que no
+  // lo fuera ya: toda fila cuelga de un Order del mismo tenant.
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  // Un consentimiento vivo por (Tienda, persona). `tenantId` va DENTRO del unique —y acá sí, a
+  // diferencia de `CorreoEnviado.@@unique([tipo, clave])`—: el email es un dato del COMPRADOR, no
+  // un cuid tenant-bound, así que el unique global sería fuga cross-tenant (consentir en una
+  // Tienda valdría en todas). Es prisma-conventions § Multi-tenancy en su caso más literal.
+  // Su prefijo `tenantId` cubre las lecturas tenant-scoped Y el chequeo del Restrict al borrar
+  // Tenant ⇒ SIN `@@index([tenantId])`, que sería un índice redundante (mismo criterio que
+  // CheckoutField/StorefrontPage). OJO al comparar: el `@@index([tenantId])` de DownloadGrant NO
+  // es redundante — su unique empieza por `orderId`, no por `tenantId`.
+  @@unique([tenantId, emailNormalizado])
+  // NECESARIO por el Restrict hacia Order: sin él, el chequeo de integridad al borrar un Order es
+  // un seq scan de esta tabla, que crece con los compradores de TODA la plataforma (mismo rol que
+  // `CheckoutFieldResponse.@@index([fieldId])` / `PackAssignment.@@index([productFileId])`).
+  @@index([orderId])
+}
+
+// La Supresión de correo (CONTEXT § Supresión de correo): la marca de que una persona pidió no
+// recibir más AVISOS de UNA Tienda (one-click RFC 8058, endpoint público sin login — ADR-0004).
+// NO bloquea los transaccionales: C1/C4/C5 salen siempre (I5); esto filtra solo recordatorios.
+//
+// Fila INMUTABLE y de una sola dirección: `createdAt` ES el instante de la baja ⇒ sin `updatedAt`
+// (criterio de PlatformCouponRedemption/RaffleEntry). Re-suscribirse NO se modela BORRANDO esta
+// fila —borrar la baja es borrar el hecho—: si alguna vez se admite, es un `revocadaAt` nullable
+// que el filtro mira (ADD COLUMN aditivo).
+//
+// Puerta abierta ANOTADA y NO construida: cuando llegue C8 (supresión por rebote duro, tanda 2),
+// el discriminador es un `motivo` enum con default ⇒ 1 CREATE TYPE + 1 ADD COLUMN con default,
+// aditivo sobre esta tabla. Hoy no se agrega: un enum de un solo valor no informa nada.
+model SupresionCorreo {
+  id               String   @id @default(cuid())
+  tenantId         String
+  // Identidad normalizada, MISMA regla y MISMO nombre que en ConsentimientoRecordatorios. El
+  // writer de hoy la toma de la fila de consentimiento que resolvió el token (ya normalizada); el
+  // de C8 la recibirá del rebote del PROVEEDOR y tendrá que pasarla por `identidadDeCorreo`, o la
+  // baja quedará invisible. Sin columna snapshot del email a propósito: acá no hay nada que
+  // enviar, y una segunda copia solo sería PII de más.
+  emailNormalizado String
+  createdAt        DateTime @default(now())
+
+  // Restrict hacia Tenant: mismo bucket que el consentimiento (hecho ocurrido + PII de terceros).
+  // Con más razón que en cualquier otra tabla: perder una supresión es volver a escribirle a
+  // alguien que dijo BASTA, sobre un dominio de envío que es reputación de TODAS las Tiendas (I2).
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  // Una baja por (Tienda, persona) — POR TIENDA, jamás global (CONTEXT: la baja en una Tienda no
+  // da de baja en las otras). Es además lo que vuelve IDEMPOTENTE al endpoint público sin una
+  // línea de lógica: `createMany({ skipDuplicates: true })` ⇒ el segundo click no es un error.
+  // Prefijo `tenantId` ⇒ sin `@@index([tenantId])` (ver la nota del consentimiento).
+  @@unique([tenantId, emailNormalizado])
 }

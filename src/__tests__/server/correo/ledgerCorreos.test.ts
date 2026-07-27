@@ -5,7 +5,9 @@ import {
   claveConfirmacionCompra,
   claveRecordatorio,
   claveResultado,
+  correosDeResultado,
   encolarCorreos,
+  raffleIdDeClave,
 } from "~/server/domain/correo/ledgerCorreos";
 
 /**
@@ -157,5 +159,64 @@ describe("domain/correo/ledgerCorreos — constructores de clave (ADR-0027 §1)"
     ).not.toBe(
       claveRecordatorio({ raffleId: "raf_1", offsetHoras: 48, email: "ana@x.cl" }),
     );
+  });
+
+  // correo.ledger.004 — la clave se lee de vuelta desde ACÁ y no desde el resolvedor que la
+  // consume (F04): el `raffleId` sale entero incluso con emails que traen el separador alrededor.
+  // Si esto se rompiera, el resolvedor buscaría un sorteo inexistente y ningún correo saldría.
+  it("el raffleId se recupera de la clave de resultado y de la de recordatorio", () => {
+    const raffleId = "cmr0gl4pi0001abcd";
+    expect(raffleIdDeClave(claveResultado({ raffleId, email: "Ana@X.cl " }))).toBe(
+      raffleId,
+    );
+    expect(
+      raffleIdDeClave(
+        claveRecordatorio({ raffleId, offsetHoras: 48, email: "ana@x.cl" }),
+      ),
+    ).toBe(raffleId);
+  });
+});
+
+describe("domain/correo/ledgerCorreos — filas de resultado del sorteo (F04/C4-C5)", () => {
+  const raffleId = "raf_9";
+
+  // correo.ledger.005 — la forma de la tanda: 1 ganador + una por persona distinta, con el ganador
+  // excluido POR CLAVE (no por string), y el `email` de cada fila conservando el snapshot original.
+  it("produce 1 fila de ganador y una por persona distinta que no ganó", () => {
+    const filas = correosDeResultado({
+      tenantId: "t1",
+      raffleId,
+      ganadorEmail: "Bruno@X.cl",
+      emails: [
+        "ana@x.cl",
+        "Ana@X.cl", // la misma persona escrita distinto
+        "bruno@x.cl", // el ganador, con otro casing
+        " BRUNO@x.cl ",
+        "carla@x.cl",
+      ],
+    });
+
+    expect(filas.map((f) => `${f.tipo} ${f.clave}`)).toEqual([
+      `RESULTADO_GANADOR ${raffleId}:bruno@x.cl`,
+      `RESULTADO_NO_GANADOR ${raffleId}:ana@x.cl`,
+      `RESULTADO_NO_GANADOR ${raffleId}:carla@x.cl`,
+    ]);
+    // El snapshot del destinatario NO se normaliza: es lo que escribió el Comprador.
+    expect(filas[0]!.email).toBe("Bruno@X.cl");
+    expect(filas[1]!.email).toBe("ana@x.cl");
+    // Y todas llevan el tenant que les pasó el use case (I1).
+    expect(filas.every((f) => f.tenantId === "t1")).toBe(true);
+  });
+
+  // correo.ledger.006 — un sorteo de UNA sola persona: gana y no hay a quién avisarle que no ganó.
+  it("con un solo participante encola solo la fila del ganador", () => {
+    const filas = correosDeResultado({
+      tenantId: "t1",
+      raffleId,
+      ganadorEmail: "ana@x.cl",
+      emails: ["ana@x.cl", "ana@x.cl"],
+    });
+    expect(filas).toHaveLength(1);
+    expect(filas[0]!.tipo).toBe("RESULTADO_GANADOR");
   });
 });

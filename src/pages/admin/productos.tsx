@@ -408,8 +408,12 @@ function ProductoFormModal({
                   ? "Se eligen al azar de la colección, sin repetir."
                   : undefined
               }
-              min={1}
-              max={50}
+              // `hideControls` en vez de `min`/`max`: el rango (1..50) vive en el Zod del server y
+              // espejarlo acá serían dos verdades. Con el `clampBehavior: "blur"` por default de
+              // Mantine, un `max={50}` además REESCRIBE en silencio el 100 que alguien tipeó — la
+              // conventions lo prohíbe explícitamente y lo resolvió igual en el NÚMERO del checkout.
+              // `allowDecimal={false}` sí se queda: no espeja un rango, impide tipear un imposible.
+              hideControls
               allowDecimal={false}
               value={form.values.unidadesPorPack}
               onChange={(v) =>
@@ -475,8 +479,8 @@ function ProductoFormModal({
                         ? "Se eligen al azar de la colección, sin repetir."
                         : undefined
                     }
-                    min={1}
-                    max={50}
+                    // Ver el gemelo de la edición: el rango es del server, acá solo `hideControls`.
+                    hideControls
                     allowDecimal={false}
                     value={form.values.unidadesPorPack}
                     onChange={(v) =>

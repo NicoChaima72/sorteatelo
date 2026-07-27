@@ -37,15 +37,17 @@ export interface ItemCarrito {
   precio: number;
   /** Unidades de este producto (≥1, ≤ MAX_CANTIDAD_POR_ITEM). En un SOBRE: cuántos PACKS. */
   cantidad: number;
+  /*
+    `packOptionId` MURIÓ con la ENMIENDA v2 (E13): un pack es un PRODUCTO, así que elegirlo es
+    elegir un `id` de este mismo ítem. El carrito volvió a ser `{id, titulo, precio, cantidad}` y
+    ya no hay nada del precio que el cliente aporte.
+  */
   /**
-   * Opción de pack elegida (F07/D3) — SOLO en productos modalidad SOBRE; `undefined` en un
-   * ESTANDAR. Es lo único que viaja al server sobre el pack: el precio y el tamaño los relee
-   * `iniciarCheckout` de la fila vigente y los congela en el `OrderItem` (I4). Si la opción se
-   * apagó o cambió de precio mientras el carrito dormía en localStorage, manda la DB y el checkout
-   * rechaza con mensaje — por eso guardar el id acá es seguro y guardar el precio nunca lo sería.
+   * Cuántas unidades entrega una unidad de este producto, SOLO para poder decir «por pack de 4»
+   * (display-only). Lo que se COBRA lo relee el server de la fila vigente y lo congela en el
+   * `OrderItem` (I4): si el Organizador cambia el precio o las unidades mientras el carrito dormía
+   * en localStorage, manda la DB.
    */
-  packOptionId?: string;
-  /** Archivos que entrega ese pack, para poder decir "4 archivos · $10.000" (display-only). */
   unidadesPorPack?: number;
 }
 
@@ -59,14 +61,6 @@ interface CarritoContextValue {
   quitar: (id: string) => void;
   /** Fija la cantidad de un ítem, clampeada a [1, MAX_CANTIDAD_POR_ITEM]. */
   setCantidad: (id: string, cantidad: number) => void;
-  /**
-   * Cambia el pack elegido de un sobre YA agregado (F07): el Comprador que se arrepiente entre 1× y
-   * 4× no debería tener que sacar el sobre del carrito y volver a meterlo. No-op si el ítem no está.
-   */
-  setOpcionDePack: (
-    id: string,
-    opcion: { packOptionId: string; unidadesPorPack: number; precio: number },
-  ) => void;
   vaciar: () => void;
 }
 
@@ -107,12 +101,8 @@ function leerPersistido(slug: string): ItemCarrito[] {
           titulo: x.titulo,
           precio: x.precio,
           cantidad: normalizarCantidad(x.cantidad), // carritos viejos sin cantidad ⇒ 1
-          // Se rehidratan tal cual: un carrito viejo (o el de un ESTANDAR) simplemente no los trae.
-          // Si el id ya no vale, lo dice el server al pagar — el cliente no valida packs.
-          packOptionId:
-            typeof crudo.packOptionId === "string"
-              ? crudo.packOptionId
-              : undefined,
+          // Se rehidrata tal cual: un carrito viejo (o el de un producto normal) no lo trae. Es
+          // display-only, así que un valor viejo no puede hacer daño: el server no lo lee.
           unidadesPorPack:
             typeof crudo.unidadesPorPack === "number"
               ? crudo.unidadesPorPack
@@ -159,27 +149,6 @@ export function CarritoProvider({
     const n = normalizarCantidad(cantidad);
     setItems((prev) => prev.map((p) => (p.id === id ? { ...p, cantidad: n } : p)));
   }, []);
-  const setOpcionDePack = useCallback(
-    (
-      id: string,
-      opcion: { packOptionId: string; unidadesPorPack: number; precio: number },
-    ) => {
-      setItems((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? {
-                ...p,
-                packOptionId: opcion.packOptionId,
-                unidadesPorPack: opcion.unidadesPorPack,
-                // El precio mostrado sigue al pack elegido; el que se COBRA lo relee el server.
-                precio: opcion.precio,
-              }
-            : p,
-        ),
-      );
-    },
-    [],
-  );
   const vaciar = useCallback(() => setItems([]), []);
 
   const value = useMemo<CarritoContextValue>(
@@ -190,10 +159,9 @@ export function CarritoProvider({
       agregar,
       quitar,
       setCantidad,
-      setOpcionDePack,
       vaciar,
     }),
-    [items, agregar, quitar, setCantidad, setOpcionDePack, vaciar],
+    [items, agregar, quitar, setCantidad, vaciar],
   );
 
   return (

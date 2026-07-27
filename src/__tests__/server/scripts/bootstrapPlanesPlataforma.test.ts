@@ -61,7 +61,8 @@ describe("facturacion/bootstrapPlanesPlataforma", () => {
     for (const c of creados) {
       expect(c.urlCallback).toBe(CALLBACK);
       // El tope de reintentos se registra EXPLÍCITAMENTE en Flow (F04): es el mismo número contra el
-      // que `_invoiceFlow.ts` mide `attemp` para declarar un invoice VENCIDA (y suspender la tienda).
+      // que `_invoiceFlow.ts` mide el `attemp_count` del invoice para declararlo VENCIDA (y suspender
+      // la tienda).
       // Dejarlo al default del proveedor haría que ese tope viviera en dos lugares, uno de ellos
       // fuera de nuestro control.
       expect(c.chargesRetriesNumber).toBe(REINTENTOS_COBRO_FLOW);
@@ -88,6 +89,33 @@ describe("facturacion/bootstrapPlanesPlataforma", () => {
       "FULL",
       "ADICIONAL",
     ]);
+  });
+
+  // facturacion.bootstrap.004 — un plan BORRADO en Flow (status 0) no cuenta como existente
+  it("no da por existente un plan borrado: lo intenta crear y deja hablar al rechazo de Flow", async () => {
+    // Flow **no saca** los planes borrados: siguen respondiendo con `status: 0` (verificado en la 3ª
+    // pasada del E2E). Darlos por buenos dejaría al bootstrap diciendo «ya existía» sobre un plan al
+    // que ninguna suscripción se puede colgar — y eso solo se descubre cuando el primer Organizador
+    // intenta activar su plan.
+    const borrado = PLANES_PLATAFORMA[0]!;
+    const flow = {
+      getPlan: vi.fn(async (planId: string): Promise<FlowPlan> => {
+        if (planId === borrado.flowPlanId) return { planId, status: 0 };
+        throw new Error("Flow (plataforma) /api/plans/get respondió 400.");
+      }),
+      crearPlan: vi.fn(async (input: CrearPlanInput): Promise<FlowPlan> => {
+        // Y el `planId` queda QUEMADO: Flow rechaza recrearlo. No hay recuperación automática
+        // posible, así que lo único honesto es que el error salga a la superficie.
+        if (input.planId === borrado.flowPlanId) {
+          throw new Error("This planId has already been used");
+        }
+        return { planId: input.planId };
+      }),
+    } as unknown as FlowPlataformaService;
+
+    await expect(
+      bootstrapPlanesPlataforma({ flow, urlCallback: CALLBACK }),
+    ).rejects.toThrow(/already been used/);
   });
 
   // facturacion.bootstrap.003 — corrida parcial: solo crea el que falta

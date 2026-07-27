@@ -42,14 +42,25 @@ export interface CorreoAEncolar {
 }
 
 /**
- * Normaliza el email ANTES de meterlo en una clave (trim + lowercase). No es cosmética: el unique
- * de Postgres es case-sensitive, así que `Ana@X.cl` y `ana@x.cl` serían DOS filas ⇒ dos correos a
- * la misma persona (I2). El `email` snapshot de la fila NO se toca — ahí queda lo que escribió el
- * Comprador; lo que se normaliza es la llave de identidad.
+ * **La identidad de una persona** en este dominio: su email normalizado (trim + lowercase). No es
+ * cosmética: el unique de Postgres es case-sensitive, así que `Ana@X.cl` y `ana@x.cl` serían DOS
+ * filas ⇒ dos correos a la misma persona (I2). El `email` snapshot de la fila NO se toca — ahí queda
+ * lo que escribió el Comprador; lo que se normaliza es la llave de identidad.
+ *
+ * **Exportada, y con una razón**: quien agrupa por persona en OTRO lado —los Números de un
+ * comprador para su correo de resultado, por ejemplo— tiene que usar exactamente esta regla. Con dos
+ * definiciones, alguien que compró dos veces escribiendo su correo distinto recibiría un correo con
+ * la mitad de sus números y ningún test lo notaría.
  */
-function emailEnClave(email: string): string {
+export function identidadDeCorreo(email: string): string {
   return email.trim().toLowerCase();
 }
+
+/**
+ * Separador de la clave. Los ids de fila son cuids (alfanuméricos), así que el `:` nunca aparece
+ * dentro del `raffleId` y el primer tramo se puede recuperar sin ambigüedad (ver `raffleIdDeClave`).
+ */
+const SEPARADOR_CLAVE = ":";
 
 /**
  * Clave de la confirmación de compra (C1): el `orderId` pelado. Ya es único global y tenant-bound,
@@ -71,7 +82,21 @@ export function claveResultado({
   raffleId: string;
   email: string;
 }): string {
-  return `${raffleId}:${emailEnClave(email)}`;
+  return `${raffleId}${SEPARADOR_CLAVE}${identidadDeCorreo(email)}`;
+}
+
+/**
+ * El `raffleId` de vuelta desde una clave de RESULTADO o RECORDATORIO. Vive ACÁ, pegado a los
+ * constructores, y no en el resolvedor que la consume: el formato de la clave es una decisión de
+ * este módulo, y dos módulos que lo conozcan por separado se desincronizan en silencio (la misma
+ * lección que el helper de plegado de bloques de `~/lib` — cuyo nombre no se escribe acá a
+ * propósito: el guard I12 de F08 lee el fuente crudo y no distingue código de prosa).
+ *
+ * Se corta por el PRIMER separador a propósito: el resto de la clave puede contener `:` (un email
+ * no, pero el offset del recordatorio sí es otro tramo) y lo único que se promete acá es el padre.
+ */
+export function raffleIdDeClave(clave: string): string {
+  return clave.split(SEPARADOR_CLAVE)[0]!;
 }
 
 /**
@@ -87,7 +112,77 @@ export function claveRecordatorio({
   offsetHoras: number;
   email: string;
 }): string {
-  return `${raffleId}:${offsetHoras}:${emailEnClave(email)}`;
+  return `${raffleId}:${offsetHoras}:${identidadDeCorreo(email)}`;
+}
+
+/**
+ * El offset de vuelta desde una clave de RECORDATORIO. Vive acá por lo mismo que
+ * `raffleIdDeClave`: el formato de la clave tiene UN dueño. El resolvedor lo necesita para elegir
+ * la variante del correo (informativo vs. CTA, D3) — el tipo del ledger es uno solo para los dos.
+ *
+ * Devuelve `null` si el tramo no es un número: una clave de otro tipo (o corrupta) no elige
+ * variante por accidente, y el resolvedor la salta INTACTA.
+ */
+export function offsetDeClave(clave: string): number | null {
+  const tramo = clave.split(SEPARADOR_CLAVE)[1];
+  if (tramo === undefined || !/^\d+$/.test(tramo)) return null;
+  return Number(tramo);
+}
+
+/**
+ * Las filas del ledger que produce EJECUTAR UN SORTEO (F04/C4-C5, D4): una `RESULTADO_GANADOR` para
+ * quien ganó y una `RESULTADO_NO_GANADOR` por cada persona distinta que participó y no ganó.
+ *
+ * Vive acá, junto a `claveResultado`, porque las dos reglas que lo definen SON reglas de la clave:
+ *
+ * - **Una persona = una clave.** `RaffleEntry` tiene una fila por TICKET, así que el mismo correo
+ *   aparece tantas veces como tickets compró. Deduplicar por la clave (y no por el string crudo del
+ *   email) es lo que hace que `Ana@x.cl` y `ana@x.cl` cuenten como UNA persona — el email se
+ *   normaliza al armar la clave, y el índice de Postgres es case-sensitive.
+ * - **El ganador se excluye por la MISMA clave**, no comparando strings: si no, alguien que compró
+ *   con dos casings distintos recibiría "ganaste" y "no ganaste" a la vez (las claves son distintas
+ *   sin normalizar, y el unique es `[tipo, clave]`, así que el ledger no lo frenaría).
+ *
+ * El `email` de la fila conserva el snapshot tal como lo escribió el Comprador (el primero que se
+ * vea de esa persona): la clave normaliza IDENTIDAD, no el destinatario.
+ */
+export function correosDeResultado({
+  tenantId,
+  raffleId,
+  ganadorEmail,
+  emails,
+}: {
+  /** Tenant del sorteo, resuelto server-side (I1). */
+  tenantId: string;
+  raffleId: string;
+  /** `RaffleEntry.email` del ticket ganador. */
+  ganadorEmail: string;
+  /** Todos los emails de las participaciones, con repetidos: uno por ticket. */
+  emails: string[];
+}): CorreoAEncolar[] {
+  const claveGanador = claveResultado({ raffleId, email: ganadorEmail });
+  const correos: CorreoAEncolar[] = [
+    {
+      tenantId,
+      tipo: "RESULTADO_GANADOR",
+      clave: claveGanador,
+      email: ganadorEmail,
+    },
+  ];
+
+  const vistas = new Set([claveGanador]);
+  for (const email of emails) {
+    const clave = claveResultado({ raffleId, email });
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    correos.push({
+      tenantId,
+      tipo: "RESULTADO_NO_GANADOR",
+      clave,
+      email,
+    });
+  }
+  return correos;
 }
 
 /**

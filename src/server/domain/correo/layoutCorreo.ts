@@ -1,4 +1,6 @@
 import { APP_CONFIG } from "~/config/app";
+import { remitenteDeCorreo } from "~/config/correo";
+import { TEXTO_ENLACE_BAJA } from "~/server/domain/correo/bajaDeAvisos";
 import {
   bloquesDeNumerosDelSorteo,
   formatearNumerosDelSorteo,
@@ -57,14 +59,16 @@ import { esHex, generarEscalaColor } from "~/styles/tenantTheme";
 export const MARCA_PLATAFORMA = APP_CONFIG.name;
 
 /**
- * Remitente real del correo transaccional: dominio `sorteatelo.cl` VERIFIED en Resend
- * (ADR-0014/0015). Buzón no monitoreado; el reply-to del Organizador va aparte.
+ * Remitente del correo TRANSACCIONAL. **Ya no es una constante escrita acá**: F05 cumplió el seam
+ * de D2 y el dominio de envío vive en `src/config/correo.ts`, elegido por `ClaseDeCorreo`.
  *
- * Sigue siendo una CONSTANTE a propósito: promoverla a config es el seam de D2, y le toca a F05
- * (que además le agrega la identidad legal del Organizador al pie). Hasta entonces todo sale de
- * `sorteatelo.cl` — Resend Free da 1 dominio.
+ * Sobrevive como export por UN consumidor concreto: `plantillasFacturacion.ts`, que es el otro eje
+ * del correo del producto (la Plataforma escribiéndole en nombre propio al Organizador, sin Tienda
+ * protagonista) y arma su `from` a mano. Las plantillas al COMPRADOR no lo usan: piden su remitente
+ * con `remitenteDeCorreo(clase)` y se lo pasan a `construirFrom` — así una plantilla de avisos no
+ * puede salir por el buzón transaccional el día que D2 se reactive.
  */
-export const REMITENTE_CORREO = "no-reply@sorteatelo.cl";
+export const REMITENTE_CORREO = remitenteDeCorreo("transaccional");
 
 /**
  * Hex de PLATAFORMA que sobreviven al rework: el pie (banda tinta + wordmark + disclaimer) y los
@@ -82,7 +86,10 @@ export const REMITENTE_CORREO = "no-reply@sorteatelo.cl";
 const COLOR = {
   /** `amarillo[6]` — el «éa» del wordmark del pie: el resaltado de la marca de plataforma. */
   amarillo: "#ffc530",
-  /** `gray[9]` / `black` — tinta: el texto del cuerpo y la banda del pie. */
+  /**
+   * `gray[9]` / `black` — tinta: el texto del cuerpo, la banda del pie y el número de un boleto en
+   * variante `neutro` (el grupo que NO manda la mirada, ver `ticketsDeNumeros`).
+   */
   tinta: "#191b22",
   /** `gray[6]` — tinta-suave (`dimmed`): texto secundario y rótulos. */
   tintaSuave: "#565b68",
@@ -345,12 +352,24 @@ export function ticketsDeNumeros({
   tema,
   prefijo,
   etiqueta = ETIQUETA_TICKET,
+  variante = "acento",
 }: {
   numeros: number[];
   tema: TemaCorreo;
   /** `Tenant.prefijoTicket` — `null` ⇒ boletos con el número pelado, como antes de F08. */
   prefijo: string | null;
   etiqueta?: string;
+  /**
+   * Peso visual del boleto. `"acento"` (default, y lo que hacían todas las plantillas hasta F04) es
+   * el número en el color de marca; `"neutro"` lo pinta en tinta.
+   *
+   * Existe porque el correo de resultado (C5) dibuja DOS grupos de boletos en la misma pantalla —el
+   * número que ganó y los del destinatario— y con el mismo tratamiento se leen como una sola lista:
+   * quien escanea el correo puede creer que sus números salieron. El rótulo de arriba no alcanza,
+   * eso se ve mirando el render y no aserido. El que manda la mirada es el GANADOR, que es la
+   * noticia; los propios acompañan.
+   */
+  variante?: "acento" | "neutro";
 }): { html: string; texto: string } {
   const bloques = bloquesDeNumerosDelSorteo(numeros, prefijo);
   if (bloques.length === 0) return { html: "", texto: "" };
@@ -370,7 +389,9 @@ export function ticketsDeNumeros({
     `font-family:${FUENTE_MONO};font-size:19px;line-height:1;font-weight:bold;` +
     // `tabular-nums` como en la columna Números del panel (design.md §3). El cliente que no lo
     // soporte lo ignora y el mono ya da el ancho fijo — no hay degradación que administrar.
-    `font-variant-numeric:tabular-nums;color:${tema.acento};white-space:nowrap;`;
+    // La tinta del `neutro` contrasta de sobra contra el tinte (el tono 0 de cualquier escala), así
+    // que la variante no necesita el gate de AA que sí tiene `acento`.
+    `font-variant-numeric:tabular-nums;color:${variante === "acento" ? tema.acento : COLOR.tinta};white-space:nowrap;`;
 
   const html = bloques
     .map(
@@ -405,6 +426,21 @@ export interface OpcionesLayout {
    * no se dibuja (degradación elegante, design.md §5.2).
    */
   nombreSorteo?: string;
+  /**
+   * `Tenant.identidadLegal` (F05/D6) — nombre o razón social del Organizador que responde por la
+   * venta y el sorteo. Va en el PIE, después del disclaimer de ADR-0008: el disclaimer dice el
+   * reparto de responsabilidades y esto dice QUIÉN es la parte responsable (un nombre de fantasía
+   * no identifica a nadie ante un reclamo). Ausente o vacío ⇒ la línea no se dibuja (§5.2).
+   */
+  identidadLegal?: string | null;
+  /**
+   * Baja de avisos (F05, RFC 8058) — **SOLO en correos de la clase `avisos`** (I5). Dibuja el
+   * enlace VISIBLE en el pie; las cabeceras del one-click las pone quien arma el `CorreoInput`
+   * (`cabecerasDeAvisos`), porque son transporte y no layout. Ausente ⇒ el pie no menciona ninguna
+   * baja, que es lo correcto en un transaccional: de la confirmación de tu compra no te podés dar
+   * de baja.
+   */
+  urlBaja?: string | null;
   /** Resumen de una línea que el cliente muestra junto al asunto. Nunca se ve dentro del correo. */
   preheader: string;
   /** Cuerpo en texto plano, línea por línea (el texto plano no se escapa: no es markup). */
@@ -453,9 +489,18 @@ function sanearNombreEnFrom(nombreTienda: string): string {
  * `from` con nombre: `<Tienda> · vía <Marca> <remitente>` (D1/D6). El correo sale «en nombre de»
  * la Tienda pero desde el remitente de la Plataforma — el Comprador ve de quién compró
  * (ADR-0008/0010).
+ *
+ * El `remitente` entra como DATO y es **obligatorio** (seam de D2, F05): quien arma el correo
+ * declara su `ClaseDeCorreo` y de ahí sale el buzón (`remitenteDeCorreo`). Con un default acá, una
+ * plantilla de avisos nueva saldría en silencio por el buzón transaccional el día que se contrate
+ * Resend Pro y los subdominios se separen — el mismo criterio por el que el prefijo de ticket de
+ * F08 es un parámetro obligatorio y no opcional.
  */
-export function construirFrom(nombreTienda: string): string {
-  return `${sanearNombreEnFrom(nombreTienda)} · vía ${MARCA_PLATAFORMA} <${REMITENTE_CORREO}>`;
+export function construirFrom(
+  nombreTienda: string,
+  remitente: string,
+): string {
+  return `${sanearNombreEnFrom(nombreTienda)} · vía ${MARCA_PLATAFORMA} <${remitente}>`;
 }
 
 /**
@@ -519,6 +564,8 @@ export function envolverEnLayout({
   logoUrl,
   colorPrimario,
   nombreSorteo,
+  identidadLegal,
+  urlBaja,
   preheader,
   texto,
   html,
@@ -529,6 +576,12 @@ export function envolverEnLayout({
   const tiendaHtml = escaparHtml(tienda);
   const sorteo = nombreSorteo ? sanearCabecera(nombreSorteo, "") : "";
   const pie = disclaimer(tienda);
+  // Mismo trato que el nombre de la Tienda: lo escribe el Organizador, así que se sanea (es una
+  // línea del pie) y se escapa al interpolarlo. Vacío tras sanear ≡ ausente: un espacio tipeado no
+  // es una identidad legal, y dibujar un renglón en blanco es peor que no dibujar nada (§5.2).
+  const identidadLegalTexto = identidadLegal
+    ? sanearCabecera(identidadLegal, "")
+    : "";
   const tema = temaDeCorreo(colorPrimario);
   const logo = logoUsable(logoUrl);
 
@@ -544,6 +597,12 @@ export function envolverEnLayout({
     "",
     "".padEnd(48, "-"),
     pie,
+    // D6: quién responde. En el texto plano va como renglón propio y sin rótulo inventado — es el
+    // mismo dato que el HTML muestra bajo el disclaimer.
+    ...(identidadLegalTexto ? [identidadLegalTexto] : []),
+    // I5/RFC 8058: solo los AVISOS traen baja. El `text/plain` la lleva como URL desnuda porque no
+    // hay dónde colgar un enlace, y sin ella el que lee en texto plano no tendría cómo salir.
+    ...(urlBaja ? ["", `${TEXTO_ENLACE_BAJA}: ${urlBaja}`] : []),
     `${MARCA_PLATAFORMA} · ${APP_CONFIG.dominio}`,
   ].join("\n");
 
@@ -602,10 +661,27 @@ export function envolverEnLayout({
     `<div style="border-top:2px dashed ${tema.linea};font-size:0;line-height:0;">&nbsp;</div>`,
   );
 
+  // Estilo compartido de las líneas del pie: sobre la banda tinta, en tinta-tenue. Una constante y
+  // no tres literales, para que la identidad legal y la baja no se vayan separando del disclaimer.
+  const estiloLineaPie = `font-family:${FUENTE_TEXTO};font-size:12px;line-height:1.6;color:${COLOR.tintaTenue};`;
+
   const pieHtml = fila(
     `background-color:${COLOR.tinta};padding:20px 28px;`,
     `${wordmarkHtml()}` +
-      `<div style="font-family:${FUENTE_TEXTO};font-size:12px;line-height:1.6;color:${COLOR.tintaTenue};padding-top:8px;">${escaparHtml(pie)}</div>`,
+      `<div style="${estiloLineaPie}padding-top:8px;">${escaparHtml(pie)}</div>` +
+      // D6 — la identidad legal va DESPUÉS del disclaimer: primero el reparto de
+      // responsabilidades, después quién es la parte responsable.
+      (identidadLegalTexto
+        ? `<div style="${estiloLineaPie}padding-top:6px;">${escaparHtml(identidadLegalTexto)}</div>`
+        : "") +
+      // Baja de avisos (I5): solo si el correo es de la clase `avisos`. El enlace va SUBRAYADO y
+      // en un tono legible sobre la banda oscura — un enlace de baja escondido es la vía más
+      // corta a que marquen spam, y eso lo paga el dominio compartido por todas las Tiendas.
+      (urlBaja
+        ? `<div style="${estiloLineaPie}padding-top:10px;">` +
+          `<a href="${escaparHtml(urlBaja)}" style="color:${COLOR.tintaTenue};text-decoration:underline;">${escaparHtml(TEXTO_ENLACE_BAJA)}</a>` +
+          `</div>`
+        : ""),
   );
 
   const htmlCompleto =

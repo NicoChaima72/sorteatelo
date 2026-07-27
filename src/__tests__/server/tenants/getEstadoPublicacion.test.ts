@@ -65,7 +65,8 @@ function fakeDb(s: Escenario) {
                 modalidad: "ESTANDAR" as const,
                 pdfPath: null,
                 _count: { files: 1 },
-                packOptions: [],
+                unidadesPorPack: 1,
+                fuente: null,
               },
             ]
           : [],

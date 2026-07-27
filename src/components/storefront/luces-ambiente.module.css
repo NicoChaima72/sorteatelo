@@ -62,38 +62,42 @@
      primas entre sí + delays negativos ⇒ las tres capas nunca vuelven a coincidir de fase y el conjunto
      no "late" (que es lo que delata una animación barata). */
   .drift .luz1 {
-    animation: amb-drift-a 16s ease-in-out infinite;
+    animation: amb-drift-a 5s ease-in-out infinite;
   }
   .drift .luz2 {
-    animation: amb-drift-b 21s ease-in-out infinite -5s;
+    animation: amb-drift-b 7s ease-in-out infinite -5s;
   }
   .drift .luz3 {
-    animation: amb-drift-c 13s ease-in-out infinite -9s;
+    animation: amb-drift-c 6s ease-in-out infinite -9s;
   }
 
   /* PULSO (neon): el glow de recital respira en vez de vagar. Deriva lo despegaría del borde superior,
      que es justo donde está anclado, y dejaría una banda muerta arriba. */
   .pulso .luz1 {
-    animation: amb-pulso-a 14s ease-in-out infinite;
+    animation: amb-pulso-a 5s ease-in-out infinite;
   }
   .pulso .luz2 {
-    animation: amb-pulso-b 18s ease-in-out infinite -4s;
+    animation: amb-pulso-b 7s ease-in-out infinite -4s;
   }
   .pulso .luz3 {
-    animation: amb-pulso-c 22s ease-in-out infinite -9s;
+    animation: amb-pulso-c 6s ease-in-out infinite -9s;
   }
 }
 
 /* Amplitudes v2 (feedback del usuario en la primera pasada en prod: "no veo que se muevan"): deriva
    ~2.5× más amplia y ciclos a la mitad. El invariante de borde se mantiene: cada translate máximo queda
    DENTRO del margen que da su scale mínimo (scale 1.14 ⇒ 7% total ⇒ 3.5% por lado > 3.4% de recorrido). */
+/* v3: la deriva sola no se percibe sobre un fondo que ya trae glows — lo que el ojo capta es la
+   INTENSIDAD. Cada luz respira además de vagar (valles de 0.35-0.5), desfasada de las otras dos. */
 @keyframes amb-drift-a {
   0%,
   100% {
     transform: scale(1.16) translate3d(-3.4%, -2.4%, 0);
+    opacity: 1;
   }
   50% {
     transform: scale(1.22) translate3d(3.4%, 2.4%, 0);
+    opacity: 0.42;
   }
 }
 
@@ -101,11 +105,11 @@
   0%,
   100% {
     transform: scale(1.18) translate3d(3.6%, 1.8%, 0);
-    opacity: 1;
+    opacity: 0.5;
   }
   50% {
     transform: scale(1.16) translate3d(-3.2%, -2.1%, 0);
-    opacity: 0.78;
+    opacity: 1;
   }
 }
 
@@ -113,9 +117,11 @@
   0%,
   100% {
     transform: scale(1.14) translate3d(0, 2.6%, 0);
+    opacity: 1;
   }
   50% {
     transform: scale(1.22) translate3d(-3%, -3.2%, 0);
+    opacity: 0.35;
   }
 }
 

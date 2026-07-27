@@ -169,6 +169,13 @@ export interface PropsCheckout extends PropsStorefront {
    * exactamente como antes de la feature (I9). El correo NO está acá: es fijo (I2/ADR-0004).
    */
   campos: CampoDelCheckout[];
+  /**
+   * ¿Esta Tienda tiene un Sorteo ACTIVO? (F05/D5). Decide si se ofrece el checkbox de
+   * recordatorios: pedir consentimiento para avisos de un sorteo que no existe sería juntar un
+   * opt-in por un correo que nunca podría salir (F06 solo mira Raffles ACTIVO). Es la misma
+   * degradación elegante que el resto del sistema (§5.2): sin sorteo, el bloque no se dibuja.
+   */
+  tieneSorteoActivo: boolean;
 }
 
 /**
@@ -190,7 +197,16 @@ export async function getPropsCheckout(
     db,
     tenantSlug: base.props.tenantBranding.slug,
   });
-  return { props: { ...base.props, campos } };
+  // ¿Hay Sorteo ACTIVO? Scopeado por el slug YA resuelto server-side (I1), igual que los campos.
+  // Solo se pregunta por la existencia: el checkbox no nombra el sorteo (su texto es una constante
+  // compartida con el server, que lo persiste como prueba — ver `TEXTO_CONSENTIMIENTO_RECORDATORIOS`).
+  const sorteoActivo = await db.raffle.findFirst({
+    where: { tenant: { slug: base.props.tenantBranding.slug }, estado: "ACTIVO" },
+    select: { id: true },
+  });
+  return {
+    props: { ...base.props, campos, tieneSorteoActivo: sorteoActivo !== null },
+  };
 }
 
 /** Props de la home (`/`): tematizada + Documento de Página si es storefront; sin nada si es apex. */

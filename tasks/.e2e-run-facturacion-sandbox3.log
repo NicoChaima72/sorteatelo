@@ -1,0 +1,52 @@
+# 5ª pasada E2E — facturación de plataforma (sandbox Flow real)
+# modo: feature (slug=plataforma-facturacion-suscripciones)
+# scope: facturacion.espejo.e2e.001-.004 + facturacion.cancelar.e2e.004-.006 (+ .002 🟡 bandeja)
+# server: http://localhost:3001 (una instancia) | túnel: https://aging-twin-impressive-brakes.trycloudflare.com
+# inicio: 2026-07-27 (madrugada)
+
+[precondición] dev server :3001 => 200 OK
+[precondición] túnel /api/webhooks/flow-suscripciones => 405 (GET) => vivo y llega a nuestro endpoint
+[precondición] código nuevo cargado: cron responde {"ok":true,...,"promociones":0,...} (campo nuevo del fix F06)
+[precondición] webhook con token inventado => {"received":true,"ignorado":"token_sin_suscripcion"} (cadena token->payment/getStatus viva)
+[precondición] Flow plans/list status=1 => 2 planes: sorteatelo-tienda-full $25.000 / sorteatelo-tienda-adicional $12.500, urlCallback = túnel vivo
+[precondición] Flow customer/list status=1 => total 0 (cero customers activos, cero recurrente vivo)
+[precondición] DB baseline: 0 PlatformSubscription / 0 PlatformInvoice / 0 PlatformBillingCustomer / 0 PlatformCoupon / 0 Redemption; 7 exenciones GRANDFATHER; tiendas PUBLICADA
+
+[carril] chrome-devtools estaba LOCKEADO por el navegador huérfano del tester de la 4ª pasada (perfil sin
+         escrituras desde 22:51; su agente murió por corte de conexión). Playwright SÍ estaba vivo
+         (escrituras 00:04 y 00:08) => no se tocó. Se recuperó SOLO el huérfano de mi propio carril.
+         La sesión de NextAuth sobrevivió al reinicio del perfil.
+
+[escenario] Quitadas las exenciones GRANDFATHER de `autora` (A, full) y `demo-dreamy` (B, adicional).
+            Ambas PUBLICADA sin plan => en pausa => /admin/plan ofrece «Activar mi plan».
+
+== F04 / blocker 5 — espejo del cobro ==
+[00:12-00:14] activar plan de `autora`: modal «$25.000 /mes» del server -> «Continuar» redirige SOLO a
+              sandbox.flow.cl/app/customer/disclaimer.php?token=4F84A521… -> Transbank OneClick
+              (VISA 4051 8856 0044 6623, 12/30, CVV 123, RUT 11.111.111-1 clave 123) -> retorno por el
+              puente -> «¡Tu plan está activo y tu tienda publicada!»
+              DB: PlatformSubscription plan=FULL montoBruto=25000 estado=AL_DIA
+                  flowSubscriptionId=sus_k192dd0650, período 27-jul→26-ago, proximoCobroAt 27-ago
+                  (todas a 04:00Z = 00:00 Santiago => el fix de fechaFlow, bien)
+                  PlatformBillingCustomer cus_fcef29e32f Visa/6623 y nada más
+[00:14:36] Flow emite y cobra el invoice 1180181 ($25.000). invoice/get: status=1, payment.status=2,
+           paymentData.date=2026-07-27 00:14:37, fee 723, balance 24140, attemp_count=1, attemped=0
+[00:16:06] llega la notificación real por el túnel y el espejo la escribe:
+           PlatformInvoice 1180181 estado=PAGADA monto=25000 pagadaAt=2026-07-27T04:14:37.000Z
+           intentos=1 paymentLink=null
+           >>> ANTES quedaba PENDIENTE PARA SIEMPRE. `pagadaAt` coincide al segundo con paymentData.date.
+espejo.e2e.001 => PASS
+[00:16:08] Resend: «Comprobante del plan de Tienda de la Autora (piloto)» a nikochaima72@gmail.com,
+           last_event=delivered (id 234f13d4-90c9-4c30-82da-dfdcb3579a85). Cuerpo: «Recibimos el pago…
+           Monto: $25.000 (IVA incluido)… responde este correo y la emitimos [la boleta]».
+           >>> es el correo (1) que NUNCA había salido en 4 pasadas.
+           Re-proceso de la misma notificación => {"received":true,"ruteo":"PROCESADA","estado":"AL_DIA"}
+           y sigue habiendo 1 sola fila de invoice y 1 solo comprobante. (Nota: el token ORIGINAL de la
+           notificación de Flow no es recuperable —no hay log del túnel y payment/getStatusByFlowOrder no
+           lo devuelve—, así que el re-proceso se hizo por la puerta documentada `subscriptionId`, que
+           entra al MISMO procesarNotificacionSuscripcion.)
+espejo.e2e.002 => PASS (entrega confirmada por el proveedor; la bandeja la mira el usuario)
+[00:18] /admin/plan de `autora`: badge «AL DÍA» teal rgb(29,122,112), $25.000 /mes, «Próximo cobro:
+        27 ago 2026», «Tarjeta Visa terminada en 6623», tabla Cobros = 27 jul 2026 / $25.000 / «PAGADO»
+        teal (NO «En curso» ámbar), sin botón «Pagar», SIN banner y rail COMPLETO. Montos tabular-nums.
+espejo.e2e.003 => PASS

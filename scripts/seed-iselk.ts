@@ -1,4 +1,4 @@
-﻿import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 import { documentoInicial } from "~/lib/pagebuilder/factory";
@@ -152,7 +152,8 @@ const doc = {
         ctaTexto: "Quiero participar",
         ctaAncla: "catalogo",
         intensidad: "suave",
-              },
+        estiloVisual: "tarjeta",
+      },
       estilo: { padTop: "s", padBottom: "l", entrada: "subir" },
     },
     // ── EL LIBRO (un solo producto ⇒ grilla de 2 col, no el carrusel de 5 de la demo) ──
@@ -190,7 +191,7 @@ const doc = {
       v: 1,
       // `estiloTarjeta: "dreamy"` = el paso del prototipo (card translúcida + círculo primario numerado a
       // la izquierda). El `layout` queda en su default `tarjetas`, que es sobre el que dreamy aplica.
-      props: { titulo: "Comprar es participar", pasos: PASOS },
+      props: { titulo: "Comprar es participar", estiloTarjeta: "dreamy", pasos: PASOS },
       estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "En 3 pasos", estilo: "acento" } },
       nav: { incluir: true, etiqueta: "Cómo funciona" },
     },
@@ -236,7 +237,8 @@ const doc = {
       v: 1,
       props: {
         titulo: "Sorteo 100% transparente",
-                metodo: CONFIANZA_METODO,
+        estiloVisual: "dreamy", // cards translúcidas con ring blanco + ícono en círculo suave
+        metodo: CONFIANZA_METODO,
         items: [
           { icono: "verificado", titulo: "Sorteo ante notario", desc: "El número ganador se determina mediante sorteo notarial, transmitido en vivo por Instagram." },
           { icono: "escudo", titulo: "Cada ganadora con su número", desc: "Mostramos el ticket ganador. Nada de cajas negras." },
@@ -250,7 +252,7 @@ const doc = {
       tipo: "faq",
       v: 1,
       // `estiloVisual: "dreamy"` = items translúcidos + toggle `＋` primario que rota 45° al abrir.
-      props: { titulo: "Preguntas frecuentes", items: FAQS },
+      props: { titulo: "Preguntas frecuentes", estiloVisual: "dreamy", items: FAQS },
       estilo: { padY: "xl", entrada: "aparecer", kicker: { texto: "Dudas", estilo: "acento" } },
       nav: { incluir: true, etiqueta: "Preguntas" },
     },

@@ -493,7 +493,10 @@ describe("domain/correo/layoutCorreo — datos hostiles del tenant (I6/ADR-0008)
   // —hasta 100 correos de varios tenants por el nombre de una sola tienda— o un correo que sale
   // con un remitente ajeno. El saneo del cuerpo no cubría esto: son defensas distintas.
   it("neutraliza los especiales de address-list en el nombre que va al from", () => {
-    const from = construirFrom("Regalos <ataque@evil.cl>, S.A.");
+    const from = construirFrom(
+      "Regalos <ataque@evil.cl>, S.A.",
+      REMITENTE_CORREO,
+    );
     // Una sola dirección en la cabecera: el `<` que queda es el del remitente real.
     expect(from.match(/</g)).toHaveLength(1);
     expect(from.endsWith(`<${REMITENTE_CORREO}>`)).toBe(true);
@@ -544,5 +547,77 @@ describe("domain/correo/layoutCorreo — datos hostiles del tenant (I6/ADR-0008)
       html: ["<p>cuerpo</p>"],
     });
     expect(html).toContain(MARCA_PLATAFORMA);
+  });
+});
+
+describe("domain/correo/layoutCorreo — pie legal e identidad del Organizador (F05/D6)", () => {
+  // correo.layout.024 — D6: el pie nombra a QUIÉN responde por la venta y el sorteo. Es lo que
+  // convierte al disclaimer de ADR-0008 («la Tienda es responsable») en algo accionable: el nombre
+  // de fantasía de la Tienda no identifica a nadie ante un reclamo, la razón social sí.
+  it("imprime la identidad legal del Organizador en el pie, en texto y en HTML", () => {
+    const { text, html } = envolverEnLayout({
+      nombreTienda: "ARMY Chile",
+      identidadLegal: "Comercializadora Ana Pérez E.I.R.L., RUT 76.543.210-K",
+      preheader: "Resumen",
+      texto: ["cuerpo"],
+      html: ["<p>cuerpo</p>"],
+    });
+
+    expect(text).toContain(
+      "Comercializadora Ana Pérez E.I.R.L., RUT 76.543.210-K",
+    );
+    expect(html).toContain(
+      "Comercializadora Ana Pérez E.I.R.L., RUT 76.543.210-K",
+    );
+    // Va DESPUÉS del disclaimer de ADR-0008 y no en su lugar: el disclaimer dice el reparto de
+    // responsabilidades, la identidad legal dice quién es la parte responsable.
+    expect(html.indexOf("solo provee la")).toBeLessThan(
+      html.indexOf("Comercializadora Ana"),
+    );
+  });
+
+  // correo.layout.025 — degradación (§5.2): sin identidad legal cargada el pie sale como siempre.
+  // Ni rótulo huérfano, ni «Vendedor: undefined», ni un renglón vacío — la Tienda recién creada que
+  // todavía no llenó ese campo tiene que poder mandar su primer correo igual.
+  it("omite la línea cuando el Organizador no cargó identidad legal", () => {
+    const conNada = envolverEnLayout({
+      nombreTienda: "ARMY Chile",
+      preheader: "Resumen",
+      texto: ["cuerpo"],
+      html: ["<p>cuerpo</p>"],
+    });
+    const conVacio = envolverEnLayout({
+      nombreTienda: "ARMY Chile",
+      identidadLegal: "   ",
+      preheader: "Resumen",
+      texto: ["cuerpo"],
+      html: ["<p>cuerpo</p>"],
+    });
+
+    for (const { text, html } of [conNada, conVacio]) {
+      expect(text).not.toContain("undefined");
+      expect(html).not.toContain("undefined");
+      expect(html).not.toContain("Vendedor:");
+    }
+    // El vacío tras trim es indistinguible de la ausencia: un espacio tipeado no es una identidad.
+    expect(conVacio.html).toBe(conNada.html);
+  });
+
+  // correo.layout.026 — la identidad legal la escribe el Organizador, así que es texto hostil como
+  // cualquier otro del tenant: se escapa (va al HTML) y se sanea (es una línea, no un párrafo).
+  it("escapa y sanea la identidad legal como el resto del dato del tenant", () => {
+    const { text, html } = envolverEnLayout({
+      nombreTienda: "ARMY Chile",
+      identidadLegal: "Ana <script>alert(1)</script>\r\nBcc: victima@x.cl",
+      preheader: "Resumen",
+      texto: ["cuerpo"],
+      html: ["<p>cuerpo</p>"],
+    });
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+    // Ningún salto de línea del tenant llega al HTML (el saneo colapsa el CRLF).
+    expect(html).not.toContain("\r");
+    expect(text).not.toContain("\r");
   });
 });

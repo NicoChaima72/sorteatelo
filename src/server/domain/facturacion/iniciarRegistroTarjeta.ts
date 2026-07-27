@@ -7,6 +7,7 @@ import {
   MENSAJE_CUPON_INVALIDO,
   normalizarCodigo,
 } from "~/server/domain/facturacion/_cupones";
+import { traduciendoErroresDeFlow } from "~/server/domain/facturacion/_erroresDeFlow";
 import { exencionVigente } from "~/server/domain/facturacion/_gateVenta";
 import { DomainError } from "~/server/domain/errors";
 import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
@@ -94,12 +95,17 @@ export async function iniciarRegistroTarjeta({
     await db.$transaction((tx) => liberarReservas({ tx, tenantId }));
   }
 
-  const registro = await flow.registrarTarjeta({
-    customerId: pagador.flowCustomerId,
-    urlReturn: urlRetorno,
-  });
+  const registro = await traduciendoErroresDeFlow(
+    "No pudimos abrir el formulario de tarjeta de Flow. Vuelve a intentarlo en unos minutos.",
+    () =>
+      flow.registrarTarjeta({
+        customerId: pagador.flowCustomerId,
+        urlReturn: urlRetorno,
+      }),
+  );
 
-  return { redirectUrl: registro.url };
+  // `redirectUrl` ya trae el `?token=` que Flow exige: el service lo arma (ver `FlowRegistroTarjeta`).
+  return { redirectUrl: registro.redirectUrl };
 }
 
 /**
@@ -134,13 +140,17 @@ async function resolverPagador({
     );
   }
 
-  const creado = await flow.crearCustomer({
-    name: email,
-    email,
-    // Liga el customer de Flow con NUESTRO User. Es el `userId`, no el email: el email puede
-    // cambiar (otra cuenta Google) y el vínculo tiene que sobrevivir.
-    externalId: acceso.userId,
-  });
+  const creado = await traduciendoErroresDeFlow(
+    "No pudimos preparar tu cuenta de pago con Flow. Vuelve a intentarlo en unos minutos.",
+    () =>
+      flow.crearCustomer({
+        name: email,
+        email,
+        // Liga el customer de Flow con NUESTRO User. Es el `userId`, no el email: el email puede
+        // cambiar (otra cuenta Google) y el vínculo tiene que sobrevivir.
+        externalId: acceso.userId,
+      }),
+  );
 
   return db.platformBillingCustomer.create({
     data: {

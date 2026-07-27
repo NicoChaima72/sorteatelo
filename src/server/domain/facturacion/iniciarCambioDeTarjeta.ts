@@ -1,6 +1,7 @@
 import { type PrismaClient } from "@prisma/client";
 
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
+import { traduciendoErroresDeFlow } from "~/server/domain/facturacion/_erroresDeFlow";
 import { exigirPagadorDeLaTienda } from "~/server/domain/facturacion/_pagadorDeLaTienda";
 import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
 
@@ -36,10 +37,15 @@ export async function iniciarCambioDeTarjeta({
     userId: acceso.userId,
   });
 
-  const registro = await flow.registrarTarjeta({
-    customerId: pagador.flowCustomerId,
-    urlReturn: urlRetorno,
-  });
+  const registro = await traduciendoErroresDeFlow(
+    "No pudimos abrir el formulario de tarjeta de Flow. Vuelve a intentarlo en unos minutos.",
+    () =>
+      flow.registrarTarjeta({
+        customerId: pagador.flowCustomerId,
+        urlReturn: urlRetorno,
+      }),
+  );
 
-  return { redirectUrl: registro.url };
+  // `redirectUrl` ya trae el `?token=` que Flow exige: el service lo arma (ver `FlowRegistroTarjeta`).
+  return { redirectUrl: registro.redirectUrl };
 }

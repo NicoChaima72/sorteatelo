@@ -5,6 +5,7 @@ import { db } from "~/server/db";
 import { procesarNotificacionSuscripcion } from "~/server/domain/facturacion/procesarNotificacionSuscripcion";
 import { enviarCorreosFacturacion } from "~/server/facturacion/enviarCorreosFacturacion";
 import { crearFlowPlataformaDeEnv } from "~/server/facturacion/flowPlataformaDeEnv";
+import { resolverSuscripcionDeToken } from "~/server/facturacion/resolverSuscripcionDeToken";
 import { manejarWebhookSuscripciones } from "~/server/facturacion/webhookSuscripciones";
 
 /**
@@ -44,6 +45,10 @@ export default async function handler(
 
   const { status, body } = await manejarWebhookSuscripciones({
     req,
+    // Flow notifica con un `token` y nada más: acá se cambia por la notificación RESUELTA — qué
+    // suscripción, qué cobro y si ese cobro se pagó. Los tres datos viajan al use case, que igual
+    // vuelve a verificar todo contra la API de Flow (I3): esto identifica el hecho, no lo prueba.
+    resolverIdDeSuscripcion: (token) => resolverSuscripcionDeToken({ flow, token }),
     procesarNotificacion: (input) =>
       procesarNotificacionSuscripcion({ db, flow, input }),
     enviarCorreos: async (correos) => {

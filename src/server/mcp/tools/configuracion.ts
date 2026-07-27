@@ -41,7 +41,7 @@ import {
  * olvido.
  */
 
-/** Los 8 campos editables, todos opcionales: ausente = no tocar, `""` = borrar. */
+/** Los 9 campos editables, todos opcionales: ausente = no tocar, `""` = borrar. */
 const CAMPOS_CONFIG = {
   descripcion: z
     .string()
@@ -72,6 +72,12 @@ const CAMPOS_CONFIG = {
     .string()
     .optional()
     .describe('Correo de contacto público del footer. Manda "" para ocultarlo.'),
+  identidadLegal: z
+    .string()
+    .optional()
+    .describe(
+      'Nombre o razón social de quien responde por la venta y el sorteo (ej. "Comercializadora Ana Pérez EIRL"). Aparece en el pie de los correos al comprador. Manda "" para quitarlo.',
+    ),
   prefijoTicket: z
     .string()
     .optional()

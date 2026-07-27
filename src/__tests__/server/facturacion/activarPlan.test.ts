@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { type AccesoPanel } from "~/server/authPolicy";
 import { activarPlanTrasRegistro } from "~/server/domain/facturacion/activarPlanTrasRegistro";
 import { iniciarRegistroTarjeta } from "~/server/domain/facturacion/iniciarRegistroTarjeta";
-import type { FlowPlataformaService } from "~/server/services/flowPlataforma";
+import {
+  ErrorConfiguracionFlow,
+  ErrorFlowPlataforma,
+  type FlowPlataformaService,
+} from "~/server/services/flowPlataforma";
 
 /**
  * Tests del flujo «Activa tu plan» (F03, D2/D12, I3/I4). Dos use cases:
@@ -196,8 +200,11 @@ function fakeFlow(overrides: Record<string, unknown> = {}) {
   const mocks = {
     crearCustomer: vi.fn(async () => ({ customerId: "flow-cus-nuevo" })),
     getCustomer: vi.fn(async () => ({ customerId: "flow-cus-1" })),
+    // El service entrega la URL YA armada con el token (contrato real de Flow, ver
+    // `flowPlataforma.registro.001`): el fake tiene que hablar ese mismo idioma.
     registrarTarjeta: vi.fn(async () => ({
-      url: "https://sandbox.flow.cl/app/subscription/register",
+      redirectUrl:
+        "https://sandbox.flow.cl/app/customer/register?token=reg-token-1",
       token: "reg-token-1",
     })),
     getEstadoRegistro: vi.fn(async () => ({
@@ -236,7 +243,12 @@ describe("domain/facturacion/iniciarRegistroTarjeta", () => {
       urlRetorno: "https://mi-tienda.sorteatelo.cl/admin/plan/retorno",
     });
 
-    expect(r.redirectUrl).toContain("sandbox.flow.cl");
+    // La URL viaja ENTERA, con el `?token=` que Flow exige: mandar la url pelada es aterrizar en
+    // «Error Processing Request» (blocker 1 de la 3ª pasada del E2E). El armado lo hace el service
+    // (`flowPlataforma.registro.001`); acá se fija que el use case no lo desarma.
+    expect(r.redirectUrl).toBe(
+      "https://sandbox.flow.cl/app/customer/register?token=reg-token-1",
+    );
     expect(mocks.crearCustomer).toHaveBeenCalledTimes(1);
     expect(estado.customers).toHaveLength(1);
     // El `externalId` del customer es el userId del Pagador: es lo que liga Flow con nuestra DB.
@@ -626,5 +638,47 @@ describe("domain/facturacion/activarPlanTrasRegistro", () => {
     // El id de Flow tiene que estar en el log: es lo único con lo que se cancela a mano.
     expect(log).toContain("flow-sub-1");
     spy.mockRestore();
+  });
+
+  // facturacion.activar.018 — el error del proveedor no se le muestra tal cual al Organizador
+  it("traduce un fallo de la API de Flow al crear la suscripción", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { db } = fakeDb({ conCustomer: true });
+    const { flow } = fakeFlow({
+      crearSuscripcion: vi.fn(() => {
+        throw new ErrorFlowPlataforma({
+          ruta: "/api/subscription/create",
+          httpStatus: 400,
+          codigoFlow: 1101,
+          mensajeFlow: "customer has no credit card registered",
+        });
+      }),
+    });
+
+    const error = await activarPlanTrasRegistro({ db, flow, ...base }).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(error).toMatchObject({ code: "INVALID" });
+    expect(error?.message).not.toContain("/api/");
+    vi.restoreAllMocks();
+  });
+
+  // facturacion.activar.019 — el fail-fast de configuración SÍ se ve: es lo accionable
+  it("no enmascara el fail-fast de una credencial de plataforma faltante", async () => {
+    const { db } = fakeDb({ conCustomer: true });
+    const { flow } = fakeFlow({
+      crearSuscripcion: vi.fn(() => {
+        // Lo que tira el service cuando falta la env var. Traducirlo a «intenta más tarde» dejaría
+        // a quien opera la plataforma sin la única pista que dice qué configurar (y el E2E de la 2ª
+        // pasada verificó justamente que ese mensaje llega a la notificación del panel).
+        throw new ErrorConfiguracionFlow("FLOW_PLATAFORMA_API_KEY");
+      }),
+    });
+
+    await expect(
+      activarPlanTrasRegistro({ db, flow, ...base }),
+    ).rejects.toThrow(/FLOW_PLATAFORMA_API_KEY/);
   });
 });

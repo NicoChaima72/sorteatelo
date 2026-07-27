@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { describe, expect, it, vi } from "vitest";
 
+import { TEXTO_CONSENTIMIENTO_RECORDATORIOS } from "~/config/correo";
 import { type CampoParaValidar } from "~/server/domain/camposCheckout/validarRespuestas";
 import { iniciarCheckout } from "~/server/domain/checkout/iniciarCheckout";
 import { iniciarCheckoutInput } from "~/server/domain/checkout/schemas";
@@ -15,12 +16,6 @@ import { type FlowService } from "~/server/services/flow";
  * (un producto de otra Tienda ⇒ NOT_FOUND). El service Flow se inyecta fake (no pega a la API real).
  */
 
-interface OpcionPackFake {
-  id: string;
-  unidades: number;
-  precio: Prisma.Decimal;
-  activo: boolean;
-}
 
 interface ProductoFake {
   id: string;
@@ -29,11 +24,31 @@ interface ProductoFake {
   precio: Prisma.Decimal;
   activo: boolean;
   participaEnSorteo: boolean;
-  /** F07: ESTANDAR (archivo único) o SOBRE (pool + opciones de pack). */
+  /**
+   * ESTANDAR (entrega lo suyo) o SOBRE (una COLECCIÓN: pool de archivos que no se vende directo).
+   * V-I7: un PACK se persiste SIEMPRE ESTANDAR — su `fuenteId` es lo que lo hace pack.
+   */
   modalidad: "ESTANDAR" | "SOBRE";
-  /** Tamaño del pool CONFIRMADO — de acá sale el rechazo "el pool no alcanza para ese pack". */
+  /** Tamaño del pool CONFIRMADO — de acá sale el rechazo "la fuente no alcanza para ese pack". */
   archivosConfirmados: number;
-  packOptions: OpcionPackFake[];
+  /** ENMIENDA v2: de qué producto salen los archivos. `null` ⇒ entrega los suyos. */
+  fuenteId: string | null;
+  /** Cuántas unidades del contenido de la fuente entrega. 1 en un producto normal. */
+  unidadesPorPack: number;
+  /** `Product.pdfPath` legacy: un producto viejo entrega por acá aunque no tenga `ProductFile`. */
+  pdfPath: string | null;
+}
+
+/** Fila de `ConsentimientoRecordatorios` en la DB fake (F05/D5). */
+interface ConsentimientoFake {
+  tenantId: string;
+  emailNormalizado: string;
+  email: string;
+  orderId: string;
+  ip: string | null;
+  textoMostrado: string;
+  tokenBaja: string;
+  otorgadoAt?: Date;
 }
 
 /** Definición de Campo de checkout en la DB fake — con su Tienda, para poder probar el scoping. */
@@ -65,6 +80,7 @@ function fakeDb(
   facturacion: FacturacionFake = AL_DIA,
 ) {
   let ordenCreada: Record<string, unknown> | null = null;
+  const consentimientos: ConsentimientoFake[] = [];
   let paymentUpdate: Record<string, unknown> | null = null;
   let consultaCampos: Record<string, unknown> | null = null;
 
@@ -88,32 +104,78 @@ function fakeDb(
     product: {
       findMany: async ({
         where,
-        select,
       }: {
         where: { tenantId: string; id: { in: string[] } };
-        select?: { packOptions?: { where?: { activo?: boolean } } };
       }) =>
         productos
           .filter(
             (p) => p.tenantId === where.tenantId && where.id.in.includes(p.id),
           )
-          .map((p) => ({
-            id: p.id,
-            titulo: p.titulo,
-            precio: p.precio,
-            activo: p.activo,
-            participaEnSorteo: p.participaEnSorteo,
-            modalidad: p.modalidad,
-            // Espeja el `_count` filtrado por `confirmadoAt` del select real: los pendientes no
-            // son pool (F06).
-            _count: { files: p.archivosConfirmados },
-            // HONRA el `where` del select en vez de filtrar siempre: si el server se olvidara de
-            // pedir solo las ACTIVAS, las desactivadas llegarían acá y `checkout.pack.004` lo caza.
-            // Un fake que filtra por su cuenta convierte ese bug en verde (la trampa que F03 anotó).
-            packOptions: p.packOptions.filter((o) =>
-              select?.packOptions?.where?.activo === true ? o.activo : true,
+          .map((p) => {
+            // La FUENTE se resuelve contra TODOS los productos y no contra los pedidos: Prisma
+            // trae la relación anidada aunque la fuente no esté en el `where` (una colección no se
+            // compra, así que NUNCA está en el carrito). Un fake que la buscara en la lista
+            // filtrada devolvería `null` y volvería inentregable a todo pack — verde falso al revés.
+            const fuente = productos.find((f) => f.id === p.fuenteId) ?? null;
+            return {
+              id: p.id,
+              titulo: p.titulo,
+              precio: p.precio,
+              activo: p.activo,
+              participaEnSorteo: p.participaEnSorteo,
+              modalidad: p.modalidad,
+              pdfPath: p.pdfPath,
+              unidadesPorPack: p.unidadesPorPack,
+              // Espeja el `_count` filtrado por `confirmadoAt` del select real: los pendientes no
+              // son pool (F06).
+              _count: { files: p.archivosConfirmados },
+              fuente:
+                fuente === null
+                  ? null
+                  : {
+                      modalidad: fuente.modalidad,
+                      pdfPath: fuente.pdfPath,
+                      _count: { files: fuente.archivosConfirmados },
+                    },
+            };
+          }),
+    },
+    // Consentimiento de recordatorios (F05/D5): se escribe en la MISMA `$tx` que la Order.
+    // El fake espeja la semántica que importa: `createMany({skipDuplicates})` NO pisa una fila
+    // existente (por eso devuelve `count: 0` cuando ya hay consentimiento) y `updateMany` no
+    // lanza cuando no encuentra nada. Ninguno de los dos puede tumbar la venta.
+    consentimientoRecordatorios: {
+      createMany: async ({
+        data,
+      }: {
+        data: Record<string, unknown>[];
+      }) => {
+        const nuevas = data.filter(
+          (d) =>
+            !consentimientos.some(
+              (c) =>
+                c.tenantId === d.tenantId &&
+                c.emailNormalizado === d.emailNormalizado,
             ),
-          })),
+        );
+        consentimientos.push(...(nuevas as unknown as ConsentimientoFake[]));
+        return { count: nuevas.length };
+      },
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { tenantId: string; emailNormalizado: string };
+        data: Record<string, unknown>;
+      }) => {
+        const filas = consentimientos.filter(
+          (c) =>
+            c.tenantId === where.tenantId &&
+            c.emailNormalizado === where.emailNormalizado,
+        );
+        for (const fila of filas) Object.assign(fila, data);
+        return { count: filas.length };
+      },
     },
     order: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
@@ -142,6 +204,7 @@ function fakeDb(
     getOrden: () => ordenCreada,
     getPaymentUpdate: () => paymentUpdate,
     getConsultaCampos: () => consultaCampos,
+    getConsentimientos: () => consentimientos,
   };
 }
 
@@ -182,28 +245,42 @@ const producto = (over: Partial<ProductoFake>): ProductoFake => ({
   participaEnSorteo: false,
   modalidad: "ESTANDAR",
   archivosConfirmados: 1,
-  packOptions: [],
+  fuenteId: null,
+  unidadesPorPack: 1,
+  pdfPath: null,
   ...over,
 });
 
 /**
- * Sobre sorpresa con su pool y su menú de packs (F07). El default —pool 4, packs 1×$3.000 y
- * 4×$10.000— es el ejemplo del plan (D3).
+ * La COLECCIÓN de stickers (ENMIENDA v2, E14): el producto `modalidad SOBRE` con el pool. Bajo v2
+ * NO se vende directo ni sale en el catálogo — existe para que sus packs referencien su pool. Su
+ * `precio` se deja en un valor que no coincide con el de ningún pack, así un test que lo cobrara
+ * por error no puede pasar por casualidad.
  */
-const sobre = (over: Partial<ProductoFake> = {}): ProductoFake =>
+const coleccion = (over: Partial<ProductoFake> = {}): ProductoFake =>
   producto({
-    id: "sobre-1",
-    titulo: "Sobre sorpresa de stickers",
+    id: "coleccion-1",
+    titulo: "Colección de stickers",
     modalidad: "SOBRE",
-    // El precio del PRODUCTO en un sobre es solo referencia: si el checkout llegara a cobrarlo,
-    // cobra mal. Se deja distinto de todos los precios de pack para que un test que lo tome por
-    // error no pueda pasar por casualidad.
     precio: dec("999"),
     archivosConfirmados: 4,
-    packOptions: [
-      { id: "pack-1u", unidades: 1, precio: dec("3000"), activo: true },
-      { id: "pack-4u", unidades: 4, precio: dec("10000"), activo: true },
-    ],
+    ...over,
+  });
+
+/**
+ * Un PACK: un producto más (E13), con su propio precio tipeado por el Organizador, que entrega
+ * `unidadesPorPack` del contenido de su fuente. El default es el ejemplo del plan: «4 stickers
+ * $10.000» sobre la colección de arriba.
+ */
+const pack = (over: Partial<ProductoFake> = {}): ProductoFake =>
+  producto({
+    id: "pack-4u",
+    titulo: "4 stickers",
+    precio: dec("10000"),
+    fuenteId: "coleccion-1",
+    unidadesPorPack: 4,
+    // Un pack NO tiene archivos propios (V-I1d): lo que entrega sale de la fuente.
+    archivosConfirmados: 0,
     ...over,
   });
 
@@ -220,6 +297,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [{ productId: "p1", cantidad: 3 }],
@@ -272,6 +350,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [
@@ -418,6 +497,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [{ productId: "p1", cantidad: 1 }],
@@ -483,6 +563,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
           items: [{ productId: "p1", cantidad: 1 }],
@@ -506,6 +587,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [{ productId: "p1", cantidad: 1 }],
@@ -534,6 +616,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
           items: [{ productId: "p1", cantidad: 1 }],
@@ -558,6 +641,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
           items: [{ productId: "pB", cantidad: 1 }],
@@ -577,6 +661,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
           items: [{ productId: "p1", cantidad: 1 }],
@@ -596,6 +681,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
           items: [{ productId: "clnoexistenoexistenoexiste", cantidad: 1 }],
@@ -625,7 +711,13 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
     const { flow, crearPago } = flowFake();
 
     await expect(
-      iniciarCheckout({ db, flow, tenantId: TENANT_A, input: compraNormal }),
+      iniciarCheckout({
+        db,
+        flow,
+        tenantId: TENANT_A,
+        ip: null,
+        input: compraNormal,
+      }),
     ).rejects.toMatchObject({ code: "INACTIVE" });
 
     // Nada persistido y nada cobrado: el gate corre ANTES de tocar la Order.
@@ -645,6 +737,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: compraNormal,
     }).catch((e: unknown) => e);
 
@@ -670,7 +763,13 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
       const { db } = fakeDb([producto({ id: "p1" })], [], facturacion);
       const { flow, crearPago } = flowFake();
       await expect(
-        iniciarCheckout({ db, flow, tenantId: TENANT_A, input: compraNormal }),
+        iniciarCheckout({
+        db,
+        flow,
+        tenantId: TENANT_A,
+        ip: null,
+        input: compraNormal,
+      }),
       ).rejects.toMatchObject({ code: "INACTIVE" });
       expect(crearPago).not.toHaveBeenCalled();
     }
@@ -692,6 +791,7 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: compraNormal,
       });
 
@@ -711,19 +811,22 @@ describe("domain/checkout/iniciarCheckout (fake db, tenant-scoped)", () => {
  * después de que el Comprador pagó.
  */
 describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
-  // checkout.pack.001 — el camino feliz: precio y unidades salen de la OPCIÓN, no del producto
-  it("congela {precio del pack, unidadesPorPack} del pack elegido y cobra precioPack × cantidad", async () => {
-    const { db, getOrden } = fakeDb([sobre()]);
+  // checkout.pack.001 — el camino feliz de la ENMIENDA v2: un pack es un PRODUCTO, así que su
+  // precio es su `Product.precio` y sus unidades su `Product.unidadesPorPack`. Ya no hay opción que
+  // buscar ni `packOptionId` que mandar: el carrito vuelve a ser `{productId, cantidad}`.
+  it("congela {precio del producto pack, unidadesPorPack} y cobra precio × cantidad", async () => {
+    const { db, getOrden } = fakeDb([coleccion(), pack()]);
     const { flow, crearPago } = flowFake();
 
     const res = await iniciarCheckout({
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         // 2 packs de 4 unidades a $10.000 cada pack.
-        items: [{ productId: "sobre-1", cantidad: 2, packOptionId: "pack-4u" }],
+        items: [{ productId: "pack-4u", cantidad: 2 }],
         respuestas: [],
       },
     });
@@ -748,12 +851,15 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
     expect(res.total).toBe("20000");
   });
 
-  // checkout.pack.002 — el gate del pool: no se vende lo que no se va a poder entregar (D4/I7)
-  it("rechaza el pack cuando el pool tiene menos archivos que las unidades pedidas, sin crear la Order ni tocar Flow", async () => {
-    // Pool de 3 y pack de 4: armar ese pack obligaría a repetir un archivo DENTRO del pack, que es
-    // justo lo que el `@@unique([orderItemId, packOrdinal, productFileId])` haría estallar en F08 —
-    // ya con el pago hecho.
-    const { db, getOrden } = fakeDb([sobre({ archivosConfirmados: 3 })]);
+  // checkout.pack.002 — el gate de entrega, medido contra el pack PEDIDO (D4/I7/E17)
+  it("rechaza el pack cuando la colección tiene menos archivos que sus unidades, sin crear la Order ni tocar Flow", async () => {
+    // Colección de 3 y pack de 4: armar ese pack obligaría a repetir un archivo DENTRO del pack,
+    // que es justo lo que el `@@unique([orderItemId, packOrdinal, productFileId])` haría estallar
+    // en los efectos post-pago — ya con el pago hecho.
+    const { db, getOrden } = fakeDb([
+      coleccion({ archivosConfirmados: 3 }),
+      pack(),
+    ]);
     const { flow, crearPago } = flowFake();
 
     await expect(
@@ -761,11 +867,10 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
         db,
         flow,
         tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
         input: {
           email: "fan@example.cl",
-          items: [
-            { productId: "sobre-1", cantidad: 1, packOptionId: "pack-4u" },
-          ],
+          items: [{ productId: "pack-4u", cantidad: 1 }],
           respuestas: [],
         },
       }),
@@ -774,126 +879,151 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
     expect(getOrden()).toBeNull();
     expect(crearPago).not.toHaveBeenCalled();
 
-    // Y el pack CHICO del mismo sobre sí se vende: el gate mide contra el pack PEDIDO, no contra el
-    // más grande del menú. Rechazar la compra de 1 porque existe una opción de 4 sin cubrir sería
-    // castigar una venta que sí se puede entregar.
+    // Y un pack CHICO de la MISMA colección sí se vende: el gate mide contra el pack PEDIDO, no
+    // contra el más grande de la Tienda. Rechazar la compra de 1 porque existe otro de 4 sin cubrir
+    // sería castigar una venta que sí se puede entregar. Bajo v2 esto sale gratis: cada pack es su
+    // propio producto y trae sus propias `unidadesPorPack`.
     const { db: db2, getOrden: getOrden2 } = fakeDb([
-      sobre({ archivosConfirmados: 3 }),
+      coleccion({ archivosConfirmados: 3 }),
+      pack({ id: "pack-1u", titulo: "1 sticker", precio: dec("3000"), unidadesPorPack: 1 }),
     ]);
     const { flow: flow2 } = flowFake();
     await iniciarCheckout({
       db: db2,
       flow: flow2,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
-        items: [{ productId: "sobre-1", cantidad: 1, packOptionId: "pack-1u" }],
+        items: [{ productId: "pack-1u", cantidad: 1 }],
         respuestas: [],
       },
     });
     expect(getOrden2()).not.toBeNull();
   });
 
-  // checkout.pack.003 — la opción se valida contra las del PRODUCTO (I1): una ajena no existe
-  it("rechaza una opción de pack que no es de ese producto (ni la de otra Tienda)", async () => {
-    const { db, getOrden } = fakeDb([
-      sobre(),
-      // Otro sobre, de OTRA Tienda, con su propia opción de 4 unidades más barata.
-      sobre({
-        id: "sobre-ajeno",
-        tenantId: TENANT_B,
-        packOptions: [
-          { id: "pack-ajeno", unidades: 4, precio: dec("1"), activo: true },
-        ],
+  // checkout.pack.003 — una COLECCIÓN no se compra directo (E15/E17), pero sus packs sí
+  it("rechaza comprar la colección SOBRE directo y sí vende el pack que la referencia", async () => {
+    const { db, getOrden } = fakeDb([coleccion(), pack()]);
+    const { flow, crearPago } = flowFake();
+
+    // El rechazo es SERVER-SIDE y no "no está en el catálogo": el catálogo es una vista y un POST a
+    // mano no la mira. Sin este corte, alguien podría llevarse el pool entero pagando el precio de
+    // referencia de la colección ($999), que no es el precio de nada.
+    await expect(
+      iniciarCheckout({
+        db,
+        flow,
+        tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
+        input: {
+          email: "fan@example.cl",
+          items: [{ productId: "coleccion-1", cantidad: 1 }],
+          respuestas: [],
+        },
       }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+    expect(getOrden()).toBeNull();
+    expect(crearPago).not.toHaveBeenCalled();
+
+    // El mismo pool, comprado como corresponde: por su pack.
+    const { db: db2, getOrden: getOrden2 } = fakeDb([coleccion(), pack()]);
+    const { flow: flow2 } = flowFake();
+    await iniciarCheckout({
+      db: db2,
+      flow: flow2,
+      tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
+      input: {
+        email: "fan@example.cl",
+        items: [{ productId: "pack-4u", cantidad: 1 }],
+        respuestas: [],
+      },
+    });
+    expect(getOrden2()).not.toBeNull();
+  });
+
+  // checkout.pack.004 — el CASO LIBRO: pack de fuente ESTANDAR, con la fuente despublicada
+  it("vende un pack de fuente ESTANDAR aunque la fuente esté despublicada, y congela sus unidades", async () => {
+    /*
+      «El libro $3.000» + «Pack 4 libros $10.000». Con fuente ESTANDAR alcanza UN archivo por
+      grande que sea el pack: las 4 copias se derivan en presentación y no generan filas (V-I2), así
+      que no hay nada que "alcance" contar.
+
+      La fuente va `activo: false` a propósito: es el escenario «no quiero vender la unidad, solo el
+      pack» de E17, que bajo v2 se resuelve despublicando el producto base en vez de con un flag
+      nuevo. Si el gate mirara `activo` de la fuente, ese caso —que es el que el usuario pidió—
+      quedaría invendible.
+    */
+    const { db, getOrden } = fakeDb([
+      producto({ id: "libro", titulo: "El libro", precio: dec("3000"), activo: false, archivosConfirmados: 1 }),
+      pack({ id: "pack-libros", titulo: "Pack 4 libros", precio: dec("10000"), fuenteId: "libro", unidadesPorPack: 4 }),
+    ]);
+    const { flow } = flowFake();
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
+      input: {
+        email: "fan@example.cl",
+        items: [{ productId: "pack-libros", cantidad: 1 }],
+        respuestas: [],
+      },
+    });
+
+    const items = (
+      getOrden()!.items as { create: Array<Record<string, unknown>> }
+    ).create;
+    expect((items[0]!.precio as Prisma.Decimal).toFixed(2)).toBe("10000.00");
+    expect(items[0]!.unidadesPorPack).toBe(4);
+  });
+
+  // checkout.pack.005 — el gate de entrega vale para TODOS los productos, no solo para los packs
+  it("no vende un producto activo que se quedó sin archivo, y sí el que entrega por el pdfPath legacy", async () => {
+    // Antes de la enmienda el checkout solo gateaba al SOBRE: un ESTANDAR activo sin archivo se
+    // vendía y el Comprador pagaba por nada. La regla compartida cierra ese hueco de paso.
+    const { db, getOrden } = fakeDb([
+      producto({ id: "vacio", archivosConfirmados: 0 }),
     ]);
     const { flow, crearPago } = flowFake();
 
-    for (const packOptionId of ["pack-ajeno", "clzzzzzzzzzzzzzzzzzzzzzzz"]) {
-      await expect(
-        iniciarCheckout({
-          db,
-          flow,
-          tenantId: TENANT_A,
-          input: {
-            email: "fan@example.cl",
-            items: [{ productId: "sobre-1", cantidad: 1, packOptionId }],
-            respuestas: [],
-          },
-        }),
-      ).rejects.toMatchObject({ code: "INVALID" });
-    }
+    await expect(
+      iniciarCheckout({
+        db,
+        flow,
+        tenantId: TENANT_A,
+        ip: null, // el consentimiento no participa de este caso (F05/D5)
+        input: {
+          email: "fan@example.cl",
+          items: [{ productId: "vacio", cantidad: 1 }],
+          respuestas: [],
+        },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID" });
     expect(getOrden()).toBeNull();
     expect(crearPago).not.toHaveBeenCalled();
-  });
 
-  // checkout.pack.004 — apagar una opción la saca de la VENTA, no solo del selector
-  it("rechaza una opción DESACTIVADA aunque el cliente todavía la tenga renderizada", async () => {
-    const { db, getOrden } = fakeDb([
-      sobre({
-        packOptions: [
-          { id: "pack-1u", unidades: 1, precio: dec("3000"), activo: true },
-          // El Organizador la apagó mientras el Comprador tenía la página abierta.
-          { id: "pack-4u", unidades: 4, precio: dec("10000"), activo: false },
-        ],
-      }),
+    // Cero regresión con lo que prod-viejo dejó escrito: un producto SIN `ProductFile` pero con el
+    // `pdfPath` legacy (ADR-0015) sigue siendo vendible. Tratarlo como vacío sacaría de la venta a
+    // productos que hoy se venden bien.
+    const { db: db2, getOrden: getOrden2 } = fakeDb([
+      producto({ id: "legacy", archivosConfirmados: 0, pdfPath: "tenant-A/legacy.pdf" }),
     ]);
-    const { flow, crearPago } = flowFake();
-
-    await expect(
-      iniciarCheckout({
-        db,
-        flow,
-        tenantId: TENANT_A,
-        input: {
-          email: "fan@example.cl",
-          items: [
-            { productId: "sobre-1", cantidad: 1, packOptionId: "pack-4u" },
-          ],
-          respuestas: [],
-        },
-      }),
-    ).rejects.toMatchObject({ code: "INVALID" });
-    expect(getOrden()).toBeNull();
-    expect(crearPago).not.toHaveBeenCalled();
-  });
-
-  // checkout.pack.005 — las dos modalidades exigen lo suyo y rechazan lo ajeno
-  it("un SOBRE sin opción elegida y un ESTANDAR con opción se rechazan los dos", async () => {
-    const { db, getOrden } = fakeDb([sobre(), producto({ id: "p1" })]);
-    const { flow, crearPago } = flowFake();
-
-    // Sobre sin pack: el cliente tiene que elegir; cobrar el `Product.precio` de referencia (999)
-    // sería cobrar un precio que no es de nada.
-    await expect(
-      iniciarCheckout({
-        db,
-        flow,
-        tenantId: TENANT_A,
-        input: {
-          email: "fan@example.cl",
-          items: [{ productId: "sobre-1", cantidad: 1 }],
-          respuestas: [],
-        },
-      }),
-    ).rejects.toMatchObject({ code: "INVALID" });
-
-    // Estándar CON pack: ignorarlo en silencio dejaría al Comprador creyendo que lleva un pack.
-    await expect(
-      iniciarCheckout({
-        db,
-        flow,
-        tenantId: TENANT_A,
-        input: {
-          email: "fan@example.cl",
-          items: [{ productId: "p1", cantidad: 1, packOptionId: "pack-4u" }],
-          respuestas: [],
-        },
-      }),
-    ).rejects.toMatchObject({ code: "INVALID" });
-
-    expect(getOrden()).toBeNull();
-    expect(crearPago).not.toHaveBeenCalled();
+    const { flow: flow2 } = flowFake();
+    await iniciarCheckout({
+      db: db2,
+      flow: flow2,
+      tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
+      input: {
+        email: "fan@example.cl",
+        items: [{ productId: "legacy", cantidad: 1 }],
+        respuestas: [],
+      },
+    });
+    expect(getOrden2()).not.toBeNull();
   });
 
   // checkout.pack.006 — un ESTANDAR escribe `unidadesPorPack: 1` EXPLÍCITO, no por default de la
@@ -907,6 +1037,7 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [{ productId: "p1", cantidad: 3 }],
@@ -920,10 +1051,11 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
     expect(items[0]!.unidadesPorPack).toBe(1);
   });
 
-  // checkout.pack.007 — sobre y estándar conviven en UNA orden y el total los suma bien
-  it("mezcla un sobre y un producto estándar en la misma orden con el total correcto", async () => {
+  // checkout.pack.007 — pack y producto normal conviven en UNA orden y el total los suma bien
+  it("mezcla un pack y un producto normal en la misma orden con el total correcto", async () => {
     const { db, getOrden } = fakeDb([
-      sobre(),
+      coleccion(),
+      pack(),
       producto({ id: "p1", precio: dec("4500") }),
     ]);
     const { flow, crearPago } = flowFake();
@@ -932,20 +1064,161 @@ describe("domain/checkout/iniciarCheckout — sobre sorpresa (F07)", () => {
       db,
       flow,
       tenantId: TENANT_A,
+      ip: null, // el consentimiento no participa de este caso (F05/D5)
       input: {
         email: "fan@example.cl",
         items: [
-          { productId: "sobre-1", cantidad: 2, packOptionId: "pack-4u" }, // 10000 × 2 = 20000
+          { productId: "pack-4u", cantidad: 2 }, // 10000 × 2 = 20000
           { productId: "p1", cantidad: 3 }, // 4500 × 3 = 13500
         ],
         respuestas: [],
       },
     });
 
-    // 20000 + 13500 = 33500. El `unidadesPorPack: 4` del sobre NO participa del total (I3).
+    // 20000 + 13500 = 33500. El `unidadesPorPack: 4` del pack NO participa del total (I3):
+    // multiplicarlo acá cobraría $80.000 por lo que vale $20.000.
     expect((getOrden()!.total as Prisma.Decimal).toFixed(2)).toBe("33500.00");
     expect(crearPago).toHaveBeenCalledWith(
       expect.objectContaining({ amount: "33500" }),
     );
+  });
+});
+
+describe("iniciarCheckout — consentimiento de recordatorios (F05/D5)", () => {
+  const compra = {
+    email: "Fan@Example.CL",
+    items: [{ productId: "p1", cantidad: 1 }],
+    respuestas: [],
+  };
+
+  // checkout.consentimiento.001 — el registro VERIFICABLE que exige la Ley 21.719: cuándo, desde
+  // qué IP y —lo que más se olvida— QUÉ TEXTO leyó la persona. El texto lo pone el SERVER desde la
+  // constante compartida; el input no tiene dónde traerlo, que es la forma de que el evaluado no
+  // escriba su propia prueba.
+  it("persiste timestamp, IP y el texto exacto cuando el checkbox viene marcado", async () => {
+    const { db, getConsentimientos } = fakeDb([producto({ id: "p1" })]);
+    const { flow } = flowFake();
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: "200.1.2.3",
+      input: { ...compra, aceptaRecordatorios: true },
+    });
+
+    expect(getConsentimientos()).toHaveLength(1);
+    const consentimiento = getConsentimientos()[0]!;
+    expect(consentimiento).toMatchObject({
+      tenantId: TENANT_A,
+      // Identidad normalizada para el unique + snapshot de lo que la persona escribió de verdad.
+      emailNormalizado: "fan@example.cl",
+      email: "Fan@Example.CL",
+      orderId: "order-fake-1",
+      ip: "200.1.2.3",
+      textoMostrado: TEXTO_CONSENTIMIENTO_RECORDATORIOS,
+    });
+    // El token de baja nace con el consentimiento: el enlace del correo tiene que existir ANTES de
+    // que exista la baja. Opaco y largo, no un id adivinable.
+    expect(consentimiento.tokenBaja.length).toBeGreaterThanOrEqual(32);
+  });
+
+  // checkout.consentimiento.002 — «NO premarcado» no es solo un atributo del checkbox: es que la
+  // AUSENCIA del dato signifique NO. Un checkout que no menciona el consentimiento (el de una
+  // Tienda sin sorteo, o un cliente viejo) no puede dejar a nadie suscrito.
+  it("no persiste nada cuando el checkbox no se marcó, ni cuando el input ni lo menciona", async () => {
+    // La mitad de SCHEMA: un payload que ni menciona el consentimiento se parsea sin la clave — no
+    // hay default que lo invente en un sentido ni en el otro.
+    const parseado = iniciarCheckoutInput.parse({
+      email: "fan@example.cl",
+      items: [{ productId: "cms2hj3bd0008kd37rkoeifb4", cantidad: 1 }],
+    });
+    expect(parseado.aceptaRecordatorios).toBeUndefined();
+
+    // La mitad de USE CASE, que es la que manda: ni `false` ni la ausencia escriben una fila. Es
+    // «jamás premarcado» sostenido también para un caller que no pase por Zod (un script futuro).
+    for (const aceptaRecordatorios of [false, undefined]) {
+      const { db, getConsentimientos } = fakeDb([producto({ id: "p1" })]);
+      const { flow } = flowFake();
+      await iniciarCheckout({
+        db,
+        flow,
+        tenantId: TENANT_A,
+        ip: "200.1.2.3",
+        input: { ...compra, aceptaRecordatorios },
+      });
+      expect(getConsentimientos()).toEqual([]);
+    }
+  });
+
+  // checkout.consentimiento.003 — re-consentir en una compra nueva REFRESCA la prueba (otra fecha,
+  // otra IP, otra orden) pero CONSERVA el token de baja. Si el token cambiara, el enlace «darme de
+  // baja» de todos los correos ya enviados moriría — y eso es exactamente lo que RFC 8058 promete
+  // que funciona. Dos casings del mismo correo son la MISMA persona (una sola fila).
+  it("refresca la prueba al re-consentir pero conserva el token de baja", async () => {
+    const { db, getConsentimientos } = fakeDb([producto({ id: "p1" })]);
+    const { flow } = flowFake();
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: "200.1.2.3",
+      input: { ...compra, aceptaRecordatorios: true },
+    });
+    const tokenOriginal = getConsentimientos()[0]!.tokenBaja;
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: "190.9.9.9",
+      input: {
+        ...compra,
+        email: "fan@example.cl", // el mismo correo, otro casing
+        aceptaRecordatorios: true,
+      },
+    });
+
+    expect(getConsentimientos()).toHaveLength(1);
+    expect(getConsentimientos()[0]!.tokenBaja).toBe(tokenOriginal);
+    expect(getConsentimientos()[0]!.ip).toBe("190.9.9.9");
+  });
+
+  // checkout.consentimiento.004 — la IP puede no llegar (proxy raro, request local): se guarda
+  // `null` y NO se inventa. Un consentimiento sin IP sigue siendo válido; uno con una IP falsa es
+  // peor que no tener ninguna.
+  it("guarda null cuando el borde no entrega IP, sin inventar un valor", async () => {
+    const { db, getConsentimientos } = fakeDb([producto({ id: "p1" })]);
+    const { flow } = flowFake();
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: null,
+      input: { ...compra, aceptaRecordatorios: true },
+    });
+
+    expect(getConsentimientos()[0]!.ip).toBeNull();
+  });
+
+  // checkout.consentimiento.005 — el consentimiento es de PLATAFORMA, no un Campo de checkout
+  // configurable por el Organizador (CONTEXT § Consentimiento de recordatorios). El guard
+  // estructural: no puede colarse como `CheckoutFieldResponse`, porque ahí el Organizador podría
+  // borrarlo, renombrarlo o ponerlo obligatorio.
+  it("no viaja como respuesta de Campo de checkout", async () => {
+    const { db, getOrden } = fakeDb([producto({ id: "p1" })]);
+    const { flow } = flowFake();
+
+    await iniciarCheckout({
+      db,
+      flow,
+      tenantId: TENANT_A,
+      ip: "200.1.2.3",
+      input: { ...compra, aceptaRecordatorios: true },
+    });
+
+    expect(getOrden()!.checkoutResponses).toBeUndefined();
   });
 });

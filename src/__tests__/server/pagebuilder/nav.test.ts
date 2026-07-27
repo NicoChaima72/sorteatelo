@@ -6,8 +6,10 @@ import {
   anclasSemanticas,
   derivarNav,
   hrefDeAncla,
+  hrefEnTienda,
   humanizarSlug,
   reanclarNavALaHome,
+  reanclarNavATienda,
 } from "~/lib/pagebuilder/nav";
 import {
   OverlayNodeSchema,
@@ -246,6 +248,46 @@ describe("reanclarNavALaHome — el nav de la home usable desde /checkout", () =
   it("es idempotente", () => {
     const una = reanclarNavALaHome([{ label: "A", href: "#a" }]);
     expect(reanclarNavALaHome(una)).toEqual(una);
+  });
+});
+
+describe("reanclarNavATienda — el nav absoluto de las páginas host-agnósticas (/entrega)", () => {
+  const BASE = "https://iselk.sorteatelo.cl";
+
+  // nav.reancla.003 — anclas y rutas relativas quedan absolutas al subdominio; URLs externas intactas
+  it("absolutiza `#x`, `/#x` y `/ruta` a la base de la tienda; una URL externa pasa intacta", () => {
+    expect(
+      reanclarNavATienda(
+        [
+          { label: "Catálogo", href: "#catalogo" }, // menú del chrome (sin re-anclar)
+          { label: "El libro", href: "/#beneficios" }, // nav derivado ya re-anclado a la home
+          { label: "Bases", href: "/bases" }, // ancla-ruta D13
+          { label: "Sobre mi", href: "/sobre-mi" }, // página enNav
+          { label: "IG", href: "https://instagram.com/x" },
+        ],
+        BASE,
+      ),
+    ).toEqual([
+      { label: "Catálogo", href: `${BASE}/#catalogo` },
+      { label: "El libro", href: `${BASE}/#beneficios` },
+      { label: "Bases", href: `${BASE}/bases` },
+      { label: "Sobre mi", href: `${BASE}/sobre-mi` },
+      { label: "IG", href: "https://instagram.com/x" },
+    ]);
+  });
+
+  // nav.reancla.004 — idempotente (un href ya absoluto no se vuelve a prefijar) y tolerante al `/` final
+  it("es idempotente y tolera una base con barra final", () => {
+    const una = reanclarNavATienda([{ label: "A", href: "#a" }], `${BASE}/`);
+    expect(una).toEqual([{ label: "A", href: `${BASE}/#a` }]);
+    expect(reanclarNavATienda(una, BASE)).toEqual(una);
+  });
+
+  // nav.reancla.005 — hrefEnTienda es la fuente única (la consumen nav y los links del footer del chrome)
+  it("hrefEnTienda resuelve un href suelto con la misma regla", () => {
+    expect(hrefEnTienda("#catalogo", BASE)).toBe(`${BASE}/#catalogo`);
+    expect(hrefEnTienda("/bases", BASE)).toBe(`${BASE}/bases`);
+    expect(hrefEnTienda("https://x.cl/a", BASE)).toBe("https://x.cl/a");
   });
 });
 

@@ -1,12 +1,9 @@
 import { type PrismaClient } from "@prisma/client";
 
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
-import { DomainError } from "~/server/domain/errors";
 import { exigirPagadorDeLaTienda } from "~/server/domain/facturacion/_pagadorDeLaTienda";
-import {
-  FLOW_REGISTRO_OK,
-  type FlowPlataformaService,
-} from "~/server/services/flowPlataforma";
+import { confirmarRegistroServerSide } from "~/server/domain/facturacion/_registroDeTarjeta";
+import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
 
 /**
  * Use case del panel (F10/D12): cierra el cambio de tarjeta cuando el Pagador vuelve del redirect
@@ -43,25 +40,14 @@ export async function confirmarCambioDeTarjeta({
     userId: acceso.userId,
   });
 
-  const registro = await flow.getEstadoRegistro(input.token);
-  if (Number(registro.status) !== FLOW_REGISTRO_OK) {
-    throw new DomainError(
-      "INVALID",
-      "Flow no confirmó el registro de tu tarjeta. Puedes intentarlo de nuevo.",
-    );
-  }
-  // Defensa en profundidad, igual que en la activación: el token tiene que corresponder a NUESTRO
-  // customer. Sin esto, un token ajeno filtrado dejaría a esta Tienda mostrando —y cobrando con— la
-  // tarjeta de otra persona.
-  if (registro.customerId && registro.customerId !== pagador.flowCustomerId) {
-    throw new DomainError(
-      "INVALID",
-      "Ese registro de tarjeta no corresponde a tu cuenta.",
-    );
-  }
-
-  const marca = registro.creditCardType ?? null;
-  const ultimos4 = registro.last4CardDigits ?? null;
+  // I3 + defensa en profundidad (el token tiene que ser de NUESTRO customer), en el gate compartido
+  // con la activación: sin eso, un token ajeno filtrado dejaría a esta Tienda mostrando —y cobrando
+  // con— la tarjeta de otra persona.
+  const { marca, ultimos4 } = await confirmarRegistroServerSide({
+    flow,
+    token: input.token,
+    flowCustomerId: pagador.flowCustomerId,
+  });
 
   await db.platformBillingCustomer.update({
     where: { id: pagador.pagadorId },

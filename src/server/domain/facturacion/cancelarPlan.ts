@@ -3,11 +3,10 @@ import { type PrismaClient } from "@prisma/client";
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { type CorreoAEnviar } from "~/server/domain/correo/plantillasFacturacion";
 import { DomainError } from "~/server/domain/errors";
+import { traduciendoErroresDeFlow } from "~/server/domain/facturacion/_erroresDeFlow";
 import { esActiva } from "~/server/domain/facturacion/_estadoSuscripcion";
-import {
-  definicionDelPlan,
-  recalcularPlanesDelPagador,
-} from "~/server/domain/facturacion/_precios";
+import { recalcularPlanesDelPagador } from "~/server/domain/facturacion/_precios";
+import { vigenciaDeLaPromocion } from "~/server/domain/facturacion/_promocionDePlan";
 import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
 
 /**
@@ -88,10 +87,14 @@ export async function cancelarPlan({
   // reconcilia solo en cuanto Flow reporte `status = 4`. Al revés —marcar cancelado local y fallar
   // en Flow— le seguiríamos cobrando el mes a alguien que canceló, que es el error que no se puede
   // deshacer con una disculpa.
-  await flow.cancelarSuscripcion({
-    subscriptionId: suscripcion.flowSubscriptionId,
-    alFinDelPeriodo: true,
-  });
+  await traduciendoErroresDeFlow(
+    "No pudimos cancelar tu plan con Flow. Vuelve a intentarlo en unos minutos.",
+    () =>
+      flow.cancelarSuscripcion({
+        subscriptionId: suscripcion.flowSubscriptionId,
+        alFinDelPeriodo: true,
+      }),
+  );
 
   // ── Guard ATÓMICO: quién selló la cancelación ────────────────────────────────────────────
   // El chequeo de arriba es un atajo (ahorra la llamada a Flow en el caso normal), NO la protección:
@@ -120,11 +123,11 @@ export async function cancelarPlan({
     };
   }
 
-  await recalcularPricingDelPagador({
+  await anotarPromocionesDelPagador({
     db,
-    flow,
     pagadorId: suscripcion.pagadorId,
     excluyendo: suscripcion.id,
+    finDeLaCancelada: cancelacionEfectivaAt,
   });
 
   return {
@@ -147,10 +150,17 @@ export async function cancelarPlan({
  * que quedan tiene que estar a precio full — la más antigua. Si la que se canceló era la full, su
  * adicional más antigua se promueve.
  *
- * **Programado, nunca retroactivo**: el cambio se pide a Flow con `changePlan` de temporalidad 2, así
- * que el precio nuevo rige desde la próxima renovación. La columna `plan` NO se toca — sigue
- * describiendo lo que se cobra HOY —; el destino vive en `planProgramado`, y el webhook (F04) es
- * quien verá el cobro nuevo cuando ocurra.
+ * ── Acá NO se le pide nada a Flow (blocker 6 de la 4ª pasada del E2E) ────────────────────────────
+ * La promoción se ANOTA y nada más. La versión anterior llamaba a `subscription/changePlan` en este
+ * punto, creyendo que Flow lo dejaría programado: no lo deja —el parámetro `temporality` que le
+ * mandábamos ni siquiera existe en su API—, aplica el cambio en el acto y **emite una factura por la
+ * diferencia del período en curso**. Es decir que cancelar una tienda le disparaba un cobro extra a
+ * la tienda VECINA por un mes que su dueño ya había pagado al precio de su plan. Pasó de verdad:
+ * invoices `1179471` y `1179474`, misma suscripción y mismo período, $12.500 cada uno.
+ *
+ * Quién ejecuta el cambio es el cron diario (`server/facturacion/promocionesDePlan.ts`), y recién
+ * cuando el período que Flow está cobrando ya es uno que corresponde al plan nuevo. La fecha desde la
+ * que eso es cierto la calcula `vigenciaDeLaPromocion`.
  *
  * **Un fallo acá NO revierte la cancelación**, que ya está hecha y confirmada en Flow: se loguea y se
  * sigue. La consecuencia de tragarlo es que el Pagador conserva la mitad de precio un mes más — una
@@ -158,17 +168,18 @@ export async function cancelarPlan({
  * mutation— le diría al Organizador que su cancelación falló cuando sí ocurrió, que es peor y además
  * mentira. Mismo criterio que I9 con los correos.
  */
-async function recalcularPricingDelPagador({
+async function anotarPromocionesDelPagador({
   db,
-  flow,
   pagadorId,
   excluyendo,
+  finDeLaCancelada,
 }: {
   db: PrismaClient;
-  flow: FlowPlataformaService;
   pagadorId: string;
   /** La suscripción recién cancelada: ya no compite por el precio full. */
   excluyendo: string;
+  /** Hasta cuándo sigue viva —y pagada— la tienda que se canceló (D6). */
+  finDeLaCancelada: Date | null;
 }): Promise<void> {
   const otras = await db.platformSubscription.findMany({
     where: { pagadorId, id: { not: excluyendo } },
@@ -178,7 +189,6 @@ async function recalcularPricingDelPagador({
       planProgramado: true,
       estado: true,
       createdAt: true,
-      flowSubscriptionId: true,
       proximoCobroAt: true,
     },
   });
@@ -187,8 +197,8 @@ async function recalcularPricingDelPagador({
     otras
       .filter((s) => esActiva(s.estado))
       // Se compara contra el plan que va a REGIR, no contra el vigente: si esta suscripción ya tiene
-      // una promoción programada, volver a proponerla mandaría un segundo `changePlan` a Flow por el
-      // mismo hecho. Es lo que hace idempotente al recálculo cuando un Pagador cancela dos tiendas.
+      // una promoción anotada, volver a proponerla reescribiría su fecha de vigencia por el mismo
+      // hecho. Es lo que hace idempotente al recálculo cuando un Pagador cancela dos tiendas.
       .map((s) => ({ id: s.id, plan: s.planProgramado ?? s.plan, createdAt: s.createdAt })),
   );
 
@@ -196,27 +206,26 @@ async function recalcularPricingDelPagador({
     const suscripcion = otras.find((s) => s.id === cambio.suscripcionId);
     if (!suscripcion) continue;
 
-    try {
-      const respuesta = await flow.cambiarPlan({
-        subscriptionId: suscripcion.flowSubscriptionId,
-        nuevoPlanId: definicionDelPlan(cambio.planNuevo).flowPlanId,
-      });
+    const desde = vigenciaDeLaPromocion({
+      proximoCobroAt: suscripcion.proximoCobroAt,
+      finDeLaCancelada,
+    });
 
+    try {
       await db.platformSubscription.update({
         where: { id: suscripcion.id },
         data: {
           planProgramado: cambio.planNuevo,
-          // Cuándo SURTE EFECTO. La fecha autoritativa es la de Flow; si no la manda, el mejor dato
-          // que tenemos es la próxima renovación de esa misma suscripción, que es exactamente
-          // cuando la temporalidad 2 aplica el plan nuevo.
-          planProgramadoDesde:
-            fechaDeFlow(respuesta.new_plan_scheduled_change_date) ??
-            suscripcion.proximoCobroAt,
+          // `null` cuando Flow todavía no reportó la próxima renovación. La promoción queda anotada
+          // igual —el aviso de renovación (F09) ya la lee— pero SIN vigencia no se ejecuta: cambiar
+          // el plan sin saber qué período se está cobrando es exactamente el cobro retroactivo que
+          // este fix elimina.
+          planProgramadoDesde: desde,
         },
       });
     } catch (error) {
       console.error(
-        "[facturacion] no se pudo programar el cambio de plan del Pagador (la cancelación ya quedó hecha)",
+        "[facturacion] no se pudo anotar el cambio de plan del Pagador (la cancelación ya quedó hecha)",
         {
           suscripcionId: suscripcion.id,
           planNuevo: cambio.planNuevo,
@@ -227,9 +236,3 @@ async function recalcularPricingDelPagador({
   }
 }
 
-/** Fecha de Flow (`YYYY-MM-DD` o ISO) a `Date`; `null` si viene vacía o no parsea. */
-function fechaDeFlow(valor: string | null | undefined): Date | null {
-  if (!valor) return null;
-  const fecha = new Date(valor);
-  return Number.isNaN(fecha.getTime()) ? null : fecha;
-}

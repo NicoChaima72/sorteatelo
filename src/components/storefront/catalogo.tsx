@@ -183,19 +183,15 @@ function TarjetaProducto({
 
         <Stack gap="sm" p="md" className="flex-1">
           {compacta ? (
-            // Compacta (F16): título/descripción OMITIDOS visualmente (el título vive EN la tapa). Se
-            // conserva un enlace `sr-only` al detalle ⇒ el nombre del producto sigue accesible (a11y).
-            <Text component={Link} href={`/producto/${producto.id}`} className="sr-only">
-              {producto.titulo}
-            </Text>
+            // Compacta (F16): título/descripción OMITIDOS visualmente (el título vive EN la tapa).
+            // Se conserva el título `sr-only` ⇒ el nombre del producto sigue siendo accesible
+            // (a11y). Ya NO es un enlace: `/producto/[id]` murió con la ENMIENDA v2 (E2) y mandar a
+            // un lector de pantalla a un redirect al home sería peor que no ofrecer el enlace.
+            <Text className="sr-only">{producto.titulo}</Text>
           ) : (
             <Stack gap={4} className="flex-1">
-              <Text
-                component={Link}
-                href={`/producto/${producto.id}`}
-                fw={600}
-                lineClamp={2}
-              >
+              {/* Sin enlace: no hay detalle adonde ir (E2). Todo se agrega desde acá (E1). */}
+              <Text fw={600} lineClamp={2}>
                 {producto.titulo}
               </Text>
               <Text size="sm" c="dimmed" lineClamp={2}>
@@ -204,34 +200,33 @@ function TarjetaProducto({
             </Stack>
           )}
 
+          {/*
+            Detalle derivado de un PACK (ENMIENDA v2, E18): «entrega 4 · al azar». Es una línea
+            menor y opcional —no un selector, no un «c/u» calculado—: bajo v2 un pack es un producto
+            más y su tarjeta es la tarjeta de siempre. Un producto normal (`unidadesPorPack === 1`)
+            no muestra nada acá.
+          */}
+          {producto.unidadesPorPack > 1 && (
+            <Text size="xs" c="dimmed">
+              Entrega {producto.unidadesPorPack} unidades
+              {producto.entregaAlAzar ? ", elegidas al azar" : ""}
+            </Text>
+          )}
+
           <Group justify="space-between" wrap="nowrap" gap="sm">
             <Text fw={700} className="tabular-nums">
-              {/*
-                En un SOBRE el `precio` del producto es solo referencia y no se cobra nunca (F07/D3):
-                lo que vale es el precio de cada pack, así que la tarjeta muestra el "desde".
-              */}
-              {producto.modalidad === "SOBRE" && producto.precioDesde !== null
-                ? `desde ${clp(producto.precioDesde)}`
-                : clp(producto.precio)}
+              {clp(producto.precio)}
             </Text>
-            {producto.modalidad === "SOBRE" ? (
-              // Un sobre NO se agrega desde la tarjeta: hay que elegir pack, y el pack es lo que
-              // fija el precio. Meter el selector en cada tarjeta del grid llenaría el catálogo de
-              // decisiones; mandarlo al detalle es el mismo camino que ya usa `producto-spotlight`.
-              <Button
-                size="xs"
-                component={Link}
-                href={`/producto/${producto.id}`}
-              >
-                Elegir pack
-              </Button>
-            ) : enCarrito ? (
+            {enCarrito ? (
               <Group gap="xs" wrap="nowrap">
                 <StepperCantidad id={producto.id} size="sm" />
                 <Button
                   variant="subtle"
                   color="gray"
                   size="xs"
+                  // Mismo problema que «Agregar», misma solución: sin el nombre del producto son N
+                  // botones «Quitar» indistinguibles en la lista de controles.
+                  aria-label={`Quitar ${producto.titulo} del carrito`}
                   onClick={() => quitar(producto.id)}
                 >
                   Quitar
@@ -240,11 +235,19 @@ function TarjetaProducto({
             ) : (
               <Button
                 size="xs"
+                // El grid tiene N botones «Agregar» idénticos, y en modo `compacta` el título ni
+                // siquiera se ve: quien navega por lista de controles con lector de pantalla no
+                // podría distinguir a cuál producto pertenece cada uno. Mismo patrón que ya usa
+                // `stepper-cantidad.tsx` con sus botones «+»/«−». Lo levantó el `frontend-reviewer`.
+                aria-label={`Agregar ${producto.titulo} al carrito`}
                 onClick={() =>
                   agregar({
                     id: producto.id,
                     titulo: producto.titulo,
                     precio: producto.precio,
+                    // Display-only: es lo que le permite al drawer decir «$10.000 por pack de 4»
+                    // (E13). El monto que se COBRA lo relee el server de la fila vigente (I4).
+                    unidadesPorPack: producto.unidadesPorPack,
                   })
                 }
               >

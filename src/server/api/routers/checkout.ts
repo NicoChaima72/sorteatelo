@@ -1,7 +1,6 @@
 import { runDomain } from "~/server/api/runDomain";
 import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
 import { getEstadoOrden } from "~/server/domain/checkout/getEstadoOrden";
-import { getProductoStorefront } from "~/server/domain/checkout/getProductoStorefront";
 import { getSorteoActivoStorefront } from "~/server/domain/checkout/getSorteoActivoStorefront";
 import { getSorteoResumenStorefront } from "~/server/domain/checkout/getSorteoResumenStorefront";
 import { iniciarCheckout } from "~/server/domain/checkout/iniciarCheckout";
@@ -9,7 +8,6 @@ import { listarProductos } from "~/server/domain/checkout/listarProductos";
 import { resolverCatalogo } from "~/server/domain/checkout/resolverCatalogo";
 import {
   getEstadoOrdenInput,
-  getProductoStorefrontInput,
   getSorteoResumenStorefrontInput,
   iniciarCheckoutInput,
   listarProductosDeCatalogoInput,
@@ -49,14 +47,12 @@ export const checkoutRouter = createTRPCRouter({
       ),
     ),
 
-  getProductoStorefront: tenantProcedure
-    .input(getProductoStorefrontInput)
-    .query(({ ctx, input }) =>
-      runDomain(() =>
-        getProductoStorefront({ db: ctx.db, tenantId: ctx.tenant.id, input }),
-      ),
-    ),
-
+  /*
+    `getProductoStorefront` existió hasta la ENMIENDA v2 (E2/F13) y murió con la página que
+    alimentaba: `/producto/[id]` es hoy un redirect al home. Era la ÚLTIMA lectora de
+    `ProductPackOption` en el storefront —proyectaba el menú de packs del detalle—, así que su
+    muerte es también la que deja la tabla sin un solo lector de aplicación (V-I3).
+  */
   getSorteoActivoStorefront: tenantProcedure.query(({ ctx }) =>
     runDomain(() =>
       getSorteoActivoStorefront({ db: ctx.db, tenantId: ctx.tenant.id }),
@@ -74,9 +70,11 @@ export const checkoutRouter = createTRPCRouter({
       ),
     ),
 
-  // Estado de una orden por su token de Flow (builder-tanda-1 F08/D12). SOLO el estado enum, sin PII
-  // (I-T6). La usa `checkout/retorno` para pasar a celebración cuando el webhook confirma PAGADO — esta
-  // query NO confirma nada (I6/ADR-0001), solo LEE. Tenant-scoped por el contexto (I1).
+  // Estado de una orden por su token de Flow (builder-tanda-1 F08/D12) + sus Números del sorteo cuando
+  // ya está PAGADA (F01/D1 de checkout-retorno-numeros-sorteo). Sin PII: ni correo, ni montos, ni ítems
+  // (I-T6); los números son la identidad PÚBLICA del ticket (ADR-0024). La usa `checkout/retorno` para
+  // pasar a celebración y dibujar los boletos cuando el webhook confirma PAGADO — esta query NO confirma
+  // nada (I6/ADR-0001), solo LEE. Tenant-scoped por el contexto (I1).
   estadoOrden: tenantProcedure
     .input(getEstadoOrdenInput)
     .query(({ ctx, input }) =>
@@ -100,6 +98,9 @@ export const checkoutRouter = createTRPCRouter({
           db: ctx.db,
           flow,
           tenantId: ctx.tenant.id,
+          // Registro verificable del consentimiento (F05/D5): la IP sale del CONTEXTO, derivada de
+          // las cabeceras en el borde — nunca del input, que es del navegador del Comprador.
+          ip: ctx.ip,
           input,
         });
       }),

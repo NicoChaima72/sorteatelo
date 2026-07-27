@@ -1,9 +1,11 @@
+import { type CorreoEnviadoType } from "@prisma/client";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 import { db } from "~/server/db";
 import {
   drenarCorreosPendientes,
   type FilaPendiente,
+  type ResolvedorDeCorreos,
 } from "~/server/domain/correo/drenarCorreosPendientes";
 import { encolarCorreos } from "~/server/domain/correo/ledgerCorreos";
 import { CorreoError, type CorreoInput } from "~/server/services/correo";
@@ -108,22 +110,31 @@ async function encolarN(tenantId: string, n: number) {
  * —o de cualquier archivo futuro que encole, como el de `aplicarEfectosPostPago` en F03— y los
  * pondría rojos por turnos. Filtrando en el resolvedor, las filas ajenas se saltan INTACTAS, que
  * es exactamente lo que hace un resolvedor real con un tipo que no le compete.
+ *
+ * Declara `tipos` como cualquier resolvedor real (F04): son el filtro que el drenado aplica ANTES
+ * del `take`. Los fixtures de este archivo encolan `RESULTADO_NO_GANADOR`.
  */
-function resolverSoloDe(tenantId: string) {
-  return async (filas: FilaPendiente[]) =>
-    new Map<string, CorreoInput>(
-      filas
-        .filter((f) => f.tenantId === tenantId)
-        .map((f) => [
-          f.id,
-          {
-            from: "Tienda · vía Sortéatelo <no-reply@sorteatelo.cl>",
-            to: f.email,
-            subject: "s",
-            text: "t",
-          },
-        ]),
-    );
+function resolverSoloDe(
+  tenantId: string,
+  tipos: readonly CorreoEnviadoType[] = ["RESULTADO_NO_GANADOR"],
+): ResolvedorDeCorreos {
+  return {
+    tipos,
+    armar: async (filas: FilaPendiente[]) =>
+      new Map<string, CorreoInput>(
+        filas
+          .filter((f) => f.tenantId === tenantId)
+          .map((f) => [
+            f.id,
+            {
+              from: "Tienda · vía Sortéatelo <no-reply@sorteatelo.cl>",
+              to: f.email,
+              subject: "s",
+              text: "t",
+            },
+          ]),
+      ),
+  };
 }
 
 /**
@@ -172,7 +183,7 @@ describe("domain/correo/drenarCorreosPendientes — claim → send → confirm",
     const res = await drenarCorreosPendientes({
       db,
       correo,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
 
@@ -230,7 +241,7 @@ describe("domain/correo/drenarCorreosPendientes — claim → send → confirm",
     const corridaA = drenarCorreosPendientes({
       db,
       correo: correoA,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
     // Esperar a que A haya reclamado y esté efectivamente enviando.
@@ -241,7 +252,7 @@ describe("domain/correo/drenarCorreosPendientes — claim → send → confirm",
     await drenarCorreosPendientes({
       db,
       correo: correoB,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
 
@@ -266,14 +277,14 @@ describe("domain/correo/drenarCorreosPendientes — claim → send → confirm",
     await drenarCorreosPendientes({
       db,
       correo: correoFake(),
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
     const segundo = correoFake();
     const res = await drenarCorreosPendientes({
       db,
       correo: segundo,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
 
@@ -305,7 +316,7 @@ describe("domain/correo/drenarCorreosPendientes — cuota agotada (I9 / ADR-0027
     const res = await drenarCorreosPendientes({
       db,
       correo,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
 
@@ -356,7 +367,7 @@ describe("domain/correo/drenarCorreosPendientes — cuota agotada (I9 / ADR-0027
       await drenarCorreosPendientes({
         db,
         correo,
-        resolverMensajes: resolverSoloDe(tenant.id),
+        resolvedor: resolverSoloDe(tenant.id),
         limite: VENTANA,
         ahora: horaDeCorrida(i),
       });
@@ -392,7 +403,7 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
       await drenarCorreosPendientes({
         db,
         correo,
-        resolverMensajes: resolverSoloDe(tenant.id),
+        resolvedor: resolverSoloDe(tenant.id),
         limite: VENTANA,
         ahora: horaDeCorrida(i),
       });
@@ -420,7 +431,7 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
     await drenarCorreosPendientes({
       db,
       correo: cuarto,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
       ahora: horaDeCorrida(3),
     });
@@ -456,7 +467,7 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
       await drenarCorreosPendientes({
         db,
         correo,
-        resolverMensajes: resolverSoloDe(tenant.id),
+        resolvedor: resolverSoloDe(tenant.id),
         limite: VENTANA,
         ahora: horaDeCorrida(i),
       });
@@ -482,7 +493,7 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
     await drenarCorreosPendientes({
       db,
       correo: tercero,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
       ahora: horaDeCorrida(2),
     });
@@ -506,7 +517,7 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
     await drenarCorreosPendientes({
       db,
       correo,
-      resolverMensajes: resolverSoloDe(tenant.id),
+      resolvedor: resolverSoloDe(tenant.id),
       limite: VENTANA,
     });
 
@@ -536,8 +547,12 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
     const res = await drenarCorreosPendientes({
       db,
       correo,
-      // El resolvedor VACÍO es el estado real de F02: la máquina existe, las plantillas no.
-      resolverMensajes: async () => new Map<string, CorreoInput>(),
+      // Resolvedor que DECLARA el tipo del fixture y aun así no sabe armarlo: es el estado en que
+      // queda una fila cuyo contenido no se pudo derivar (sorteo borrado, guard de tenancy).
+      resolvedor: {
+        tipos: ["RESULTADO_NO_GANADOR"],
+        armar: async () => new Map<string, CorreoInput>(),
+      },
       limite: VENTANA,
     });
 
@@ -549,6 +564,58 @@ describe("domain/correo/drenarCorreosPendientes — fallo real y sweeper (ADR-00
       where: { tenantId: tenant.id },
     });
     expect(filas.map((f) => `${f.estado}:${f.intentos}`)).toEqual([
+      "PENDIENTE:0",
+      "PENDIENTE:0",
+    ]);
+  });
+
+  // correo.drenado.010 — **head-of-line blocking**, el defecto que F04 activa y que hasta acá no
+  // tenía dueño. La ventana de una corrida son las N filas MÁS VIEJAS: si se llena de filas de un
+  // tipo que ningún resolvedor sabe armar (un `RECORDATORIO_SORTEO` encolado antes de que F06
+  // exista), las que sí tienen plantilla no entran NUNCA y el Comprador no recibe su confirmación.
+  // El filtro por `tipo` va en el WHERE, ANTES del `take`, y eso es lo que este test fija.
+  it("filas viejas de un tipo sin resolvedor no bloquean la ventana de las que sí tienen", async () => {
+    const tenant = await crearTenant("head-of-line");
+    // Primero (más viejas) 3 filas de un tipo sin resolvedor.
+    await encolarCorreos({
+      db,
+      correos: Array.from({ length: 3 }, (_v, i) => ({
+        tenantId: tenant.id,
+        tipo: "RECORDATORIO_SORTEO" as const,
+        clave: `${raffleDe(tenant.id)}:48:sin-plantilla${i}@example.cl`,
+        email: `sin-plantilla${i}@example.cl`,
+      })),
+    });
+    // Después, la que sí se puede armar.
+    await encolarCorreos({
+      db,
+      correos: [
+        {
+          tenantId: tenant.id,
+          tipo: "RESULTADO_NO_GANADOR",
+          clave: `${raffleDe(tenant.id)}:tarde@example.cl`,
+          email: "tarde@example.cl",
+        },
+      ],
+    });
+
+    const correo = correoFake();
+    // Ventana de 3: sin el filtro por tipo se llenaría con las 3 viejas y la 4ª no saldría jamás.
+    const res = await drenarCorreosPendientes({
+      db,
+      correo,
+      resolvedor: resolverSoloDe(tenant.id),
+      limite: 3,
+    });
+
+    expect(res.enviados).toBe(1);
+    expect(correo.lotes[0]?.map((c) => c.to)).toEqual(["tarde@example.cl"]);
+    // Las bloqueantes siguen intactas: ni intento consumido ni FALLIDO (falla segura ADR-0027 §3).
+    const bloqueantes = await db.correoEnviado.findMany({
+      where: { tenantId: tenant.id, tipo: "RECORDATORIO_SORTEO" },
+    });
+    expect(bloqueantes.map((f) => `${f.estado}:${f.intentos}`)).toEqual([
+      "PENDIENTE:0",
       "PENDIENTE:0",
       "PENDIENTE:0",
     ]);

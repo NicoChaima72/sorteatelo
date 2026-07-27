@@ -42,19 +42,14 @@ export const iniciarCheckoutInput = z.object({
       z.object({
         productId: z.string().cuid(),
         cantidad: z.number().int().min(1).max(MAX_CANTIDAD_POR_ITEM),
-        /**
-         * Opción de pack elegida, SOLO para productos modalidad SOBRE (F07/D3). Es lo ÚNICO que el
-         * cliente aporta sobre el precio, y ni siquiera es el precio: es un id que SELECCIONA entre
-         * las opciones ACTIVAS de ESE producto (que ya está scopeado por el tenant del subdominio,
-         * I1). El monto y el tamaño del pack los lee el server de la fila vigente y los congela en
-         * el `OrderItem` (I4) — un `precio` que viaje del cliente no existe en este input y no debe
-         * existir nunca.
-         *
-         * Opcional porque un producto ESTANDAR no lleva ninguna; que FALTE en un sobre (o que
-         * SOBRE en un estándar) lo rechaza el use case con mensaje, no Zod: la modalidad es un dato
-         * de la DB y el schema no la conoce.
-         */
-        packOptionId: z.string().cuid().optional(),
+        /*
+          `packOptionId` MURIÓ acá con la ENMIENDA v2 (E13). El carrito volvió a ser
+          `{productId, cantidad}` y punto: un pack es un PRODUCTO más, así que elegir «4 stickers»
+          es elegir un `productId`, no un producto + una opción adentro. Lo que se gana no es solo
+          simplicidad de input — es que el cliente dejó de aportar NADA sobre el precio: el monto y
+          el tamaño del pack salen los dos de la fila del producto y se congelan en el `OrderItem`
+          (I4). Un `precio` que viaje del cliente no existe en este input y no debe existir nunca.
+        */
       }),
     )
     .min(1)
@@ -62,6 +57,23 @@ export const iniciarCheckoutInput = z.object({
       (items) => new Set(items.map((i) => i.productId)).size === items.length,
       { message: "Cada producto puede aparecer una sola vez en la orden." },
     ),
+  /**
+   * Consentimiento de recordatorios del sorteo (F05/D5, CONTEXT § Consentimiento de recordatorios).
+   *
+   * **Un booleano y nada más.** Ni el texto que se mostró ni la fecha ni la IP viajan del cliente:
+   * el server los pone desde `TEXTO_CONSENTIMIENTO_RECORDATORIOS` y del propio request. Dejar que
+   * el navegador mande el texto de la prueba sería dejar que el evaluado escriba su propio
+   * descargo — y la Ley 21.719 pide consentimiento DEMOSTRABLE.
+   *
+   * **Opcional, y sin `default(false)` a propósito**: la mitad de servidor del «jamás premarcado»
+   * no vive en el schema sino en el use case, que exige `=== true` para escribir. Un default de Zod
+   * solo protege el borde tRPC; el `=== true` protege también a cualquier caller que no pase por
+   * acá (un test, un script futuro). La ausencia de la clave ES el «no», por las dos vías.
+   *
+   * NO es un [[Campo de checkout]]: es de PLATAFORMA, no configurable por el Organizador (que si
+   * no podría borrarlo, renombrarlo o volverlo obligatorio).
+   */
+  aceptaRecordatorios: z.boolean().optional(),
   respuestas: z
     .array(
       z.object({
@@ -88,17 +100,10 @@ export const iniciarCheckoutInput = z.object({
 
 export type IniciarCheckoutInput = z.infer<typeof iniciarCheckoutInput>;
 
-/**
- * Detalle de un producto del storefront (F03). El `id` SELECCIONA dentro de la Tienda; el
- * `tenantId` con el que se scopea sale del contexto (subdominio), NUNCA del input (I1).
- */
-export const getProductoStorefrontInput = z.object({
-  id: z.string().cuid(),
-});
-
-export type GetProductoStorefrontInput = z.infer<
-  typeof getProductoStorefrontInput
->;
+/*
+  `getProductoStorefrontInput` murió con su use case y con `/producto/[id]` (ENMIENDA v2, E2/F13):
+  no queda detalle de producto que pedir — todo se agrega desde la tarjeta del catálogo (E1).
+*/
 
 /**
  * Input del resolver de catálogo del page builder (F05): `modo` + `productoIds` de la sección de
@@ -131,7 +136,9 @@ export type GetSorteoResumenStorefrontInput = z.infer<
 /**
  * Input del estado de una orden por su token de Flow (builder-tanda-1 F08/D12). El `token` es el que
  * viaja en la URL de retorno de Flow (opaco). El `tenantId` sale del contexto (I1), jamás del input.
- * La respuesta es solo el estado enum, sin PII (I-T6).
+ * La respuesta lleva el estado y —solo con la orden ya PAGADA— sus Números del sorteo con el prefijo
+ * de la Tienda (F01/D1 de checkout-retorno-numeros-sorteo); nunca PII: ni correo, ni montos, ni ítems
+ * (I-T6).
  */
 export const getEstadoOrdenInput = z.object({
   token: z.string().min(1).max(256),

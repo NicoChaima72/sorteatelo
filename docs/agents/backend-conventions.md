@@ -130,7 +130,17 @@ La autenticación/validación del borde se hace **antes** de decodificar el body
 - Verificar la **autenticidad** de la notificación contra Flow (la confirmación es server-side contra su API; el payload del request por sí solo no es prueba de pago).
 - Solo el método esperado dispara el efecto (un `GET` accidental → 405).
 - **Idempotencia**: si el pago ya fue confirmado y procesado, responder OK sin re-ejecutar los efectos (no duplicar `Entitlement`/`RaffleEntry`/correo). La confirmación avanza el estado del `Payment`/`Order` `pendiente → pagado | fallido` una sola vez.
-- **Semántica de reintento**: si Flow reintenta ante 4xx, distinguir lo irreintentable (notificación malformada o ajena) de un fallo transitorio. Para lo irreintentable conviene **ack + ignorar** en vez de un 4xx que provoque reintentos infinitos; el rechazo de auth/método sí usa el código correspondiente.
+- **Semántica de reintento**: distinguir lo irreintentable (notificación malformada o ajena) de un fallo transitorio. Para lo irreintentable conviene **ack + ignorar** en vez de un 4xx que provoque reintentos infinitos; el rechazo de auth/método sí usa el código correspondiente. **El código HTTP del proveedor no alcanza para decidirlo**: `401`/`403` (credencial rotada o mal seteada en el despliegue), `408`/`425` y `429` son 4xx cuyo problema es NUESTRO y pasajero. Ackearlos pierde el cobro en silencio; hay que devolver 5xx y dejar que el proveedor reintente.
+
+### Volver de un proveedor externo: el puente 303
+
+Un proveedor que devuelve el navegador a la app puede hacerlo con un **POST cross-site** (Flow lo
+hace tras el registro de tarjeta). La cookie de sesión (`SameSite=Lax`) **no viaja en un POST
+cross-site**, así que apuntar la `url_return` a una página con guard de sesión termina en un
+redirect al login — en dev y en producción por igual. La `url_return` va a un **endpoint público**
+que recibe el POST, saca el dato del body y responde **303** a la página real: el 303 fuerza un GET,
+y `Lax` solo bloquea navegaciones top-level con método inseguro. El destino lo pone el wrapper, NUNCA
+el request (sin redirección abierta), y el token se sigue verificando server-side después.
 
 ## Jobs reconciliation-based (cron)
 
@@ -146,11 +156,17 @@ Todo trabajo diferido del proyecto —enviar correos programados, reconciliar es
 - **Presupuesto de reintentos con estado terminal visible**: `intentos < N` y, agotado, un estado `FALLIDO` que alguien pueda mirar. Un ledger que nadie mira es un `console.log` con más pasos.
 - **Distinguir el rechazo por CUOTA del fallo real**: cuando el proveedor responde «hoy no» (429), el trabajo se devuelve a la cola **sin consumir presupuesto**. Si no, un tope diario degrada a `FALLIDO` trabajo perfectamente sano.
 - **Orden total en la cola**: el `orderBy` FIFO lleva un desempate único (`[{ createdAt: "asc" }, { id: "asc" }]`). Las filas de un mismo `createMany` comparten `createdAt` al milisegundo, y sin orden total dos lecturas devuelven cosas distintas.
+- **El job solo mira lo que puede atender**: la ventana se filtra por los tipos que el resolvedor
+  declara saber armar, **en el WHERE y antes del `take`**. Si no, basta con que N filas de un tipo
+  todavía sin implementar sean más viejas que un trabajo real para que ese trabajo no salga NUNCA
+  (head-of-line blocking). Y los tipos viajan **en el mismo objeto** que el resolvedor, no como
+  parámetro aparte: así agregar una sección y olvidarse de la lista no compila silenciosamente en un
+  tipo mudo — encolado, jamás drenado, y que ni siquiera aparece en el contador de «sin resolver».
 - **El endpoint es un borde como cualquier otro**: núcleo testeable + wrapper (ver arriba), gate antes de cualquier efecto, y **fail-closed si falta el secreto** — sin `CRON_SECRET` configurada responde 500 en vez de quedar abierto. Un job que dispara efectos masivos no puede volverse público por una env var olvidada.
 - **UTC puro en el schedule**; cualquier hora local (`America/Santiago`, que tiene DST) se calcula dentro del use case con `Intl.DateTimeFormat`, nunca en la expresión cron.
 - **Testing**: un job de plataforma barre la cola ENTERA, y los tests corren en paralelo contra la misma DB remota. El fixture se aísla por el **seam de contenido** (que el job solo resuelva/ejecute las filas del tenant del test), no por el `where` del job — así las filas ajenas se saltan intactas, que es justo lo que hace el resolvedor real con un tipo que no le compete.
 
-Implementación de referencia: `domain/correo/ledgerCorreos.ts` (encolar) + `domain/correo/drenarCorreosPendientes.ts` (drenar) + `server/correo/cronCorreos.ts` (política del borde) + `pages/api/cron/correos.ts` (cableado).
+Implementación de referencia: `domain/correo/ledgerCorreos.ts` (encolar) + `domain/correo/drenarCorreosPendientes.ts` (drenar) + `domain/correo/resolvedorDeCorreos.ts` (contenido por tipo) + `server/correo/cronCorreos.ts` (política del borde) + `pages/api/cron/correos.ts` (cableado).
 
 ## Prisma en el server
 
@@ -176,6 +192,12 @@ Patrón canónico para selectores que listan colecciones paginables (p. ej. el l
 
 - Sin librería de fechas (`date-fns`/`dayjs`/`luxon` NO son dependencias). La aritmética se hace con `Date.UTC` nativo sobre fechas UTC a medianoche. Agregar una lib de fechas es decisión bloqueante (parar y preguntar).
 - Para sumar meses, clampar SIEMPRE al último día del mes destino (sumar un mes al 31 cae al 28/30 en meses cortos). Encapsular en un helper `sumarMesesUTC` cuando haga falta — p. ej. ventanas/fechas del sorteo o la expiración de las URLs firmadas de descarga.
+- **Las fechas de un proveedor externo vienen en SU zona, no en la del proceso.** Flow manda relojes
+  de pared sin zona (`"2026-08-26 00:00:00"` = medianoche de Santiago); `new Date(...)` los lee en la
+  zona del proceso, que en producción es UTC — el mismo dato daba dos instantes distintos según dónde
+  corriera, y la pantalla mostraba un día menos. Se convierten con `Intl` (Chile tiene DST: restar un
+  offset fijo no sirve), y el test tiene que **forzar `TZ=UTC`**: en una máquina chilena el bug es
+  invisible.
 
 ## Scripts CLI (tsx, fuera del runtime Next)
 

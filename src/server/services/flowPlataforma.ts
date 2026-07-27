@@ -57,6 +57,11 @@ export const FLOW_INTERVAL_MENSUAL = 3;
 export const FLOW_REGISTRO_OK = 1;
 /** `status` de una suscripción de Flow: 0 inactiva, 1 activa, 2 trial, 4 cancelada. */
 export const FLOW_SUSCRIPCION_CANCELADA = 4;
+/**
+ * `status` de un COBRO de Flow (el bloque `payment` de un invoice y la respuesta de
+ * `payment/getStatus`): 1 pendiente, 2 pagada, 3 rechazada, 4 anulada.
+ */
+export const FLOW_PAGO_PAGADO = 2;
 
 // ── Shapes de respuesta que consumimos ───────────────────────────────────────────────────────
 
@@ -83,14 +88,24 @@ export interface FlowCustomer {
 }
 
 export interface FlowRegistroTarjeta {
-  /** URL a la que se redirige al Pagador para que ingrese su tarjeta. */
-  url: string;
+  /**
+   * URL COMPLETA a la que se redirige al Pagador para que ingrese su tarjeta — con el `?token=` ya
+   * concatenado. Flow devuelve `url` y `token` por separado y **exige las dos partes juntas**: la
+   * `url` pelada contesta «¡Ups! Ha ocurrido un error / Error Processing Request» (verificado contra
+   * el sandbox, 3ª pasada del E2E). Mismo nombre y misma forma que `crearPago` del service BYO, que
+   * ya lo resolvía así (`services/flow.ts`).
+   */
+  redirectUrl: string;
   token: string;
 }
 
 export interface FlowEstadoRegistro {
-  /** 1 = registro OK. Cualquier otra cosa NO habilita crear la suscripción (I3). */
-  status: number;
+  /**
+   * 1 = registro OK. Cualquier otra cosa NO habilita crear la suscripción (I3). Viaja como
+   * **string** en el sandbox real (`"1"`), de ahí el `Number(...)` en los use cases — el tipo dice
+   * las dos formas para que nadie asuma que se puede comparar con `===` a un número.
+   */
+  status: string | number;
   customerId?: string;
   creditCardType?: string | null;
   last4CardDigits?: string | null;
@@ -113,22 +128,79 @@ export interface FlowSuscripcion {
   invoices?: FlowInvoice[];
 }
 
+/**
+ * El bloque `payment` de un invoice: el cobro y, si se pagó, su pago. **Solo viene en
+ * `invoice/get`** — el invoice embebido en `subscription/get` no lo trae.
+ */
+export interface FlowPagoDeInvoice {
+  /** 1 pendiente de pago, 2 pagada, 3 rechazada, 4 anulada. */
+  status?: number;
+  paymentData?: {
+    /** Cuándo se movió la plata (reloj de pared de Chile, ver `_fechaFlow.ts`). */
+    date?: string | null;
+    fee?: number | string | null;
+    balance?: number | string | null;
+  } | null;
+}
+
+/**
+ * Un invoice de Flow, con las claves que la API manda DE VERDAD (verificado contra `apiFlow.yaml`
+ * v7 y contra los payloads del sandbox, blocker 5 de la 4ª pasada del E2E).
+ *
+ * **Ojo con la superficie disponible**: `subscription/get` embebe una versión RECORTADA de este
+ * objeto —sin `payment`, `paymentLink`, `error*` ni `chargeAttemps`—, así que todo lo que dependa de
+ * esos cuatro campos necesita un `invoice/get` aparte. Lo que sí viaja embebido es `status`, que es
+ * lo que permite derivar el estado del ledger sin una llamada extra por invoice.
+ */
 export interface FlowInvoice {
   id: number | string;
-  subscription_id?: string;
-  /** Estado del invoice según Flow. */
+  subscriptionId?: string;
+  customerId?: string;
+  /** **0 impago, 1 pagado, 2 anulado.** El campo autoritativo del estado del cobro. */
   status?: number;
-  /** 1 = pagado. */
-  paid?: number;
-  amount?: number;
+  /** Monto del importe. Flow lo manda como STRING con 4 decimales (`"25000.0000"`). */
+  amount?: number | string;
+  subject?: string;
+  created?: string | null;
   period_start?: string | null;
   period_end?: string | null;
-  payment_date?: string | null;
+  /** Fecha desde la cual Flow considera moroso el importe. */
+  due_date?: string | null;
   next_attemp_date?: string | null; // sic: typo del proveedor
-  attemp?: number; // sic
+  /** Número de intentos de cobro del importe, **incluido el exitoso**. */
+  attemp_count?: number; // sic
+  /**
+   * **NO es un contador**: «si este importe se cobrará» — 1 se cobrará, 0 no se cobrará. Un invoice
+   * PAGADO viene con `attemped: 0` (y `attemp_count: 1`).
+   */
+  attemped?: number; // sic
+  /** 0 sin error, 1 si el intento de cobro falló. */
+  error?: number;
+  errorDate?: string | null;
+  errorDescription?: string | null;
+  /** Link para pagar a mano. Solo en `invoice/get`, y solo mientras el invoice NO está pagado. */
   paymentLink?: string | null;
-  outstanding?: number;
-  error?: string | null;
+  /** Solo en `invoice/get`. */
+  payment?: FlowPagoDeInvoice | null;
+  /** Intentos de cargo **fallidos**. Solo en `invoice/get`. */
+  chargeAttemps?: unknown[];
+}
+
+/**
+ * Respuesta de `payment/getStatus` — el endpoint con el que se resuelve el `token` que Flow postea
+ * al notificar una suscripción (F04). Es el MISMO endpoint que usa el webhook de ventas BYO, con
+ * otras credenciales.
+ */
+export interface FlowEstadoPago {
+  /**
+   * La referencia del cobro. En una suscripción Flow la arma como
+   * `<subscriptionId>_<invoiceId>_<fecha>` — es lo único que dice DE QUÉ suscripción habla la
+   * notificación. Se parsea con `domain/facturacion/_commerceOrderFlow.ts`.
+   */
+  commerceOrder?: string | null;
+  /** 1 pendiente, 2 pagado, 3 rechazado, 4 anulado. */
+  status?: number;
+  amount?: number | string | null;
 }
 
 export interface FlowCupon {
@@ -188,19 +260,45 @@ export interface FlowPlataformaService {
     subscriptionId: string;
     alFinDelPeriodo: boolean;
   }): Promise<FlowSuscripcion>;
-  /** Cambio de plan PROGRAMADO para la próxima renovación (D7): nunca retroactivo. */
+  /**
+   * Cambio de plan (D7). **Es inmediato y NO es gratis**: Flow mueve el `planId` en el acto y emite
+   * —y cobra— una factura por la diferencia del período EN CURSO. O sea que llamarlo a mitad de un
+   * período ya pagado le cobra al Organizador un mes que no pidió (blocker 6 de la 4ª pasada del
+   * E2E). Por eso el único caller es el cron (`facturacion/promocionesDePlan.ts`), que espera a que
+   * el período que se está cobrando sea el que corresponde al plan nuevo.
+   *
+   * Tampoco es idempotente: repetirlo responde `400 code 1001` («el plan seleccionado es el mismo
+   * que el actual»), que en la práctica es la confirmación de que ya estaba hecho.
+   *
+   * **`temporality` no existe.** Se le mandaba un `temporality: 2` creyendo que programaba el cambio;
+   * los parámetros documentados de `subscription/changePlan` son `subscriptionId`, `newPlanId` y
+   * `startDateOfNewPlan` (opcional, `YYYY-mm-dd`, y **tiene que caer dentro del ciclo de facturación
+   * en curso**). Esa fecha tampoco sirve para diferir la promoción a la renovación siguiente: no se
+   * puede apuntar fuera del ciclo actual, y `Subscription.in_new_plan_next_attempt_date` deja claro
+   * que el cambio programado arrastra su propio intento de cobro igual. La programación es NUESTRA.
+   */
   cambiarPlan(input: {
     subscriptionId: string;
     nuevoPlanId: string;
   }): Promise<FlowSuscripcion>;
   // invoice/*
   getInvoice(invoiceId: string): Promise<FlowInvoice>;
+  // payment/*
+  /**
+   * Estado de un cobro por su `token`. Es la puerta de entrada del webhook (F04): Flow notifica las
+   * suscripciones con un token y nada más, y de acá sale el `commerceOrder` que dice a qué
+   * suscripción pertenece.
+   */
+  getEstadoPago(token: string): Promise<FlowEstadoPago>;
   // coupon/*
   crearCupon(input: {
     name: string;
     percentOff?: number;
     amount?: string;
-    /** 1 = una vez, N = N períodos, undefined = para siempre. */
+    /**
+     * Cuántos períodos dura el descuento: 1 = solo el primer cobro, N = N cobros,
+     * `undefined` = para siempre. La traducción al `duration`/`times` de Flow vive en el adapter.
+     */
     duracionPeriodos?: number;
     /** ISO `YYYY-MM-DD`. */
     expira?: string;
@@ -209,15 +307,86 @@ export interface FlowPlataformaService {
 }
 
 /**
+ * 4xx que NO son culpa del request: no los arregla cambiar lo que se manda, sino el tiempo o una
+ * credencial correcta. `408`/`425` son timeouts de un proxy delante de Flow; `429` es rate limit;
+ * `401`/`403` son la credencial de plataforma rotada o mal seteada en el despliegue.
+ */
+const ESTADOS_TRANSITORIOS = new Set([401, 403, 408, 425, 429]);
+
+/**
+ * Un error de la API de Flow con su código a la vista. Existe porque **hay decisiones que dependen
+ * de si el rechazo es definitivo o transitorio**, y con un `Error` genérico habría que parsear texto:
+ *
+ * - El webhook (F04) tiene que ackear 200 ante un token que Flow no reconoce —reintentar no lo va a
+ *   arreglar, y machacar con 500 arriesga que Flow desactive el `urlCallback`— y responder 500 ante
+ *   una caída, donde el reintento es justamente la red que no pierde el cobro. La línea fina entre
+ *   una cosa y la otra la traza `esIrreintentable`.
+ * - El recálculo de planes (F06) tiene que tragarse el `code 1001` de `changePlan` («el plan
+ *   seleccionado es el mismo que el actual»), que no es una falla sino la confirmación de que el
+ *   cambio ya estaba hecho — `changePlan` NO es idempotente (verificado en el sandbox).
+ *
+ * NUNCA lleva credenciales: solo la ruta, el status HTTP y lo que Flow puso en `code`/`message` (I7).
+ */
+export class ErrorFlowPlataforma extends Error {
+  readonly ruta: string;
+  readonly httpStatus: number;
+  readonly codigoFlow: number | null;
+
+  constructor(args: {
+    ruta: string;
+    httpStatus: number;
+    codigoFlow: number | null;
+    mensajeFlow: string | null;
+  }) {
+    const detalle =
+      args.codigoFlow === null
+        ? ""
+        : ` (code ${args.codigoFlow}${args.mensajeFlow ? `: ${args.mensajeFlow}` : ""})`;
+    super(`Flow (plataforma) ${args.ruta} respondió ${args.httpStatus}${detalle}.`);
+    this.name = "ErrorFlowPlataforma";
+    this.ruta = args.ruta;
+    this.httpStatus = args.httpStatus;
+    this.codigoFlow = args.codigoFlow;
+  }
+
+  /**
+   * `true` si insistir no puede cambiar el resultado: Flow entendió el request y lo rechazó por lo
+   * que decía, no por cómo estaba el mundo.
+   *
+   * Los tres 4xx excluidos son la línea fina, y equivocarla cuesta un cobro: **401/403** (credencial
+   * de plataforma rotada o mal seteada en Vercel) y **429** (rate limit bajo una ráfaga de
+   * notificaciones) son fallos NUESTROS y pasajeros. Si el webhook los leyera como definitivos
+   * ackearía 200, Flow no reintentaría nunca y el cobro se perdería en silencio — el modo de falla
+   * del blocker 4, en una versión mucho más difícil de diagnosticar (el resto de la app seguiría
+   * andando). Se arreglan solos en cuanto la credencial vuelve o baja la ráfaga.
+   */
+  get esIrreintentable(): boolean {
+    if (ESTADOS_TRANSITORIOS.has(this.httpStatus)) return false;
+    return this.httpStatus >= 400 && this.httpStatus < 500;
+  }
+}
+
+/**
+ * Falta una credencial de plataforma en el entorno. Es una clase aparte de `ErrorFlowPlataforma`
+ * porque el destinatario es otro: acá **no falló Flow, falló el despliegue**, y el mensaje —que
+ * nombra la env var— es lo único accionable que hay. Por eso es el único error del mundo Flow que
+ * NO se traduce a una frase genérica antes de llegar a la pantalla (ver `_erroresDeFlow.ts`).
+ */
+export class ErrorConfiguracionFlow extends Error {
+  constructor(readonly envVar: string) {
+    super(
+      `Falta ${envVar} para operar la facturación de la plataforma — configúrala en .env (ver .env.example).`,
+    );
+    this.name = "ErrorConfiguracionFlow";
+  }
+}
+
+/**
  * Fail-fast de una credencial de PLATAFORMA. El mensaje nombra la env var que falta y JAMÁS incluye
  * su valor (I7) — mejor un 500 explícito que un cobro silenciosamente roto.
  */
 function exigir(valor: string | undefined, envVar: string): string {
-  if (!valor) {
-    throw new Error(
-      `Falta ${envVar} para operar la facturación de la plataforma — configúrala en .env (ver .env.example).`,
-    );
-  }
+  if (!valor) throw new ErrorConfiguracionFlow(envVar);
   return valor;
 }
 
@@ -276,7 +445,7 @@ export function crearFlowPlataformaService(
 
   return {
     async crearPlan(input) {
-      return (await post("plan/create", {
+      return (await post("plans/create", {
         planId: input.planId,
         name: input.name,
         currency: "CLP",
@@ -292,7 +461,7 @@ export function crearFlowPlataformaService(
     },
 
     async getPlan(planId) {
-      return (await get("plan/get", { planId })) as unknown as FlowPlan;
+      return (await get("plans/get", { planId })) as unknown as FlowPlan;
     },
 
     async crearCustomer(input) {
@@ -313,8 +482,19 @@ export function crearFlowPlataformaService(
       const r = (await post("customer/register", {
         customerId: input.customerId,
         url_return: input.urlReturn,
-      })) as unknown as FlowRegistroTarjeta;
-      return r;
+      })) as { url?: string; token?: string };
+
+      // Fail-fast antes del redirect: una respuesta a medias mandaría al Pagador a una pantalla de
+      // error de Flow, y desde ahí el flujo no tiene vuelta. Mejor un error legible en el panel.
+      if (!r.url || !r.token) {
+        throw new Error(
+          "Flow (plataforma) /api/customer/register no devolvió la url y el token del registro de tarjeta.",
+        );
+      }
+      return {
+        redirectUrl: `${r.url}?token=${encodeURIComponent(r.token)}`,
+        token: r.token,
+      };
     },
 
     async getEstadoRegistro(token) {
@@ -346,11 +526,13 @@ export function crearFlowPlataformaService(
     },
 
     async cambiarPlan(input) {
+      // Sin `startDateOfNewPlan`: el cambio se pide justo cuando ya corresponde aplicarlo (ver el
+      // contrato arriba y `facturacion/promocionesDePlan.ts`). El `temporality: 2` que iba acá no es
+      // un parámetro de este endpoint — Flow lo ignoraba, y de ahí venía la ilusión de que el cambio
+      // quedaba «programado».
       return (await post("subscription/changePlan", {
         subscriptionId: input.subscriptionId,
         newPlanId: input.nuevoPlanId,
-        // 2 = el cambio rige desde la PRÓXIMA renovación (programado, nunca retroactivo — D7).
-        temporality: 2,
       })) as unknown as FlowSuscripcion;
     },
 
@@ -360,14 +542,24 @@ export function crearFlowPlataformaService(
       })) as unknown as FlowInvoice;
     },
 
+    async getEstadoPago(token) {
+      return (await get("payment/getStatus", {
+        token,
+      })) as unknown as FlowEstadoPago;
+    },
+
     async crearCupon(input) {
       return (await post("coupon/create", {
         name: input.name,
         percent_off: input.percentOff,
         amount: input.amount,
         currency: input.amount === undefined ? undefined : "CLP",
-        // Flow: duration 1 = "para siempre"; 2 = definida por `times` períodos.
-        duration: input.duracionPeriodos === undefined ? 1 : 2,
+        // Flow (verificado contra el sandbox, blocker 3 de la 3ª pasada del E2E): **`duration = 0`
+        // es «para siempre»** y va SIN `times`; **`duration = 1` es «N períodos»** y `times` es
+        // obligatorio. No hay un valor 2. La lectura anterior (1 = siempre, 2 = definida) hacía que
+        // el CLI no pudiera crear NINGÚN cupón: las dos ramas rebotaban con «The duration must be
+        // 0 or 1» o «If duration = 1 times must be sent».
+        duration: input.duracionPeriodos === undefined ? 0 : 1,
         times: input.duracionPeriodos,
         expires: input.expira,
         max_redemptions: input.maxRedemptions,
@@ -376,14 +568,33 @@ export function crearFlowPlataformaService(
   };
 }
 
-/** Lanza si Flow responde !ok, SIN volcar la firma ni la apiKey del request (I7). */
-async function exigirOk(
-  res: { ok: boolean; status: number },
-  ruta: string,
-): Promise<void> {
-  if (!res.ok) {
-    throw new Error(`Flow (plataforma) ${ruta} respondió ${res.status}.`);
+/**
+ * Lanza si Flow responde !ok, SIN volcar la firma ni la apiKey del request (I7).
+ *
+ * Del cuerpo del error se rescatan **solo** `code` y `message` —los dos únicos campos que Flow manda
+ * ahí— porque el `code` es lo que permite tomar decisiones: un `1001` de `changePlan` significa «ya
+ * estaba en ese plan» y no es una falla, mientras que un `105` significa que el endpoint no existe.
+ * Nada del request (que sí lleva credenciales) entra en el mensaje.
+ */
+async function exigirOk(res: Response, ruta: string): Promise<void> {
+  if (res.ok) return;
+
+  let codigoFlow: number | null = null;
+  let mensajeFlow: string | null = null;
+  try {
+    const cuerpo = (await res.json()) as { code?: unknown; message?: unknown };
+    if (typeof cuerpo?.code === "number") codigoFlow = cuerpo.code;
+    if (typeof cuerpo?.message === "string") mensajeFlow = cuerpo.message;
+  } catch {
+    // Cuerpo vacío o no-JSON (un 502 del proxy, por ejemplo): el status ya dice bastante.
   }
+
+  throw new ErrorFlowPlataforma({
+    ruta,
+    httpStatus: res.status,
+    codigoFlow,
+    mensajeFlow,
+  });
 }
 
 /** POST real a Flow (form-urlencoded). No se usa en tests (se inyecta `httpPost`). */

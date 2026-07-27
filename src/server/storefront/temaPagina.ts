@@ -120,8 +120,10 @@ export async function resolverHerenciaDeLaHome({
 }
 
 /**
- * Solo el tema (D1/D6/D7) — el contrato original de F01, conservado para los call sites que no
- * necesitan el nav (`/entrega/[token]`, host-agnóstica: su nav de anclas apuntaría al apex).
+ * Solo el tema (D1/D6/D7) — el contrato original de F01, conservado para call sites que no necesiten
+ * el nav. (`/entrega/[token]` ya no es uno: desde el follow-up de su chrome usa
+ * `resolverHerenciaDeLaHome` y re-ancla el nav ABSOLUTO al subdominio con `reanclarNavATienda`,
+ * porque es host-agnóstica y también se sirve en el apex.)
  */
 export async function resolverTemaPagina(args: {
   tenantSlug: string;

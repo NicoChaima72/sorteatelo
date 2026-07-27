@@ -22,11 +22,27 @@ import { type GetServerSideProps, type InferGetServerSidePropsType } from "next"
 import { useState } from "react";
 
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
+import {
+  componerNavDelHeader,
+  hrefMenuItem,
+  type Chrome,
+} from "~/lib/pagebuilder/chrome";
+import {
+  hrefEnTienda,
+  reanclarNavALaHome,
+  reanclarNavATienda,
+  type NavItem,
+} from "~/lib/pagebuilder/nav";
 import { type Tema } from "~/lib/pagebuilder/schema";
+import { apexDesdeHost, construirUrlSubdominio } from "~/lib/urlApex";
 import { db } from "~/server/db";
 import { getEntregaDeOrden } from "~/server/entrega/getEntregaDeOrden";
 import { crearStorageDeEnv } from "~/server/storage/storageDeEnv";
-import { resolverTemaPagina } from "~/server/storefront/temaPagina";
+import {
+  resolverChrome,
+  resolverNavPaginas,
+} from "~/server/storefront/getStorefrontProps";
+import { resolverHerenciaDeLaHome } from "~/server/storefront/temaPagina";
 import { estiloHeredadoDeTema } from "~/styles/estiloSeccion";
 import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 import { env } from "~/env";
@@ -94,6 +110,14 @@ interface PropsEntrega {
    * branding y por la misma razón: acá no hay host del que deducirlo. `null` ⇒ tienda sin tematizar.
    */
   temaPagina: Tema | null;
+  /**
+   * Nav del header compuesto con las MISMAS reglas que la home (follow-up del navbar), pero con URLs
+   * ABSOLUTAS al subdominio de la Tienda: esta página es host-agnóstica (se sirve también en el apex,
+   * que es la URL que viaja en el correo), así que un `/#catalogo` relativo navegaría al host equivocado.
+   */
+  navItems: NavItem[];
+  /** Chrome de la Tienda, con los links del footer ya resueltos a URLs absolutas (misma razón). */
+  chrome: Chrome | null;
 }
 
 export const getServerSideProps: GetServerSideProps<PropsEntrega> = async (
@@ -148,18 +172,68 @@ export const getServerSideProps: GetServerSideProps<PropsEntrega> = async (
     });
   }
 
-  // Tema por el tenant del GRANT (F03/D9), nunca por el host: esta página se sirve en el APEX, así que
-  // resolverlo por host la dejaría sin la marca de la Tienda justo donde el Comprador viene a buscar lo
-  // que compró. Defensivo por dentro ⇒ una tienda sin tema publicado no rompe la entrega.
-  const temaPagina = await resolverTemaPagina({ tenantSlug: entrega.branding.slug });
+  // Tema + chrome + nav por el tenant del GRANT (F03/D9 + follow-up del navbar), nunca por el host:
+  // esta página se sirve en el APEX, así que resolverlos por host la dejaría sin la marca de la Tienda
+  // justo donde el Comprador viene a buscar lo que compró. Defensivos por dentro ⇒ una tienda sin tema
+  // ni chrome publicados no rompe la entrega.
+  const slug = entrega.branding.slug;
+  const [herencia, chrome, navPaginas] = await Promise.all([
+    resolverHerenciaDeLaHome({ tenantSlug: slug }),
+    resolverChrome({ tenantSlug: slug }),
+    resolverNavPaginas({ tenantSlug: slug }),
+  ]);
 
-  return { props: { tenantBranding: entrega.branding, lineas, temaPagina } };
+  // Base ABSOLUTA del subdominio de la Tienda, porque esta página es host-agnóstica: abierta desde el
+  // apex (la URL del correo), un `/#catalogo` relativo navegaría a la landing de la plataforma. El apex
+  // sale de la env (autoritativa en prod) o del host de la request (dev sin env); el protocolo, del
+  // proxy de Vercel (`x-forwarded-proto`) con fallback http para dev.
+  const [hostname = "", puerto] = (ctx.req.headers.host ?? "").split(":");
+  const protoHeader = ctx.req.headers["x-forwarded-proto"];
+  const protocol = `${typeof protoHeader === "string" ? protoHeader : "http"}:`;
+  const apex = env.NEXT_PUBLIC_PLATFORM_DOMAIN ?? apexDesdeHost(hostname, slug);
+  const baseTienda = construirUrlSubdominio({ protocol, apex, puerto, slug, path: "" });
+
+  // Mismo nav que la home y el resto de las páginas de plataforma (una sola regla), re-anclado ABSOLUTO.
+  const navItems = reanclarNavATienda(
+    reanclarNavALaHome(
+      componerNavDelHeader({ chrome, navDerivado: herencia.navDeLaHome, navPaginas }),
+    ),
+    baseTienda,
+  );
+
+  // Los links del footer los resuelve el layout con `hrefMenuItem` (relativo) ⇒ acá se pre-resuelven a
+  // URL absoluta, para que el chrome del footer también funcione servido desde el apex.
+  const chromeAbsoluto: Chrome | null = chrome && {
+    ...chrome,
+    footer: {
+      ...chrome.footer,
+      links: chrome.footer.links.map((l) => ({
+        etiqueta: l.etiqueta,
+        destino: {
+          tipo: "url" as const,
+          url: hrefEnTienda(hrefMenuItem(l.destino), baseTienda),
+        },
+      })),
+    },
+  };
+
+  return {
+    props: {
+      tenantBranding: entrega.branding,
+      lineas,
+      temaPagina: herencia.temaPagina,
+      navItems,
+      chrome: chromeAbsoluto,
+    },
+  };
 };
 
 export default function EntregaPage({
   tenantBranding,
   lineas,
   temaPagina,
+  navItems,
+  chrome,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Fondo heredado de la Tienda del grant (F03/D9); `_app` aplica radio/tipografía/modo. Tienda con
   // tema default ⇒ ambas `undefined` ⇒ la página queda byte-idéntica a como salía antes (I6).
@@ -170,6 +244,8 @@ export default function EntregaPage({
       branding={tenantBranding}
       estiloShell={estiloShell}
       colorPagina={colorPagina}
+      navItems={navItems}
+      chrome={chrome}
     >
       {/* `size="lg"` como el resto de las páginas de contenido del storefront. */}
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>

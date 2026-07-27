@@ -40,7 +40,11 @@ describe("services/flowPlataforma — credenciales de plataforma", () => {
 
     expect(httpPost).toHaveBeenCalledTimes(1);
     const [url, form] = httpPost.mock.calls[0]!;
-    expect(url).toBe("https://sandbox.flow.cl/api/plan/create");
+    // **PLURAL**: `plan/create` responde `400 {"code":105,"message":"No services available"}`; los
+    // endpoints que existen son `plans/create` / `plans/get` / `plans/list` / `plans/delete`
+    // (verificado contra el sandbox, 3ª pasada del E2E). Los otros recursos SÍ van en singular
+    // (`customer/*`, `subscription/*`, `coupon/*`, `invoice/*`): la API de Flow es inconsistente.
+    expect(url).toBe("https://sandbox.flow.cl/api/plans/create");
     expect(form.apiKey).toBe("plataforma-api-key");
     expect(form.currency).toBe("CLP");
     // interval 3 = mensual en la API de Flow.
@@ -91,7 +95,95 @@ describe("services/flowPlataforma — credenciales de plataforma", () => {
     });
 
     await flow.getPlan("sorteatelo-full");
-    expect(httpGet.mock.calls[0]![0]).toBe("https://www.flow.cl/api/plan/get");
+    expect(httpGet.mock.calls[0]![0]).toBe("https://www.flow.cl/api/plans/get");
+  });
+});
+
+/**
+ * **Contrato REAL de la API de Flow**, verificado contra el sandbox de la cuenta de plataforma en la
+ * 3ª pasada del `feature-tester` (2026-07-26). Cada uno de estos tests existe porque el fake anterior
+ * codificaba el contrato EQUIVOCADO y los 209 tests de facturación pasaban con la integración rota.
+ * Son la línea que separa «mi fake dice que sí» de «Flow dice que sí».
+ */
+describe("services/flowPlataforma — contrato verificado contra el sandbox real", () => {
+  // flowPlataforma.registro.001 — el redirect del registro de tarjeta VA CON el token
+  it("devuelve la URL de registro con el token en la query, no la URL pelada", async () => {
+    const httpPost = vi.fn<HttpPostPlataforma>().mockResolvedValue({
+      url: "https://sandbox.flow.cl/app/customer/register",
+      token: "TOK123abc",
+    });
+    const flow = crearFlowPlataformaService({
+      apiKey: "k",
+      secretKey: "s",
+      httpPost,
+      httpGet: get(),
+    });
+
+    const r = await flow.registrarTarjeta({
+      customerId: "cus_1",
+      urlReturn: "https://mi-tienda.sorteatelo.cl/api/facturacion/retorno-plan",
+    });
+
+    // Sin el `?token=`, Flow contesta «¡Ups! Ha ocurrido un error / Error Processing Request» y el
+    // Pagador no llega nunca al formulario de tarjeta. El service BYO ya lo hace así (`flow.ts:144`).
+    expect(r.redirectUrl).toBe(
+      "https://sandbox.flow.cl/app/customer/register?token=TOK123abc",
+    );
+    expect(r.token).toBe("TOK123abc");
+  });
+
+  // flowPlataforma.cupon.001 — «para siempre» es duration 0 SIN times
+  it("manda duration=0 y ningún times cuando el cupón no vence nunca", async () => {
+    const httpPost = post();
+    const flow = crearFlowPlataformaService({
+      apiKey: "k",
+      secretKey: "s",
+      httpPost,
+      httpGet: get(),
+    });
+
+    await flow.crearCupon({ name: "ARMY2026", percentOff: 50 });
+
+    const [, form] = httpPost.mock.calls[0]!;
+    // Verificado contra el sandbox: `duration=1` sin `times` ⇒ «If duration = 1 times must be sent».
+    expect(form.duration).toBe("0");
+    expect(form.times).toBeUndefined();
+  });
+
+  // flowPlataforma.cupon.002 — «N períodos» es duration 1 CON times
+  it("manda duration=1 con times=N cuando el descuento dura N períodos", async () => {
+    const httpPost = post();
+    const flow = crearFlowPlataformaService({
+      apiKey: "k",
+      secretKey: "s",
+      httpPost,
+      httpGet: get(),
+    });
+
+    await flow.crearCupon({ name: "ARMY2026", percentOff: 50, duracionPeriodos: 3 });
+
+    const [, form] = httpPost.mock.calls[0]!;
+    // Verificado contra el sandbox: `duration=2` ⇒ «The duration must be 0 or 1».
+    expect(form.duration).toBe("1");
+    expect(form.times).toBe("3");
+  });
+
+  // flowPlataforma.registro.002 — una respuesta incompleta NO manda al Pagador a una pantalla rota
+  it("falla fast si Flow no devuelve url o token, en vez de armar una URL inservible", async () => {
+    for (const respuesta of [
+      { url: "https://sandbox.flow.cl/app/customer/register" },
+      { token: "TOK123abc" },
+    ]) {
+      const flow = crearFlowPlataformaService({
+        apiKey: "k",
+        secretKey: "s",
+        httpPost: vi.fn<HttpPostPlataforma>().mockResolvedValue(respuesta),
+        httpGet: get(),
+      });
+      await expect(
+        flow.registrarTarjeta({ customerId: "cus_1", urlReturn: "https://x/r" }),
+      ).rejects.toThrow(/customer\/register/);
+    }
   });
 });
 

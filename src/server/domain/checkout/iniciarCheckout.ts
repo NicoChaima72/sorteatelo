@@ -1,10 +1,17 @@
-import { Prisma, type PrismaClient, type ProductMode } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 
+import {
+  datosEntregableDeFila,
+  esProductoEntregable,
+  SELECCION_PRODUCTO_ENTREGABLE,
+  seVendeDirecto,
+} from "~/server/productos/productoEntregable";
 import { SELECCION_CAMPO_DEL_CHECKOUT } from "~/server/domain/camposCheckout/camposActivos";
 import { ordenDeCamposCheckout } from "~/server/domain/camposCheckout/reglas";
 import { validarRespuestasDeCheckout } from "~/server/domain/camposCheckout/validarRespuestas";
 import { DomainError } from "~/server/domain/errors";
 import { type IniciarCheckoutInput } from "~/server/domain/checkout/schemas";
+import { registrarConsentimientoRecordatorios } from "~/server/domain/correo/preferenciasDeCorreo";
 import { cargarGateVenta } from "~/server/domain/facturacion/cargarGateVenta";
 import { type FlowService } from "~/server/services/flow";
 
@@ -31,87 +38,48 @@ import { type FlowService } from "~/server/services/flow";
  * El `flow` entra inyectado (instanciado en el borde con las credenciales del tenant,
  * nunca dentro del dominio, I7).
  */
-/** Lo que el checkout necesita saber del producto para resolver el precio de una línea (F07). */
-interface ProductoParaLinea {
-  precio: Prisma.Decimal;
-  modalidad: ProductMode;
-  _count: { files: number };
-  packOptions: Array<{ id: string; unidades: number; precio: Prisma.Decimal }>;
-}
-
 /**
- * Resuelve **qué se congela en el `OrderItem`** de una línea: el precio y cuántos archivos del pool
- * entrega un pack (F07/D3).
+ * Resuelve **qué se congela en el `OrderItem`** de una línea (F07, reescrito por la ENMIENDA v2).
  *
- * Es UNA función para las dos modalidades a propósito: el resto del use case (el total, el Payment,
- * el monto a Flow) no debe saber si compró un archivo o un sobre. Devuelve siempre las dos cosas, así
- * `unidadesPorPack` nunca queda implícito — para un ESTANDAR es **1**, que es un hecho VERDADERO
- * (comprar 3 unidades son 3 tickets = 1×3) y no un relleno.
+ * Bajo el modelo v2 un pack ES un producto (E13), así que esto dejó de tener ramas: el precio es el
+ * `Product.precio` que el Organizador tipeó y las unidades son su `Product.unidadesPorPack`. No hay
+ * opción que buscar, ni `packOptionId` que validar, ni un precio "de pack" distinto del precio del
+ * producto — la simplificación que el usuario pidió al rechazar la v1 se ve entera acá.
  *
- * `packOptions` ya viene filtrado a las ACTIVAS y del producto del tenant resuelto server-side, así
- * que buscar el `packOptionId` acá dentro es a la vez la validación de vigencia y la de pertenencia
- * (I1): un id de otra Tienda, de otro producto o de una opción apagada simplemente no está en la
- * lista. Nunca se confía en un precio que venga del cliente — no existe tal campo en el input (I4).
+ * Se sigue devolviendo `unidadesPorPack` EXPLÍCITO (y no se deja al `@default(1)` de la columna)
+ * porque de acá salen las dos cosas que F08 necesita estables ante replay: cuántos archivos se
+ * sortean y cuántos tickets se emiten. Para un producto normal vale 1, que es un hecho VERDADERO
+ * (comprar 3 unidades son 3 tickets = 1×3), no un relleno.
+ *
+ * Nunca se confía en un precio que venga del cliente: no existe tal campo en el input (I4).
  */
-function snapshotDeLinea(
-  producto: ProductoParaLinea,
-  packOptionId: string | undefined,
-): { precio: Prisma.Decimal; unidadesPorPack: number } {
-  if (producto.modalidad !== "SOBRE") {
-    if (packOptionId !== undefined) {
-      // Ignorarlo en silencio sería peor: el Comprador creería que se lleva un pack.
-      throw new DomainError(
-        "INVALID",
-        "Este producto no se vende por packs.",
-      );
-    }
-    return { precio: producto.precio, unidadesPorPack: 1 };
-  }
-
-  if (packOptionId === undefined) {
-    throw new DomainError(
-      "INVALID",
-      "Elige cuántos archivos quieres antes de comprar este sobre.",
-    );
-  }
-
-  const opcion = producto.packOptions.find((o) => o.id === packOptionId);
-  if (!opcion) {
-    // Neutral y accionable: cubre "ya no existe", "la apagaron" y "es de otro producto/Tienda" con
-    // la misma respuesta, sin fugar cuál de los tres fue (I1).
-    throw new DomainError(
-      "INVALID",
-      "Esa opción ya no está disponible. Vuelve a elegir un pack.",
-    );
-  }
-
-  // Gate del pool (D4/I7), recomputado acá con los datos VIGENTES: sin esto, F08 intentaría sortear
-  // más archivos distintos de los que hay y reventaría contra el
-  // `@@unique([orderItemId, packOrdinal, productFileId])` DESPUÉS de que el Comprador pagó. El
-  // rechazo es ANTES de crear la Order y antes de tocar Flow: preferimos no vender a no poder
-  // entregar. El mensaje no dice cuántos archivos tiene la colección — el inventario de la Tienda no
-  // es asunto del Comprador, y "elige otro pack" es lo accionable.
-  if (producto._count.files < opcion.unidades) {
-    throw new DomainError(
-      "INVALID",
-      "Ese pack no está disponible por ahora. Prueba con uno más chico.",
-    );
-  }
-
-  // El precio del PACK COMPLETO (nunca el `Product.precio`, que en un sobre es solo referencia, ni
-  // un precio por unidad: multiplicarlo por `unidades` cobraría de más).
-  return { precio: opcion.precio, unidadesPorPack: opcion.unidades };
+function snapshotDeLinea(producto: {
+  precio: Prisma.Decimal;
+  unidadesPorPack: number;
+}): { precio: Prisma.Decimal; unidadesPorPack: number } {
+  return {
+    precio: producto.precio,
+    unidadesPorPack: producto.unidadesPorPack,
+  };
 }
 
 export async function iniciarCheckout({
   db,
   flow,
   tenantId,
+  ip,
   input,
 }: {
   db: PrismaClient;
   flow: FlowService;
   tenantId: string;
+  /**
+   * IP del request, derivada en el BORDE (F05/D5): es parte del registro verificable del
+   * consentimiento, junto al timestamp y al texto exacto. Entra como dato y no se lee de `req` acá
+   * adentro — el dominio no conoce el transporte. `null` cuando no se pudo derivar: se guarda null,
+   * jamás un valor inventado.
+   */
+  ip: string | null;
   input: IniciarCheckoutInput;
 }): Promise<{ orderId: string; total: string; redirectUrl: string }> {
   const { order, subject } = await db.$transaction(async (tx) => {
@@ -141,18 +109,13 @@ export async function iniciarCheckout({
         precio: true,
         activo: true,
         participaEnSorteo: true,
-        // F07 — lo que hace falta para vender un SOBRE. Todo cuelga del producto, que ya está
-        // scopeado por `tenantId`: el pack elegido no puede ser de otra Tienda por construcción (I1).
-        modalidad: true,
-        // Tamaño del POOL: solo los confirmados (un archivo a medio subir no es entregable, F06).
-        _count: { select: { files: { where: { confirmadoAt: { not: null } } } } },
-        // Solo las ACTIVAS: apagar una opción es sacarla de la venta (mismo criterio que los Campos
-        // de checkout, releídos VIGENTES dentro de esta misma $tx — nunca lo que el cliente tenía
-        // renderizado).
-        packOptions: {
-          where: { activo: true },
-          select: { id: true, unidades: true, precio: true },
-        },
+        // ENMIENDA v2 — todo lo que hace falta para decidir si esta línea se puede vender Y qué
+        // congela, en UN select compartido con el panel y con el gate de publicación (I5): la
+        // modalidad (¿es una colección?), las unidades del pack, y la FUENTE con su pool. Todo
+        // cuelga del producto, que ya está scopeado por `tenantId`, así que la fuente no puede ser
+        // de otra Tienda por construcción (I1) — lo garantiza además `resolverFuenteDePack` al
+        // crear el pack, y `fuenteId` es inmutable.
+        ...SELECCION_PRODUCTO_ENTREGABLE,
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
@@ -166,6 +129,38 @@ export async function iniciarCheckout({
       }
       if (!producto.activo) {
         throw new DomainError("INACTIVE", `Producto ${productId} inactivo`);
+      }
+
+      // Una COLECCIÓN no se compra (E15/E17): existe para que sus packs referencien su pool, y no
+      // aparece en el catálogo. El rechazo es server-side y no "no está en la vitrina": la vitrina
+      // es una vista, y un POST a mano no la mira. Es también el corte que impide vender el pool
+      // entero al precio de referencia de la colección.
+      if (!seVendeDirecto(producto)) {
+        throw new DomainError(
+          "INVALID",
+          "Este producto no se vende por separado. Elige uno de los packs de la tienda.",
+        );
+      }
+
+      // Gate de ENTREGA recomputado con los datos VIGENTES, con la MISMA regla que el guard de
+      // activación del panel y el gate de publicación (I5). Para un pack de fuente SOBRE esto es
+      // "el pool alcanza para las unidades que pide ESTE pack": sin él, F08 intentaría sortear más
+      // archivos distintos de los que hay y reventaría contra el
+      // `@@unique([orderItemId, packOrdinal, productFileId])` DESPUÉS de que el Comprador pagó.
+      //
+      // El gate mide contra el pack PEDIDO y no contra el más grande de la Tienda: rechazar la
+      // compra de un pack de 1 porque existe otro de 4 sin cubrir sería castigar una venta que sí
+      // se puede entregar. Bajo v2 eso sale gratis — cada pack es su propio producto y trae sus
+      // propias `unidadesPorPack`.
+      //
+      // El rechazo ocurre ANTES de crear la Order y ANTES de tocar Flow: preferimos no vender a no
+      // poder entregar. El mensaje NO dice cuántos archivos tiene la colección: el inventario de la
+      // Tienda no es asunto del Comprador, y "prueba con otro" es lo accionable.
+      if (!esProductoEntregable(datosEntregableDeFila(producto))) {
+        throw new DomainError(
+          "INVALID",
+          "Este producto no está disponible por ahora. Prueba con otro.",
+        );
       }
     }
 
@@ -183,12 +178,9 @@ export async function iniciarCheckout({
       respuestas: input.respuestas,
     });
 
-    const items = input.items.map(({ productId, cantidad, packOptionId }) => {
+    const items = input.items.map(({ productId, cantidad }) => {
       const producto = porId.get(productId)!;
-      const { precio, unidadesPorPack } = snapshotDeLinea(
-        producto,
-        packOptionId,
-      );
+      const { precio, unidadesPorPack } = snapshotDeLinea(producto);
       return {
         tenantId,
         productId,
@@ -235,6 +227,26 @@ export async function iniciarCheckout({
       },
       select: { id: true, total: true, email: true },
     });
+
+    // Consentimiento de recordatorios (F05/D5). Va DENTRO de la misma `$tx` que la Order —y
+    // después de crearla, porque su FK cuelga de ella—: si la venta se revierte, no queda un
+    // consentimiento prometido por una compra que no ocurrió. Solo se escribe cuando el checkbox
+    // vino marcado: la ausencia de esta llamada ES el «no» (jamás premarcado).
+    //
+    // El use case NO puede lanzar (ver su docstring): un consentimiento de marketing no tiene
+    // permitido voltear una compra por una colisión de unique.
+    // `=== true` y no un truthy suelto: es el «jamás premarcado» expresado como código. La clave
+    // es opcional en el schema justamente para que la AUSENCIA signifique no, y este guard sostiene
+    // esa promesa también para un caller que no pase por Zod.
+    if (input.aceptaRecordatorios === true) {
+      await registrarConsentimientoRecordatorios({
+        db: tx,
+        tenantId,
+        orderId: order.id,
+        email: input.email,
+        ip,
+      });
+    }
 
     return { order, subject };
   });

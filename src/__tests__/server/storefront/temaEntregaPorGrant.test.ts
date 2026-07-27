@@ -19,7 +19,12 @@ vi.mock("~/env", () => ({
   // este test y mantiene el mock chico.
   env: { R2_ENDPOINT: "", R2_ACCESS_KEY_ID: "", R2_SECRET_ACCESS_KEY: "", R2_BUCKET: "" },
 }));
-vi.mock("~/server/db", () => ({ db: { storefrontPage: { findFirst: vi.fn() } } }));
+vi.mock("~/server/db", () => ({
+  db: {
+    storefrontPage: { findFirst: vi.fn(), findMany: vi.fn() },
+    tenant: { findUnique: vi.fn() },
+  },
+}));
 vi.mock("~/server/entrega/getEntregaDeOrden", () => ({ getEntregaDeOrden: vi.fn() }));
 vi.mock("~/server/storage/storageDeEnv", () => ({ crearStorageDeEnv: vi.fn() }));
 
@@ -31,6 +36,10 @@ import { getServerSideProps } from "~/pages/entrega/[token]";
 const mockEntrega = vi.mocked(getEntregaDeOrden);
 // eslint-disable-next-line @typescript-eslint/unbound-method -- es un vi.fn() del mock, no un método real
 const mockFindFirst = vi.mocked(db.storefrontPage.findFirst);
+// eslint-disable-next-line @typescript-eslint/unbound-method -- es un vi.fn() del mock, no un método real
+const mockFindMany = vi.mocked(db.storefrontPage.findMany);
+// eslint-disable-next-line @typescript-eslint/unbound-method -- es un vi.fn() del mock, no un método real
+const mockTenant = vi.mocked(db.tenant.findUnique);
 
 /** La request llega por el APEX: es la URL que viaja en el correo (no hay subdominio que resolver). */
 function ctxApex(token: string) {
@@ -61,9 +70,13 @@ function docPublicado(props: Partial<Tema>) {
 beforeEach(() => {
   mockEntrega.mockReset();
   mockFindFirst.mockReset();
+  mockFindMany.mockReset();
+  mockTenant.mockReset();
   mockFindFirst.mockResolvedValue(
     docPublicado({ fondoPagina: "marca_suave", tipografia: "dulce", radio: "l" }),
   );
+  mockFindMany.mockResolvedValue([] as never);
+  mockTenant.mockResolvedValue({ chromeJson: null } as never);
 });
 
 describe("/entrega/[token] — el tema sale del tenant del GRANT, no del host (F03/D9)", () => {
@@ -104,5 +117,86 @@ describe("/entrega/[token] — el tema sale del tenant del GRANT, no del host (F
     // Nada de consultar el tema de una tienda cuyo grant no autorizó nada (y nada que delate por
     // temporización si el token existía o no, I3).
     expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("/entrega/[token] — chrome + nav de la Tienda, ABSOLUTOS al subdominio (follow-up navbar)", () => {
+  // storefront.tema.entrega.004 — servida por el APEX, el nav apunta al SUBDOMINIO de la tienda del
+  // grant (un `/#x` relativo navegaría a la landing de la plataforma).
+  it("compone el nav como la home (el menú del chrome MANDA) con URLs absolutas a la tienda", async () => {
+    mockEntrega.mockResolvedValue(entregaDeIselk);
+    mockTenant.mockResolvedValue({
+      chromeJson: {
+        schemaVersion: 1,
+        header: {
+          menu: [{ etiqueta: "Catálogo", destino: { tipo: "ancla", ancla: "catalogo" } }],
+        },
+      },
+    } as never);
+    // Hay una página `enNav`, pero el menú del chrome configurado la REEMPLAZA (misma regla que la
+    // home, `componerNavDelHeader`): lo que se verifica es que la composición es LA MISMA, absoluta.
+    mockFindMany.mockResolvedValue([{ slug: "sobre-mi" }] as never);
+
+    const res = await getServerSideProps(ctxApex("tok-valido"));
+    const props = (res as { props: { navItems: { label: string; href: string }[] } }).props;
+
+    expect(props.navItems).toEqual([
+      { label: "Catálogo", href: "http://iselk.sorteatelo.cl/#catalogo" },
+    ]);
+  });
+
+  // storefront.tema.entrega.004b — sin menú del chrome: páginas `enNav` (y nav derivado) absolutos.
+  it("sin menú del chrome, las páginas enNav componen el nav — también absolutas", async () => {
+    mockEntrega.mockResolvedValue(entregaDeIselk);
+    mockFindMany.mockResolvedValue([{ slug: "sobre-mi" }] as never);
+
+    const res = await getServerSideProps(ctxApex("tok-valido"));
+    const props = (res as { props: { navItems: { label: string; href: string }[] } }).props;
+
+    expect(props.navItems).toEqual([
+      { label: "Sobre mi", href: "http://iselk.sorteatelo.cl/sobre-mi" },
+    ]);
+  });
+
+  // storefront.tema.entrega.005 — los links del footer del chrome llegan pre-resueltos a URL absoluta
+  // (el layout los resuelve con `hrefMenuItem`, que es relativo).
+  it("los links del footer del chrome se pre-resuelven absolutos (ancla-ruta `bases` incluida)", async () => {
+    mockEntrega.mockResolvedValue(entregaDeIselk);
+    mockTenant.mockResolvedValue({
+      chromeJson: {
+        schemaVersion: 1,
+        footer: {
+          links: [
+            { etiqueta: "Bases", destino: { tipo: "ancla", ancla: "bases" } },
+            { etiqueta: "IG", destino: { tipo: "url", url: "https://instagram.com/x" } },
+          ],
+        },
+      },
+    } as never);
+
+    const res = await getServerSideProps(ctxApex("tok-valido"));
+    const props = (res as {
+      props: { chrome: { footer: { links: { etiqueta: string; destino: unknown }[] } } };
+    }).props;
+
+    expect(props.chrome.footer.links).toEqual([
+      // `bases` es ancla-RUTA (D13): abre el visor del PDF de la tienda, no un scroll del apex.
+      { etiqueta: "Bases", destino: { tipo: "url", url: "http://iselk.sorteatelo.cl/bases" } },
+      { etiqueta: "IG", destino: { tipo: "url", url: "https://instagram.com/x" } },
+    ]);
+  });
+
+  // storefront.tema.entrega.006 — tienda sin chrome ⇒ `chrome: null` y nav [] (el header cae al
+  // hardcodeado, I-H): el no-op de siempre, sin inventar chrome donde no hay.
+  it("tienda sin chrome ni nav ⇒ chrome null y navItems [] (degradación no-op)", async () => {
+    mockEntrega.mockResolvedValue(entregaDeIselk);
+
+    const res = await getServerSideProps(ctxApex("tok-valido"));
+    const props = (res as {
+      props: { chrome: unknown; navItems: unknown[] };
+    }).props;
+
+    expect(props.chrome).toBeNull();
+    expect(props.navItems).toEqual([]);
   });
 });

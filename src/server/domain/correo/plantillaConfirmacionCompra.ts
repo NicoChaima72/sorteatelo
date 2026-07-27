@@ -1,3 +1,4 @@
+import { remitenteDeCorreo } from "~/config/correo";
 import { clp } from "~/lib/formato";
 import { escaparHtml } from "~/server/domain/correo/_correoBase";
 import { fechaHoraEnChile } from "~/server/domain/correo/_fechaDeCorreo";
@@ -108,6 +109,7 @@ export function armarCorreoConfirmacionCompra({
   nombreTienda,
   logoUrl,
   colorPrimario,
+  identidadLegal,
   items,
   diasExpiracion,
   orden,
@@ -118,13 +120,16 @@ export function armarCorreoConfirmacionCompra({
   logoUrl?: string | null;
   /** `Tenant.colorPrimario` — tematiza el cuerpo; inválido/ausente ⇒ theme base (D9-rev/I11). */
   colorPrimario?: string | null;
+  /** `Tenant.identidadLegal` (F05/D6) — quién responde por la venta, en el pie. Ausente ⇒ sin línea. */
+  identidadLegal?: string | null;
   items: ItemDescarga[];
   diasExpiracion: number;
   orden: ResumenDeOrden;
   /** Ausente ⇒ la compra no generó tickets: el correo sale sin sección de sorteo. */
   sorteo?: SorteoDeLaCompra;
 }): CorreoConfirmacionArmado {
-  const from = construirFrom(nombreTienda);
+  // C1 es TRANSACCIONAL (I5): sale con o sin opt-in y NO lleva cabeceras de baja.
+  const from = construirFrom(nombreTienda, remitenteDeCorreo("transaccional"));
   // El subject es también una cabecera: se sanea igual que el from (anti header-injection).
   const tienda = sanearNombreTienda(nombreTienda);
   // Mismo color que va a usar el layout: `temaDeCorreo` es determinista, así que llamarlo acá para
@@ -202,6 +207,7 @@ export function armarCorreoConfirmacionCompra({
     nombreTienda,
     logoUrl,
     colorPrimario,
+    identidadLegal,
     // El slot del sorteo del layout (I10): el nombre queda arriba del cuerpo, en el talón.
     ...(conSorteo ? { nombreSorteo: sorteo!.nombre } : {}),
     preheader,

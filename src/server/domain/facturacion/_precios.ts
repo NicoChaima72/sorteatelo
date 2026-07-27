@@ -34,7 +34,12 @@ export interface DefinicionPlan {
    * huérfanas a las suscripciones vivas — es efectivamente inmutable.
    */
   flowPlanId: string;
-  /** Nombre visible en el panel de Flow y en los correos que Flow mande al Pagador. */
+  /**
+   * Nombre visible en el panel de Flow y en el `subject` de cada invoice que Flow le manda al
+   * Pagador. **Sin caracteres especiales**: Flow guarda el texto HTML-escapado, así que un guion
+   * largo se ve literalmente como `Sortéatelo &mdash; plan tienda` en sus superficies (verificado en
+   * el sandbox). Es cosmético y solo se ve del lado de Flow, pero lo ve el Organizador.
+   */
   nombre: string;
   /** Monto bruto mensual en CLP entero, como string (nunca `number` — I2). */
   montoCLP: string;
@@ -51,16 +56,29 @@ export const PLANES_PLATAFORMA: readonly DefinicionPlan[] = [
   {
     plan: "FULL",
     flowPlanId: "sorteatelo-tienda-full",
-    nombre: "Sortéatelo — plan tienda",
+    nombre: "Sortéatelo - plan tienda",
     montoCLP: PRECIO_FULL_CLP,
   },
   {
     plan: "ADICIONAL",
     flowPlanId: "sorteatelo-tienda-adicional",
-    nombre: "Sortéatelo — plan tienda adicional",
+    nombre: "Sortéatelo - plan tienda adicional",
     montoCLP: PRECIO_ADICIONAL_CLP,
   },
 ];
+
+/**
+ * El plan de la Plataforma que corresponde a un `planId` de Flow, o `null` si ese id no es de los
+ * nuestros. Es el catálogo leído al revés, y lo usa el webhook (F04) para espejar el plan que Flow
+ * reporta como vigente. Devuelve `null` en vez de lanzar a propósito: una notificación con un
+ * `planId` desconocido no puede reescribir lo que le cobramos a una Tienda.
+ */
+export function planDeFlowPlanId(
+  flowPlanId: string | null | undefined,
+): PlatformPlan | null {
+  if (!flowPlanId) return null;
+  return PLANES_PLATAFORMA.find((p) => p.flowPlanId === flowPlanId)?.plan ?? null;
+}
 
 /** La definición del plan. Lanza si el catálogo y el enum se desincronizan (no debería pasar). */
 export function definicionDelPlan(plan: PlatformPlan): DefinicionPlan {

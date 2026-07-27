@@ -2,17 +2,17 @@ import { type PrismaClient } from "@prisma/client";
 
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
 import { esActiva } from "~/server/domain/facturacion/_estadoSuscripcion";
+import { fechaDeFlow } from "~/server/domain/facturacion/_fechaFlow";
 import { exencionVigente } from "~/server/domain/facturacion/_gateVenta";
 import {
   definicionDelPlan,
   montoDelPlan,
   planParaNuevaSuscripcion,
 } from "~/server/domain/facturacion/_precios";
+import { traduciendoErroresDeFlow } from "~/server/domain/facturacion/_erroresDeFlow";
+import { confirmarRegistroServerSide } from "~/server/domain/facturacion/_registroDeTarjeta";
 import { DomainError } from "~/server/domain/errors";
-import {
-  FLOW_REGISTRO_OK,
-  type FlowPlataformaService,
-} from "~/server/services/flowPlataforma";
+import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
 
 /**
  * Use case del panel (F03, D2/D12, I3/I4): cierra el paso «Activa tu plan» cuando el Pagador vuelve
@@ -83,21 +83,13 @@ export async function activarPlanTrasRegistro({
   }
 
   // ── Gate CRÍTICO (I3): confirmación server-side contra Flow ────────────────────────────────
-  const registro = await flow.getEstadoRegistro(input.token);
-  if (Number(registro.status) !== FLOW_REGISTRO_OK) {
-    throw new DomainError(
-      "INVALID",
-      "Flow no confirmó el registro de tu tarjeta. Puedes intentarlo de nuevo.",
-    );
-  }
-  // Defensa en profundidad: el token tiene que corresponder a NUESTRO customer, no a otro. Sin
-  // esto, un token ajeno filtrado activaría un plan con la tarjeta de otra persona.
-  if (registro.customerId && registro.customerId !== pagador.flowCustomerId) {
-    throw new DomainError(
-      "INVALID",
-      "Ese registro de tarjeta no corresponde a tu cuenta.",
-    );
-  }
+  // Incluye la defensa en profundidad de que el token sea de NUESTRO customer: sin eso, un token
+  // ajeno filtrado activaría un plan con la tarjeta de otra persona.
+  const tarjeta = await confirmarRegistroServerSide({
+    flow,
+    token: input.token,
+    flowCustomerId: pagador.flowCustomerId,
+  });
 
   // ── Plan y precio SERVER-SIDE (I4) ────────────────────────────────────────────────────────
   // "Activas" del Pagador EXCLUYENDO esta Tienda: si quedó una fila cancelada de esta misma tienda
@@ -129,11 +121,15 @@ export async function activarPlanTrasRegistro({
   // Fuera de la $transaction a propósito: es una llamada de red y no se puede sostener un lock de DB
   // esperándola. Si esto falla, no persistimos nada (el Organizador reintenta); si persistiéramos
   // primero, tendríamos una tienda "con plan" que Flow no conoce y nunca cobraría.
-  const suscripcionFlow = await flow.crearSuscripcion({
-    planId: definicion.flowPlanId,
-    customerId: pagador.flowCustomerId,
-    couponId: flowCouponId ?? undefined,
-  });
+  const suscripcionFlow = await traduciendoErroresDeFlow(
+    "No pudimos activar tu plan con Flow. Vuelve a intentarlo en unos minutos.",
+    () =>
+      flow.crearSuscripcion({
+        planId: definicion.flowPlanId,
+        customerId: pagador.flowCustomerId,
+        couponId: flowCouponId ?? undefined,
+      }),
+  );
 
   // ⚠ Desde esta línea hay una obligación de cobro MENSUAL VIVA en Flow que nuestra DB todavía no
   // conoce. Si la escritura local no commitea, hay que DESHACERLA en Flow (`compensarEnFlow`).
@@ -176,8 +172,8 @@ export async function activarPlanTrasRegistro({
       await tx.platformBillingCustomer.update({
         where: { id: pagador.id },
         data: {
-          tarjetaMarca: registro.creditCardType ?? null,
-          tarjetaUltimos4: registro.last4CardDigits ?? null,
+          tarjetaMarca: tarjeta.marca,
+          tarjetaUltimos4: tarjeta.ultimos4,
         },
         select: { id: true },
       });
@@ -253,9 +249,5 @@ async function compensarEnFlow({
   }
 }
 
-/** Fecha de Flow (ISO o `YYYY-MM-DD`) → `Date`. `null`/inválida ⇒ null (Flow puede omitirlas). */
-function aFecha(valor: string | null | undefined): Date | null {
-  if (!valor) return null;
-  const d = new Date(valor);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+/** Fecha de Flow → `Date`, en hora de Chile (ver `_fechaFlow.ts`). */
+const aFecha = fechaDeFlow;

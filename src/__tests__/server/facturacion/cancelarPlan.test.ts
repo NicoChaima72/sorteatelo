@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type AccesoPanel } from "~/server/authPolicy";
 import { cancelarPlan } from "~/server/domain/facturacion/cancelarPlan";
-import type { FlowPlataformaService } from "~/server/services/flowPlataforma";
+import { type FlowPlataformaService } from "~/server/services/flowPlataforma";
 
 /**
  * Tests de la cancelación del plan (F06, D6/D7, I8). Un solo use case, `cancelarPlan`, con tres
@@ -171,7 +171,13 @@ describe("domain/facturacion/cancelarPlan", () => {
   });
 
   // facturacion.cancelar.003 — D7/I8: al cancelar la full, la ADICIONAL MÁS ANTIGUA se promueve
-  it("programa el cambio a full de la adicional más antigua del mismo Pagador", async () => {
+  //
+  // ── BLOCKER 6 de la 4ª pasada del E2E ──────────────────────────────────────────────────────────
+  // La promoción se ANOTA, no se ejecuta. Pedirle el `changePlan` a Flow acá le cobraba al vecino un
+  // mes que ya había pagado: Flow sube el plan EN EL ACTO y emite una factura por la diferencia del
+  // período en curso (invoices reales `1179471` + `1179474`, misma suscripción y mismo período,
+  // $12.500 cada uno). La ejecución vive en el cron (F09), recién cuando el período nuevo empezó.
+  it("anota la promoción de la adicional más antigua SIN tocar el plan en Flow", async () => {
     const { db, estado } = fakeDb({
       suscripciones: [
         { ...SUB_FULL },
@@ -182,6 +188,7 @@ describe("domain/facturacion/cancelarPlan", () => {
           plan: "ADICIONAL",
           flowSubscriptionId: "flow-sub-B",
           createdAt: new Date("2026-03-01T00:00:00Z"),
+          proximoCobroAt: new Date("2026-08-10T00:00:00Z"),
         },
         {
           ...SUB_FULL,
@@ -197,21 +204,51 @@ describe("domain/facturacion/cancelarPlan", () => {
 
     await cancelarPlan({ db, acceso: acceso(["A"]), flow, ahora: AHORA });
 
-    // Una sola promoción, y es la de la adicional MÁS ANTIGUA (B, no C).
-    expect(mocks.cambiarPlan).toHaveBeenCalledTimes(1);
-    expect(mocks.cambiarPlan).toHaveBeenCalledWith({
-      subscriptionId: "flow-sub-B",
-      nuevoPlanId: "sorteatelo-tienda-full",
-    });
+    // NADA de cambio de plan en Flow: es el cobro extra del blocker 6.
+    expect(mocks.cambiarPlan).not.toHaveBeenCalled();
 
     const b = estado.suscripciones.find((f) => f.id === "sub-B")!;
     // PROGRAMADO, no aplicado (D7): el `plan` vigente no se toca — el precio nuevo rige desde la
     // próxima renovación. Cobrarle full este mes sería retroactivo.
     expect(b.plan).toBe("ADICIONAL");
     expect(b.planProgramado).toBe("FULL");
+    // Desde cuándo: su próxima renovación (2026-08-10), que es posterior al fin del período que la
+    // tienda cancelada ya tiene pagado... no en este caso — el fin de A es el 2026-08-26, así que
+    // manda ese: mientras A siga viva y paga, el Pagador no puede tener dos tiendas a precio full.
+    expect(b.planProgramadoDesde).toEqual(FIN_PERIODO);
 
     const c = estado.suscripciones.find((f) => f.id === "sub-C")!;
     expect(c.planProgramado).toBeNull();
+  });
+
+  // facturacion.cancelar.010 — la promoción no adelanta la muerte de la tienda que se va
+  it("fija la vigencia de la promoción en la renovación siguiente al fin de la tienda cancelada", async () => {
+    // El Pagador cancela su full (A), que sigue vendiendo —y pagada— hasta el 2026-08-26. Si la
+    // adicional B se promoviera en SU renovación del 2026-08-10, el Pagador pagaría DOS planes full
+    // solapados por dos semanas. La promoción espera al primer período de B que empiece cuando A ya
+    // no está.
+    const { db, estado } = fakeDb({
+      suscripciones: [
+        { ...SUB_FULL },
+        {
+          ...SUB_FULL,
+          id: "sub-B",
+          tenantId: "B",
+          plan: "ADICIONAL",
+          flowSubscriptionId: "flow-sub-B",
+          createdAt: new Date("2026-03-01T00:00:00Z"),
+          proximoCobroAt: new Date("2026-09-10T00:00:00Z"),
+        },
+      ],
+    });
+    const { flow } = fakeFlow();
+
+    await cancelarPlan({ db, acceso: acceso(["A"]), flow, ahora: AHORA });
+
+    const b = estado.suscripciones.find((f) => f.id === "sub-B")!;
+    expect(b.planProgramado).toBe("FULL");
+    // La renovación de B (09-10) es posterior al fin de A (08-26): manda la de B.
+    expect(b.planProgramadoDesde).toEqual(new Date("2026-09-10T00:00:00Z"));
   });
 
   // facturacion.cancelar.004 — idempotencia: cancelar dos veces no repite Flow ni el correo

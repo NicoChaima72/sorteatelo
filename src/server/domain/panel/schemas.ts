@@ -278,6 +278,18 @@ export const guardarConfiguracionTiendaInput = z.object({
   // el aviso se editan en el EDITOR de la tienda. Sus columnas se dropean en F07 (script F05 corrido).
   // Redes y contacto del footer (plantilla-rica F02/F03/D2). Opcionales; vacío ⇒ null (el footer
   // oculta el ícono/línea, D7). URLs validadas como URL; el contacto como email.
+  /**
+   * Identidad legal del Organizador (F05/D6, ADR-0008): nombre o razón social de quien responde por
+   * la venta y el sorteo. Se imprime en el PIE de todo correo al Comprador — el disclaimer dice el
+   * reparto de responsabilidades y esto dice QUIÉN es la parte responsable (un nombre de fantasía
+   * no identifica a nadie ante un reclamo).
+   *
+   * TEXTO LIBRE acotado en largo y nada más: no se valida forma de RUT ni de razón social. Un
+   * Organizador puede ser una persona natural, una EIRL o una SpA, y en el pie lo que hace falta es
+   * un nombre reconocible, no un dato tributario parseable (eso sería otro plan). Vacío ⇒ null ⇒ el
+   * pie no dibuja la línea.
+   */
+  identidadLegal: z.string().trim().max(200).optional().or(z.literal("")),
   instagramUrl: z.string().trim().url().optional().or(z.literal("")),
   tiktokUrl: z.string().trim().url().optional().or(z.literal("")),
   whatsappUrl: z.string().trim().url().optional().or(z.literal("")),

@@ -6,6 +6,8 @@ import { db } from "~/server/db";
 import { barrerAvisosDeFacturacion } from "~/server/facturacion/avisosProgramados";
 import { manejarCronFacturacion } from "~/server/facturacion/cronFacturacion";
 import { enviarCorreosFacturacion } from "~/server/facturacion/enviarCorreosFacturacion";
+import { crearFlowPlataformaDeEnv } from "~/server/facturacion/flowPlataformaDeEnv";
+import { ejecutarPromocionesDePlan } from "~/server/facturacion/promocionesDePlan";
 
 /**
  * Cron DIARIO de facturación (F09/D11, ADR-0026) — wrapper Next (borde de cableado).
@@ -15,9 +17,14 @@ import { enviarCorreosFacturacion } from "~/server/facturacion/enviarCorreosFact
  * `server/facturacion/cronFacturacion.ts` y la decisión de a quién avisarle, en el barrido
  * `server/facturacion/avisosProgramados.ts`.
  *
- * Manda los DOS correos que Flow no dispara: el previo a cada renovación (7) y el de la cortesía que
- * se termina (6). NO cobra, NO cambia estados y **no habla con Flow**: los estados de la suscripción
- * los flipea el webhook (F04) con verificación server-side, nunca una corrida programada nuestra.
+ * Hace dos cosas. (1) Manda los DOS correos que Flow no dispara: el previo a cada renovación (7) y el
+ * de la cortesía que se termina (6). (2) Aplica las **promociones de plan** que la cancelación dejó
+ * anotadas (F06/D7), que es la única parte que habla con Flow — y solo cuando el período que se está
+ * cobrando ya corresponde al plan nuevo, porque pedirlo antes le factura al Organizador la diferencia
+ * de un mes que ya pagó (blocker 6 de la 4ª pasada del E2E).
+ *
+ * Lo que sigue sin hacer: NO cobra y NO cambia estados de suscripción — eso lo flipea el webhook
+ * (F04) con verificación server-side, nunca una corrida programada nuestra.
  *
  * Es **reconciliation-based** (backend-conventions § Jobs): pregunta «¿qué cobro se viene y no está
  * avisado?». Una corrida perdida se recupera al día siguiente —por eso la ventana de aviso es de 2
@@ -45,6 +52,25 @@ export default async function handler(
     // hasta que el método y el secreto están validados (backend-conventions § Gate antes de
     // cualquier efecto).
     ejecutar: async () => {
+      // PRIMERO las promociones de plan (F06/D7): aplican el cambio que la cancelación dejó anotado,
+      // recién cuando el período nuevo ya se está cobrando. Va antes del barrido a propósito — así
+      // el aviso previo de renovación que salga en la misma corrida anuncia el plan que de verdad va
+      // a regir, y no el que acaba de quedar viejo.
+      //
+      // Aislado en su propio `try`: es la única mitad de la corrida que habla con Flow, y una
+      // credencial mal seteada no puede llevarse puestos los correos de aviso, que no la necesitan.
+      let promociones = 0;
+      try {
+        promociones = (
+          await ejecutarPromocionesDePlan({ db, flow: crearFlowPlataformaDeEnv() })
+        ).ejecutadas;
+      } catch (e) {
+        console.error(
+          "[cron/facturacion] no se pudieron ejecutar las promociones de plan; los avisos siguen",
+          e,
+        );
+      }
+
       const avisos = await barrerAvisosDeFacturacion({ db });
       // Los correos salen DESPUÉS del claim y su fallo no deshace nada (I9): el aviso ya quedó
       // marcado como dado. `enviarCorreosFacturacion` es resiliente por correo, así que un envío
@@ -56,6 +82,7 @@ export default async function handler(
       return {
         renovaciones: avisos.renovaciones,
         exenciones: avisos.exenciones,
+        promociones,
         enviados,
         fallidos,
       };

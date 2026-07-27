@@ -177,7 +177,7 @@ function CredencialFlowCard() {
  * en el estado feliz (admin-bases-pdf F06).
  */
 const DESCRIPCION_TU_TIENDA =
-  "La marca base de tu tienda: logo, colores, el prefijo de tus números, redes y contacto. El contenido de la portada (hero, textos, avisos) se edita en el editor.";
+  "La marca base de tu tienda: logo, colores, el prefijo de tus números, quién responde por las ventas, redes y contacto. El contenido de la portada (hero, textos, avisos) se edita en el editor.";
 
 /**
  * Normaliza lo tipeado hacia la forma canónica del prefijo de ticket (F08/D12): MAYÚSCULAS y solo
@@ -199,6 +199,7 @@ interface ConfigTiendaForm {
   colorPrimario: string;
   colorAcento: string;
   prefijoTicket: string;
+  identidadLegal: string;
   instagramUrl: string;
   tiktokUrl: string;
   whatsappUrl: string;
@@ -219,6 +220,7 @@ function ConfiguracionTiendaCard() {
       colorPrimario: "",
       colorAcento: "",
       prefijoTicket: "",
+      identidadLegal: "",
       instagramUrl: "",
       tiktokUrl: "",
       whatsappUrl: "",
@@ -235,6 +237,7 @@ function ConfiguracionTiendaCard() {
       colorPrimario: config.data.colorPrimario ?? "",
       colorAcento: config.data.colorAcento ?? "",
       prefijoTicket: config.data.prefijoTicket ?? "",
+      identidadLegal: config.data.identidadLegal ?? "",
       instagramUrl: config.data.instagramUrl ?? "",
       tiktokUrl: config.data.tiktokUrl ?? "",
       whatsappUrl: config.data.whatsappUrl ?? "",
@@ -390,6 +393,24 @@ function ConfiguracionTiendaCard() {
                   normalizarPrefijoTicket(e.currentTarget.value),
                 )
               }
+            />
+
+            {/*
+              Identidad legal del Organizador (F05/D6, ADR-0008). Va en esta card porque es
+              identidad de la Tienda —como el logo, los colores y el prefijo—, y full-width como
+              sus hermanos: un `className` con `max-w` en Mantine acota el `Input.Wrapper` entero
+              (label + control + description) y partiría la descripción en una columna angosta.
+
+              La descripción dice DÓNDE se ve, que es lo único que el Organizador necesita saber
+              para decidir qué escribir: es el dato con el que un Comprador lo identifica ante un
+              reclamo, no un campo tributario.
+            */}
+            <TextInput
+              label="Quién responde por las ventas"
+              description="Tu nombre o razón social. Aparece en el pie de los correos que reciben tus compradores, junto al aviso de que la venta y el sorteo son tuyos."
+              placeholder="Ej. Comercializadora Ana Pérez EIRL"
+              maxLength={200}
+              {...form.getInputProps("identidadLegal")}
             />
 
             <div

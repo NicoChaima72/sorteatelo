@@ -1,6 +1,7 @@
 import {
   Prisma,
   type PlatformInvoiceStatus,
+  type PlatformPlan,
   type PlatformSubscriptionStatus,
   type PrismaClient,
 } from "@prisma/client";
@@ -12,11 +13,18 @@ import {
   correosDeLaNotificacion,
 } from "~/server/domain/facturacion/_correosFacturacion";
 import { derivarEstadoSuscripcion } from "~/server/domain/facturacion/_estadoSuscripcion";
+import { fechaDeFlow } from "~/server/domain/facturacion/_fechaFlow";
 import {
   derivarEstadoInvoice,
-  esAnulacionSospechosa,
+  esCobroAbandonadoSinSuspender,
 } from "~/server/domain/facturacion/_invoiceFlow";
 import {
+  definicionDelPlan,
+  montoDelPlan,
+  planDeFlowPlanId,
+} from "~/server/domain/facturacion/_precios";
+import {
+  FLOW_PAGO_PAGADO,
   type FlowInvoice,
   type FlowPlataformaService,
 } from "~/server/services/flowPlataforma";
@@ -85,7 +93,21 @@ export async function procesarNotificacionSuscripcion({
 }: {
   db: PrismaClient;
   flow: FlowPlataformaService;
-  input: { flowSubscriptionId: string };
+  input: {
+    flowSubscriptionId: string;
+    /**
+     * El cobro del que habla ESTA notificación, sacado del `commerceOrder` que Flow arma como
+     * `<subscriptionId>_<invoiceId>_<fecha>`. Opcional porque la puerta de reconciliación manual
+     * (un `subscriptionId` posteado a mano) no lo trae.
+     */
+    flowInvoiceId?: string;
+    /**
+     * `true` cuando `payment/getStatus` —el endpoint con el que ya se resolvió el token— declaró
+     * ese cobro PAGADO. Es evidencia de primera mano del hecho notificado y se usa como segunda
+     * prueba del pago, nunca como única (I3: lo que decide sigue saliendo de la API de Flow).
+     */
+    cobroPagado?: boolean;
+  };
   ahora?: Date;
 }): Promise<ResultadoNotificacion> {
   // ── Gate CRÍTICO (I3): el estado sale de la API de Flow, no del body ──────────────────────────
@@ -101,6 +123,7 @@ export async function procesarNotificacionSuscripcion({
       id: true,
       tenantId: true,
       estado: true,
+      plan: true,
       montoBruto: true,
       cancelacionSolicitadaAt: true,
       cancelacionEfectivaAt: true,
@@ -123,7 +146,14 @@ export async function procesarNotificacionSuscripcion({
   }
 
   // ── Espejo de invoices + estado derivado ─────────────────────────────────────────────────────
-  const invoicesFlow = flowSub.invoices ?? [];
+  const invoicesFlow = await completarInvoices({
+    db,
+    flow,
+    subscriptionId: local.id,
+    embebidos: flowSub.invoices ?? [],
+    notificado: input.flowInvoiceId,
+    cobroPagado: input.cobroPagado,
+  });
 
   const { transiciones, estadoAntes, estadoDespues, cambioEstado } =
     await db.$transaction(async (tx) => {
@@ -163,10 +193,11 @@ export async function procesarNotificacionSuscripcion({
         invoices: todos,
       });
 
-      const fechas = {
+      const espejo = {
         periodoInicio: aFecha(flowSub.period_start) ?? undefined,
         periodoFin: aFecha(flowSub.period_end) ?? undefined,
         proximoCobroAt: aFecha(flowSub.next_invoice_date) ?? undefined,
+        ...planQueRigeAhora({ flowPlanIdEnFlow: flowSub.planId, planLocal: local.plan }),
       };
 
       // Avance ATÓMICO del estado de la suscripción: el `WHERE` condicional es el check-and-act, y su
@@ -177,7 +208,7 @@ export async function procesarNotificacionSuscripcion({
         where: { id: local.id, estado: { not: derivado } },
         data: {
           estado: derivado,
-          ...fechas,
+          ...espejo,
           // Cerrada de verdad en Flow: se sella cuándo surtió efecto. La cancelación la PIDE F06; acá
           // solo se registra el hecho, y una sola vez.
           ...(derivado === "CANCELADA" && local.cancelacionEfectivaAt === null
@@ -187,11 +218,11 @@ export async function procesarNotificacionSuscripcion({
       });
 
       if (count === 0) {
-        // El estado ya era el derivado (replay, o ganó otra corrida): las FECHAS igual se refrescan —
-        // son datos que convergen, no una transición, y el cron de F09 las lee.
+        // El estado ya era el derivado (replay, o ganó otra corrida): el resto del espejo igual se
+        // refresca — son datos que convergen, no una transición, y el cron de F09 los lee.
         await tx.platformSubscription.updateMany({
           where: { id: local.id },
-          data: fechas,
+          data: espejo,
         });
       }
 
@@ -220,6 +251,132 @@ export async function procesarNotificacionSuscripcion({
   );
 
   return { ruteo: "PROCESADA", estadoAntes, estadoDespues, correos };
+}
+
+/**
+ * Estados en los que la historia de un invoice ya terminó: no hay link que buscar, ni fecha de pago
+ * que llegue después, ni intento que contar. Enriquecerlos otra vez sería una llamada por mes de
+ * historia en cada notificación.
+ */
+const ESTADOS_TERMINALES: readonly PlatformInvoiceStatus[] = ["PAGADA", "ANULADA"];
+
+/**
+ * Completa los invoices embebidos con lo que **solo trae `invoice/get`** (blocker 5): el bloque
+ * `payment` —de donde sale `pagadaAt`—, el `paymentLink` con el que el Organizador regulariza (D4) y
+ * los `error*` del intento fallido. `subscription/get` embebe una versión recortada que alcanza para
+ * DERIVAR el estado (trae `status`), pero no para contarlo ni para dar la palanca de pago.
+ *
+ * Se pide **solo por los invoices cuya historia sigue abierta**: los que nunca vimos y los que en el
+ * ledger no están en un estado terminal. En régimen eso es UNA llamada al mes por suscripción (el
+ * invoice nuevo), y en dunning una por cada cobro abierto — nunca una por cada mes de historia.
+ *
+ * Un fallo acá **no voltea la notificación**: se sigue con el invoice embebido, que basta para el
+ * estado. Perder el `paymentLink` de una vuelta es recuperable —la notificación siguiente lo trae—;
+ * perder el espejo de un cobro por no poder adornarlo, no.
+ */
+async function completarInvoices({
+  db,
+  flow,
+  subscriptionId,
+  embebidos,
+  notificado,
+  cobroPagado,
+}: {
+  db: PrismaClient;
+  flow: FlowPlataformaService;
+  subscriptionId: string;
+  embebidos: FlowInvoice[];
+  notificado: string | undefined;
+  cobroPagado: boolean | undefined;
+}): Promise<FlowInvoice[]> {
+  // El cobro que la notificación nombra SIEMPRE entra a la lista: si `subscription/get` no lo
+  // lista, perderlo sería perder justo el hecho que Flow vino a contar.
+  const aRevisar: FlowInvoice[] =
+    notificado !== undefined && !embebidos.some((i) => String(i.id) === notificado)
+      ? [...embebidos, { id: notificado }]
+      : embebidos;
+
+  if (aRevisar.length === 0) return aRevisar;
+
+  const enLedger = await db.platformInvoice.findMany({
+    where: { subscriptionId },
+    select: { flowInvoiceId: true, estado: true },
+  });
+  const cerrados = new Set(
+    enLedger
+      .filter((i) => ESTADOS_TERMINALES.includes(i.estado))
+      .map((i) => i.flowInvoiceId),
+  );
+
+  const completos: FlowInvoice[] = [];
+  for (const inv of aRevisar) {
+    const flowInvoiceId = String(inv.id);
+    let completo = inv;
+
+    if (!cerrados.has(flowInvoiceId)) {
+      try {
+        completo = { ...inv, ...(await flow.getInvoice(flowInvoiceId)) };
+      } catch (e) {
+        console.warn(
+          "[facturacion] no se pudo traer el detalle del invoice; se espeja con lo que vino embebido",
+          {
+            flowInvoiceId,
+            error: e instanceof Error ? e.message : String(e),
+          },
+        );
+      }
+    }
+
+    // La evidencia del token entra solo si Flow todavía NO cuenta el pago por su cuenta: es una
+    // segunda prueba, no una que pise el payload —que trae además la fecha en que se movió la plata.
+    completos.push(
+      cobroPagado &&
+        flowInvoiceId === notificado &&
+        completo.payment?.status !== FLOW_PAGO_PAGADO
+        ? { ...completo, payment: { ...completo.payment, status: FLOW_PAGO_PAGADO } }
+        : completo,
+    );
+  }
+  return completos;
+}
+
+/**
+ * Espejo del PLAN que rige hoy en Flow (D7, hallazgo 5 del sandbox real).
+ *
+ * Quien PIDE el cambio de plan es el cron (`facturacion/promocionesDePlan.ts`) y quien lo sella en
+ * nuestra fila es él mismo. Esto es la **red**: si los dos lados divergen —una promoción que se
+ * aplicó en Flow y cuya escritura local se perdió, o un plan cambiado a mano en el panel de Flow—,
+ * manda Flow, que es quien cobra. Como Flow solo notifica en eventos de cobro, seguir su `planId`
+ * acá actualiza el espejo justo cuando el precio nuevo empieza a cobrarse.
+ *
+ * Sin esto, una tienda promovida de adicional a full podría quedar mostrando «$12.500 /mes» en la
+ * página Plan mientras Flow le cobra $25.000 — una pantalla de plata mintiendo.
+ *
+ * Dos guards: un `planId` que no está en nuestro catálogo **no se interpreta** (una notificación no
+ * puede reescribir lo que le cobramos a una Tienda con un id que no reconocemos), y si el plan no
+ * cambió no se escribe nada. El `montoBruto` se recalcula desde el catálogo y no desde Flow: es el
+ * precio de OTRO plan, no una tarifa nueva del mismo (I2 sigue en pie — un cambio de tarifa no
+ * reescribe el snapshot).
+ */
+function planQueRigeAhora({
+  flowPlanIdEnFlow,
+  planLocal,
+}: {
+  flowPlanIdEnFlow: string | null | undefined;
+  planLocal: PlatformPlan;
+}) {
+  const enFlow = planDeFlowPlanId(flowPlanIdEnFlow);
+  if (enFlow === null || enFlow === planLocal) return {};
+
+  return {
+    plan: enFlow,
+    flowPlanId: definicionDelPlan(enFlow).flowPlanId,
+    montoBruto: montoDelPlan(enFlow),
+    // La promoción se cumplió: apagar las marcas evita que el aviso del cron (F09) siga anunciando
+    // un cambio que ya ocurrió.
+    planProgramado: null,
+    planProgramadoDesde: null,
+  };
 }
 
 /**
@@ -335,14 +492,20 @@ async function avanzarInvoice({
   const flowInvoiceId = String(inv.id);
   const estado = derivarEstadoInvoice(inv);
 
-  // El único caso ambiguo de la derivación (ver `esAnulacionSospechosa`): un invoice sin saldo que YA
-  // agotó los reintentos. Se respeta la lectura conservadora (ANULADA, no suspende) pero se deja
-  // rastro: si Flow resultara marcar así los incobrables, esto es lo que delata que una tienda morosa
-  // no se está suspendiendo, en vez de descubrirlo cuadrando los ingresos meses después.
-  if (esAnulacionSospechosa(inv)) {
+  // El punto ciego que queda tras el blocker 5 (ver `esCobroAbandonadoSinSuspender`): Flow parece
+  // haber dejado de cobrar un invoice que sigue impago y la derivación NO lo suspende. Se respeta la
+  // lectura conservadora, pero se deja rastro: es lo que delata que una tienda morosa no se está
+  // suspendiendo, en vez de descubrirlo cuadrando los ingresos meses después.
+  if (esCobroAbandonadoSinSuspender(inv)) {
     console.warn(
-      "[facturacion] invoice ANULADA con los reintentos agotados: si Flow marca así los INCOBRABLES, esta tienda debería estar en pausa y no lo está — verificar contra el sandbox",
-      { flowInvoiceId, flowSubscriptionId, intentos: inv.attemp },
+      "[facturacion] Flow parece haber dejado de cobrar un invoice impago que NO estamos suspendiendo: si así marca los INCOBRABLES, esta tienda debería estar en pausa — verificar contra el sandbox",
+      {
+        flowInvoiceId,
+        flowSubscriptionId,
+        status: inv.status,
+        intentos: inv.attemp_count,
+        seCobrara: inv.attemped,
+      },
     );
   }
 
@@ -403,16 +566,24 @@ async function avanzarInvoice({
   };
 }
 
-/** Campos del espejo que se escriben tanto al crear como al avanzar la fila. */
+/**
+ * Campos del espejo que se escriben tanto al crear como al avanzar la fila, sobre las claves REALES
+ * de Flow (blocker 5).
+ *
+ * `pagadaAt` sale del bloque `payment`, que **solo viene en `invoice/get`**: si el invoice llegó
+ * apenas embebido en `subscription/get`, queda `undefined` en vez de inventarse un `ahora` — la
+ * columna dice cuándo se movió la plata, y eso lo sabe Flow, no nosotros. `intentos` sale de
+ * `attemp_count` (el contador de verdad) y jamás de `attemped`, que es un flag de «se va a cobrar».
+ */
 function camposDelInvoice(inv: FlowInvoice, estado: PlatformInvoiceStatus) {
   return {
     estado,
     periodoInicio: aFecha(inv.period_start) ?? undefined,
     periodoFin: aFecha(inv.period_end) ?? undefined,
-    pagadaAt: aFecha(inv.payment_date) ?? undefined,
+    pagadaAt: aFecha(inv.payment?.paymentData?.date) ?? undefined,
     // `next_attemp_date` (sic: typo del proveedor) — va en el correo de cobro fallido.
     proximoIntentoAt: aFecha(inv.next_attemp_date) ?? undefined,
-    intentos: inv.attemp ?? 0,
+    intentos: inv.attemp_count ?? 0,
     paymentLink: inv.paymentLink ?? undefined,
   };
 }
@@ -462,15 +633,19 @@ function hidratarCorreo({
 /**
  * `paymentLink` para los correos que no cuelgan de un invoice puntual (tienda en pausa): el de
  * cualquier invoice impago que Flow haya dejado con link. Es la palanca para regularizar (D4).
+ *
+ * Flow solo publica el link **mientras el invoice no está pagado**, así que el filtro de impago es
+ * casi redundante; se deja igual porque el link de un invoice ya cobrado no es una palanca, es una
+ * invitación a pagar dos veces.
  */
 function paymentLinkVigente(invoices: FlowInvoice[]): string | null {
-  const impago = invoices.find((i) => i.paid !== 1 && Boolean(i.paymentLink));
+  const impago = invoices.find((i) => i.status !== 1 && Boolean(i.paymentLink));
   return impago?.paymentLink ?? null;
 }
 
-/** Fecha de Flow (ISO o `YYYY-MM-DD`) → `Date`. `null`/inválida ⇒ null (Flow puede omitirlas). */
-function aFecha(valor: string | null | undefined): Date | null {
-  if (!valor) return null;
-  const d = new Date(valor);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+/**
+ * Fecha de Flow → `Date`. Alias local de `fechaDeFlow`, que es quien sabe que Flow manda relojes de
+ * pared **sin zona** y que son hora de Chile (ver `_fechaFlow.ts`): leerlas con `new Date` corría
+ * los períodos y el próximo cobro 3 o 4 horas en producción, donde el proceso está en UTC.
+ */
+const aFecha = fechaDeFlow;

@@ -1,5 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 
+import { replyToDeTenants } from "~/server/domain/correo/_contactoDelOrganizador";
 import {
   armarCorreoConfirmacionCompra,
   type SorteoDeLaCompra,
@@ -130,7 +131,11 @@ export async function armarConfirmacionesDeCompra({
           nombre: true,
           logoUrl: true,
           colorPrimario: true,
+          // Pie legal (F05/D6): quién responde por la venta y el sorteo (ADR-0008).
+          identidadLegal: true,
           prefijoTicket: true,
+          // Primer escalón del reply-to (T6): el contacto PÚBLICO que el Organizador configuró.
+          contactoEmail: true,
         },
       },
       // Un ítem del correo por grant. Solo el token (autoridad del enlace) y el título — NUNCA
@@ -163,22 +168,21 @@ export async function armarConfirmacionesDeCompra({
 
   if (ordenes.length === 0) return armadas;
 
-  // Reply-to del Organizador (T6/D7): membresía MÁS ANTIGUA de cada tenant. Una query para todos
-  // los tenants del lote; el `orderBy` hace que el primero que se vea de cada tenant sea el suyo.
-  const replyTos = new Map<string, string>();
-  const memb = await db.tenantMembership.findMany({
-    where: { tenantId: { in: [...new Set(ordenes.map((o) => o.tenantId))] } },
-    orderBy: { createdAt: "asc" },
-    select: { tenantId: true, user: { select: { email: true } } },
+  // Reply-to del Organizador (T6/D7), derivado por el helper compartido: contacto público de la
+  // Tienda y, si no lo configuró, membresía más antigua. Sigue siendo UNA query para todo el lote
+  // (cero si todos tienen contacto público). Estaba escrito acá a mano hasta F04, que es cuando T6
+  // pedía centralizarlo: «antes de multiplicar plantillas».
+  const replyTos = await replyToDeTenants({
+    db,
+    tenants: [
+      ...new Map(
+        ordenes.map((o) => [
+          o.tenantId,
+          { id: o.tenantId, contactoEmail: o.tenant.contactoEmail },
+        ]),
+      ).values(),
+    ],
   });
-  for (const m of memb) {
-    // `User.email` es nullable (frontera NextAuth). Una membresía sin email no puede ser reply-to,
-    // así que se salta y el siguiente Organizador del tenant tiene su chance — degradar a un
-    // correo sin reply-to es válido (D7), poner un `null` en la cabecera no lo es.
-    if (m.user.email && !replyTos.has(m.tenantId)) {
-      replyTos.set(m.tenantId, m.user.email);
-    }
-  }
 
   const base = baseUrl.replace(/\/+$/, ""); // sin barra final (evita `//entrega/...`)
 
@@ -215,6 +219,7 @@ export async function armarConfirmacionesDeCompra({
       nombreTienda: orden.tenant.nombre,
       logoUrl: orden.tenant.logoUrl,
       colorPrimario: orden.tenant.colorPrimario,
+      identidadLegal: orden.tenant.identidadLegal,
       items,
       diasExpiracion: GRANT_TTL_DIAS,
       orden: {

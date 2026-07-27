@@ -107,6 +107,73 @@ export async function resolverFuenteDePack({
 }
 
 /**
+ * Lo mínimo que hay que haber leído de un producto para saber de dónde salen sus archivos. Se pide
+ * como forma estructural (y no como `Product`) para que cada caller seleccione EXACTAMENTE estas
+ * tres columnas y ni una más: la entrega no necesita ver el resto de la fila.
+ */
+export interface ProductoConFuente {
+  modalidad: ProductMode;
+  fuente: { modalidad: ProductMode } | null;
+}
+
+/**
+ * Lo mismo + el `fuenteId`, que solo hace falta cuando además de saber CÓMO se entrega hay que ir a
+ * buscar los archivos. La página de entrega no lo necesita (ya recibe los archivos resueltos), y
+ * pedírselo la obligaría a seleccionar una columna que no usa.
+ */
+export interface ProductoConFuenteId extends ProductoConFuente {
+  fuenteId: string | null;
+}
+
+/**
+ * **De qué producto salen los archivos de esta línea, y si eso es un pool** (E15/V-I7).
+ *
+ * Un PACK no tiene archivos propios: entrega los de su FUENTE. Un producto normal —y una colección
+ * comprada antes de la enmienda— entrega los suyos. Devuelve también la MODALIDAD del origen porque
+ * es lo único que decide si hay sorteo: solo un origen `SOBRE` (un pool) se muestrea; con origen
+ * `ESTANDAR` las N unidades son copias del mismo archivo, derivadas en presentación, que NO generan
+ * filas (V-I2).
+ *
+ * **Vive acá, en una sola función, porque la respuesta tiene que ser LA MISMA en tres lugares** que
+ * antes la re-derivaban cada uno por su cuenta con un ternario equivalente y un comentario pidiendo
+ * que no divergieran:
+ *
+ *  - `aplicarEfectosPostPago` — qué se sortea al pagar.
+ *  - `archivosDelGrant` — qué se puede descargar después.
+ *  - `getEntregaDeOrden` — qué se le muestra al Comprador.
+ *
+ * Si los tres discrepan, el Comprador ve archivos que el endpoint le niega o —peor— el endpoint le
+ * entrega archivos que no le tocaron. Un contrato sostenido por comentarios («tiene que dar lo
+ * mismo que la otra») aguanta hasta el primer cambio apurado; siendo literalmente la misma línea,
+ * no hay nada que sincronizar. Lo levantó el `backend-reviewer` al cerrar F11–F13.
+ *
+ * Es PURA a propósito: no toca `db`. Los tres callers ya traen el producto leído con su fuente, y
+ * meter una query acá volvería a introducir la asimetría (uno consultaría, otro no).
+ *
+ * ⚠ Se ramifica por `fuente` y NUNCA por `producto.modalidad` cuando hay pack: en un pack esa
+ * columna no significa nada (V-I7 — un pack se persiste SIEMPRE `ESTANDAR`).
+ */
+export function origenDeArchivos(
+  productId: string,
+  producto: ProductoConFuenteId,
+): { productId: string; modalidad: ProductMode } {
+  return producto.fuente !== null
+    ? { productId: producto.fuenteId!, modalidad: producto.fuente.modalidad }
+    : { productId, modalidad: producto.modalidad };
+}
+
+/**
+ * `true` sii lo que entrega esta línea sale AL AZAR de un pool.
+ *
+ * Es la mitad de `origenDeArchivos` que responde «¿hay sorteo?» sin necesitar saber de QUÉ producto
+ * salen los archivos. Comparte la regla de ramificación con ella —el mismo `fuente ?? propio`— para
+ * que no exista un tercer lugar donde decidir qué modalidad manda.
+ */
+export function entregaAlAzar(producto: ProductoConFuente): boolean {
+  return (producto.fuente ?? producto).modalidad === "SOBRE";
+}
+
+/**
  * Un solo mensaje para los tres rechazos (ajena / cadena / sí misma). Tuteo y dice qué hacer
  * (design.md §8), sin revelar si el id existe en otra Tienda.
  */

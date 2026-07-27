@@ -12,7 +12,15 @@ import { manejarCronFacturacion } from "~/server/facturacion/cronFacturacion";
  */
 
 const SECRET = "secreto-de-cron";
-const RESUMEN = { renovaciones: 2, exenciones: 1, enviados: 3, fallidos: 0 };
+const RESUMEN = {
+  renovaciones: 2,
+  exenciones: 1,
+  // Promociones de plan ejecutadas (F06/D7): el cron es también quien aplica el cambio de plan
+  // diferido, porque hacerlo al cancelar cobraba la diferencia del período en curso (blocker 6).
+  promociones: 1,
+  enviados: 3,
+  fallidos: 0,
+};
 
 function req(over: Partial<{ method: string; auth: string }> = {}) {
   return {

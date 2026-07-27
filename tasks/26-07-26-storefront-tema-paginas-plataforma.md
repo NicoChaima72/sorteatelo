@@ -426,3 +426,18 @@ alcance); D6–D9 son derivaciones técnicas verificadas en código por el plann
   `frontend-conventions.md` se aplicó tal cual (opción 1 del usuario). Usuario decidió opción 2 del
   tester: F01–F03 `passing` + `status: done` + INDEX a Cerradas recientes. Screenshots:
   `tmp/tmp-checkout-prueba-dark.png`, `tmp/tmp-retorno-prueba-dark.png`.
+
+- **2026-07-26 · orquestador — FOLLOW-UP DEL NAVBAR cerrado y deployado (commit c248164)**
+  El usuario vio en prod que el navbar de iselk NO calzaba (header `vidrio` sobre body blanco + nav
+  hardcodeado vs home lila con «El libro / Preguntas»). Cierre: `resolverHerenciaDeLaHome` (absorbe
+  `resolverTemaPagina`, un solo read de la home devuelve tema + nav derivado), `reanclarNavALaHome`
+  (`#x` → `/#x`, idempotente, puro) y `componerNavDelHeader` en `chrome.ts` (las MISMAS reglas que la
+  home: menú del chrome manda → derivado + `enNav` → `basesPdf` agrega «Bases»). `zonaComprador` suma
+  `chrome` + `navItems` a `PropsStorefront` (checkout/retorno los pasan al layout); `/bases` compone
+  igual (antes perdía el nav derivado); `/entrega/[token]` queda solo-tema (host-agnóstica); `/en-pausa`
+  neutral deliberado. Guard `gateVentaEnElBorde` actualizado: `/producto/[id]` salió del enum al
+  RETIRARSE (redirect sin datos, productos v2) — su rojo era pre-existente. Vitest área 432/432 + tsc +
+  lint + `next build` local verdes; verificado en :3001 y en prod (iselk/checkout con header lila fundido
+  y nav idéntico a la home; smoke 200 en apex/iselk/prueba). HALLAZGO AJENO anotado: `autora` está en
+  `CONFIGURACION` (404 neutral correcto) — al inicio de la sesión estaba PUBLICADA; decidir con el
+  usuario si re-publicarla.

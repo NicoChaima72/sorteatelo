@@ -31,6 +31,14 @@ interface RaffleState {
   ejecutadoPor: string | null;
 }
 
+/** Fila del ledger de correos tal como la escribe `encolarCorreos` (F04/C4-C5). */
+interface FilaLedger {
+  tenantId: string;
+  tipo: string;
+  clave: string;
+  email: string;
+}
+
 /**
  * Entries del fake. `numero` (el Número del sorteo, ADR-0024) es OBLIGATORIO como en la DB: el
  * ticket ganador se identifica por él. Se autonumeran 1..N si el test no le da importancia.
@@ -45,7 +53,32 @@ function fakeDb(
   }>,
 ) {
   const entries = entriesInput.map((e, i) => ({ ...e, numero: e.numero ?? i + 1 }));
+  /**
+   * Ledger de correos del fake (F04). `skipDuplicates` se emula con el MISMO unique de la DB
+   * (`[tipo, clave]`) para que "no encola duplicados" signifique acá lo mismo que en Postgres.
+   */
+  const ledger: FilaLedger[] = [];
   const tx = {
+    correoEnviado: {
+      createMany: async ({
+        data,
+        skipDuplicates,
+      }: {
+        data: FilaLedger[];
+        skipDuplicates?: boolean;
+      }) => {
+        let count = 0;
+        for (const fila of data) {
+          const repetida = ledger.some(
+            (f) => f.tipo === fila.tipo && f.clave === fila.clave,
+          );
+          if (repetida && skipDuplicates) continue;
+          ledger.push(fila);
+          count++;
+        }
+        return { count };
+      },
+    },
     raffle: {
       findFirst: async ({ where }: { where: { id: string; tenantId: string } }) =>
         where.id === raffle.id && where.tenantId === raffle.tenantId
@@ -77,7 +110,7 @@ function fakeDb(
   const db = {
     $transaction: async <T>(fn: (tx: unknown) => Promise<T>) => fn(tx),
   } as unknown as PrismaClient;
-  return { db, raffle };
+  return { db, raffle, ledger };
 }
 
 const AHORA = new Date("2026-02-15T12:00:00Z");
@@ -276,6 +309,109 @@ describe("domain/panel/ejecutarSorteo (fake db stateful, auditable + idempotente
     expect(res.ganadorNumero).toBe(4242); // también el Número: la tupla auditable viaja entera
     expect(res.yaEjecutado).toBe(true);
     expect(res.ejecutadoAt).toEqual(ganadorConcurrente.ejecutadoAt);
+  });
+
+  // panel.sorteo.ejecutar.010 — F04/C4-C5: ejecutar encola los correos de RESULTADO en el ledger,
+  //                              DENTRO de la misma $transaction. 1 GANADOR + N NO_GANADOR (un
+  //                              email distinto por fila, el ganador excluido de los N).
+  it("encola 1 correo de GANADOR y N de NO_GANADOR (emails deduplicados, ganador excluido)", async () => {
+    const { db, ledger } = fakeDb(
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
+      [
+        { raffleId: "r1", tenantId: "A", email: "ana@x.cl", numero: 1 },
+        { raffleId: "r1", tenantId: "A", email: "bruno@x.cl", numero: 2 },
+        // Segundo ticket de ana: es UNA persona, no dos destinatarios.
+        { raffleId: "r1", tenantId: "A", email: "ana@x.cl", numero: 3 },
+        { raffleId: "r1", tenantId: "A", email: "carla@x.cl", numero: 4 },
+      ],
+    );
+
+    await ejecutarSorteo({
+      db,
+      acceso: acceso(["A"]),
+      input: { raffleId: "r1" },
+      ahora: AHORA,
+      elegirIndice: () => 1, // gana el ticket 2 (bruno)
+    });
+
+    const ganadores = ledger.filter((f) => f.tipo === "RESULTADO_GANADOR");
+    const perdedores = ledger.filter((f) => f.tipo === "RESULTADO_NO_GANADOR");
+
+    expect(ganadores).toHaveLength(1);
+    expect(ganadores[0]).toMatchObject({
+      tenantId: "A", // el tenant resuelto server-side, jamás un input (I1)
+      clave: "r1:bruno@x.cl", // `claveResultado` = raffleId:email normalizado
+      email: "bruno@x.cl", // snapshot del destinatario
+    });
+
+    // Dos no ganadores DISTINTOS: ana con sus dos tickets recibe UN solo correo.
+    expect(perdedores.map((f) => f.email).sort()).toEqual(["ana@x.cl", "carla@x.cl"]);
+    // Y el ganador no aparece entre ellos: nadie recibe "ganaste" y "no ganaste" a la vez.
+    expect(perdedores.map((f) => f.email)).not.toContain("bruno@x.cl");
+  });
+
+  // panel.sorteo.ejecutar.011 — la dedup es por IDENTIDAD (la clave), no por el string del email:
+  //                              el mismo comprador escrito con otro casing es UNA persona. Sin
+  //                              esto, el ganador recibiría además el "no ganaste" (las claves sin
+  //                              normalizar son distintas y el unique es [tipo, clave]).
+  it("dos casings del mismo correo son UNA persona: el ganador no recibe además el de no ganador", async () => {
+    const { db, ledger } = fakeDb(
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
+      [
+        { raffleId: "r1", tenantId: "A", email: "Ana@X.cl", numero: 1 },
+        { raffleId: "r1", tenantId: "A", email: "ana@x.cl", numero: 2 },
+        { raffleId: "r1", tenantId: "A", email: " BRUNO@x.cl ", numero: 3 },
+        { raffleId: "r1", tenantId: "A", email: "bruno@x.cl", numero: 4 },
+      ],
+    );
+
+    await ejecutarSorteo({
+      db,
+      acceso: acceso(["A"]),
+      input: { raffleId: "r1" },
+      ahora: AHORA,
+      elegirIndice: () => 0, // gana el ticket 1, de `Ana@X.cl`
+    });
+
+    const ganadores = ledger.filter((f) => f.tipo === "RESULTADO_GANADOR");
+    const perdedores = ledger.filter((f) => f.tipo === "RESULTADO_NO_GANADOR");
+
+    expect(ganadores).toHaveLength(1);
+    // El snapshot conserva lo que escribió el Comprador; lo que se normaliza es la CLAVE.
+    expect(ganadores[0]!.email).toBe("Ana@X.cl");
+    expect(ganadores[0]!.clave).toBe("r1:ana@x.cl");
+
+    // Bruno, con sus dos escrituras, es UN destinatario. Y ana no está: ya es la ganadora.
+    expect(perdedores).toHaveLength(1);
+    expect(perdedores[0]!.clave).toBe("r1:bruno@x.cl");
+  });
+
+  // panel.sorteo.ejecutar.012 — re-ejecutar (o el replay de un doble click) NO encola una segunda
+  //                             tanda: el correo de resultado sale UNA vez por sorteo (I2).
+  it("re-ejecutar el sorteo no encola una segunda tanda de correos", async () => {
+    const { db, ledger } = fakeDb(
+      { id: "r1", tenantId: "A", estado: "ACTIVO", ejecutadoAt: null, ganadorEmail: null, ganadorNumero: null, ejecutadoPor: null },
+      [
+        { raffleId: "r1", tenantId: "A", email: "ana@x.cl", numero: 1 },
+        { raffleId: "r1", tenantId: "A", email: "bruno@x.cl", numero: 2 },
+      ],
+    );
+    const ejecutar = () =>
+      ejecutarSorteo({
+        db,
+        acceso: acceso(["A"]),
+        input: { raffleId: "r1" },
+        ahora: AHORA,
+        elegirIndice: () => 0,
+      });
+
+    await ejecutar();
+    const despuesDeLaPrimera = [...ledger];
+    await ejecutar();
+    await ejecutar();
+
+    expect(ledger).toEqual(despuesDeLaPrimera);
+    expect(ledger).toHaveLength(2); // 1 ganador + 1 no ganador, no 3 tandas
   });
 
   // panel.sorteo.ejecutar.003 — sin participantes ⇒ INVALID (no se puede sortear)

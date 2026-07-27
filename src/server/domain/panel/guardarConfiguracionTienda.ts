@@ -41,6 +41,9 @@ export async function guardarConfiguracionTienda({
       // normaliza el esquema Zod compartido con la tool MCP). Vacío ⇒ null ⇒ los Números vuelven a
       // mostrarse pelados. Es PRESENTACIÓN (I12): escribir acá no toca ni un `RaffleEntry.numero`.
       prefijoTicket: textoOpcionalANull(input.prefijoTicket),
+      // Identidad legal del Organizador para el pie de los correos (F05/D6). Vacío ⇒ null ⇒ el pie
+      // degrada y no dibuja la línea.
+      identidadLegal: textoOpcionalANull(input.identidadLegal),
       // Redes y contacto del footer (plantilla-rica F02/F03/D2). Vacío ⇒ null (footer oculta, D7).
       instagramUrl: textoOpcionalANull(input.instagramUrl),
       tiktokUrl: textoOpcionalANull(input.tiktokUrl),

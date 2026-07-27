@@ -90,64 +90,47 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   > en su URL — es inherente al upload del propio dueño, no una fuga hacia el Comprador.)
   > Pipeline observado en Network: `crearProducto → crearUrlSubidaArchivo → PUT R2 →
   > confirmarArchivoProducto`. El caveat de D9 sobre `.epub` no se probó (no se subió un EPUB).
-- [ ] **panel.productos.sobre.001** (productos-tipos-digitales F06, D3/D4/I7) — En `/admin/productos`,
-  montar un **sobre sorpresa** entero y ver el gate del pool en vivo:
-  (a) Crear un producto eligiendo modalidad **Sobre sorpresa** ⇒ el form muestra los dos bloques del
-  sobre (la **colección** y el **menú de packs**) en vez del campo de archivo único. La modalidad se
-  elige al crear y **no se puede editar después** (reabrir el producto: el selector no está).
-  (b) Subir **4 archivos** a la colección (sirven 4 PNG) ⇒ los 4 quedan listados con su nombre, su
-  ícono por tipo y su peso; el contador de la colección dice 4.
-  (c) Definir 2 opciones de pack: **1 archivo por $3.000** y **4 archivos por $10.000** ⇒ las dos
-  aparecen en el menú con el precio en CLP formateado (`$3.000` / `$10.000`, `tabular-nums`).
-  (d) Crear una **tercera opción de 4** ⇒ rechazo con el mensaje humano de tamaño duplicado («Ya
-  tienes una opción de ese tamaño…»), NO un 500 ni un error crudo de Prisma.
-  (e) **El gate en vivo**: con pool 4 y pack máximo 4, el producto se puede poner **A la venta**.
-  Agregar una opción de **6** ⇒ el sobre deja de ser entregable y el guard de activación lo rechaza
-  con el mensaje que trae los NÚMEROS («packs de hasta 6 unidades y su colección tiene 4 archivos»).
-  Volver a bajar el pack más grande a 4 (o desactivar la opción de 6) ⇒ vuelve a ser vendible.
-  (f) **Borrado bloqueado por el gate**: con el sobre A la venta y pool exactamente 4 con pack de 4,
-  intentar eliminar un archivo de la colección ⇒ se rechaza con mensaje (borrarlo dejaría el pool bajo
-  el pack más grande). Bajarlo de la venta y recién ahí se puede eliminar.
-  (g) En ninguna respuesta de red aparece la `key` del bucket de ningún archivo del pool (I2/ADR-0002).
-  Nota: el bloqueo por **asignaciones existentes** (un archivo que ya le tocó a un Comprador no se
-  borra nunca, D4) no se puede ejercer acá porque todavía no hay ventas del sobre — se verifica en
-  `storefront.sobre.compra.001` (F09), después de comprar.
+- [x] **panel.productos.pack.001** ✅ 2026-07-27 (feature-tester, carril chrome-devtools, tienda `iselk`
+  sandbox — 0 auto-retries) — **REESCRITO por la ENMIENDA v2**: un pack ya no es una «opción» dentro de
+  un sobre sino **un producto más** con dos campos extra (fuente + unidades), así que el CRUD de opciones
+  y el bug del form anidado que este check reportaba en rojo **ya no tienen dónde existir**.
+  (a) **PASS** — en el form de alta, el selector «¿De dónde salen los archivos?» ofrece «Los subo yo»
+  (default, flujo de siempre) y «**Los entrega otro producto**». Al elegir el segundo aparecen «Producto
+  del que salen» + «¿Cuántas entrega?», y **desaparecen la sección de subida y el select de modalidad**
+  (en un pack la modalidad no significa nada, V-I7), reemplazados por «Este producto no lleva archivos
+  propios: entrega los del producto que elegiste».
+  (b) **PASS** — el select de fuentes ofrece **solo** «Colección de stickers (E2E F14) **(colección)**» y
+  «¿Cómo enriquecer a tu idol favorito?»: los 3 packs que ya existen **no se ofrecen** ⇒ «sin cadenas»
+  visible en la UI, no solo en el `where` del server.
+  (c) **PASS — y es el sub-punto que este check existe para cubrir: EL SUBMIT NO NAVEGA.** Se creó
+  «Pack 2 stickers (E2E F14 tester3)» y la URL siguió siendo `/admin/productos` con `location.search`
+  **vacío**, con un marcador puesto en `window` ANTES del submit que **sobrevivió** (o sea: cero recarga,
+  cero submit nativo). En el DOM del modal: **1 `<form>`, 0 anidados, 1 solo `type="submit"`**. Ídem al
+  editar. En DB el pack quedó con `fuenteId` = la colección, `unidadesPorPack: 2`, `files: []` y
+  `modalidad: ESTANDAR` **aunque la fuente sea SOBRE** (V-I7).
+  (d) **PASS** — en EDICIÓN la fuente se pinta como DATO, no como `Select`: «Entrega 2 unidades de
+  Colección de stickers (E2E F14) (al azar). **El producto del que salen no se puede cambiar después de
+  crear**; cuántas entrega, sí.» La inmutabilidad (V-I1c) la lee el Organizador, no solo el schema.
+  (e) **PASS — el gate en vivo, con los números**: subir «¿Cuántas entrega?» a **6** con el pool en 4 ⇒
+  `panel.actualizarProducto` responde **400** y la notificación dice «**Este pack entrega 6 archivos y la
+  colección de la que salen tiene 4 archivos. Súbele al menos 6 para poder armar el pack sin repetir.**»
+  Bajar a 2 ⇒ 200. La fila del panel nunca mostró el valor rechazado.
+  (f) **PASS** — la lista distingue los roles con badges coherentes: los packs muestran «**N de
+  \<fuente\>**», la colección muestra «**Colección**» + «**3 packs la venden**» + «**4 archivos**», y
+  **no** aparece ningún «Sin archivo» con el pool lleno (el badge contradictorio que la v1 tenía).
+  (g) **PASS** — ninguna respuesta de red del panel expone la `key` del bucket.
+  > ⚠ **Trampa de medición para el próximo tester** (me costó 20 min y casi un blocker falso): Mantine
+  > monta **SEIS** contenedores `.mantine-Notifications-root`, uno por posición. Poleando con
+  > `querySelector` se lee siempre el primero (top-center), que está vacío por definición, y **toda
+  > notificación de este repo parece silencio**. Hay que usar `querySelectorAll('[class*="Notifications-root"]')`.
+  (Plan F11 E2E — productos-tipos-digitales, ENMIENDA v2, E13/E15/E16/E17)
 
-
-  > 🔴 [feature-tester 2026-07-26, 2ª vuelta] **EJERCIDO Y ROJO — hay un BUG que impide montar un
-  > sobre desde el panel.** Sobre «E2E sobre sorpresa (feature-tester)» creado en `prueba`.
-  > (a) **PASS** — al elegir «Sobre sorpresa» desaparece el campo de archivo único y el precio pasa a
-  > «Solo de referencia: lo que se cobra son los precios de los packs de abajo»; al reabrir dice
-  > «Forma de venta: **Sobre sorpresa**. No se puede cambiar después de crear el producto» (sin
-  > selector). Los dos bloques del sobre (colección + menú de packs) viven en el form de EDICIÓN,
-  > no en el de alta — el de alta lo anuncia («Cuando guardes el sobre vas a poder…»).
-  > (b) **PASS** — 4 PNG subidos, listados con nombre y peso (83 KB / 82 KB / 86 KB / 87 KB) y el
-  > contador dice «4 archivos». Dato fino que salió gratis: una subida que quedó **sin confirmar**
-  > (el HMR del dev server cortó su confirmación) **no cuenta** en el pool — el contador marcó
-  > «3 archivos» hasta reponerla. Es exactamente lo que el schema promete (`confirmadoAt` null ⇒
-  > el pipeline ignora la fila).
-  > (c) y (d) **FAIL — el botón «Agregar opción» del menú de packs no crea nada: NAVEGA.**
-  > Clic ⇒ la página se va a `/admin/productos?` (submit nativo GET), el modal se cierra y en DB
-  > `ProductPackOption` sigue en 0. **2 de 2 intentos, determinista.** Causa medida en el DOM: el
-  > form de packs está **ANIDADO dentro del form del producto** (`<form>` dentro de `<form>`, HTML
-  > inválido) y su botón es `type="submit"` ⇒ el submit escala al form externo.
-  > **El backend está SANO** y quedó probado por separado invocando `panel.crearOpcionDePack` con la
-  > misma sesión: `1 × $3.000` y `4 × $10.000` ⇒ **200**; y la tercera opción de 4 ⇒ **409** con el
-  > mensaje humano exacto que pide (d): «Ya tienes una opción de ese tamaño en este sobre. Edítala
-  > en vez de crear otra (si la habías desactivado, vuelve a activarla).» O sea: **el defecto es
-  > 100 % de frontend**, pero deja la mecánica del sobre INUTILIZABLE para un Organizador real.
-  > (e) **PASS** (con las opciones sembradas por API) — con pool 4 y pack máximo 4 el sobre se pone
-  > **A la venta** sin que el guard lo rechace, y la fila de la lista pasa de «Sin packs / Sin
-  > archivo» a «**desde $3.000**». La variante «agregar una opción de 6» NO se probó: exige crear
-  > una opción, que es justo lo que el bug impide desde la UI.
-  > (f) **PASS** — con el sobre A la venta y pool 4 = pack 4, «Eliminar e2e-sticker-1.png» abre un
-  > modal de confirmación (Mantine, no dialog nativo) y al confirmar se rechaza con los NÚMEROS:
-  > «**Si borras este archivo tu colección queda en 3 y el pack más grande que vendes es de 4. Saca
-  > el sobre de la venta, sube otro archivo o desactiva ese pack antes de borrar.**» Nada se borró
-  > (pool sigue en 4).
-  > (g) **PASS** — ninguna respuesta de red del panel expone la `key` del pool.
-  > **Queda sin ejercer** el bloqueo por asignaciones (necesita venta pagada, ver
-  > `storefront.sobre.compra.001`) y el rechazo del guard con una opción de 6.
+  > Historia: este ID reemplaza a `panel.productos.sobre.001`, que describía el flujo muerto de
+  > `ProductPackOption` (menú de packs dentro del sobre). Su hallazgo rojo —el botón «Agregar opción»
+  > navegaba porque su `<form>` estaba anidado dentro del form del producto— **murió con la UI que lo
+  > contenía**: `opciones-de-pack.tsx` se borró entero en F11 y no hubo fix que hacer. El sub-punto de
+  > borrado bloqueado por el gate del pool se conserva en `panel.productos.borrarArchivo.*` (Vitest) y el
+  > bloqueo por **asignaciones existentes** se ejerce en `storefront.pack.compra.001`.
 - [ ] **panel.ventas.dashboard.001** — `/admin/ventas` muestra las órdenes reales del tenant (la venta
   pagada de `autora` del E2E de F01, con su total CLP formateado y el neto = total − comisión); "Cargar
   más" pagina sin repetir. `/admin` muestra KPIs coherentes con la DB (ventas pagadas, ingresos).
@@ -172,7 +155,19 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   el total de **tickets** (no de órdenes) y la tabla de Participantes agrupa por correo mostrando su
   **conteo de tickets** + su última participación. (Plan F04 E2E — sorteo-por-producto, ADR-0012)
 
-- [ ] **panel.sorteo.prefijo.001** — En `/admin/configuracion`, card «Tu tienda», el campo **Prefijo de
+- [x] **panel.sorteo.prefijo.001** ✅ 2026-07-27 (navegador real, carril Playwright, 0 auto-retries) —
+  verificado punta a punta sobre el tenant desechable `e2e-numeros`: al tipear `army-chile 2` el campo
+  deja `ARMYCHIL` (mayúsculas solas, guion y espacio imposibles de escribir, tope 8); tras **Guardar
+  cambios** (notificación «Cambios guardados.») la columna **Números** de `/admin/sorteo` muestra
+  `ARMY-1–2, ARMY-7–9` · `ARMY-3–6` · `ARMY-10` — prefijo **por BLOQUE**, con los codepoints
+  distinguidos (`2d` hyphen ASCII del prefijo vs `2013` U+2013 del rango), IBM Plex Mono realmente
+  cargada y `tabular-nums`; 0 errores de consola. Vaciar el campo y guardar deja `prefijoTicket = null`
+  en DB y los números **pelados otra vez** (`1–2, 7–9`, byte-idéntico a antes de la feature) ⇒ el
+  fixture quedó como estaba. Contraparte del correo CUMPLIDA en el gate de F03: el C1 realmente
+  entregado trae `ARMY-1043–1048` en el boleto y en el `text/plain`. **Lo único no observable**: el
+  `Nº ARMY-<n>` del Historial (0 sorteos CERRADOS; ejecutar es irreversible) — cubierto por
+  `panel.sorteo.listar.001` + revisión estática, como el propio checklist prevé («y si hay Historial»).
+  Texto original del check: En `/admin/configuracion`, card «Tu tienda», el campo **Prefijo de
   los números del sorteo** acepta `ARMY` (al tipear se pone en MAYÚSCULAS solo y **no deja escribir el
   guion** ni espacios ni símbolos; tope de 8 caracteres). Tras **Guardar cambios**, en `/admin/sorteo` la
   columna **Números** muestra el MISMO plegado de siempre pero con prefijo por BLOQUE — `ARMY-1–2,
@@ -182,6 +177,58 @@ Prerequisito para todos: crear el OAuth client de Google, poblar `GOOGLE_CLIENT_
   EXACTAMENTE ese mismo texto en sus boletos y en su `text/plain` (por eso conviene plegar este check al
   envío real de F03 y no gastar cuota de Resend aparte).
   (Plan F08 E2E — sistema-correos-comprador, D12/I12)
+
+- [x] **panel.sorteo.resultado.001** ✅ 2026-07-27 (feature-tester, carril Playwright — el de
+  chrome-devtools estaba tomado por otra sesión y no se desalojó a nadie). Tenant desechable
+  `ft-f04-ms2mt4uz` (`CONFIGURACION` a propósito: PUBLICADA sin suscripción encierra el panel en
+  `/admin/plan` por el gate de facturación). 8 tickets emitidos por `aplicarEfectosPostPago` REAL,
+  3 identidades, y una de ellas comprando dos veces con distinto casing (`nikochaima72+f04p1@` y
+  `NikoChaima72+F04P1@`) para ejercer la dedup por identidad con un humano de verdad.
+  (a) modal → «…se le avisa por correo a cada participante: al ganador, y al resto cuál fue el número
+  ganador. Los correos **empiezan a salir** dentro de la hora y, si hay muchos participantes, terminan
+  de llegar en los días siguientes»; (b) notification → «Ganó el número **ARMY-1**. Los avisos por
+  correo empiezan a salir dentro de la hora»; (c) ledger = **1 `RESULTADO_GANADOR` + 2
+  `RESULTADO_NO_GANADOR`**, con el SEGUNDO CASING del ganador excluido; (d) drenado con el
+  `resolvedorDeCorreos` REAL (acotado al tenant propio) ⇒ **3/3 `delivered`**, y una 3ª corrida mandó
+  0; (e) los dos correos abiertos y mirados: el del ganador nombra sorteo y premio, trae `ARMY-1` como
+  boleto y ofrece el contacto público SIN publicar el correo personal del Organizador; el de no ganador
+  trae el ganador + los suyos como dos grupos rotulados distinto, **0 «@» en el cuerpo**, sin promo y
+  sin una sola filtración del ticket ARMY-5 ni de los números ajenos. Replay ×2 y **carrera concurrente
+  real** ⇒ ninguna segunda tanda. Cuota: 3 correos. Cleanup completo. Evidencia: `tmp/ft-f04-modal.png`,
+  `tmp/ft-f04-panel-post.png`, `tmp/ft-f04-visual-{ganador,no-ganador}.png`.
+  Texto original del check: **ASISTIDO y con un tramo IRREVERSIBLE**: ejecutar un sorteo manda
+  correos a compradores reales, así que este check se corre **sobre un tenant desechable propio**, nunca
+  sobre `autora` ni sobre los tenants demo. Preparación: tenant nuevo con `colorPrimario` (y `logoUrl` si
+  se quiere ver la marca), sorteo ACTIVO con `premio` y bases, y tickets de **al menos 3 correos
+  distintos**, uno de ellos con 2+ tickets (para ver el plegado en el correo de no ganador). Pasos: (a) en
+  `/admin/sorteo`, apretar **Ejecutar sorteo** y leer el modal — tiene que decir que se le avisa por correo
+  a cada participante y que los correos **empiezan** a salir dentro de la hora; (b) confirmar y leer la
+  notification (ganador con su `Nº` y la misma promesa acotada); (c) verificar EN DB que el ledger quedó
+  con **1 fila `RESULTADO_GANADOR` + N `RESULTADO_NO_GANADOR`** (N = correos distintos − 1) y que el
+  ganador **no** tiene además una fila de no ganador; (d) drenar (`drenarCorreosPendientes` con el
+  resolvedor REAL, acotando el envío al tenant propio para no tocar filas ajenas) y confirmar `delivered`
+  por `GET /emails/{id}`; (e) **abrir los dos correos** y mirar: el del ganador nombra el sorteo y el
+  premio y trae su número como boleto; el de no ganador trae el número ganador y los suyos como DOS grupos
+  distinguibles, y **no aparece por ningún lado el nombre ni el correo del ganador** (D4). Volver a apretar
+  Ejecutar (o replayearlo) NO puede encolar una segunda tanda.
+  (Plan F04 E2E — sistema-correos-comprador, D4/I2/I10)
+
+- [x] **panel.sorteo.resultado.002** ✅ 2026-07-27 (feature-tester) — **el censo de dev ES el de prod**:
+  se verificó que ambas apuntan a la MISMA base, porque el tenant `demo-noche` (que solo existe en esta
+  DB, creado por un seed del builder) responde **200 en `https://demo-noche.sorteatelo.cl`**. Censo:
+  **0 `Raffle` con `ejecutadoAt IS NOT NULL`** antes de la corrida (sobre 9) y **0** después del cleanup
+  (sobre 8, todos ACTIVO y de tenants de larga vida). No hay ningún sorteo histórico al que F04 le deba
+  correos. **Corolario operativo que vale registrar: como dev y prod comparten DB, el cron de Vercel
+  drena ESTE ledger** — una fila PENDIENTE olvidada por un fixture es un correo real saliendo de
+  producción. Por eso esta corrida usó solo variantes `+` de la casilla del usuario y cerró con el
+  ledger GLOBAL en 0.
+  Texto original del check: **Verificación de PRODUCCIÓN pedida por el `backend-reviewer`**:
+  antes de dar F04 por cerrada, confirmar contra la DB de prod que no hay `Raffle` con
+  `ejecutadoAt IS NOT NULL` de ANTES de este deploy. Esos sorteos ya ejecutados no tienen filas en el
+  ledger y **nada los va a encolar retroactivamente** (el chequeo temprano de idempotencia corta antes),
+  así que sus participantes nunca recibirían el resultado. En dev el censo dio **0** el 2026-07-27; si en
+  prod diera >0, es una decisión del usuario qué hacer (backfill manual o no avisar).
+  (Plan F04 E2E — sistema-correos-comprador)
 
 - [x] **panel.sorteo.numeros.001** — En `/admin/sorteo`, la tabla de Participantes tiene una columna
   **Números** y cada participante muestra su(s) **Número(s) del sorteo** plegados en rango

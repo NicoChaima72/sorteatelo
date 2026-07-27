@@ -38,10 +38,14 @@ async function limpiar() {
   const ids = tenants.map((t) => t.id);
   if (ids.length === 0) return;
   await db.packAssignment.deleteMany({ where: { tenantId: { in: ids } } });
-  await db.productPackOption.deleteMany({ where: { tenantId: { in: ids } } });
   await db.orderItem.deleteMany({ where: { tenantId: { in: ids } } });
   await db.order.deleteMany({ where: { tenantId: { in: ids } } });
   await db.productFile.deleteMany({ where: { tenantId: { in: ids } } });
+  // Los PACKS antes que sus fuentes: el `onDelete: Restrict` de la self-relation aborta el borrado
+  // de una fuente que todavía tenga packs colgando.
+  await db.product.deleteMany({
+    where: { tenantId: { in: ids }, fuenteId: { not: null } },
+  });
   await db.product.deleteMany({ where: { tenantId: { in: ids } } });
   await db.tenant.deleteMany({ where: { id: { in: ids } } });
 }
@@ -139,111 +143,6 @@ async function crearLineaDeSobre({
 }
 
 describe("schema/sobre-sorpresa (DB-backed)", () => {
-  // sobre.schema.001 — la validación declarada de F05 en el plan
-  it("un producto SOBRE persiste sus opciones de pack {unidades, precio Decimal} y su pool, todo tenant-scoped", async () => {
-    const [tenant, otro] = await Promise.all([
-      crearTenant("uno"),
-      crearTenant("otro"),
-    ]);
-
-    const { producto } = await crearSobre({
-      tenantId: tenant.id,
-      titulo: "Sobre de stickers",
-      pool: 6,
-    });
-
-    await db.productPackOption.createMany({
-      data: [
-        { tenantId: tenant.id, productId: producto.id, unidades: 1, precio: "3000" },
-        { tenantId: tenant.id, productId: producto.id, unidades: 4, precio: "10000" },
-      ],
-    });
-
-    const opciones = await db.productPackOption.findMany({
-      where: { tenantId: tenant.id, productId: producto.id, activo: true },
-      orderBy: { unidades: "asc" },
-      select: { unidades: true, precio: true, activo: true },
-    });
-
-    expect(opciones).toHaveLength(2);
-    // El precio del pack es el precio del PACK COMPLETO, en Decimal exacto — nunca Float ni
-    // "precio por unidad": el pack de 4 vale $10.000, no 4 × $2.500.
-    expect(opciones[0]!.unidades).toBe(1);
-    expect(opciones[0]!.precio).toBeInstanceOf(Prisma.Decimal);
-    expect(opciones[0]!.precio.toFixed(2)).toBe("3000.00");
-    expect(opciones[1]!.unidades).toBe(4);
-    expect(opciones[1]!.precio.toFixed(2)).toBe("10000.00");
-    expect(opciones[1]!.activo).toBe(true); // nace vendible
-
-    // El pool NO es tabla nueva: es la relación `files` filtrada por confirmadoAt (F01).
-    const pool = await db.productFile.count({
-      where: {
-        tenantId: tenant.id,
-        productId: producto.id,
-        confirmadoAt: { not: null },
-      },
-    });
-    expect(pool).toBe(6);
-
-    // I1 — todo tenant-scoped: desde OTRA Tienda el sobre no tiene ni opciones ni pool.
-    const opcionesAjenas = await db.productPackOption.findMany({
-      where: { tenantId: otro.id, productId: producto.id },
-    });
-    expect(opcionesAjenas).toEqual([]);
-    const poolAjeno = await db.productFile.count({
-      where: { tenantId: otro.id, productId: producto.id },
-    });
-    expect(poolAjeno).toBe(0);
-  });
-
-  // sobre.schema.002 — @@unique([productId, unidades]): un tamaño de pack, un precio. Dos opciones de
-  // 4 unidades serían dos radio buttons indistinguibles para el Comprador. El unique alcanza también
-  // a las INACTIVAS (misma trampa que CheckoutField.@@unique([tenantId, clave])), y el namespace es
-  // POR PRODUCTO: dos sobres distintos pueden tener cada uno su pack de 4.
-  it("rechaza dos opciones del mismo tamaño en un sobre, pero el mismo tamaño convive en sobres distintos", async () => {
-    const tenant = await crearTenant("dos");
-    const { producto } = await crearSobre({
-      tenantId: tenant.id,
-      titulo: "Sobre A",
-      pool: 4,
-    });
-    const { producto: otroSobre } = await crearSobre({
-      tenantId: tenant.id,
-      titulo: "Sobre B",
-      pool: 4,
-    });
-
-    await db.productPackOption.create({
-      data: { tenantId: tenant.id, productId: producto.id, unidades: 4, precio: "10000" },
-    });
-
-    // Mismo (productId, unidades) con otro precio ⇒ colisiona.
-    await expect(
-      db.productPackOption.create({
-        data: { tenantId: tenant.id, productId: producto.id, unidades: 4, precio: "8000" },
-      }),
-    ).rejects.toThrow();
-
-    // Y colisiona TAMBIÉN si la existente está DESACTIVADA: el panel (F06) tiene que traducir ese
-    // P2002 a "ya tienes una opción de 4 unidades: editala o reactivala", nunca a un 500.
-    await db.productPackOption.updateMany({
-      where: { productId: producto.id, unidades: 4 },
-      data: { activo: false },
-    });
-    await expect(
-      db.productPackOption.create({
-        data: { tenantId: tenant.id, productId: producto.id, unidades: 4, precio: "8000" },
-      }),
-    ).rejects.toThrow();
-
-    // El namespace es por PRODUCTO, no por tenant: el otro sobre puede tener su propio pack de 4.
-    const enOtroSobre = await db.productPackOption.create({
-      data: { tenantId: tenant.id, productId: otroSobre.id, unidades: 4, precio: "9000" },
-      select: { id: true },
-    });
-    expect(enOtroSobre.id).toBeTruthy();
-  });
-
   // sobre.schema.003 — @@unique([orderItemId, packOrdinal, unidadOrdinal]): las COORDENADAS de la
   // entrega son la llave de idempotencia exactly-once ante replay del webhook de Flow (D12/I3). Es la
   // garantía que hace que un replay no pueda agregar ni una fila AUNQUE el RNG sortee otra muestra:
@@ -459,35 +358,45 @@ describe("schema/sobre-sorpresa (DB-backed)", () => {
     // La fórmula de tickets de D6 sobre una línea estándar da exactamente lo de siempre (ADR-0012).
     expect(linea.unidadesPorPack * linea.cantidad).toBe(3);
 
-    // Y en un SOBRE congela el tamaño del pack comprado, sobreviviendo a que la opción CAMBIE.
-    const { producto } = await crearSobre({
+    // Y en un PACK congela el tamaño comprado, sobreviviendo a que el PRODUCTO PACK cambie después.
+    // (Bajo la ENMIENDA v2 la definición viva ya no es una `ProductPackOption` sino el propio
+    // producto pack, con su `unidadesPorPack` y su `precio` — y `unidadesPorPack` es editable a
+    // propósito: lo que protege la historia es justamente este snapshot.)
+    const { producto: coleccion } = await crearSobre({
       tenantId: tenant.id,
-      titulo: "Sobre snapshot",
+      titulo: "Colección snapshot",
       pool: 8,
     });
-    const opcion = await db.productPackOption.create({
-      data: { tenantId: tenant.id, productId: producto.id, unidades: 4, precio: "10000" },
+    const pack = await db.product.create({
+      data: {
+        tenantId: tenant.id,
+        titulo: "Pack 4",
+        descripcion: "cuatro al azar",
+        precio: "10000",
+        fuenteId: coleccion.id,
+        unidadesPorPack: 4,
+      },
       select: { id: true },
     });
     const { orderItemId } = await crearLineaDeSobre({
       tenantId: tenant.id,
-      productId: producto.id,
+      productId: pack.id,
       precioPack: "10000",
       cantidad: 2,
       unidadesPorPack: 4,
     });
 
-    // El Organizador sube el precio y cambia el tamaño de la opción DESPUÉS de la compra.
-    await db.productPackOption.update({
-      where: { id: opcion.id },
-      data: { unidades: 6, precio: "18000" },
+    // El Organizador sube el precio y agranda el pack DESPUÉS de la compra.
+    await db.product.update({
+      where: { id: pack.id },
+      data: { unidadesPorPack: 6, precio: "18000" },
     });
 
     const congelada = await db.orderItem.findUniqueOrThrow({
       where: { id: orderItemId },
       select: { precio: true, cantidad: true, unidadesPorPack: true },
     });
-    expect(congelada.unidadesPorPack).toBe(4); // lo que compró, no lo que la opción dice HOY
+    expect(congelada.unidadesPorPack).toBe(4); // lo que compró, no lo que el pack dice HOY
     expect(congelada.precio.toFixed(2)).toBe("10000.00");
     // 2 packs × 4 unidades = 8 archivos a asignar (F08) y 8 tickets si participa en el sorteo (D6).
     expect(congelada.unidadesPorPack * congelada.cantidad).toBe(8);

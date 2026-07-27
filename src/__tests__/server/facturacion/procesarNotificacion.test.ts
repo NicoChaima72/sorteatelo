@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { procesarNotificacionSuscripcion } from "~/server/domain/facturacion/procesarNotificacionSuscripcion";
 import type {
+  FlowInvoice,
   FlowPlataformaService,
   FlowSuscripcion,
 } from "~/server/services/flowPlataforma";
@@ -159,8 +160,18 @@ function fakeDb(s: Escenario = {}) {
   return { db, estado };
 }
 
-/** Fake del service de plataforma. Mocks como PROPIEDADES (`unbound-method`, precedente F03). */
-function fakeFlow(suscripcion: Partial<FlowSuscripcion> = {}) {
+/**
+ * Fake del service de plataforma. Mocks como PROPIEDADES (`unbound-method`, precedente F03).
+ *
+ * `detalleDeInvoice` es lo que `invoice/get` agrega POR SOBRE el invoice embebido — el bloque
+ * `payment`, el `paymentLink`, los `error*`. Modelar esa asimetría es el punto: el webhook ve el
+ * embebido, y todo lo demás cuesta una llamada aparte.
+ */
+function fakeFlow(
+  suscripcion: Partial<FlowSuscripcion> = {},
+  detalleDeInvoice: Record<string, Partial<FlowInvoice>> = {},
+) {
+  const embebidos = suscripcion.invoices ?? [];
   const mocks = {
     getSuscripcion: vi.fn(
       async (): Promise<FlowSuscripcion> => ({
@@ -174,37 +185,52 @@ function fakeFlow(suscripcion: Partial<FlowSuscripcion> = {}) {
         ...suscripcion,
       }),
     ),
+    getInvoice: vi.fn(async (invoiceId: string): Promise<FlowInvoice> => {
+      const embebido = embebidos.find((i) => String(i.id) === invoiceId);
+      return {
+        id: invoiceId,
+        ...embebido,
+        ...(detalleDeInvoice[invoiceId] ?? {}),
+      };
+    }),
     cancelarSuscripcion: vi.fn(async () => ({ subscriptionId: SUB_ID })),
   };
   return { flow: mocks as unknown as FlowPlataformaService, mocks };
 }
 
-/** Un invoice de Flow pagado / fallido / incobrable, según los campos que mira la derivación. */
+/**
+ * Invoices de Flow con las claves REALES (blocker 5 de la 4ª pasada del E2E). El shape es el del
+ * invoice **EMBEBIDO en `subscription/get`**, que es lo único que el webhook ve sin pedir nada más:
+ * `status` (0 impago / 1 pagado / 2 anulado), `attemp_count` (intentos, incluido el exitoso) y
+ * `attemped` (si se va a cobrar, NO un contador) — sin `payment`, `paymentLink` ni `error*`.
+ *
+ * `invPagado` reproduce la trampa que dejó anotada el sandbox: un cobro EXITOSO viaja con
+ * `attemp_count: 1` y `attemped: 0`.
+ */
 const invPagado = (id = "fi-1") => ({
   id,
-  paid: 1,
-  amount: 25000,
-  outstanding: 0,
-  payment_date: "2026-07-26",
-  period_start: "2026-07-26",
-  period_end: "2026-08-26",
+  status: 1,
+  amount: "25000.0000",
+  attemp_count: 1,
+  attemped: 0,
+  next_attemp_date: null,
+  period_start: "2026-07-26 00:00:00",
+  period_end: "2026-08-26 00:00:00",
 });
 const invFallido = (id = "fi-1") => ({
   id,
-  paid: 0,
-  amount: 25000,
-  outstanding: 25000,
-  attemp: 1,
-  next_attemp_date: "2026-08-02",
-  paymentLink: "https://flow.cl/pagar/abc",
+  status: 0,
+  amount: "25000.0000",
+  attemp_count: 1,
+  attemped: 1,
+  next_attemp_date: "2026-08-02 00:00:00",
 });
 const invIncobrable = (id = "fi-1") => ({
   id,
-  paid: 0,
-  amount: 25000,
-  outstanding: 25000,
-  attemp: 3,
-  paymentLink: "https://flow.cl/pagar/abc",
+  status: 0,
+  amount: "25000.0000",
+  attemp_count: 3,
+  attemped: 1,
 });
 
 describe("domain/facturacion/procesarNotificacionSuscripcion", () => {
@@ -248,6 +274,55 @@ describe("domain/facturacion/procesarNotificacionSuscripcion", () => {
     expect(r.correos[0]!.destinatario).toBe("ana@x.cl");
   });
 
+  // facturacion.notificacion.020 — el cobro del que habla la notificación no se pierde
+  // Flow notifica con un `token` cuyo `commerceOrder` es `<subscriptionId>_<invoiceId>_<fecha>`: la
+  // notificación SIEMPRE dice de qué cobro habla. Si ese invoice no aparece en la lista embebida de
+  // `subscription/get`, espejarlo igual es la diferencia entre registrar el cobro y perderlo.
+  it("espeja el invoice del que habla la notificación aunque no venga en la lista embebida", async () => {
+    const { db, estado } = fakeDb();
+    const { flow, mocks } = fakeFlow(
+      { invoices: [] },
+      { "fi-9": { ...invPagado("fi-9"), payment: { status: 2 } } },
+    );
+
+    const r = await procesarNotificacionSuscripcion({
+      db,
+      flow,
+      input: { flowSubscriptionId: SUB_ID, flowInvoiceId: "fi-9" },
+    });
+
+    expect(mocks.getInvoice).toHaveBeenCalledWith("fi-9");
+    expect(estado.invoices).toHaveLength(1);
+    expect(estado.invoices[0]).toMatchObject({
+      flowInvoiceId: "fi-9",
+      estado: "PAGADA",
+    });
+    expect(r.correos.map((c) => c.datos.tipo)).toEqual(["COMPROBANTE_PAGO"]);
+  });
+
+  // facturacion.notificacion.021 — la evidencia del propio token también prueba el pago
+  // `payment/getStatus` —el endpoint con el que ya se resolvió el token— dice si ESE cobro se pagó.
+  // Es la evidencia más fresca que hay del hecho notificado: si el invoice todavía no lo refleja, el
+  // comprobante igual tiene que salir, porque un invoice pagado ya no vuelve a notificarse.
+  it("espeja PAGADA cuando el token declara el cobro pagado aunque el invoice todavía diga impago", async () => {
+    const { db, estado } = fakeDb();
+    const { flow } = fakeFlow({ invoices: [invFallido()] });
+
+    const r = await procesarNotificacionSuscripcion({
+      db,
+      flow,
+      input: {
+        flowSubscriptionId: SUB_ID,
+        flowInvoiceId: "fi-1",
+        cobroPagado: true,
+      },
+    });
+
+    expect(estado.invoices[0]!.estado).toBe("PAGADA");
+    expect(estado.suscripciones[0]!.estado).toBe("AL_DIA");
+    expect(r.correos.map((c) => c.datos.tipo)).toEqual(["COMPROBANTE_PAGO"]);
+  });
+
   // facturacion.notificacion.003 — idempotencia: el replay no duplica ni reenvía
   it("el replay de la misma notificación no duplica el invoice ni reenvía correos", async () => {
     const { db, estado } = fakeDb();
@@ -269,15 +344,29 @@ describe("domain/facturacion/procesarNotificacionSuscripcion", () => {
   });
 
   // facturacion.notificacion.004 — cobro fallido ⇒ COBRO_PENDIENTE, SIGUE vendiendo, correo con link
+  // El `paymentLink` NO viaja en el invoice embebido: para tener la palanca con la que el Organizador
+  // regulariza (D4) hay que ir a buscar el invoice completo. Si el webhook no lo hace, el correo (2)
+  // y el banner salen sin link — que es como no salir.
   it("un cobro fallido deja COBRO_PENDIENTE y manda el correo con paymentLink y próximo intento", async () => {
     const { db, estado } = fakeDb();
-    const { flow } = fakeFlow({ morose: 1, invoices: [invFallido()] });
+    const { flow, mocks } = fakeFlow(
+      { morose: 1, invoices: [invFallido()] },
+      {
+        "fi-1": {
+          error: 1,
+          errorDescription: "Tarjeta rechazada",
+          paymentLink: "https://flow.cl/pagar/abc",
+        },
+      },
+    );
 
     const r = await procesarNotificacionSuscripcion({
       db,
       flow,
       input: { flowSubscriptionId: SUB_ID },
     });
+
+    expect(mocks.getInvoice).toHaveBeenCalledWith("fi-1");
 
     expect(estado.invoices[0]).toMatchObject({
       estado: "FALLIDA",
@@ -594,7 +683,9 @@ describe("domain/facturacion/procesarNotificacionSuscripcion", () => {
     });
     const { flow } = fakeFlow({
       morose: 1,
-      invoices: [{ ...invFallido(), attemp: 2, next_attemp_date: "2026-08-09" }],
+      invoices: [
+        { ...invFallido(), attemp_count: 2, next_attemp_date: "2026-08-09 00:00:00" },
+      ],
     });
 
     const r = await procesarNotificacionSuscripcion({
@@ -623,6 +714,68 @@ describe("domain/facturacion/procesarNotificacionSuscripcion", () => {
     const sub = estado.suscripciones[0]!;
     expect(sub.periodoFin).toBeInstanceOf(Date);
     expect(sub.proximoCobroAt).toBeInstanceOf(Date);
+  });
+
+  // facturacion.notificacion.018 — el plan que manda es el de Flow (hallazgo 5 del sandbox)
+  it("sigue a Flow cuando la promoción de plan ya rige: plan, monto y las marcas de programado", async () => {
+    // El escenario de D7: el Pagador canceló su tienda full y esta adicional se promovió. Quien
+    // ejecuta el `changePlan` es el cron (`promocionesDePlan.ts`) y quien lo sella es él mismo, pero
+    // este espejo se queda como red: si el plan de Flow y el nuestro divergen —una promoción aplicada
+    // cuya escritura local se perdió, o un cambio hecho a mano en el panel de Flow—, manda Flow.
+    // Sin él, la página Plan podría decir «$12.500 /mes» mientras Flow cobra $25.000.
+    const { db, estado } = fakeDb({
+      suscripcion: {
+        plan: "ADICIONAL",
+        flowPlanId: "sorteatelo-tienda-adicional",
+        montoBruto: new Prisma.Decimal("12500"),
+        planProgramado: "FULL",
+        planProgramadoDesde: new Date("2026-08-26T04:00:00Z"),
+      },
+    });
+    const { flow } = fakeFlow({
+      planId: "sorteatelo-tienda-full",
+      invoices: [invPagado()],
+    });
+
+    await procesarNotificacionSuscripcion({
+      db,
+      flow,
+      input: { flowSubscriptionId: SUB_ID },
+    });
+
+    const sub = estado.suscripciones[0]!;
+    expect(sub.plan).toBe("FULL");
+    expect(sub.flowPlanId).toBe("sorteatelo-tienda-full");
+    expect((sub.montoBruto as Prisma.Decimal).toString()).toBe("25000");
+    // La promoción se cumplió: las marcas de «pendiente» se apagan, o el aviso del cron (F09)
+    // seguiría anunciando un cambio que ya ocurrió.
+    expect(sub.planProgramado).toBeNull();
+    expect(sub.planProgramadoDesde).toBeNull();
+  });
+
+  // facturacion.notificacion.019 — un planId que no es del catálogo no se interpreta
+  it("no toca el plan local si Flow reporta un planId que no está en el catálogo", async () => {
+    const { db, estado } = fakeDb({
+      suscripcion: {
+        plan: "ADICIONAL",
+        flowPlanId: "sorteatelo-tienda-adicional",
+        montoBruto: new Prisma.Decimal("12500"),
+      },
+    });
+    const { flow } = fakeFlow({
+      planId: "plan-de-otra-cuenta",
+      invoices: [invPagado()],
+    });
+
+    await procesarNotificacionSuscripcion({
+      db,
+      flow,
+      input: { flowSubscriptionId: SUB_ID },
+    });
+
+    const sub = estado.suscripciones[0]!;
+    expect(sub.plan).toBe("ADICIONAL");
+    expect((sub.montoBruto as Prisma.Decimal).toString()).toBe("12500");
   });
 });
 

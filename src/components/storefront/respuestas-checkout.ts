@@ -34,6 +34,12 @@ export type ValorRespuesta = string | number | boolean | null;
  */
 export interface ValoresCheckout {
   email: string;
+  /**
+   * Consentimiento de recordatorios del sorteo (F05/D5). Vive FUERA de `respuestas` a propósito:
+   * es de PLATAFORMA, no un [[Campo de checkout]] que el Organizador pueda editar, desactivar o
+   * volver obligatorio. Arranca `false` siempre — la casilla premarcada está prohibida.
+   */
+  aceptaRecordatorios: boolean;
   /** Indexado por `clave` del campo — la misma llave con la que se congela el snapshot (D2). */
   respuestas: Record<string, ValorRespuesta>;
 }

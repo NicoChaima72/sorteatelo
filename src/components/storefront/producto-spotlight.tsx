@@ -8,8 +8,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import Link from "next/link";
-
+import { useCarrito } from "~/components/storefront/carrito";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
 import { clp } from "~/lib/formato";
 import { type SeccionNode } from "~/lib/pagebuilder/schema";
@@ -22,8 +21,11 @@ import { api } from "~/utils/api";
  * scoped SERVER-SIDE vía `listarProductosDeCatalogo` (mismo procedimiento que el catálogo, D6/I1 — jamás
  * copia precio/título al documento). Sin `productoId` ⇒ el 1er producto activo (degradación, I-G). Renderiza
  * una FILA editorial: mini portada (imagen o `TapaLibro` tematizada) + «título» en cita serif + autoría +
- * descripción + PRECIO REAL (`Product.precio`, CLP con `Intl.NumberFormat`, tabular-nums — §5) + CTA al
- * detalle. Se auto-oculta si no hay producto (I-G). Cero hex inline (I-A).
+ * descripción + PRECIO REAL (`Product.precio`, CLP con `Intl.NumberFormat`, tabular-nums — §5) + CTA que
+ * AGREGA AL CARRITO. Se auto-oculta si no hay producto (I-G). Cero hex inline (I-A).
+ *
+ * El CTA apuntaba al detalle hasta la ENMIENDA v2: `/producto/[id]` murió (E2) y todo se agrega
+ * desde donde se ve (E1), así que el botón hace lo que promete en vez de mandar a un redirect.
  */
 export function ProductoSpotlight({
   nodo,
@@ -43,6 +45,10 @@ export function ProductoSpotlight({
       : { modo: "todos" },
   );
   const producto = query.data?.[0] ?? null;
+
+  // El hook va ANTES del early return: las reglas de hooks no admiten llamarlo condicionalmente.
+  const { contiene, agregar } = useCarrito();
+  const enCarrito = producto !== null && contiene(producto.id);
 
   // Auto-oculto si no hay producto (I-G): no deja un hueco ni un placeholder roto.
   if (!query.isLoading && !producto) return null;
@@ -108,14 +114,25 @@ export function ProductoSpotlight({
                 {clp(producto.precio)}
               </Text>
               <Button
-                component={Link}
-                href={`/producto/${producto.id}`}
                 size="sm"
                 variant="filled"
                 mt="xs"
                 style={{ width: "fit-content" }}
+                disabled={enCarrito}
+                // El texto del botón es editable por el Organizador (`ctaTexto`), así que puede
+                // quedar en un «Quiero este» que fuera de contexto no dice de qué. El nombre
+                // accesible lo fija el producto, no el copy (mismo criterio que el catálogo).
+                aria-label={`Agregar ${producto.titulo} al carrito`}
+                onClick={() =>
+                  agregar({
+                    id: producto.id,
+                    titulo: producto.titulo,
+                    precio: producto.precio,
+                    unidadesPorPack: producto.unidadesPorPack,
+                  })
+                }
               >
-                {props.ctaTexto ?? "Quiero este"}
+                {enCarrito ? "En tu carrito" : (props.ctaTexto ?? "Quiero este")}
               </Button>
             </Stack>
           </Group>

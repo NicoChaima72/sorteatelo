@@ -140,6 +140,32 @@ export function reanclarNavALaHome(items: NavItem[]): NavItem[] {
 }
 
 /**
+ * Resuelve UN href del nav/chrome a una URL ABSOLUTA de la Tienda, para páginas HOST-AGNÓSTICAS
+ * (follow-up del navbar en `/entrega/[token]`): esa página también se sirve desde el APEX (el enlace
+ * del correo no conoce subdominios), así que un href relativo (`/#catalogo`, `/bases`, `/sobre-mi`)
+ * navegaría dentro del host equivocado — la landing de la plataforma en vez de la tienda del grant.
+ *
+ * `baseTienda` es la URL absoluta del subdominio de la Tienda SIN path (`https://iselk.sorteatelo.cl`,
+ * armada server-side con `construirUrlSubdominio`). Un `#ancla` pelado se normaliza primero a `/#ancla`
+ * (misma regla que `reanclarNavALaHome`); una URL ya absoluta (`http…`) pasa intacta. PURO e IDEMPOTENTE.
+ */
+export function hrefEnTienda(href: string, baseTienda: string): string {
+  const base = baseTienda.replace(/\/+$/, "");
+  if (href.startsWith("#")) return `${base}/${href}`;
+  if (href.startsWith("/")) return `${base}${href}`;
+  return href;
+}
+
+/**
+ * Variante ABSOLUTA de `reanclarNavALaHome` para páginas host-agnósticas: cada item queda apuntando al
+ * subdominio de la Tienda venga de donde venga la request. Se apoya en `hrefEnTienda` (la fuente única
+ * de esa regla). PURO.
+ */
+export function reanclarNavATienda(items: NavItem[], baseTienda: string): NavItem[] {
+  return items.map((i) => ({ ...i, href: hrefEnTienda(i.href, baseTienda) }));
+}
+
+/**
  * Deriva los items del nav desde las secciones marcadas con `nav.incluir`, en ORDEN del documento. El
  * `href` apunta al ancla semántica del tipo (si esta sección es la primera de su tipo) o al `id` del
  * propio nodo (fallback robusto — siempre existe como target). La etiqueta sale de `nav.etiqueta`

@@ -29,7 +29,11 @@ async function limpiar() {
   await db.orderItem.deleteMany({ where: { tenantId: { in: ids } } });
   await db.order.deleteMany({ where: { tenantId: { in: ids } } });
   await db.productFile.deleteMany({ where: { tenantId: { in: ids } } });
-  await db.productPackOption.deleteMany({ where: { tenantId: { in: ids } } });
+  // Los PACKS antes que sus fuentes: el `onDelete: Restrict` de la self-relation aborta el borrado
+  // de una fuente con packs colgando, y un `deleteMany` único borra en orden arbitrario.
+  await db.product.deleteMany({
+    where: { tenantId: { in: ids }, fuenteId: { not: null } },
+  });
   await db.product.deleteMany({ where: { tenantId: { in: ids } } });
   await db.tenant.deleteMany({ where: { id: { in: ids } } });
 }
@@ -229,5 +233,117 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
     for (const id of noTocaron) {
       expect(autorizados.some((a) => a.id === id)).toBe(false);
     }
+  });
+  /*
+    entrega.pagina.004 — el CASO LIBRO de la ENMIENDA v2 (E15/V-I2): un pack cuya fuente es un
+    producto ESTANDAR entrega N unidades del MISMO archivo. Esas copias NO existen en la DB —el
+    `@@unique([orderItemId, packOrdinal, productFileId])` prohíbe la fila repetida y está bien que
+    la prohíba—, así que se derivan acá, en el borde de presentación.
+
+    Lo que este test fija, y que es lo que se puede romper sin que nada más lo note: que las copias
+    aparezcan (si no, el Comprador de un «Pack 4 libros» ve UN archivo y cree que le entregaron de
+    menos) y que NO se cuelen en el conjunto AUTORIZADO (si se colaran, el corte de seguridad
+    `?archivo=` estaría razonando sobre una lista inflada).
+  */
+  it("un pack de fuente ESTANDAR lista las N copias del archivo, todas descargables", async () => {
+    const tenant = await db.tenant.create({
+      data: { slug: `${PREFIJO}libro`, nombre: "Editorial", estado: "PUBLICADA" },
+      select: { id: true },
+    });
+
+    // La FUENTE va despublicada: el caso «vendo solo el pack» de E17.
+    const libro = await db.product.create({
+      data: {
+        tenantId: tenant.id,
+        titulo: "El libro",
+        descripcion: "d",
+        precio: "3000",
+        activo: false,
+      },
+      select: { id: true },
+    });
+    const archivo = await db.productFile.create({
+      data: {
+        tenantId: tenant.id,
+        productId: libro.id,
+        key: `${tenant.id}/${libro.id}/libro.pdf`,
+        contentType: "application/pdf",
+        tipo: "PDF",
+        nombreArchivo: "el-libro.pdf",
+        bytes: 4096,
+        confirmadoAt: new Date(),
+      },
+      select: { id: true },
+    });
+
+    const pack = await db.product.create({
+      data: {
+        tenantId: tenant.id,
+        titulo: "Pack 4 libros",
+        descripcion: "d",
+        precio: "10000",
+        activo: true,
+        fuenteId: libro.id,
+        unidadesPorPack: 4,
+      },
+      select: { id: true },
+    });
+
+    const token = randomUUID();
+    await db.order.create({
+      data: {
+        tenantId: tenant.id,
+        email: "fan@example.cl",
+        estado: "PAGADO",
+        total: "10000",
+        items: {
+          create: {
+            tenantId: tenant.id,
+            productId: pack.id,
+            precio: "10000",
+            cantidad: 1,
+            unidadesPorPack: 4,
+          },
+        },
+        downloadGrants: {
+          create: {
+            tenantId: tenant.id,
+            productId: pack.id,
+            token,
+            expiresAt: EN_30_DIAS(),
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    const entrega = await getEntregaDeOrden({ db, token });
+    const linea = entrega!.lineas[0]!;
+
+    // 4 copias del mismo archivo (unidadesPorPack 4 × cantidad 1), todas con su botón.
+    expect(linea.archivos).toHaveLength(4);
+    expect(linea.archivos.every((a) => a.id === archivo.id)).toBe(true);
+    expect(linea.archivos.every((a) => a.nombreArchivo === "el-libro.pdf")).toBe(true);
+    // NO es una entrega al azar: la fuente es ESTANDAR, no una colección. El copy de la página
+    // cuelga de acá, y decir «al azar» de un libro sería mentir.
+    expect(linea.esSobre).toBe(false);
+
+    // El enlace es el del correo de SIEMPRE, sin `?archivo=`: 4 copias del mismo archivo no son
+    // algo entre lo que elegir, y ensuciar la URL de una compra normal sería una regresión.
+    expect(linea.archivos.every((a) => a.urlDescarga === `/api/descargas/${token}`)).toBe(true);
+
+    // Y CERO `PackAssignment`: las copias son presentación, no filas (V-I2).
+    expect(
+      await db.packAssignment.count({ where: { tenantId: tenant.id } }),
+    ).toBe(0);
+
+    // El conjunto AUTORIZADO sigue siendo UN archivo: las copias no inflan lo que el endpoint
+    // acepta en `?archivo=`.
+    const autorizados = await archivosDelGrant({
+      db,
+      grant: { tenantId: tenant.id, orderId: (await db.order.findFirstOrThrow({ where: { tenantId: tenant.id }, select: { id: true } })).id, productId: pack.id },
+    });
+    expect(autorizados).toHaveLength(1);
+    expect(autorizados[0]!.id).toBe(archivo.id);
   });
 });

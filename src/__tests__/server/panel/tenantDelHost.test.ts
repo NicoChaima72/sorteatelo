@@ -32,13 +32,18 @@ interface ProductoFake {
   pdfPath: string | null;
   modalidad: "ESTANDAR" | "SOBRE";
   files: { id: string; tipo: "PDF"; nombreArchivo: string; bytes: number | null }[];
-  /** Menú de opciones de pack (F06/D3). Vacío en un ESTANDAR, que es lo que son estos fixtures. */
-  packOptions: {
+  /** Cuántas unidades de la fuente entrega (ENMIENDA v2). 1 si no es un pack. */
+  unidadesPorPack: number;
+  /** La FUENTE, si es un pack. `null` ⇒ entrega los suyos, que es lo que son estos fixtures. */
+  fuente: {
     id: string;
-    unidades: number;
-    precio: Prisma.Decimal;
-    activo: boolean;
-  }[];
+    titulo: string;
+    modalidad: "ESTANDAR" | "SOBRE";
+    pdfPath: string | null;
+    _count: { files: number };
+  } | null;
+  /** `_count.packs` = cuántos packs A LA VENTA entregan el contenido de este producto. */
+  _count: { packs: number };
   createdAt: Date;
 }
 
@@ -65,7 +70,7 @@ const producto = (id: string, tenantId: string): ProductoFake => ({
   files: [
     { id: `f-${id}`, tipo: "PDF" as const, nombreArchivo: `${id}.pdf`, bytes: 1024 },
   ],
-  packOptions: [],
+  unidadesPorPack: 1, fuente: null, _count: { packs: 0 },
   createdAt: new Date("2026-01-01"),
 });
 

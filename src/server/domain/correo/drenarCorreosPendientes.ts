@@ -114,6 +114,25 @@ export type ResolverMensajes = (
   filas: FilaPendiente[],
 ) => Promise<Map<string, CorreoInput>>;
 
+/**
+ * El resolvedor + **los tipos que sabe armar**, juntos y no como dos parámetros sueltos.
+ *
+ * Los tipos no son metadata decorativa: son el filtro que evita el **head-of-line blocking**. La
+ * ventana de una corrida son las `LOTE_POR_CORRIDA` filas más viejas, así que sin este filtro basta
+ * con que ≥100 filas de un tipo todavía sin plantilla (un `RECORDATORIO_SORTEO` encolado antes de
+ * que F06 exista) sean más viejas que una confirmación de compra para que esa confirmación no salga
+ * NUNCA: cada corrida se llena de filas que nadie puede armar y se va sin enviar nada.
+ *
+ * Van en un objeto para que sea **imposible declarar uno sin los otros**: si `tipos` fuera un
+ * parámetro aparte, agregar una sección al resolvedor y olvidarse de la lista dejaría un tipo mudo
+ * —encolado y jamás drenado— sin que nada avise.
+ */
+export interface ResolvedorDeCorreos {
+  /** Los tipos que `armar` sabe resolver. El drenado filtra por acá ANTES del `take`. */
+  tipos: readonly CorreoEnviadoType[];
+  armar: ResolverMensajes;
+}
+
 export interface ResultadoDrenado {
   /** Filas que salieron y quedaron ENVIADO en esta corrida. */
   enviados: number;
@@ -156,14 +175,14 @@ function recortar(mensaje: string): string {
 export async function drenarCorreosPendientes({
   db,
   correo,
-  resolverMensajes,
+  resolvedor,
   ahora = new Date(),
   limite = LOTE_POR_CORRIDA,
 }: {
   db: PrismaClient;
   /** Solo el envío en lote: el drenado nunca manda de a uno. */
   correo: Pick<CorreoService, "enviarLote">;
-  resolverMensajes: ResolverMensajes;
+  resolvedor: ResolvedorDeCorreos;
   ahora?: Date;
   limite?: number;
 }): Promise<ResultadoDrenado> {
@@ -176,8 +195,14 @@ export async function drenarCorreosPendientes({
   // `createMany` y comparten `createdAt` al milisegundo (misma lección que el arrastre de F01).
   // Sin orden TOTAL, dos lecturas devuelven las filas en orden distinto y el mapeo
   // "los primeros `ids.length` inputs salieron" deja de significar nada.
+  //
+  // El `tipo in` va en el WHERE y no en un `.filter()` después: filtrar en memoria dejaría la
+  // ventana llena de filas que nadie puede armar y las que SÍ tienen plantilla no entrarían nunca
+  // (head-of-line blocking — ver `ResolvedorDeCorreos`). A diferencia de `intentos`, esto es una
+  // igualdad sobre un conjunto chico y no rompe el orden del índice `[estado, createdAt]`: Postgres
+  // lo aplica como filtro mientras recorre.
   const candidatas: FilaPendiente[] = await db.correoEnviado.findMany({
-    where: { estado: "PENDIENTE" },
+    where: { estado: "PENDIENTE", tipo: { in: [...resolvedor.tipos] } },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limite,
     select: {
@@ -209,7 +234,7 @@ export async function drenarCorreosPendientes({
   };
 
   if (vivas.length > 0) {
-    const mensajes = await resolverMensajes(vivas);
+    const mensajes = await resolvedor.armar(vivas);
     resultado.sinResolver = vivas.filter((f) => !mensajes.has(f.id)).length;
 
     // ── CLAIM ────────────────────────────────────────────────────────────────
@@ -222,7 +247,7 @@ export async function drenarCorreosPendientes({
     // pooler remoto cada operación de Prisma cuesta ~0,6 s medidos, así que una corrida llena
     // —100 filas, que es justo el tope diario de Resend Free— tardaría más de un minuto SOLO en
     // reclamar y la función del cron se moriría antes de enviar el primer correo. Es la misma
-    // razón por la que `resolverMensajes` es batch.
+    // razón por la que `ResolvedorDeCorreos.armar` es batch.
     //
     // El CAS por fila queda idéntico (`where` con el `intentos` leído): lo que cambia es el
     // transporte, no el protocolo. Y como todas las corridas leen con el MISMO orden total

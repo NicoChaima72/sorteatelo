@@ -29,9 +29,14 @@ referencia desde sus Validaciones. Marcado `[x]` solo por el feature-tester.
   `/admin/configuracion` (con sesión); el storefront de su subdominio refleja el hero y muestra el banner
   de aviso; al vaciar `avisoTexto` el banner desaparece. (Plan F02 E2E — requiere sesión/OAuth)
 
-- [ ] **storefront.catalogo.001** — En el subdominio, la home lista los productos activos del tenant en
-  grid; abrir un producto (`/producto/<id>`) muestra su detalle con precio formateado (CLP); un
-  `/producto/<id>` de OTRO tenant da respuesta neutral (404). (Plan F03 E2E)
+- [x] **storefront.catalogo.001** ✅ 2026-07-27 (feature-tester) — **ACTUALIZADO por la ENMIENDA v2**: la
+  página de detalle `/producto/[id]` **se retiró** (E2), así que el check ya no puede pedir «abrir un
+  producto muestra su detalle». En el subdominio la home lista los productos activos del tenant en grid
+  con precio en CLP formateado y **«Agregar» directo**; `/producto/<id>` responde **307 al home del mismo
+  subdominio** para id existente, inexistente y de otro tenant — los tres idénticos (la página no lee la
+  DB, y esa indistinción es justamente la propiedad). Verificado por `curl` sobre `iselk` y `prueba`:
+  `307 → http://<slug>.localhost:3001/` en los 3 casos. Es 307 y no 308 a propósito: un permanente se
+  cachea de forma prácticamente irreversible en el equipo de cada visitante. (Plan F03 E2E + F13 v2)
 
 - [ ] **storefront.carrito.001** — El carrito NO cruza tiendas: productos agregados en
   `autora.localhost:3001` no aparecen en `prueba.localhost:3001` (origins distintos + clave
@@ -367,73 +372,59 @@ modo (D1): NO ambiente (los glows de stage-lights), NO ancho estrecho, NO títul
   branding y el del sorteo ya no piden columnas inexistentes) y ninguno pierde contenido visible.
   **Requiere restart del dev server** (cliente Prisma nuevo). Sin sesión.
 
-- [ ] **storefront.sobre.compra.001** (productos-tipos-digitales F07/F08/F09, D3/D4/D5/D6) — El flujo
-  COMPLETO del sobre sorpresa, de la vitrina a la descarga. Requiere el sobre montado en el panel
-  (`panel.productos.sobre.001`) y una compra PAGADA (Flow sandbox con túnel — ver memoria
-  `flow-sandbox-e2e`; o el estado PAGADO forzado en DB con permiso del usuario).
-  (a) **Catálogo**: la tarjeta del sobre muestra **«desde $3.000»** (NO el precio de referencia del
-  producto) y su botón dice **«Elegir pack»** y lleva al detalle — no agrega al carrito directo.
-  (b) **Detalle**: aparece el selector «Elige tu pack» con las 2 opciones (1 archivo $3.000 /
-  4 archivos $10.000) y el precio de arriba dice «desde $3.000»; **«Agregar al carrito» está
-  deshabilitado** hasta elegir. Al elegir el de 4, el precio de arriba pasa a `$10.000`.
-  (c) **Carrito y checkout**: el drawer y el resumen dicen `$10.000 por pack de 4` (NO «c/u»).
-  (d) **Compra**: pagar en Flow sandbox. La orden queda PAGADA.
-  (e) **DB (Prisma Studio)**: el `OrderItem` congeló `precio = 10000` y `unidadesPorPack = 4`; hay
-  exactamente **4 `PackAssignment`** para esa línea, con `productFileId` **distintos entre sí**
-  (D4), y si la tienda tiene sorteo activo, **4 `RaffleEntry`** (D6: unidades × cantidad).
-  (f) **Correo**: llega UN correo cuyo enlace apunta a **`/entrega/<token>`** (ya NO a
-  `/api/descargas/<token>`), y en su cuerpo no aparece ninguna key del bucket.
-  (g) **Página de entrega**: abrir el enlace SIN sesión (ADR-0004) ⇒ se ven los **4 archivos que
-  tocaron**, con **miniaturas** (son PNG) y el badge «Pack de 4». Descargar uno: llega con su
-  `Content-Type` real y su nombre.
-  (h) **El corte de seguridad**: en la URL de descarga de un archivo, reemplazar el `?archivo=<id>`
-  por el id de un archivo del pool que **NO** tocó (se saca de Prisma Studio) ⇒ **404 neutral**.
-  Es la defensa que impide que quien compró 4 se baje la colección completa.
-  (i) **Panel, ahora sí**: intentar eliminar de la colección uno de los 4 archivos asignados ⇒
-  rechazo con mensaje (D4: la descarga del Comprador es una promesa). Este es el sub-caso que
-  `panel.productos.sobre.001` no podía ejercer porque todavía no había ventas.
+- [x] **storefront.pack.compra.001** ✅ 2026-07-27 (feature-tester, tienda `iselk` sandbox, túnel vivo)
+  — **REESCRITO por la ENMIENDA v2**: el sobre ya no se vende (es una **colección** que no sale al
+  catálogo); lo que se compra son **packs, que son productos normales** con fuente + unidades. Mueren de
+  este check el «desde $X», el CTA «Elegir pack» y el selector del detalle: la tarjeta de un pack agrega
+  al carrito directo (E1) y `/producto/[id]` ya no existe (E2).
+  Compra ejercida: pack de fuente **SOBRE** (2 u, NO participa en el sorteo) + pack de fuente
+  **ESTANDAR** (4 u, SÍ participa), **$16.000**, pagados de verdad en Flow sandbox (Webpay → tarjeta
+  Transbank → Aceptar).
+  (a) **Catálogo — PASS**: 5 tarjetas, todas con «**Agregar**» directo y `aria-label` contextual
+  («Agregar Pack 4 libros (E2E F14) al carrito»). La **colección NO aparece** en la página (`textContent`
+  no la menciona) aunque tenga el pool lleno y 3 packs vendiéndola. Los detalles derivados distinguen la
+  fuente: «Entrega 4 unidades, **elegidas al azar**» (fuente SOBRE) vs «Entrega 4 unidades» a secas
+  (fuente ESTANDAR). *Nota menor*: un pack de **1 unidad** no muestra la línea derivada, así que pierde
+  el «al azar» — ahí el dato solo vive en el título que escribió el Organizador.
+  (b) **Carrito y checkout — PASS**: «$6.000 **por pack de 2**» / «$10.000 **por pack de 4**» — texto de
+  unidades, cero «c/u» derivado (V-I5). Carrito aislado por slug (`carrito:iselk`).
+  (c) **Compra — 🔴 el pago se hizo y la orden NO se cerró**: ver el BLOQUEANTE al final de este check.
+  Los efectos se ejercieron con un harness que saltea **solo** el gate 5 del webhook.
+  (d) **DB — PASS**: `OrderItem` congeló `unidadesPorPack` **2** y **4** y `participaEnSorteo` **false** /
+  **true** por línea. El pack SOBRE dejó **2 `PackAssignment` DISTINTAS** sorteadas del pool de la
+  **FUENTE**; el pack ESTANDAR dejó **0 `PackAssignment` + 1 `DownloadGrant`** (copias derivadas en
+  presentación, V-I2). **Tickets = 4**, y ese número es la prueba de la fórmula: aporta solo la línea que
+  participa (`unidadesPorPack × cantidad` = 4×1) y la de 2 unidades aporta **0**.
+  (e) **Correo — PASS**: `delivered`, asunto «Tu compra en ISELK Sorteos: tus números y tu descarga»,
+  boletos **`9–12`** plegados en rango, **un enlace `/entrega/<token>` por producto**, total $16.000,
+  bases y `reply_to` del tenant. Cero keys del bucket en el cuerpo.
+  (f) **Página de entrega — PASS**, abierta en el **apex** y en un **contexto de navegador aislado sin
+  sesión** (el Comprador real no tiene cuenta, ADR-0004): el pack SOBRE muestra badge «Pack de 2» y
+  **solo sus 2 asignados** con miniatura que carga de verdad; el pack ESTANDAR muestra **4 filas del
+  mismo PDF, cada una con su botón**. Las miniaturas son URLs **prefirmadas** (`X-Amz-Expires=300`,
+  `disposition=inline`) — el pool nunca se dibuja. Las 2 queries tRPC del header responden **200** y la
+  consola queda en **0 errores**: el 404 del apex que F09 dejó anotado está **resuelto**.
+  (g) **Corte de seguridad — PASS**: archivo asignado ⇒ **302**; archivo del pool **NO** asignado
+  (`e2e-sticker-1`, `e2e-sticker-4`) ⇒ **404**; id inexistente ⇒ **404**; token basura ⇒ **404**. Los
+  cuatro idénticos y neutrales. Es la defensa que impide que quien compró 2 se baje la colección entera.
+  (h) **Descargas reales — PASS** (no solo el redirect): `image/png` **12.434 B** con magic bytes
+  `\x89PNG`, y `application/pdf` **303.102 B** con `%PDF-1.7`.
+  > 🔴 **BLOQUEANTE ENCONTRADO ACÁ, y NO es de esta feature — `src/server/pago/webhookFlow.ts:107`.**
+  > El gate 5 compara `flowPago.amount !== ruteo.montoEsperado` con `!==` estricto, pero **Flow devuelve
+  > `amount` como STRING** y `montoEsperado` es `number` (`Payment.monto.toNumber()`). El log del server
+  > lo imprime solo: `amount_mismatch … esperado: 16000, recibido: '16000'` — mismo valor, distinto tipo
+  > ⇒ **todo pago legítimo se rechaza**. La orden queda PENDIENTE para siempre, sin grant, sin tickets y
+  > sin correo, y como el webhook contesta **200**, Flow no reintenta nunca. Ningún Vitest lo caza porque
+  > `webhookFlow.test.ts:37` arma el fake con `amount: <number>`. Preexistente (`6d5a766`), hoy en `main`.
+  (Plan F14 E2E — productos-tipos-digitales, ENMIENDA v2)
 
+  > Historia: este ID reemplaza a `storefront.sobre.compra.001`, que describía la venta del sobre por
+  > `ProductPackOption` (tarjeta «desde $3.000», CTA «Elegir pack», selector en el detalle). Sus dos
+  > corridas previas dejaron (a)-(c) verdes contra ESE modelo y (d)-(i) bloqueados por el túnel caído;
+  > la orden `cms2apsqx000cnik84txlnr0y` de `prueba` sobrevive como **fixture de lectura** del snapshot
+  > de la v1 y no se toca. El sub-punto (i) —borrado bloqueado por asignaciones existentes— sigue
+  > **sin ejercer en vivo**: ahora sí hay asignaciones reales en `iselk` para hacerlo.
 
-  > 🟡 [feature-tester 2026-07-26] PARCIAL — **(g) y (h) VERDES en vivo, el resto BLOQUEADO.**
-  > (g) `http://www.localhost:3001/entrega/<token>` ⇒ **200** en el APEX, que es adonde apunta el
-  > correo: la regresión que el backend-reviewer cazó en F09 queda cerrada contra el server real.
-  > El subdominio devuelve el cuerpo **byte-idéntico** (36.490 bytes) ⇒ la marca sale del tenant del
-  > GRANT, no del host. Token inexistente ⇒ 404 neutral.
-  > (h) corte `?archivo=`: sin parámetro ⇒ 302; archivo autorizado ⇒ 302; archivo de OTRA Tienda
-  > (×2) ⇒ **404**; id inexistente ⇒ **404**; token basura ⇒ **404**. Todos neutrales e idénticos.
-  > I2: 0 fugas de key en el HTML; ni `r2.cloudflarestorage` ni `X-Amz-Signature`.
-  > **BLOQUEADO (a)-(f) e (i)**: exigen un SOBRE comprado. Doble bloqueo — los dos carriles de
-  > navegador tomados por otro agente, y el túnel cloudflared de `FLOW_URL_CONFIRMATION`
-  > (`operated-commonwealth-nursery-specify.trycloudflare.com`) está **caído**, así que el webhook
-  > de Flow no puede llegar. Estado de la DB al cierre: **0 sobres, 0 opciones de pack,
-  > 0 PackAssignment** — la fase 2 nunca se ejerció contra datos reales.
-
-  > 🟡 [feature-tester 2026-07-26, 2ª vuelta] **(a) (b) (c) VERDES y (d) hasta la PUERTA DE PAGO.**
-  > Con navegador libre y el sobre montado en `prueba` (ver `panel.productos.sobre.001`):
-  > (a) **PASS** — la tarjeta del catálogo dice «**desde $3.000**» (no los $3.000 de referencia por
-  > casualidad: el sobre tiene precio de referencia $3.000 y pack mínimo $3.000, y el prefijo
-  > «desde» sí aparece) y su CTA es «**Elegir pack**», que lleva al detalle sin agregar al carrito.
-  > (b) **PASS** — el detalle muestra «Elige tu pack / Los archivos que te toquen se eligen al azar
-  > de la colección» con las 2 opciones (**1 archivo $3.000** / **4 archivos $10.000**, CLP
-  > formateado); «**Agregar al carrito» llega DESHABILITADO** y solo se habilita al elegir; al
-  > elegir el de 4 el precio de arriba pasa de «desde $3.000» a «**$10.000**».
-  > (c) **PASS** — el drawer del carrito y el resumen del checkout dicen «**$10.000 por pack de 4**»
-  > (no «c/u»), más «El total a pagar se calcula de forma segura al continuar».
-  > (d) **PUERTA ALCANZADA, pago NO confirmado** — «Ir a pagar» con correo real redirige de verdad a
-  > `https://sandbox.flow.cl/app/web/pay.php?token=…`, y la pasarela dice «Estás realizando un pago
-  > a **Tienda Prueba Sortealo**» por «E2E sobre sorpresa (feature-tester)», **$ 10.000 CLP**, Orden
-  > `cms2apsqx000cnik84txlnr0y`. Eso prueba en vivo el BYO-Flow (ADR-0006): la orden se cobra con la
-  > cuenta Flow **del tenant**, no de la plataforma. **No se pagó**: `FLOW_URL_CONFIRMATION` sigue
-  > apuntando al túnel muerto (curl 000 en los 4 chequeos de la corrida) y la confirmación es
-  > exclusivamente server-side (ADR-0001) ⇒ pagar habría dejado una orden PAGADA-en-Flow y
-  > PENDIENTE-en-DB, huérfana para siempre (el próximo `cloudflared` da OTRA hostname).
-  > (e) **PARCIAL — el snapshot SÍ quedó verificado** sobre la orden PENDIENTE real: `OrderItem` con
-  > `precio = "10000"` (Decimal, el precio del PACK, no el unitario), `unidadesPorPack = 4`,
-  > `cantidad = 1`, total server-side `10000` y `participaEnSorteo = true`. **Falta** lo que solo
-  > nace del pago: las 4 `PackAssignment` distintas y las 4 `RaffleEntry`.
-  > (f) (g-completo) e (i) siguen **BLOQUEADOS por el túnel**, ya no por el navegador.
-  > Insumos listos para retomar en cuanto haya túnel: sobre A la venta con pool 4 (PNG) y packs
-  > 1×$3.000 / 4×$10.000 en `prueba`, y la orden PENDIENTE de arriba.
 - [ ] **storefront.descarga.tipos.001** (productos-tipos-digitales F03, D1/D9/ADR-0002) — La entrega ya no
   es PDF-only: **descarga real de un producto de tipo NUEVO** (ej. una imagen PNG o un MP3) desde el enlace
   `/api/descargas/<token>` que llega en el correo. Verificar que el archivo llega **con su tipo real**, no

@@ -1,4 +1,4 @@
-import { type PrismaClient, type ProductMode } from "@prisma/client";
+import { type PrismaClient } from "@prisma/client";
 
 /**
  * Resolver de RENDER del catálogo de una sección del page builder (F05, ADR-0016/0017). Traduce las
@@ -23,16 +23,18 @@ export interface ProductoCatalogo {
   participaEnSorteo: boolean;
   /** Badge derivado (Tanda 2 F13): `true` sii `createdAt` < 30 días. Read-only; sin campo en el schema. */
   esNuevo: boolean;
-  /** F07: un SOBRE no se agrega al carrito desde la tarjeta — hay que elegir pack en el detalle. */
-  modalidad: ProductMode;
   /**
-   * Precio del pack ACTIVO más barato de un sobre (el "desde $X" de la tarjeta), o `null` si no es
-   * sobre o no tiene opciones. Display-only, como `precio` (I4).
-   *
-   * En un SOBRE el `precio` de la tarjeta es el `Product.precio`, que es SOLO REFERENCIA: pintarlo
-   * como si fuera el de venta mostraría un número que no se cobra en ninguna parte.
+   * Cuántas unidades entrega UNA unidad de este producto (ENMIENDA v2, E13/E18). `1` en un producto
+   * normal; `4` en un «Pack 4 stickers». La tarjeta lo usa para un detalle derivado menor («entrega
+   * 4») — NO es un precio y no participa de ninguna aritmética de plata (V-I5).
    */
-  precioDesde: number | null;
+  unidadesPorPack: number;
+  /**
+   * `true` sii lo que entrega este producto sale AL AZAR de una colección (su fuente es un SOBRE).
+   * Es lo único que la tarjeta necesita saber del origen: el contenido del pool jamás se expone
+   * (D10/V-I6), ni siquiera cuántos archivos tiene.
+   */
+  entregaAlAzar: boolean;
 }
 
 /** Ventana del badge "Nuevo" del catálogo (Tanda 2 F13). Derivado de `createdAt`, no persistido. */
@@ -47,16 +49,21 @@ const SELECT = {
   portadaUrl: true,
   participaEnSorteo: true,
   createdAt: true,
-  modalidad: true,
-  // Solo el pack ACTIVO más barato: la tarjeta muestra un "desde", no el menú (ese vive en el
-  // detalle, que es donde se elige). Una fila por producto, no el catálogo entero de opciones.
-  packOptions: {
-    where: { activo: true },
-    orderBy: { precio: "asc" },
-    take: 1,
-    select: { precio: true },
-  },
+  unidadesPorPack: true,
+  // De la FUENTE solo su MODALIDAD: alcanza para decir «al azar» y no filtra nada del pool (V-I6).
+  fuente: { select: { modalidad: true } },
 } as const;
+
+/**
+ * Una COLECCIÓN (`modalidad SOBRE`) NUNCA aparece en el catálogo (E15/E18): existe para que sus
+ * packs referencien su pool, no se vende directo y el checkout la rechaza. Sacarla acá es lo que
+ * evita la tarjeta fantasma con el precio de referencia que no se cobra en ninguna parte.
+ *
+ * Basta `modalidad` como discriminante gracias a V-I7 (un pack se persiste SIEMPRE ESTANDAR), así
+ * que la condición es UNA y no `modalidad SOBRE AND fuenteId IS NULL`. Es el MISMO criterio que
+ * `seVendeDirecto`, expresado como `where` porque acá sí se puede delegar a Postgres.
+ */
+const NO_ES_COLECCION = { modalidad: { not: "SOBRE" } } as const;
 
 function mapear(p: {
   id: string;
@@ -66,8 +73,8 @@ function mapear(p: {
   portadaUrl: string | null;
   participaEnSorteo: boolean;
   createdAt: Date;
-  modalidad: ProductMode;
-  packOptions: Array<{ precio: { toNumber: () => number } }>;
+  unidadesPorPack: number;
+  fuente: { modalidad: "ESTANDAR" | "SOBRE" } | null;
 }): ProductoCatalogo {
   return {
     id: p.id,
@@ -76,8 +83,8 @@ function mapear(p: {
     precio: p.precio.toNumber(),
     portadaUrl: p.portadaUrl,
     participaEnSorteo: p.participaEnSorteo,
-    modalidad: p.modalidad,
-    precioDesde: p.packOptions[0]?.precio.toNumber() ?? null,
+    unidadesPorPack: p.unidadesPorPack,
+    entregaAlAzar: p.fuente?.modalidad === "SOBRE",
     // Derivado server-side (el catálogo se consume por tRPC/cliente ⇒ sin mismatch SSR): "Nuevo" si el
     // producto se creó hace menos de DIAS_NUEVO. Solo lectura sobre `createdAt`; no toca el schema Prisma.
     esNuevo: Date.now() - p.createdAt.getTime() < MS_NUEVO,
@@ -99,7 +106,9 @@ export async function resolverCatalogo({
     const ids = productoIds ?? [];
     if (ids.length === 0) return [];
     const productos = await db.product.findMany({
-      where: { tenantId, activo: true, id: { in: ids } }, // tenant-scoped (I1); ajeno ⇒ no matchea
+      // tenant-scoped (I1); ajeno ⇒ no matchea. Una colección elegida a mano en el editor tampoco
+      // aparece: se descarta en silencio, igual que lo inactivo (D6).
+      where: { tenantId, activo: true, ...NO_ES_COLECCION, id: { in: ids } },
       select: SELECT,
     });
     // Respeta el orden del documento; descarta en silencio lo ajeno/inactivo/inexistente (no volvió).
@@ -111,7 +120,7 @@ export async function resolverCatalogo({
   }
 
   const productos = await db.product.findMany({
-    where: { tenantId, activo: true },
+    where: { tenantId, activo: true, ...NO_ES_COLECCION },
     orderBy: { createdAt: "desc" },
     select: SELECT,
   });

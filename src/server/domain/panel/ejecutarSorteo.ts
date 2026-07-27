@@ -3,6 +3,10 @@ import { randomInt } from "crypto";
 import { type PrismaClient } from "@prisma/client";
 
 import { type AccesoPanel, resolverTenantDelPanel } from "~/server/authPolicy";
+import {
+  correosDeResultado,
+  encolarCorreos,
+} from "~/server/domain/correo/ledgerCorreos";
 import { DomainError } from "~/server/domain/errors";
 import { type EjecutarSorteoInput } from "~/server/domain/panel/schemas";
 
@@ -128,6 +132,30 @@ export async function ejecutarSorteo({
         yaEjecutado: true,
       };
     }
+
+    // Correos de RESULTADO encolados en el ledger (F04/C4-C5, ADR-0027 §2): 1 fila
+    // `RESULTADO_GANADOR` + una `RESULTADO_NO_GANADOR` por cada persona distinta que no ganó. Acá no
+    // se toca la red: el envío lo hace el cron horario, que es quien sabe de cuota y reintentos.
+    //
+    // **Va DESPUÉS del guard atómico y solo en la rama que lo GANÓ**, y eso es lo importante: si se
+    // encolara antes, dos ejecuciones concurrentes escribirían filas `RESULTADO_GANADOR` con claves
+    // distintas (una por cada ganador candidato) y el unique `[tipo, clave]` no las frenaría — dos
+    // personas recibirían "ganaste" del mismo sorteo. La que pierde la carrera sale por el `count
+    // === 0` de arriba sin encolar nada, y el `ejecutadoAt` no nulo hace lo mismo con la
+    // re-ejecución: el correo de resultado sale UNA vez por sorteo (I2).
+    //
+    // Es UNA sola operación por más participantes que haya (`createMany`), no N: un sorteo de 300
+    // participantes no alarga la $transaction proporcionalmente. Aun así va al FINAL, después del
+    // `updateMany` que toma el row-lock del `Raffle`: es la última escritura antes del COMMIT.
+    await encolarCorreos({
+      db: tx,
+      correos: correosDeResultado({
+        tenantId, // resuelto server-side, jamás de un input (I1)
+        raffleId: input.raffleId,
+        ganadorEmail,
+        emails: participaciones.map((p) => p.email),
+      }),
+    });
 
     return {
       ganadorEmail,

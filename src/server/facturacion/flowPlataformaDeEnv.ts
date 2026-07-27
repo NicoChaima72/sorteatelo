@@ -1,6 +1,10 @@
 import { env } from "~/env";
 import { derivarUrlCallback } from "~/server/domain/facturacion/_urlWebhook";
 import {
+  PATH_API_RETORNO_PLAN,
+  PATH_API_RETORNO_TARJETA,
+} from "~/server/facturacion/retornoDeRegistro";
+import {
   crearFlowPlataformaService,
   type FlowPlataformaService,
 } from "~/server/services/flowPlataforma";
@@ -54,23 +58,15 @@ export function urlCallbackSuscripciones(): string {
   return url;
 }
 
-/** Ruta de la página del panel donde aterriza el navegador al volver del registro de tarjeta. */
-export const PATH_RETORNO_PLAN = "/admin/plan/retorno";
-
 /**
- * Ruta de retorno del CAMBIO de tarjeta (F10/D12). Es una página aparte y no un `?modo=` sobre la
- * anterior por dos razones: (1) Flow le agrega el `token` a la `url_return` y no queremos depender de
- * cómo concatena una URL que ya trae query string; (2) cada página de retorno es una máquina de fases
- * con UN solo trabajo (frontend-conventions § «Salir de la app a un proveedor externo y volver») —
- * acá el trabajo es reemplazar la tarjeta, no activar ni publicar nada.
- */
-export const PATH_RETORNO_TARJETA = "/admin/plan/retorno-tarjeta";
-
-/**
- * URL de retorno del registro de tarjeta (F03/D12). A diferencia del `urlCallback` del webhook —que
- * es de plataforma y global— esta URL es **per-tenant**: el panel corre en el subdominio de SU
- * Tienda (ADR-0022), así que el origen del request ya trae el host correcto y el Organizador vuelve
- * a su propio panel. Server-side siempre; el cliente no propone a dónde volver.
+ * URL de retorno del registro de tarjeta (F03/D12) — la que se le pasa a Flow como `url_return`.
+ * Apunta al **puente** `/api/facturacion/retorno-plan`, no a la página: Flow vuelve con un POST
+ * cross-site y la página no sobreviviría a eso (ver `PATH_API_RETORNO_PLAN`).
+ *
+ * A diferencia del `urlCallback` del webhook —que es de plataforma y global— esta URL es
+ * **per-tenant**: el panel corre en el subdominio de SU Tienda (ADR-0022), así que el origen del
+ * request ya trae el host correcto y el Organizador vuelve a su propio panel. Server-side siempre;
+ * el cliente no propone a dónde volver.
  *
  * Sin origen (no debería pasar en un request del panel) cae a la URL pública de la app: mejor
  * aterrizar en el apex que dejar a Flow sin `url_return` y perder el token del registro.
@@ -83,14 +79,14 @@ export const PATH_RETORNO_TARJETA = "/admin/plan/retorno-tarjeta";
  * reventaría con un `TypeError` de `.replace` sobre `undefined`, ilegible en un flujo de dinero.
  */
 export function urlRetornoPlan(origen: string | null | undefined): string {
-  return `${baseDelPanel(origen)}${PATH_RETORNO_PLAN}`;
+  return `${baseDelPanel(origen)}${PATH_API_RETORNO_PLAN}`;
 }
 
 /** URL de retorno del CAMBIO de tarjeta (F10). Mismo criterio per-tenant que `urlRetornoPlan`. */
 export function urlRetornoCambioDeTarjeta(
   origen: string | null | undefined,
 ): string {
-  return `${baseDelPanel(origen)}${PATH_RETORNO_TARJETA}`;
+  return `${baseDelPanel(origen)}${PATH_API_RETORNO_TARJETA}`;
 }
 
 function baseDelPanel(origen: string | null | undefined): string {

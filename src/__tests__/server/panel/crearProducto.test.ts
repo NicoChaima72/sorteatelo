@@ -141,7 +141,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
     expect(getCreado()).toBeNull();
   });
 
-  // panel.productos.crear.003 — el alta de un PACK (E13/E15): mismo form de siempre, dos campos más.
+  // panel.productos.crear.004 — el alta de un PACK (E13/E15): mismo form de siempre, dos campos más.
   it("crear con fuenteId persiste un pack con su fuente y sus unidades", async () => {
     const { db, getCreado } = fakeDb([{ id: "coleccion-1", tenantId: "A", modalidad: "SOBRE" }]);
     await crearProducto({
@@ -167,7 +167,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
     expect(data.activo).toBe(false); // fail-closed igual que cualquier producto
   });
 
-  // panel.productos.crear.004 — V-I7: un pack se persiste SIEMPRE con `modalidad: ESTANDAR`, aunque
+  // panel.productos.crear.005 — V-I7: un pack se persiste SIEMPRE con `modalidad: ESTANDAR`, aunque
   // el cliente mande SOBRE. En un pack la modalidad no significa nada (la entrega la decide la de su
   // fuente) y guardarlo como SOBRE lo auto-escondería: el catálogo excluye `modalidad = SOBRE`, así
   // que quedaría un producto invisible e invendible sin ningún error a la vista.
@@ -189,7 +189,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
     expect(getCreado()!.modalidad).toBe("ESTANDAR");
   });
 
-  // panel.productos.crear.005 — la fuente se valida ANTES de crear nada (V-I1): ajena y encadenada
+  // panel.productos.crear.006 — la fuente se valida ANTES de crear nada (V-I1): ajena y encadenada
   // se rechazan sin dejar rastro. El `tenantId` sale del acceso, así que un id de otra Tienda es
   // inalcanzable por construcción.
   it("una fuente de OTRA Tienda o que ya es un pack ⇒ INVALID y no crea nada", async () => {
@@ -233,7 +233,7 @@ describe("domain/panel/crearProducto (fake db, tenant-scoped)", () => {
     expect(cadena.getCreado()).toBeNull();
   });
 
-  // panel.productos.crear.006 — el agujero que marcó el `backend-reviewer` al cerrar F10: un
+  // panel.productos.crear.007 — el agujero que marcó el `backend-reviewer` al cerrar F10: un
   // producto SIN fuente entrega 1 unidad de sí mismo. Si `unidadesPorPack` se copiara del input, un
   // cliente a mano crearía un producto normal que otorga 5 tickets × cantidad por UN archivo.
   it("un producto SIN fuente nace con unidadesPorPack: 1 aunque el input pida 5", async () => {

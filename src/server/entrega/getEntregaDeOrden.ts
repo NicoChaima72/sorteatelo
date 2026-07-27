@@ -1,6 +1,7 @@
 import { type PrismaClient, type ProductFileType } from "@prisma/client";
 
 import { archivosDelGrant } from "~/server/entrega/archivosDelGrant";
+import { entregaAlAzar } from "~/server/productos/fuenteDeArchivos";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -116,7 +117,14 @@ export async function getEntregaDeOrden({
               productId: true,
               cantidad: true,
               unidadesPorPack: true,
-              product: { select: { titulo: true, modalidad: true } },
+              product: {
+                select: {
+                  titulo: true,
+                  modalidad: true,
+                  // La FUENTE (E15): decide si lo entregado fue al azar (pool) o son copias.
+                  fuente: { select: { modalidad: true } },
+                },
+              },
             },
             orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           },
@@ -154,27 +162,51 @@ export async function getEntregaDeOrden({
       },
     });
 
+    // La entrega fue AL AZAR sii el origen de los archivos es un pool (E15/V-I7). Para un pack de
+    // fuente ESTANDAR (el caso libro) no lo es, aunque entregue 4 unidades. La regla es la MISMA
+    // que usan los efectos post-pago y `archivosDelGrant`, importada y no re-escrita.
+    const alAzar = entregaAlAzar(item.product);
+
+    const entregados = archivos.map((a) => ({
+      id: a.id,
+      nombreArchivo: a.nombreArchivo,
+      tipo: a.tipo,
+      contentType: a.contentType,
+      bytes: a.bytes,
+      packOrdinal: a.packOrdinal,
+      // Con un solo archivo (el caso ESTANDAR) el enlace queda EXACTAMENTE como el del correo de
+      // siempre; el `?archivo=` solo aparece cuando hay entre cuáles elegir. Se decide sobre los
+      // archivos DISTINTOS (antes de derivar copias): N copias del mismo archivo no son algo entre
+      // lo que elegir, así que no deben ensuciar el enlace de una compra normal.
+      urlDescarga:
+        a.id === null || archivos.length <= 1
+          ? `/api/descargas/${tokenDeLinea}`
+          : `/api/descargas/${tokenDeLinea}?archivo=${a.id}`,
+      keyServerOnly: a.key,
+    }));
+
+    /*
+      COPIAS derivadas en presentación (ENMIENDA v2, E15/V-I2). Un pack de fuente ESTANDAR —«Pack 4
+      libros»— entrega 4 unidades del MISMO archivo, y comprar 3 unidades de un producto normal son
+      3 unidades del mismo archivo. Ninguna de las dos cosas genera filas: el
+      `@@unique([orderItemId, packOrdinal, productFileId])` prohíbe la fila repetida y está bien que
+      la prohíba, así que las copias se derivan acá, en el borde de presentación, y no en la DB.
+
+      Para una entrega AL AZAR no se deriva nada: las `unidadesPorPack × cantidad` filas ya vienen
+      sorteadas de `PackAssignment`, cada una un archivo distinto dentro de su pack.
+    */
+    const copias = alAzar ? 1 : item.unidadesPorPack * item.cantidad;
+
     lineas.push({
       productoId: item.productId,
       titulo: item.product.titulo,
       unidadesPorPack: item.unidadesPorPack,
       cantidad: item.cantidad,
-      esSobre: item.product.modalidad === "SOBRE",
-      archivos: archivos.map((a) => ({
-        id: a.id,
-        nombreArchivo: a.nombreArchivo,
-        tipo: a.tipo,
-        contentType: a.contentType,
-        bytes: a.bytes,
-        packOrdinal: a.packOrdinal,
-        // Con un solo archivo (el caso ESTANDAR) el enlace queda EXACTAMENTE como el del correo de
-        // siempre; el `?archivo=` solo aparece cuando hay entre cuáles elegir.
-        urlDescarga:
-          a.id === null || archivos.length <= 1
-            ? `/api/descargas/${tokenDeLinea}`
-            : `/api/descargas/${tokenDeLinea}?archivo=${a.id}`,
-        keyServerOnly: a.key,
-      })),
+      esSobre: alAzar,
+      archivos:
+        copias <= 1
+          ? entregados
+          : Array.from({ length: copias }, () => entregados).flat(),
     });
   }
 

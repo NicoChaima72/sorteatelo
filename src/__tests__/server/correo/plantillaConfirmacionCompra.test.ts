@@ -35,7 +35,7 @@ const ORDEN = {
 describe("domain/correo/plantillaConfirmacionCompra — construirFrom (D6)", () => {
   // correo.from.001 — remitente con nombre "Tienda · vía Sortéatelo <remitente>"
   it("arma el from con el nombre de la Tienda + marca de plataforma + remitente de prueba", () => {
-    expect(construirFrom("Tienda ARMY")).toBe(
+    expect(construirFrom("Tienda ARMY", REMITENTE_CORREO)).toBe(
       `Tienda ARMY · vía ${MARCA_PLATAFORMA} <${REMITENTE_CORREO}>`,
     );
     expect(REMITENTE_CORREO).toBe("no-reply@sorteatelo.cl"); // dominio verificado en Resend (ADR-0014/0015)

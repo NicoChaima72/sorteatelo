@@ -1,0 +1,168 @@
+=== feature-tester — 4ª pasada (sandbox real, post-corrección de los 4 blockers) ===
+modo: feature (slug=plataforma-facturacion-suscripciones)
+scope: los 5 checks rojos — activar.e2e.001/.002, cupon.e2e.001/.002, plan.e2e.002
+       + el corazón de F04: espejo REAL de un invoice en PlatformInvoice
+server: http://localhost:3001 (200) — una sola instancia
+tunel: https://aging-twin-impressive-brakes.trycloudflare.com -> VIVO
+       webhook con token inventado => {"received":true,"ignorado":"token_sin_suscripcion"} (la cadena token->payment/getStatus corre)
+inicio: 2026-07-26 23:05
+
+[23:06] VITEST — verde. Area facturacion+scripts+services: 246/246 (28 archivos).
+        Filtro completo de la feature (facturacion, scripts, services, tenants, panel,
+        storefront, checkout, styles): 79 archivos, 659 passed + 1 skipped. Igual que el implementer.
+        => habilitado el E2E.
+
+[23:12] activar.e2e.001 — VERDE, flujo entero SIN forzar nada.
+  checklist autora: 4 items teal circle-check + "Activa tu plan" unico pendiente (gris circle-dashed)
+  modal: "Plan de tu tienda / $25.000 /mes" (server-side)
+  Continuar -> https://sandbox.flow.cl/app/customer/disclaimer.php?token=E3F0109384... (BLOCKER 1 CERRADO)
+  Transbank OneClick: VISA 4051 8856 0044 6623, 12/30, CVV 123, RUT 11.111.111-1 clave 123 -> Aceptar
+  retorno: POST /api/facturacion/retorno-plan 303 -> GET /admin/plan/retorno?token=... 200 (BLOCKER 2 CERRADO)
+  pantalla: "!Tu plan esta activo y tu tienda publicada!"
+  DB: PlatformSubscription autora FULL/25000/AL_DIA flowSubId=sus_g286f51c39, periodo 26-jul->25-ago,
+      proximoCobro 26-ago; PlatformBillingCustomer Visa/6623 (nada mas); Tenant PUBLICADA.
+[23:13] F04 — el webhook OYO una notificacion REAL: POST /api/webhooks/flow-suscripciones 200 (5590ms),
+  INSERT PlatformInvoice + UPDATE PlatformSubscription. Invoice 1179470, $25.000, estado PENDIENTE
+  (Flow aun no cobra: invoice status 1 sin bloque payment, attemp_count 1 / attemped 0). Queda esperar el cobro.
+
+[23:18] activar.e2e.002 — VERDE. demo-dreamy (2a tienda del mismo Pagador), sin exencion:
+  /admin/plan dice "Tu plan seria de $12.500 al mes"; modal = "Tienda adicional / $12.500 /mes" +
+  "Es tu segunda tienda en adelante: va a mitad de precio". Registro real de tarjeta (mismo VISA).
+  Retorno: "Estamos activando tu plan..." -> "!Tu plan esta activo y tu tienda publicada!".
+  DB: ADICIONAL / 12500 / AL_DIA / sus_id54131226 / flowPlanId sorteatelo-tienda-adicional.
+  UN solo PlatformBillingCustomer para el Pagador (cus_qb0f1c5714) => la mitad de precio se sostiene.
+[23:16] cupon.e2e.002 (mitad CLI contra Flow) — VERDE:
+  crear --codigo E2E50 --porcentaje 50 --meses 1 --max 1 => "E2E50 creado (flowCouponId 1266)"  [BLOCKER 3 CERRADO, rama times]
+  crear --codigo E2ESIEMPRE --porcentaje 25 --max 1     => "creado (flowCouponId 1267)"          [rama duration=0 = para siempre]
+  crear repetido E2E50 => "Ya existe un cupon con el codigo E2E50" SIN tocar Flow
+  --maxCanjes (flag inexistente) => "No conozco el flag --maxCanjes. Los validos son: ..."
+  listar => "E2ESIEMPRE - 25% por siempre - canjes 0/1" y "E2E50 - 50% por 1 mes - canjes 0/1"
+  panel de Flow (dashboard sandbox): 1266 E2E50 Activo y 1267 E2ESIEMPRE Activo, UNA sola fila de E2E50.
+
+[23:22] cupon.e2e.001 — VERDE (con el cupon creado por CLI, no a mano). demo-noche:
+  codigo inexistente NOEXISTE99 => notificacion ROJA #c03e2e con el mensaje NEUTRAL exacto
+    "Ese codigo no es valido o ya no se puede usar. Revisalo, o continua sin codigo." y el modal sigue abierto.
+  "e2e50" EN MINUSCULA => se normaliza a E2E50, RESERVA y redirige a Flow.
+  Con el redirect a medio camino: listar => "canjes 0/1 (+1 reserva/s en curso)" + linea
+    "2026-07-27  borahae (cmrzthap...) - nikochaima72@gmail.com  [reserva en curso]".
+  Completado el registro => "!Tu plan esta activo y tu tienda publicada!"; listar => "canjes 1/1"
+    con la trazabilidad (fecha, Tienda, correo del Pagador) y la redencion LIGADA al subscriptionId.
+  En Flow: sus_gd22197b8d trae discount [{coupon: {id 1266, name E2E50, percent_off 50.00}}]
+    y la factura del periodo (1179473) en $6.250 = 50% de $12.500.
+[23:21] F04 — segundo espejo real: PlatformInvoice 1179471 ($12.500, demo-dreamy) tambien entro por webhook.
+
+[22:25] plan.e2e.002 — VERDE. "Cambiar tarjeta" redirige BIEN (con ?token=), se inscribio una tarjeta
+  DISTINTA (debito 4051 8842 3993 7763 => RedCompra/7763). Retorno por el 2o puente:
+  /admin/plan/retorno-tarjeta?token=... => "Listo, cambiamos tu tarjeta / Los proximos cobros van a la
+  tarjeta RedCompra terminada en 7763". /admin/plan lo muestra.
+  DIFF de DB antes/despues: cambian SOLO tarjetaMarca y tarjetaUltimos4; la suscripcion queda
+  byte-identica (flowSubscriptionId, estado, periodoFin, proximoCobroAt y hasta updatedAt).
+  Con ?token= inventado: "No pudimos cambiar tu tarjeta / No pudimos confirmar tu tarjeta con Flow.
+  Vuelve a intentarlo en unos minutos. / Tu plan sigue activo con la tarjeta anterior" y CERO cambios.
+  => el mensaje CRUDO del proveedor ("...respondio 401") YA NO se filtra (nit de la 3a pasada, cerrado).
+[22:26] F04 — ESPEJO REAL, 3 de 3: PlatformInvoice tiene una fila por suscripcion, todas por webhook:
+  autora 1179470 $25.000 | demo-dreamy 1179471 $12.500 | demo-noche 1179473 $6.250 (con el 50% del cupon).
+  13 POST /api/webhooks/flow-suscripciones 200 en el log. El monto espejado es el que Flow VA a cobrar.
+  Estado PENDIENTE en las 3: Flow emitio las facturas pero todavia no las cobro (sin bloque payment,
+  due_date 29-jul). Queda el poll esperando el cobro para ver la transicion a PAGADA + correo (1).
+[22:26] I7 con datos REALES (respuesta de red de getEstadoPlan): tarjeta = {marca, ultimos4} y nada mas;
+  el objeto suscripcion NO trae flowSubscriptionId ni el userId/pagadorId del Pagador.
+  Badge del cobro PENDIENTE = "En curso" en ambar #a06b08 (jamas rojo). Storefronts de las 3 tiendas: 200.
+
+[22:40] *** BLOCKER 5 — EL ESPEJO DEL INVOICE NO SABE LEER EL COBRO (F04) ***
+  Flow COBRO de verdad: invoice/get 1179470 trae payment.status=2, paymentData.date "2026-07-26 22:11:58",
+  fee 723, balance 24140 (6 segundos despues de crear la suscripcion). El dashboard de Flow lo muestra
+  "Pagado" y la suscripcion "Pago al dia: Si". Nuestro PlatformInvoice quedo (y queda) en PENDIENTE.
+  CAUSA: derivarEstadoInvoice (_invoiceFlow.ts:60-71) lee `paid`, `payment_date`, `outstanding` y `attemp`.
+  NINGUNO de los cuatro existe en el payload real de Flow.
+    claves del invoice embebido en subscription/get (lo que usa el webhook):
+      amount, attemp_count, attemped, created, currency, customerId, due_date, id,
+      next_attemp_date, period_end, period_start, status, subject, subscriptionId
+    invoice/get agrega: chargeAttemps, error, errorDate, errorDescription, items, outsidePayment,
+      payment{status, paymentData{date,fee,balance,...}}, paymentLink
+  Reproducido: derivarEstadoInvoice(<payload real del invoice YA COBRADO>) => "PENDIENTE".
+  CONSECUENCIAS: (1) el correo (1) comprobante nunca sale; (2) el dunning esta MUERTO: un cobro fallido
+  nunca llega a FALLIDA/VENCIDA, asi que ninguna tienda entra jamas en EN_PAUSA_POR_PAGO con datos
+  reales => el gating de F05 (verificado solo con estados inducidos por DB) no se dispara en produccion
+  y una tienda que deja de pagar sigue vendiendo para siempre; (3) paymentLink nunca se puebla (ademas
+  solo viene en invoice/get, y aca es null) => el boton "Pagar ahora" del banner no tendria link;
+  (4) la rama ANULADA al cancelar tampoco se alcanza.
+  DATO UTIL PARA EL FIX: la evidencia de pago YA la tiene el borde — resolverSuscripcionDeToken llama
+  payment/getStatus (status 1 pend / 2 pagado / 3 rechazado / 4 anulado) y parsea el commerceOrder
+  <subscriptionId>_<invoiceId>_<fecha>, pero descarta el status y el invoiceId: devuelve solo el
+  flowSubscriptionId (resolverSuscripcionDeToken.ts:59).
+  OJO con el fix: en un invoice PAGADO Flow manda attemp_count=1 y attemped=0, asi que mapear
+  intentos:=attemp_count leeria un cobro exitoso como FALLIDA. El caso de cobro FALLIDO sigue sin poder
+  producirse en sandbox (no hay tarjeta de prueba que inscriba y despues falle) — punto 3 de la lista
+  "A VERIFICAR", que ahora es load-bearing.
+  LO QUE SI FUNCIONA (no es poco): el webhook oye, rutea por commerceOrder, espeja UNA fila por invoice
+  con el monto correcto (incluido el $6.250 con cupon), es idempotente por flowInvoiceId, y el espejo de
+  la suscripcion (periodo y proximo cobro en hora de Santiago) es correcto.
+
+=== CORTE DE CONEXION ~22:47 — el log se interrumpe aca ===
+El tester de la 4a pasada alcanzo a escribir la seccion completa de tasks/e2e-plataforma-facturacion.md
+(4a pasada + tabla de evidencia + los 2 blockers nuevos) y cayo al ir a escribir la Bitacora del plan.
+
+=== CIERRE POR SEGUNDO TESTER — 2026-07-26 22:50-23:00 ===
+modo: reconstruccion de estado + documentacion + higiene. NO se re-corrio la pasada.
+NOTA DE RELOJ: las marcas [23:06]-[23:22] de arriba estan +1h adelantadas (el tester se equivoco de
+hora). Cruzadas contra los timestamps que Flow guardo en los invoices, la cronologia REAL es:
+22:06 vitest / 22:12 activar.001 / 22:16 cupon.002 / 22:18 activar.002 / 22:22 cupon.001 /
+22:25 plan.002 / 22:26 F04 / 22:40 blocker 5. Las marcas 22:xx del final ya son correctas.
+
+VERIFICACION INDEPENDIENTE CONTRA LA API DE FLOW (firmada, llaves FLOW_PLATAFORMA_* del .env):
+
+[22:52] HIGIENE FLOW — CONFIRMADA, no quedaba nada por hacer.
+  subscription/get de las 3 de esta pasada: sus_g286f51c39 / sus_id54131226 / sus_gd22197b8d
+    => las 3 status=4 (CANCELADA), morose=0, next_invoice_date=null.
+  customer/getSubscriptions de los 4 customers => 7 suscripciones historicas (4 de la 3a pasada
+    + 3 de esta), TODAS status=4. CERO cobro recurrente vivo en la cuenta.
+  customer/list?status=1 => total 0. Los 4 customers de prueba estan eliminados (status 0).
+  coupon/list => los 5 cupones (1263,1264,1265 sonda 3a pasada + 1266 E2E50 + 1267 E2ESIEMPRE)
+    en status 0 = eliminados. Flow los sigue listando, mismo residuo-evidencia que los planes.
+  plans/list => sorteatelo-tienda-full (status 1, $25.000) y sorteatelo-tienda-adicional
+    (status 1, $12.500) VIVOS y correctos (son configuracion de producto, deben quedar);
+    e2e-probe-borrable-2607 y e2e-sonda-callback-2607 en status 0.
+  DATO NUEVO (corrobora el fix del blocker 3): coupon/get devuelve duration NUMERICO
+    (1266 -> duration 1 + times 1; 1267 -> duration 0 + times null) mientras coupon/list lo
+    devuelve como ETIQUETA ("Definite" / "Undefined"). El CLI escribio en Flow exactamente el
+    mapeo corregido. redemtions: E2E50=1 (canje consumido), E2ESIEMPRE=0 (reserva liberada).
+
+[22:54] HIGIENE DB — CONFIRMADA. 0 PlatformSubscription, 0 PlatformInvoice, 0 PlatformBillingCustomer,
+  0 PlatformCoupon, 0 PlatformCouponRedemption. Las 7 exenciones GRANDFATHER en su lugar (autora,
+  bcac, demo-dreamy, demo-editorial, demo-noche, iselk, prueba). autora PUBLICADA; las 7 tiendas
+  del set PUBLICADAS. Storefronts autora/demo-noche/demo-dreamy/apex/www => 200.
+  AJENO (no tocar): el tenant ft-f04-ms2mt4uz "Tienda Resultado [F04]" NO es de facturacion — se
+  creo a las 22:52 (durante ESTE cierre) por el carril 26-07-26-correo-sistema-correos-comprador,
+  cuyo F04 es "C4/C5 resultado". Se deja intacto.
+
+[22:56] BLOCKER 5 — REPRODUCIDO EN VIVO, no solo por lectura de codigo.
+  invoice/get 1179470 claves REALES: amount, attemp_count, attemped, chargeAttemps, created,
+    currency, customerId, due_date, error, errorDate, errorDescription, id, items, next_attemp_date,
+    outsidePayment, payment, paymentLink, period_end, period_start, status, subject, subscriptionId.
+  paid=NO payment_date=NO outstanding=NO attemp=NO  <= las 4 que lee derivarEstadoInvoice, ninguna existe.
+  payment.status = 2 (PAGADO).
+  >>> derivarEstadoInvoice(<invoice REAL ya cobrado>) = "PENDIENTE"
+  >>> derivarEstadoInvoice(<invoice embebido en subscription/get, que es lo que usa el webhook>) = "PENDIENTE"
+  paymentLink = null en los 4 invoices, tambien en invoice/get.
+
+[22:57] BLOCKER 6 — CONFIRMADO CON LOS 4 INVOICES CRUDOS (el log anterior no lo alcanzo a registrar).
+  1179470 sus_g286f51c39 $25.000 payment.status 2 pagado 22:11:58 fee 723  bal 24140  "plan tienda"
+  1179471 sus_id54131226 $12.500 payment.status 2 pagado 22:17:59 fee 361  bal 12070  "plan tienda adicional - periodo: 2026-07-26 / 2026-08-25"
+  1179473 sus_gd22197b8d  $6.250 payment.status 2 pagado 22:22:35 fee 181  bal  6035  "plan tienda adicional" (50% del cupon)
+  1179474 sus_id54131226 $12.500 payment.status 2 pagado 22:37:44 fee 361  bal 12070  "CAMBIO DE PLAN A ... plan tienda - periodo: 2026-07-26 / 2026-08-25"
+  1179471 y 1179474 son la MISMA suscripcion y el MISMO periodo (26-jul -> 25-ago): $25.000 cobrados
+  por un periodo cuyo plan vale $12.500. Los 4 con status=1 y attemp_count=1 / attemped=0 aun estando
+  PAGADOS (la trampa del fix del blocker 5).
+  Corroboracion extra: sus_id54131226 hoy tiene planId=sorteatelo-tienda-full => el changePlan movio
+  el plan EN EL ACTO (confirma el punto 5 de "A VERIFICAR": temporality 2 no programa nada).
+
+[22:58] SERVER — sano y UNA sola instancia de este repo: PID 45868 = libros-iselk en :3001.
+  El :3000 es OTRO proyecto (grillos-ai, carpeta DATAWALT), no un segundo next dev de este repo.
+  Tunel cloudflared (PID 30048) SIGUE VIVO y el webhook responde 200 — queda a decision del usuario
+  bajarlo; con 0 suscripciones vivas ya no puede llegar ninguna notificacion.
+
+ESTADO FINAL DE LOS CHECKS: 19/20 [x] + 1 🟡 (cancelar.e2e.002, bandeja del usuario).
+Los 5 rojos re-corridos pasaron a ✅ y estan respaldados por el log. Los blockers 5 y 6 quedan
+ABIERTOS y ningun checkbox los cubre: son de F04 (espejo/dunning) y F06 (promocion D7).
+fin: 2026-07-26 23:00

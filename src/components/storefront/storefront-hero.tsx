@@ -727,7 +727,10 @@ function HeroImagenFondo({
   // pintarse en el `<section>` y pasa a un box interior EN FLUJO, que tapa la capa ⇒ las luces no se
   // ven. Degrada a "sin luces", no rompe nada, y no se corta acá porque anularlas sería una excepción
   // ad-hoc entre dos props que no tienen relación — justo la combinatoria que D2 quiso evitar.
-  const luces = capaDeLuces(props.luces, props.lucesAnimadas);
+  // Intensidad 2.6×: los porcentajes del shell (14-22%) están curados como TINTE sobre un fondo plano;
+  // sobre la imagen oscura + overlay del hero quedan por debajo del umbral perceptible. 2.6 los lleva a
+  // ~36-57%, que sí lee como foco de recital sin lavar el póster (tope 85% en capaDeLuces).
+  const luces = capaDeLuces(props.luces, props.lucesAnimadas, 2.6);
   return (
     <SeccionWrapper
       id={nodo.id}

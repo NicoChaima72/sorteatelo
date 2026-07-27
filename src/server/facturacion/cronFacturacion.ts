@@ -31,10 +31,12 @@ export interface RespuestaCronFacturacion {
   body: Record<string, unknown>;
 }
 
-/** Resumen de la corrida: cuántos avisos salieron y cómo le fue al despacho. */
+/** Resumen de la corrida: qué se aplicó, cuántos avisos salieron y cómo le fue al despacho. */
 export interface ResumenCorridaFacturacion {
   renovaciones: number;
   exenciones: number;
+  /** Promociones de plan del Pagador aplicadas en Flow (F06/D7). */
+  promociones: number;
   enviados: number;
   fallidos: number;
 }

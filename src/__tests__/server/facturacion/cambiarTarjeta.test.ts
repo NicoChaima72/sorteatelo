@@ -60,9 +60,11 @@ function fakeDb(suscripcion: Record<string, unknown> | null) {
 
 function fakeFlow(over: Partial<FlowPlataformaService> = {}) {
   return {
-    registrarTarjeta: vi
-      .fn()
-      .mockResolvedValue({ url: "https://flow.cl/registro/xyz", token: "tk" }),
+    // URL ya armada con el token (contrato real de Flow, `flowPlataforma.registro.001`).
+    registrarTarjeta: vi.fn().mockResolvedValue({
+      redirectUrl: "https://flow.cl/registro/xyz?token=tk",
+      token: "tk",
+    }),
     getEstadoRegistro: vi.fn().mockResolvedValue({
       status: 1,
       customerId: "cus_1",
@@ -92,7 +94,8 @@ describe("domain/facturacion/iniciarCambioDeTarjeta", () => {
       urlRetorno: "https://ana.sorteatelo.cl/admin/plan/retorno?modo=tarjeta",
     });
 
-    expect(r.redirectUrl).toBe("https://flow.cl/registro/xyz");
+    // Con el `?token=`: la url pelada de Flow es una pantalla de error (blocker 1 de la 3ª pasada).
+    expect(r.redirectUrl).toBe("https://flow.cl/registro/xyz?token=tk");
     expect(flow.registrarTarjeta).toHaveBeenCalledWith({
       customerId: "cus_1",
       urlReturn: "https://ana.sorteatelo.cl/admin/plan/retorno?modo=tarjeta",
@@ -206,6 +209,61 @@ describe("domain/facturacion/confirmarCambioDeTarjeta", () => {
       }),
     ).rejects.toMatchObject({ code: "INVALID" });
 
+    expect(actualizaciones).toEqual([]);
+  });
+
+  // facturacion.tarjeta.008 — el dato ausente no autoriza: sin customerId no se cambia nada
+  it("rechaza un registro que no dice de qué customer es", async () => {
+    const { db, actualizaciones } = fakeDb(suscripcionViva());
+    const flow = fakeFlow({
+      // Flow SÍ manda el `customerId` (verificado en el sandbox), así que su ausencia significa que
+      // algo no es lo que creemos. Antes el guard se saltaba en ese caso y, con el puente de retorno
+      // aceptando GET, un token ajeno inyectado por link habría plantado la tarjeta de otra persona.
+      getEstadoRegistro: vi.fn().mockResolvedValue({
+        status: 1,
+        creditCardType: "Visa",
+        last4CardDigits: "9999",
+      }),
+    } as Partial<FlowPlataformaService>);
+
+    await expect(
+      confirmarCambioDeTarjeta({
+        db,
+        acceso: acceso(),
+        flow,
+        input: { token: "tk" },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID" });
+
+    expect(actualizaciones).toEqual([]);
+  });
+
+  // facturacion.tarjeta.007 — el error del proveedor no se le muestra tal cual al Organizador
+  it("traduce un fallo de la API de Flow a un mensaje del dominio", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { db, actualizaciones } = fakeDb(suscripcionViva());
+    const flow = fakeFlow({
+      getEstadoRegistro: vi.fn().mockRejectedValue(
+        // Lo que pasa de verdad con un `?token=` inventado: la página de retorno imprimía
+        // «Flow (plataforma) /api/customer/getRegisterStatus respondió 401» en la cara del
+        // Organizador (nit de la 3ª pasada del E2E). No filtra credenciales, pero es copy interno.
+        new Error("Flow (plataforma) /api/customer/getRegisterStatus respondió 401."),
+      ),
+    } as Partial<FlowPlataformaService>);
+
+    const error = await confirmarCambioDeTarjeta({
+      db,
+      acceso: acceso(),
+      flow,
+      input: { token: "inventado" },
+    }).then(
+      () => null,
+      (e: Error) => e,
+    );
+
+    expect(error).toMatchObject({ code: "INVALID" });
+    expect(error?.message).not.toContain("/api/");
+    expect(error?.message).not.toContain("401");
     expect(actualizaciones).toEqual([]);
   });
 });

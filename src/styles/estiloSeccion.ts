@@ -677,12 +677,28 @@ function movimientoDeAmbiente(ambiente: AmbienteFondo): MovimientoAmbiente {
  * la combinación "animado sobre nada" existe y tiene que resolver a nada. Si devolviera una capa vacía,
  * el shell montaría un div de más y dejaría de ser byte-idéntico (I1).
  */
-export function capaDeLuces(ambiente: AmbienteFondo, animado: boolean): CapaDeLuces | null {
+export function capaDeLuces(
+  ambiente: AmbienteFondo,
+  animado: boolean,
+  // Multiplicador de la intensidad de los gradientes (los `NN%` del color-mix). Default 1 = los MISMOS
+  // valores curados del ambiente estático (no-op para el shell, cuyo reduced-motion debe verse idéntico
+  // al ambiente de hoy — I4). El hero `imagen_fondo` pasa >1: sus luces van SOBRE una imagen oscura con
+  // overlay, donde el 14-22% del shell queda enterrado (feedback del usuario: "no veo que se muevan").
+  intensidad = 1,
+): CapaDeLuces | null {
   const capas = AMBIENTE_CAPAS[ambiente];
   if (!capas) return null;
   const vars: Record<string, string> = {};
   capas.forEach((gradiente, i) => {
-    vars[`--amb-${i + 1}`] = gradiente;
+    vars[`--amb-${i + 1}`] =
+      intensidad === 1
+        ? gradiente
+        : // Solo los `NN%` de opacidad del color-mix (los que anteceden a `, transparent)`); las
+          // geometrías (`60% 45% at 18% 0%`) y los falloff (`transparent 70%`) no se tocan. Tope 85%.
+          gradiente.replace(
+            /(\d+)%(?=, transparent\))/g,
+            (_, n: string) => `${Math.min(85, Math.round(Number(n) * intensidad))}%`,
+          );
   });
   return {
     movimiento: animado ? movimientoDeAmbiente(ambiente) : null,

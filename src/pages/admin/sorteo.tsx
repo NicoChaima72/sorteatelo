@@ -352,13 +352,19 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
         // El número pasa por el MISMO formateador que la tabla y que el correo (F08/D12/I12), así
         // que el prefijo sale igual en las tres superficies y no hay una que diga «1057» mientras
         // las otras dicen «ARMY-1057».
+        // El «cuándo» de los correos se dice acá porque salen por el cron horario (F04/ADR-0027),
+        // no en el instante: sin esta línea el Organizador cree que ya llegaron y escribe a soporte.
+        // **EMPIEZAN** a salir, no «salen»: con el tope diario del proveedor (ADR-0027 §5) un sorteo
+        // de más de 100 destinatarios termina de drenarse en los días siguientes, y prometer una
+        // hora haría que el Organizador se lo prometa a su comunidad. El detalle largo va en el
+        // modal de confirmación, que es donde todavía se puede decidir.
         message:
           res.ganadorNumero !== null
             ? `Sorteo ejecutado. Ganó el número ${formatearNumerosDelSorteo(
                 [res.ganadorNumero],
                 sorteo.prefijoTicket,
-              )}.`
-            : "Sorteo ejecutado. Ya hay un ganador.",
+              )}. Los avisos por correo empiezan a salir dentro de la hora.`
+            : "Sorteo ejecutado. Ya hay un ganador. Los avisos por correo empiezan a salir dentro de la hora.",
         color: "green",
       });
     },
@@ -392,7 +398,10 @@ function PanelSorteoActivo({ sorteo }: { sorteo: SorteoActual }) {
       children: (
         <Text size="sm">
           Se elegirá un ganador al azar entre las {num(sorteo.totalParticipaciones)}{" "}
-          participaciones (tickets). Esta acción registra quién y cuándo lo ejecutó y{" "}
+          participaciones (tickets). Después se le avisa por correo a cada participante:
+          al ganador, y al resto cuál fue el número ganador. Los correos empiezan a salir
+          dentro de la hora y, si hay muchos participantes, terminan de llegar en los días
+          siguientes. Esta acción registra quién y cuándo lo ejecutó y{" "}
           <Text span fw={600} c="var(--mantine-color-text)">
             no se puede deshacer
           </Text>

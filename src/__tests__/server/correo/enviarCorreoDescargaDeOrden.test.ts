@@ -62,6 +62,8 @@ async function crearTenant(
     logoUrl?: string;
     colorPrimario?: string;
     prefijoTicket?: string;
+    /** Contacto PÚBLICO de la Tienda — primer escalón del reply-to (T6). */
+    contactoEmail?: string;
   } = {},
 ) {
   return db.tenant.create({
@@ -419,6 +421,25 @@ describe("domain/correo/enviarCorreoDescargaDeOrden (DB-backed)", () => {
     await enviarCorreoDescargaDeOrden({ db, correo: service, orderId, baseUrl: BASE_URL });
 
     expect(enviados[0]!.replyTo).toBe(`viejo@${PREFIJO}x.cl`);
+  });
+
+  // correo.usecase.010 — T6 completo sobre C1: con `Tenant.contactoEmail` configurado, el reply-to
+  //                      es ESE y no el correo personal con el que el Organizador entró con Google.
+  //                      Cubre el escalón que F04 centralizó en `_contactoDelOrganizador`: hasta
+  //                      entonces C1 solo miraba la membresía, así que este es el test que se pondría
+  //                      rojo si alguien deshiciera el cableado del helper en `confirmacionDeCompra`.
+  it("prefiere el contacto público de la Tienda sobre la membresía para el reply-to", async () => {
+    const t = await crearTenant("a", { contactoEmail: `hola@${PREFIJO}tienda.cl` });
+    const p = await crearProducto(t.id, "P1");
+    await crearUsuarioConMembresia(t.id, `personal@${PREFIJO}x.cl`, new Date("2026-01-01"));
+    const orderId = await crearOrdenPagadaConGrants(t.id, "fan@fan.cl", [
+      { id: p.id, token: "tok" },
+    ]);
+
+    const { service, enviados } = correoFake();
+    await enviarCorreoDescargaDeOrden({ db, correo: service, orderId, baseUrl: BASE_URL });
+
+    expect(enviados[0]!.replyTo).toBe(`hola@${PREFIJO}tienda.cl`);
   });
 
   // correo.usecase.003 — sin membresía ⇒ correo sin reply-to (válido)

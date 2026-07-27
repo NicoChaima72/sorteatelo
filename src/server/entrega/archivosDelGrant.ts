@@ -4,6 +4,7 @@ import {
   type ArchivoParaEntrega,
   archivosParaEntrega,
 } from "~/server/productos/archivosDeProducto";
+import { origenDeArchivos } from "~/server/productos/fuenteDeArchivos";
 
 /**
  * **Qué archivos autoriza un `DownloadGrant`** (productos-tipos-digitales F09, D5/I8).
@@ -54,14 +55,38 @@ export async function archivosDelGrant({
 }): Promise<ArchivoDelGrant[]> {
   const producto = await db.product.findFirst({
     where: { id: grant.productId, tenantId: grant.tenantId },
-    select: { modalidad: true },
+    // La FUENTE (ENMIENDA v2, E15): un PACK no tiene archivos propios, entrega los de otro producto.
+    select: {
+      modalidad: true,
+      fuenteId: true,
+      fuente: { select: { modalidad: true } },
+    },
   });
 
-  if (producto?.modalidad !== "SOBRE") {
+  /*
+    De dónde salen los archivos de este grant. Es LA MISMA función que usan los efectos post-pago
+    para decidir qué se sortea al pagar (y la página de entrega para decidir qué mostrar): si las
+    tres respuestas discreparan, el Comprador vería archivos que el endpoint le niega — o, peor, el
+    endpoint le entregaría archivos que no le tocaron.
+
+    El grant sin producto (borrado, o de otra Tienda ⇒ el `findFirst` no lo trajo) cae por la rama
+    genérica y `archivosParaEntrega` devuelve vacío: no autoriza nada, que es lo correcto.
+  */
+  const origen =
+    producto === null
+      ? { productId: grant.productId, modalidad: null }
+      : origenDeArchivos(grant.productId, producto);
+
+  if (origen.modalidad !== "SOBRE") {
+    // Producto normal, o PACK de fuente ESTANDAR (el caso libro): lo entregable es el archivo de la
+    // fuente. Las N copias del pack NO se materializan acá — se derivan en presentación (V-I2), y
+    // por eso esta función devuelve el conjunto de archivos DISTINTOS que el grant autoriza: es lo
+    // que el endpoint de descarga usa para decidir si un `?archivo=<id>` está permitido, y ahí una
+    // copia repetida no significaría nada.
     const archivos = await archivosParaEntrega({
       db,
       tenantId: grant.tenantId,
-      productId: grant.productId,
+      productId: origen.productId,
     });
     return archivos.map((a) => ({ ...a, packOrdinal: null }));
   }

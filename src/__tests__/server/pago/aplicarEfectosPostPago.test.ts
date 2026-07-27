@@ -49,7 +49,12 @@ async function limpiar() {
   await db.payment.deleteMany({ where: { tenantId: { in: ids } } });
   await db.order.deleteMany({ where: { tenantId: { in: ids } } });
   await db.productFile.deleteMany({ where: { tenantId: { in: ids } } });
-  await db.productPackOption.deleteMany({ where: { tenantId: { in: ids } } });
+  // Los PACKS antes que sus fuentes: el `onDelete: Restrict` de la self-relation aborta el borrado
+  // de una fuente que todavía tenga packs colgando, y un `deleteMany` único borra en orden
+  // arbitrario ⇒ fallaría de forma intermitente.
+  await db.product.deleteMany({
+    where: { tenantId: { in: ids }, fuenteId: { not: null } },
+  });
   await db.product.deleteMany({ where: { tenantId: { in: ids } } });
   await db.tenant.deleteMany({ where: { id: { in: ids } } });
 }
@@ -89,14 +94,20 @@ async function crearSobre(
   titulo: string,
   { pool, unidades }: { pool: number; unidades: number },
 ) {
-  const producto = await db.product.create({
+  /*
+    ENMIENDA v2 (E13/E14): lo que antes era UN producto SOBRE con opciones de pack ahora son DOS
+    productos — la COLECCIÓN (`modalidad SOBRE`, dueña del pool, que no se vende directo) y el PACK
+    (un producto normal con `fuenteId` + `unidadesPorPack`, que es lo que el Comprador pone en el
+    carrito). Lo que se devuelve como `id` es el del PACK, porque ES el producto de la línea de la
+    orden; `coleccionId` queda expuesto para los tests que miran de dónde salieron los archivos.
+  */
+  const coleccion = await db.product.create({
     data: {
       tenantId,
       titulo,
       descripcion: "desc",
-      precio: "999", // referencia: en un SOBRE no se cobra (F07/D3)
+      precio: "999", // referencia: una colección no se cobra (E15)
       modalidad: "SOBRE",
-      packOptions: { create: { tenantId, unidades, precio: "10000" } },
     },
     select: { id: true },
   });
@@ -104,8 +115,8 @@ async function crearSobre(
   await db.productFile.createMany({
     data: Array.from({ length: pool }, (_u, i) => ({
       tenantId,
-      productId: producto.id,
-      key: `${tenantId}/${producto.id}/f${i}.png`,
+      productId: coleccion.id,
+      key: `${tenantId}/${coleccion.id}/f${i}.png`,
       contentType: "image/png",
       tipo: "IMAGEN" as const,
       nombreArchivo: `sticker-${i}.png`,
@@ -114,7 +125,21 @@ async function crearSobre(
     })),
   });
 
-  return producto;
+  const pack = await db.product.create({
+    data: {
+      tenantId,
+      titulo: `${titulo} × ${unidades}`,
+      descripcion: "desc",
+      precio: "10000", // el precio del PACK es su propio `Product.precio` (E13)
+      // V-I7: un pack se persiste SIEMPRE ESTANDAR; lo que manda es la modalidad de su fuente.
+      modalidad: "ESTANDAR",
+      fuenteId: coleccion.id,
+      unidadesPorPack: unidades,
+    },
+    select: { id: true },
+  });
+
+  return { id: pack.id, coleccionId: coleccion.id };
 }
 
 /** Ítem de una orden de prueba: por defecto participa con cantidad 1 (snapshot congelado en el OrderItem). */
@@ -871,7 +896,7 @@ describe("domain/pago/aplicarEfectosPostPago — sobre sorpresa (F08)", () => {
     expect(await db.raffleEntry.count({ where: { orderId: orden.id } })).toBe(3);
   });
 
-  // efectos.sobre.006 — el pool sale del PRODUCTO de la línea, y nada más. Es el invariante que
+  // efectos.sobre.006 — el pool sale de la FUENTE de la línea, y nada más. Es el invariante que
   // schema-guardian marcó como SIN red de DB: las dos FKs de PackAssignment (orderItem y
   // productFile) no se cruzan entre sí, así que nada impide en la DB asignar el archivo de otro
   // producto o de otra Tienda. La única garantía es cómo está armada la query — y eso se testea acá.
@@ -892,8 +917,8 @@ describe("domain/pago/aplicarEfectosPostPago — sobre sorpresa (F08)", () => {
     await db.productFile.create({
       data: {
         tenantId: t.id,
-        productId: sobre.id,
-        key: `${t.id}/${sobre.id}/pendiente.png`,
+        productId: sobre.coleccionId,
+        key: `${t.id}/${sobre.coleccionId}/pendiente.png`,
         contentType: "image/png",
         tipo: "IMAGEN",
         nombreArchivo: "a-medio-subir.png",
@@ -913,9 +938,9 @@ describe("domain/pago/aplicarEfectosPostPago — sobre sorpresa (F08)", () => {
     });
 
     expect(asignados).toHaveLength(4); // 2 × 2
-    // Todos del producto de la línea y todos confirmados.
+    // Todos de la COLECCIÓN que es fuente de la línea (E15), y todos confirmados.
     expect(
-      asignados.every((a) => a.productFile.productId === sobre.id),
+      asignados.every((a) => a.productFile.productId === sobre.coleccionId),
     ).toBe(true);
     expect(
       asignados.every((a) => a.productFile.confirmadoAt !== null),
@@ -923,7 +948,11 @@ describe("domain/pago/aplicarEfectosPostPago — sobre sorpresa (F08)", () => {
     // Y ni un archivo de los decoys quedó tocado.
     expect(
       await db.packAssignment.count({
-        where: { productFile: { productId: { in: [otroProducto.id, sobreAjeno.id] } } },
+        where: {
+          productFile: {
+            productId: { in: [otroProducto.coleccionId, sobreAjeno.coleccionId] },
+          },
+        },
       }),
     ).toBe(0);
   });
@@ -969,6 +998,63 @@ describe("domain/pago/aplicarEfectosPostPago — sobre sorpresa (F08)", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  /*
+    efectos.sobre.007 — el CASO LIBRO de la ENMIENDA v2 (E15/V-I2) del lado de los EFECTOS. Un pack
+    cuya fuente es un producto ESTANDAR entrega N unidades del MISMO archivo, y por eso NO se
+    muestrea nada: `origenDeArchivos` devuelve modalidad ESTANDAR y la línea ni siquiera entra al
+    sorteo.
+
+    Es el test que separa «pack» de «sorteo», que bajo la v1 eran sinónimos. Lo que fija:
+
+    (a) CERO `PackAssignment`. La alternativa —crear las 4 filas del mismo archivo— es exactamente
+        lo que el `@@unique([orderItemId, packOrdinal, productFileId])` NO prohíbe (los ordinales
+        difieren) pero que dejaría a la página de entrega derivando copias sobre copias.
+    (b) UN solo `DownloadGrant`, como cualquier producto: el grant es por (orden, producto) y las
+        unidades no lo multiplican.
+    (c) Tickets = `unidadesPorPack × cantidad` = 4 × 2 = 8, la MISMA fórmula que un pack de
+        colección. Un pack de libros que diera 1 ticket sería la regresión silenciosa más cara de
+        la enmienda: el Comprador paga por 4 y entra al sorteo como si hubiera comprado 1.
+  */
+  it("un pack de fuente ESTANDAR no asigna nada, deja un solo grant y emite unidades × cantidad tickets", async () => {
+    const t = await crearTenant("sobre-f");
+    await crearRaffle(t.id, "ACTIVO");
+
+    // La fuente va DESPUBLICADA a propósito: es el caso «vendo solo el pack» de E17, y el origen de
+    // los archivos no puede depender de que la fuente esté a la venta.
+    const libro = await db.product.create({
+      data: {
+        tenantId: t.id,
+        titulo: "El libro",
+        descripcion: "desc",
+        precio: "3000",
+        activo: false,
+        pdfPath: `${t.id}/el-libro.pdf`,
+      },
+      select: { id: true },
+    });
+    const pack = await db.product.create({
+      data: {
+        tenantId: t.id,
+        titulo: "Pack 4 libros",
+        descripcion: "desc",
+        precio: "10000",
+        fuenteId: libro.id,
+        unidadesPorPack: 4,
+      },
+      select: { id: true },
+    });
+
+    const orden = await crearOrden(t.id, "fan@example.cl", [
+      { productId: pack.id, cantidad: 2, unidadesPorPack: 4 },
+    ]);
+
+    await aplicar(orden.id);
+
+    expect(await db.packAssignment.count({ where: { tenantId: t.id } })).toBe(0);
+    expect(await db.downloadGrant.count({ where: { orderId: orden.id } })).toBe(1);
+    expect(await db.raffleEntry.count({ where: { orderId: orden.id } })).toBe(8);
   });
 });
 

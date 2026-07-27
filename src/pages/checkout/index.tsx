@@ -3,6 +3,7 @@ import {
   Anchor,
   Button,
   Card,
+  Checkbox,
   Container,
   Divider,
   Group,
@@ -20,6 +21,7 @@ import {
 } from "next";
 import Link from "next/link";
 
+import { TEXTO_CONSENTIMIENTO_RECORDATORIOS } from "~/config/correo";
 import { useCarrito } from "~/components/storefront/carrito";
 import { CamposCheckout } from "~/components/storefront/campos-checkout";
 import {
@@ -61,6 +63,7 @@ export default function CheckoutPage({
   chrome,
   navItems,
   campos,
+  tieneSorteoActivo,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   // Tema MÍNIMO heredado de la Tienda (tema-paginas F02): el fondo de página. El radio, el par
   // tipográfico y el modo claro/oscuro los aplica `_app` desde el mismo `temaPagina`. Con la Tienda en
@@ -77,17 +80,31 @@ export default function CheckoutPage({
       navItems={navItems}
     >
       <Container size="lg" py="xl" px={{ base: "md", lg: "xl" }}>
-        <ResumenYPago campos={campos} />
+        <ResumenYPago campos={campos} tieneSorteoActivo={tieneSorteoActivo} />
       </Container>
     </StorefrontLayout>
   );
 }
 
-function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
+function ResumenYPago({
+  campos,
+  tieneSorteoActivo,
+}: {
+  campos: CampoDelCheckout[];
+  tieneSorteoActivo: boolean;
+}) {
   const { items, quitar, vaciar, cantidad } = useCarrito();
 
   const form = useForm<ValoresCheckout>({
-    initialValues: { email: "", respuestas: valoresInicialesDeCampos(campos) },
+    initialValues: {
+      email: "",
+      // Consentimiento de recordatorios (F05/D5): arranca en `false` SIEMPRE. La Ley 21.719
+      // prohíbe la casilla premarcada, así que el valor inicial no es una preferencia de UX — es
+      // el requisito. El server tiene su propia mitad (`aceptaRecordatorios` con `default(false)`
+      // en el schema Zod), porque este componente no es la autoridad de nada.
+      aceptaRecordatorios: false,
+      respuestas: valoresInicialesDeCampos(campos),
+    },
     // `validate` como FUNCIÓN (no como objeto por campo) porque las claves de `respuestas` son
     // dinámicas: las define el Organizador, no este archivo. Lo de los campos sale del espejo puro
     // (`erroresDeCampos`); la verdad la pone el server en su `$tx` (I3).
@@ -138,14 +155,13 @@ function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
   const submit = form.onSubmit((valores) =>
     iniciar.mutate({
       email: valores.email.trim(),
-      // El `packOptionId` viaja tal cual salió del selector (F07): es un ID, no un precio. El
-      // server lo valida contra las opciones ACTIVAS de ese producto y relee el monto de la fila
-      // vigente — si la opción se apagó o cambió mientras el carrito dormía, manda la DB (I4).
-      items: items.map((i) => ({
-        productId: i.id,
-        cantidad: i.cantidad,
-        ...(i.packOptionId ? { packOptionId: i.packOptionId } : {}),
-      })),
+      // Consentimiento de recordatorios (F05/D5): viaja un BOOLEANO y nada más. El texto que la
+      // persona leyó y la IP los pone el server — la prueba no la escribe el navegador.
+      aceptaRecordatorios: valores.aceptaRecordatorios,
+      // `{productId, cantidad}` y nada más (ENMIENDA v2, E13): un pack es un producto, así que su
+      // precio y sus unidades salen los dos de la fila vigente que relee el server. El cliente no
+      // aporta NADA sobre el monto (I4).
+      items: items.map((i) => ({ productId: i.id, cantidad: i.cantidad })),
       respuestas: respuestasParaEnviar(valores.respuestas),
     }),
   );
@@ -215,6 +231,27 @@ function ResumenYPago({ campos }: { campos: CampoDelCheckout[] }) {
             del Comprador y la vía de entrega del PDF, así que encabeza el form pase lo que pase.
           */}
           <CamposCheckout campos={campos} form={form} />
+
+          {/*
+            Consentimiento de recordatorios del sorteo (F05/D5, CONTEXT § Consentimiento de
+            recordatorios). Va FUERA de `CamposCheckout` a propósito: es de PLATAFORMA, no un Campo
+            de checkout que el Organizador pueda editar, desactivar o volver obligatorio.
+
+            **Jamás premarcado** (Ley 21.719): sin `defaultChecked` y con `initialValues` en
+            `false`. `getInputProps(..., { type: "checkbox" })` es obligatorio en Mantine — sin el
+            `type`, el form cablea `value` en vez de `checked` y la casilla no se marca nunca.
+
+            Solo se ofrece si la Tienda tiene un Sorteo ACTIVO: juntar un opt-in por un correo que
+            no puede existir sería pedir permiso para nada.
+          */}
+          {tieneSorteoActivo ? (
+            <Checkbox
+              label={TEXTO_CONSENTIMIENTO_RECORDATORIOS}
+              {...form.getInputProps("aceptaRecordatorios", {
+                type: "checkbox",
+              })}
+            />
+          ) : null}
 
           <Alert variant="light" color="gray" p="sm">
             <Text size="xs">

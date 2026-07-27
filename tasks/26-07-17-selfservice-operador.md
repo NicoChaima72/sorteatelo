@@ -1,6 +1,6 @@
 ---
 slug: selfservice-operador
-status: testing                # planning | implementing | testing | done
+status: done                # planning | implementing | testing | done
 owner: nicolas
 created: 2026-07-17
 related_adrs: [ADR-0005, ADR-0006, ADR-0007, ADR-0008]
@@ -9,16 +9,16 @@ related_context: [Tienda, Organizador, Operador de plataforma, Subdominio, Plant
 features:
   - id: F01
     behavior: "Alta self-service de Tienda: un usuario logueado SIN tienda crea una (slug validado, único y no reservado + nombre) — se crea el Tenant en CONFIGURACION y su TenantMembership en una $transaction; el empty state 'sin tienda' pasa a un formulario de creación"
-    state: active
+    state: passing
   - id: F02
     behavior: "Aceptación de ToS registrada (quién/cuándo/versión) sobre un texto de ToS versionado en el repo; queda como requisito del gate de publicación (ADR-0008)"
-    state: active
+    state: passing
   - id: F03
     behavior: "Checklist de publicación + publicar/despublicar: readiness server-side (ToS + CredencialFlow + ≥1 producto activo con PDF + bases si hay sorteo activo) que gobierna tanto el checklist del panel como el gate; publicar transiciona CONFIGURACION→PUBLICADA solo si el gate pasa; despublicar es reversible"
-    state: active
+    state: passing
   - id: F04
     behavior: "Panel del Operador: listado de TODAS las Tiendas con su estado (operador-only, server-side) + suspender/reactivar (SUSPENDIDA saca el storefront del subdominio; reactivar vuelve a CONFIGURACION). Sin editar contenido de tenants"
-    state: active
+    state: superseded
 ---
 
 # F08 — Self-service de tenants + panel del Operador
@@ -432,3 +432,5 @@ autorización: la membresía**. Los 3 checkboxes de abajo quedan como registro h
   customer `cus_gd085472bd` borrado (status 0); tienda despublicada; `src/config.ts` restaurado a
   `devTienda.enabled: true`; túnel cloudflared apagado y `.env` anotado; 9 exenciones GRANDFATHER
   intactas (ninguna de la tienda nueva: pagó de verdad). Log completo: `tasks/.e2e-run-selfservice.log`.
+
+- [2026-07-27 08:15] [orquestador] **CIERRE por decisión del usuario**: `status: done`, F01–F03 `passing`, F04 `superseded` (ADR-0023 retiró el Operador; los 3 checkboxes de F04 quedaron ⏭️ SUPERSEDED en la corrida E2E del 27-07). La corrida E2E autenticada validó el alta self-service completa con cuenta Google real sin membresías (ver Bitácora previa y `tasks/.e2e-run-selfservice.log`). Los 3 hallazgos derivados (D8 vs. plan ADICIONAL sin camino, ToS sin mencionar la suscripción $25.000/mes, 4 tropiezos UX) son carriles nuevos — no deuda de este plan.

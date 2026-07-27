@@ -13633,3 +13633,1657 @@ Require stack:
  GET /_next/static/chunks/react-refresh.js [33m404[39m in 16ms
  GET /_next/static/chunks/pages/_app.js [33m404[39m in 10ms
  GET /_next/static/chunks/pages/_error.js [33m404[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 21ms
+ GET /_next/static/chunks/main.js [33m404[39m in 20ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 19ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 26ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 26ms
+ GET /_next/static/chunks/main.js [33m404[39m in 25ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 23ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 11ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 24ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 23ms
+ GET /_next/static/chunks/main.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 22ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 13ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 22ms
+ GET /_next/static/chunks/main.js [33m404[39m in 20ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 19ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 11ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 24ms
+ GET /_next/static/chunks/main.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 22ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 21ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 15ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 28ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 27ms
+ GET /_next/static/chunks/main.js [33m404[39m in 26ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 24ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 18ms
+ GET /_next/static/chunks/main.js [33m404[39m in 18ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 17ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 11ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 12ms
+ GET /_next/static/chunks/main.js [33m404[39m in 25ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 22ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 20ms
+ GET /_next/static/chunks/main.js [33m404[39m in 19ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 18ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 8ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 11ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 14ms
+ GET /_next/static/chunks/main.js [33m404[39m in 17ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 15ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 8ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 20ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 19ms
+ GET /_next/static/chunks/main.js [33m404[39m in 19ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 13ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 11ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 25ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 24ms
+ GET /_next/static/chunks/main.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 21ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 11ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 26ms
+ GET /_next/static/chunks/main.js [33m404[39m in 21ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 20ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 17ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 16ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 15ms
+ GET /_next/static/chunks/main.js [33m404[39m in 18ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 15ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/main.js [33m404[39m in 20ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 18ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 18ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 11ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 21ms
+ GET /_next/static/chunks/main.js [33m404[39m in 20ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 11ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/main.js [33m404[39m in 26ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 25ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 23ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 22ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 26ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 22ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 20ms
+ GET /_next/static/chunks/main.js [33m404[39m in 19ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 8ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 15ms
+ GET /_next/static/chunks/main.js [33m404[39m in 22ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 20ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 18ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 13ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 22ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 22ms
+ GET /_next/static/chunks/main.js [33m404[39m in 21ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 11ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ GET /_next/static/chunks/react-refresh.js [33m404[39m in 14ms
+ GET /_next/static/chunks/webpack.js [33m404[39m in 31ms
+ GET /_next/static/chunks/main.js [33m404[39m in 29ms
+ GET /_next/static/chunks/pages/_app.js [33m404[39m in 28ms
+ GET /_next/static/chunks/pages/_error.js [33m404[39m in 26ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/'[39m
+}
+ GET / [31m500[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/bases'[39m
+}
+ GET /bases [31m500[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/'[39m
+}
+ GET / [31m500[39m in 7ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 8ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 11ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 10ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 9ms
+ [31m[1m⨯[22m[39m Error: Cannot find module './6859.js'
+Require stack:
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\webpack-runtime.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\.next\server\pages\_document.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\require.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\load-components.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\build\utils.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\node_modules\next\dist\server\lib\start-server.js
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:55:36
+[90m    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)[39m
+[90m    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1242:25)[39m
+[90m    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)[39m
+[90m    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)[39m
+    at mod.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39mnode_modules\[4mnext[24m\dist\server\require-hook.js:65:28[90m)[39m
+[90m    at require (node:internal/modules/helpers:152:16)[39m
+    at __webpack_require__.f.require [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:250:28[90m)[39m
+    at [90mC:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:177:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:176:67[90m)[39m
+    at Array.map (<anonymous>)
+    at __webpack_require__.X [90m(C:\Users\NicolásChaima\Desktop\PROGRAMACION\PERSONAL\libros-iselk\[39m.next\server\webpack-runtime.js:214:22[90m)[39m {
+  code: [32m'MODULE_NOT_FOUND'[39m,
+  requireStack: [
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\webpack-runtime.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\.next\\server\\pages\\_document.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\require.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\load-components.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\build\\utils.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\router-server.js'[39m,
+    [32m'C:\\Users\\NicolásChaima\\Desktop\\PROGRAMACION\\PERSONAL\\libros-iselk\\node_modules\\next\\dist\\server\\lib\\start-server.js'[39m
+  ],
+  page: [32m'/verificar'[39m
+}
+ GET /verificar [31m500[39m in 12ms
+[?25h

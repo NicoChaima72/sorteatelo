@@ -27,3 +27,29 @@ Findings: F1 barrido global de retirarRecordatoriosObsoletos + `ahora` sintétic
           F3 recordatorios sin reply-to (C1/C4/C5 sí lo llevan)
 NO se tocó `state` ni `status`; NO se corrió `npm run check`; NO hay commit.
 fin: 2026-07-27 02:00
+[02:15] F01 iselk  +f14@gmail.com          => boleto "1-8"     PASS
+[02:15] F01 iselk  +f14t3@gmail.com        => boleto "9-12"    PASS
+[02:16] F03 iselk  correo desconocido      => neutral D4       PASS
+[02:18] F03 tema   iselk /verificar vs /bases   shell/scheme/bg identicos (light, Nunito) PASS
+[02:18] F03 tema   demo-noche /verificar vs /bases identicos (dark rgb(36,36,36), Roboto) PASS
+[02:20] F04 links  iselk/demo-noche/prueba/bcac: 1 ancla /verificar en header + 1 en footer PASS
+[02:21] F04 nav    click header iselk  => iselk.localhost:3001/verificar      PASS
+[02:21] F04 nav    click footer noche  => demo-noche.localhost:3001/verificar PASS
+[02:22] zona       127.0.0.1/verificar => 404 (== /bases)                     PASS
+[02:22] zona       apex localhost      => 200 por override DEV F09d (== /bases) NO-DEFECTO
+[02:25] F02 retorno orden PAGADA iselk => "Pago confirmado" + boleto 1-8      PASS
+[02:25] F02 html   outerHTML boletos retorno === /verificar (identico)        PASS
+[02:27] cuota      bcac intentos 1-10 OK, 11 y 12 => "Demasiadas busquedas"   PASS
+[02:30] F04 320px  iselk sin sesion: sin overflow, wordmark entero            PASS
+[02:32] ---- dev server 500 en TODAS las paginas (.next corrupto, carril ajeno) ----
+[02:35] ---- server reiniciado solo; se retoma ----
+[02:37] F04 320px  iselk dueña logueada: banner plataforma, AccesoSesion oculta PASS
+[02:37] F04 320px  demo-noche "Mi panel": 4 items, gap min 12px, sin overflow  PASS
+[02:38] F03 vacio  test-efectos-sobre-f/g (PUBLICADAS sin sorteo): sin form    PASS
+[02:39] F01 prefijo test-recordatorio-54216-filtro (ARMY) => boleto "ARMY-1"   PASS
+
+## Resultado
+Vitest 64/64 · E2E 9/9 · auto-retries por fallo funcional: 0
+Design findings: 1 (preexistente, Anton + fw800 = falso negrita; igual en /bases y la home)
+Hallazgos: apex 200 por override DEV (no defecto) · link Bases del footer solo post-hidratacion
+fin: 2026-07-27 02:40

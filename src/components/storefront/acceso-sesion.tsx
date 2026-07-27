@@ -49,7 +49,10 @@ export function AccesoSesion({ slug }: { slug: string }) {
   // superior de plataforma ("Estás viendo tu tienda publicada — Editar mi página / Mi panel"),
   // y el duplicado en el navbar solo mete ruido. La máquina pura `accionSesionStorefront` NO
   // cambia (sus otros consumidores/tests conservan la semántica); esto es una decisión del render.
-  if (accion.tipo === "oculto" || accion.tipo === "editar") return null;
+  // `login` TAMBIÉN se oculta (usuario 2026-07-27): los Compradores no tienen cuenta (ADR-0004),
+  // así que «Iniciar sesión» en la tienda solo confunde al 99% que la visita para comprar; la
+  // Organizadora inicia sesión en el apex (`/login`) como siempre. Queda solo `panel` (logueada).
+  if (accion.tipo !== "panel") return null;
 
   const { href, Icon, label } = enlaceDeAccion(accion, slug);
   return (

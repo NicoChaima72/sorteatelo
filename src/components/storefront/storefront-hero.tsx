@@ -14,7 +14,6 @@ import {
 import { type CSSProperties } from "react";
 import {
   IconArrowRight,
-  IconBolt,
   IconShieldCheck,
   IconSparkles,
   IconTicket,
@@ -57,8 +56,7 @@ import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 /** Badges de confianza — copy FIJO de plataforma (design.md §5.1 pto 2). */
 const BADGES_CONFIANZA = [
   { icon: IconShieldCheck, texto: "Compra segura" },
-  { icon: IconBolt, texto: "Entrega al instante" },
-  { icon: IconTicket, texto: "Tu ticket al toque" },
+  { icon: IconTicket, texto: "Tu ticket al instante" },
 ] as const;
 
 /**

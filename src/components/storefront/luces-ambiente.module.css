@@ -1,0 +1,151 @@
+/*
+  CAPA DE LUCES DE AMBIENTE ANIMADAS (storefront-focos-ambiente-animados F01/F02, D3).
+
+  Por qué un CSS module y no `style=` inline: un inline style NO puede llevar `@keyframes`. Y por qué no
+  `globals.css` (donde viven las microinteracciones del storefront): estas reglas son el motor COMPLETO de
+  una sola pieza —capa + luces + 6 keyframes—, y tenerlas scopeadas al componente evita que un `.luz`
+  suelto colisione con cualquier otra cosa del árbol. Los KEYFRAMES viven acá; los COLORES no: entran por
+  las custom properties `--amb-N` que emite `capaDeLuces` desde la escala del tenant ⇒ cero hex acá (I2).
+
+  Reglas duras que este archivo materializa:
+   - **I3**: se animan SOLO `transform` y `opacity` (compositing en GPU, sin repaint ni reflow). Ni una
+     propiedad de layout, ni `background-position`.
+   - **I4**: TODA animación vive dentro de `prefers-reduced-motion: no-preference`. Con movimiento
+     reducido las capas quedan quietas en su estado base (`transform: none`, `opacity: 1`), que es
+     exactamente el ambiente estático de siempre — la luz nunca desaparece, solo deja de moverse.
+   - **I5**: cero JS. No hay hook, listener ni rAF; el navegador corre esto solo.
+   - **I6**: `pointer-events: none` + el `aria-hidden` del componente ⇒ decoración pura, nunca intercepta
+     un click ni la lee un lector de pantalla.
+
+  El truco de composición: `z-index: -1` sobre un contenedor con `isolation: isolate` deja la capa entre
+  el FONDO del contenedor y su CONTENIDO. En el hero `imagen_fondo` eso es literalmente "entre el overlay
+  y el texto"; en el shell, entre el color de página y todo lo demás. Un absolute normal no serviría: por
+  las reglas de pintado de CSS, un posicionado va ARRIBA del contenido en flujo y taparía la tienda.
+
+  Sobre los desplazamientos: cada luz se agranda (`scale` > 1) ANTES de moverse, y el recorrido nunca
+  supera el margen que esa escala genera. Sin eso, una capa que deriva 3% destaparía una franja
+  transparente en el borde — y varios de estos gradientes están anclados justo ahí (el foco inferior de
+  `focos_marca` en `at 50% 100%`, el glow superior de `neon` en `at 50% -2%`).
+*/
+
+.capa {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.luz {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+}
+
+/* Una clase por capa: lee su gradiente de la custom property que el componente puso inline. */
+.luz1 {
+  background-image: var(--amb-1);
+}
+.luz2 {
+  background-image: var(--amb-2);
+}
+.luz3 {
+  background-image: var(--amb-3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .luz {
+    will-change: transform, opacity;
+  }
+
+  /* DERIVA (focos_marca / focos_acento / aurora): los focos vagan lento, como luces de sala. Duraciones
+     primas entre sí + delays negativos ⇒ las tres capas nunca vuelven a coincidir de fase y el conjunto
+     no "late" (que es lo que delata una animación barata). */
+  .drift .luz1 {
+    animation: amb-drift-a 34s ease-in-out infinite;
+  }
+  .drift .luz2 {
+    animation: amb-drift-b 41s ease-in-out infinite -8s;
+  }
+  .drift .luz3 {
+    animation: amb-drift-c 27s ease-in-out infinite -19s;
+  }
+
+  /* PULSO (neon): el glow de recital respira en vez de vagar. Deriva lo despegaría del borde superior,
+     que es justo donde está anclado, y dejaría una banda muerta arriba. */
+  .pulso .luz1 {
+    animation: amb-pulso-a 26s ease-in-out infinite;
+  }
+  .pulso .luz2 {
+    animation: amb-pulso-b 33s ease-in-out infinite -7s;
+  }
+  .pulso .luz3 {
+    animation: amb-pulso-c 38s ease-in-out infinite -15s;
+  }
+}
+
+@keyframes amb-drift-a {
+  0%,
+  100% {
+    transform: scale(1.06) translate3d(-1.6%, -1.1%, 0);
+  }
+  50% {
+    transform: scale(1.11) translate3d(1.6%, 1.1%, 0);
+  }
+}
+
+/* El `scale` del fotograma 50% es 1.07 y no 1.04 (que era el margen más apretado de las seis curvas:
+   dejaba ~0,5% de colchón, o sea pocos px en un viewport angosto): con 1.07 el colchón sube a ~1,8%. */
+@keyframes amb-drift-b {
+  0%,
+  100% {
+    transform: scale(1.08) translate3d(1.9%, 0.8%, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.07) translate3d(-1.4%, -0.9%, 0);
+    opacity: 0.86;
+  }
+}
+
+@keyframes amb-drift-c {
+  0%,
+  100% {
+    transform: scale(1.05) translate3d(0, 1.2%, 0);
+  }
+  50% {
+    transform: scale(1.1) translate3d(-1.2%, -1.4%, 0);
+  }
+}
+
+@keyframes amb-pulso-a {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.74;
+  }
+}
+
+@keyframes amb-pulso-b {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes amb-pulso-c {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

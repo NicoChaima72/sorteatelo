@@ -138,6 +138,17 @@ describe("storefront/resolverTemaPagina — herencia mínima del tema de la Tien
     expect(await resolverTemaPagina({ tenantSlug: "demo-dreamy" })).toBeNull();
   });
 
+  // storefront.tema.resolver.004b — el campo nuevo `ambienteAnimado` (focos-animados F01/D2) cae del
+  // lado NO heredado, como el `ambiente` que anima: una tienda que prende sus luces en la home no le
+  // mete un shell pintado ni un `style=` inline al checkout. Con SOLO ese campo custom ⇒ sigue `null`.
+  it("prender las luces del shell no se hereda a las páginas de plataforma (sigue null)", async () => {
+    mockFindFirst.mockResolvedValue(
+      fila(docPublicado({ ambiente: "neon", ambienteAnimado: true })),
+    );
+
+    expect(await resolverTemaPagina({ tenantSlug: "demo-noche" })).toBeNull();
+  });
+
   // storefront.tema.resolver.005 — sin fila `StorefrontPage` para `home` ⇒ null (I2)
   it("sin fila de la home ⇒ null", async () => {
     mockFindFirst.mockResolvedValue(null as never);

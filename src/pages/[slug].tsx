@@ -18,6 +18,7 @@ import {
   colorSolidoDeEsquema,
   fondoLienzoExterior,
   fondoShellConAmbiente,
+  lucesDelShell,
   maxWidthColumna,
 } from "~/styles/estiloSeccion";
 
@@ -43,10 +44,14 @@ export default function PaginaTienda({
   const paginaViva = usePreviewPatch(pagina, esPreview);
   // Edición inline sobre el canvas (Tanda 3 F12/D19): SOLO en preview y dentro del iframe del editor.
   useInlineEdit(esPreview);
+  // focos-animados F01/D2: mismo pipeline que la home — con `ambienteAnimado` los radiales se mudan del
+  // `background` a la capa animada; sin el flag, `capaLuces` es `null` y nada cambia (I1).
   const estiloShellFondo = fondoShellConAmbiente(
     paginaViva.root.props.fondoPagina,
     paginaViva.root.props.ambiente,
+    paginaViva.root.props.ambienteAnimado,
   );
+  const capaLuces = lucesDelShell(paginaViva.root.props);
   const columnaMaxWidth = maxWidthColumna(paginaViva.root.props.anchoContenido);
   const estiloLienzo = columnaMaxWidth
     ? fondoLienzoExterior(paginaViva.root.props.fondoPagina)
@@ -72,6 +77,7 @@ export default function PaginaTienda({
       colorPagina={colorSolidoDeEsquema(paginaViva.root.props.fondoPagina)}
       estiloLienzo={estiloLienzo}
       columnaMaxWidth={columnaMaxWidth}
+      capaLuces={capaLuces}
       navItems={navItems}
       chrome={chrome}
       avisoSobreNav={

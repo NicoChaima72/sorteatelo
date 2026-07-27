@@ -20,6 +20,7 @@ import {
   colorSolidoDeEsquema,
   fondoLienzoExterior,
   fondoShellConAmbiente,
+  lucesDelShell,
   maxWidthColumna,
 } from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
@@ -84,10 +85,15 @@ function StorefrontHome({
   // Fondo de página del TemaPagina (catálogo-v2 F02): `superficie` (default) = body ⇒ sin cambio; otros
   // esquemas pintan el shell entero. Tanda 2 F05/D5: `ambiente` apila stage-lights (radiales de tokens)
   // sobre ese color base — `ninguno` (default) ⇒ solo el color (no-op). Cero hex inline (I-A).
+  // focos-animados F01/D2: con `ambienteAnimado` los mismos radiales se MUDAN del `background` a una
+  // capa que se mueve por CSS (no se suman a él — sería el doble de luz). Sin el flag, `capaLuces` es
+  // `null` y las dos llamadas devuelven exactamente lo de siempre (I1).
   const estiloShellFondo = fondoShellConAmbiente(
     paginaViva.root.props.fondoPagina,
     paginaViva.root.props.ambiente,
+    paginaViva.root.props.ambienteAnimado,
   );
+  const capaLuces = lucesDelShell(paginaViva.root.props);
   // Columna estrecha editorial (Tanda 2 F15): `anchoContenido:"estrecho"` centra el contenido en ~640px
   // sobre un lienzo exterior un pelo más OSCURO que la columna (marfil sobre crema del prototipo). `null`
   // (contenido/ancho) ⇒ sin columna acotada (comportamiento actual, no-op I-H). Cero hex (I-A).
@@ -120,6 +126,7 @@ function StorefrontHome({
       colorPagina={colorSolidoDeEsquema(paginaViva.root.props.fondoPagina)}
       estiloLienzo={estiloLienzo}
       columnaMaxWidth={columnaMaxWidth}
+      capaLuces={capaLuces}
       navItems={navItems}
       chrome={chrome}
       avisoSobreNav={

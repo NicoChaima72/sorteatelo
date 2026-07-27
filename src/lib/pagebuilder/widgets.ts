@@ -827,6 +827,15 @@ export const heroProps = z
     // Visual configurable del hero split (Tanda 2 F02/D2): imagen (opción holo) o holocard-tarjeta.
     // Ausente ⇒ el hero cae al `imagenUrl`/gradiente actual (no-op, I-H). Solo lo consume la variante `split`.
     visual: HeroVisualSchema.optional(),
+    // ── Focos de luz SOBRE la imagen (storefront-focos-ambiente-animados F02/D2) ──────────────────
+    // Solo los consume la variante `imagen_fondo`, igual que `overlayOscuridad`. Existen porque esa
+    // variante es una imagen OPACA a sangre: tapa por completo el `ambiente` del shell, así que una
+    // tienda con hero de foto no tenía NINGUNA forma de tener vida lumínica (el caso que motivó el plan).
+    // `luces` REUSA el vocabulario del `ambiente` del tema —el mismo enum, no una copia— para no
+    // inventar un segundo idioma de luces; `ninguno` (DEFAULT) ⇒ sin capa, el hero de hoy intacto (I1).
+    // A diferencia del shell, acá la capa se pinta también SIN animar: en el hero la capa ES la luz.
+    luces: z.enum(AMBIENTE_FONDO).default("ninguno"),
+    lucesAnimadas: z.boolean().default(false),
   })
   .strict();
 export type HeroProps = z.infer<typeof heroProps>;
@@ -2238,10 +2247,28 @@ export const WIDGET_META: Record<
   aviso_barra: { titulo: "Barra de aviso", descripcion: "Una barra de aviso arriba de todo (overlay).", categoria: "estructura" },
 };
 
-/** Todos los tipos de sección del registro (categoria === 'seccion'). */
-export const TIPOS_SECCION = (
-  Object.keys(WIDGET_REGISTRY) as WidgetTipo[]
-).filter((t) => WIDGET_REGISTRY[t].categoria === "seccion");
+/**
+ * Widgets que YA NO SE OFRECEN para páginas nuevas, pero que siguen RENDERIZANDO intactos donde ya
+ * están publicados (deprecación suave — ENMIENDA v2 de productos-tipos-digitales, E18).
+ *
+ * `packs_precio` pintaba tarjetas de precio con copy libre: bajo el modelo v2 un pack es un
+ * PRODUCTO, así que «Nuestros packs» se arma con el widget `catalogo` en modo selección — datos
+ * reales, precio real, botón que agrega de verdad. Tener las dos maneras de armar lo mismo garantiza
+ * que alguna quede desincronizada, y la que miente es siempre la de copy libre.
+ *
+ * NO se borra del registro ni de `WIDGET_META`, y eso es lo que hace que la deprecación sea SUAVE:
+ * las demos y las tiendas que ya lo publicaron se siguen viendo byte-idénticas, y el editor sigue
+ * sabiendo cómo se llama la sección al listarla. Lo único que cambia es que no se puede AGREGAR una
+ * nueva. Migrar el copy a productos reales es una conversión manual (fuera de alcance: el copy libre
+ * no mapea a productos que existan).
+ */
+export const TIPOS_DEPRECADOS: readonly WidgetTipo[] = ["packs_precio"];
+
+/** Todos los tipos de sección del registro (categoria === 'seccion'), sin los deprecados. */
+export const TIPOS_SECCION = (Object.keys(WIDGET_REGISTRY) as WidgetTipo[]).filter(
+  (t) =>
+    WIDGET_REGISTRY[t].categoria === "seccion" && !TIPOS_DEPRECADOS.includes(t),
+);
 
 /** Todos los tipos de overlay del registro (categoria === 'overlay'). Vacío hasta F10. */
 export const TIPOS_OVERLAY = (

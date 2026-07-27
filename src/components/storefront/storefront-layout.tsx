@@ -17,9 +17,11 @@ import {
   BotonCarrito,
   CarritoDrawer,
 } from "~/components/storefront/carrito-ui";
+import { LucesAmbiente } from "~/components/storefront/luces-ambiente";
 import { useSorteoActivo } from "~/components/storefront/use-sorteo-activo";
 import { hrefMenuItem, type Chrome, type FondoHeader } from "~/lib/pagebuilder/chrome";
 import { type NavItem } from "~/lib/pagebuilder/nav";
+import { type CapaDeLuces } from "~/styles/estiloSeccion";
 import { type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -78,11 +80,18 @@ export function StorefrontLayout({
   avisoSobreNav,
   chrome,
   colorPagina,
+  capaLuces,
   children,
 }: {
   branding: TenantBranding;
   /** Fondo del shell derivado del TemaPagina (catálogo-v2 F02); ausente ⇒ fondo por defecto. */
   estiloShell?: CSSProperties;
+  /**
+   * Luces de ambiente ANIMADAS del shell (focos-animados F01), ya resueltas por `lucesDelShell`.
+   * Ausente/`null` ⇒ ni capa ni `isolation` ⇒ el shell sale byte-idéntico al de hoy (I1). Las páginas
+   * de PLATAFORMA nunca la pasan: su tema heredado fuerza `ambiente:"ninguno"` (I7).
+   */
+  capaLuces?: CapaDeLuces | null;
   /** Color SÓLIDO del `fondoPagina` (para el header `fondo:"pagina"` que se funde con el fondo). */
   colorPagina?: string;
   /** Chrome GLOBAL del tenant (Tanda 3 F06/D10); `null`/ausente ⇒ header/footer actuales (byte-idéntico). */
@@ -102,9 +111,20 @@ export function StorefrontLayout({
 }) {
   const [drawerAbierto, drawer] = useDisclosure(false);
 
+  // Contenedor de la capa de luces (F01/D3). Dos propiedades, cada una haciendo un trabajo distinto:
+  // `position: relative` le da a la capa (`position:absolute; inset:0`) un bloque contenedor —sin esto
+  // se mediría contra el viewport y no contra la tienda—, y `isolation: isolate` convierte al shell en
+  // contexto de apilamiento, que es lo que deja al `z-index:-1` de la capa meterse ENTRE el fondo del
+  // shell y su contenido en vez de irse detrás de todo. Se aplican SOLO si hay capa ⇒ una tienda sin
+  // luces no recibe ni una propiedad CSS de más (I1).
+  const estiloConLuces: CSSProperties | undefined = capaLuces
+    ? { ...estiloShell, position: "relative", isolation: "isolate" }
+    : estiloShell;
+
   // Núcleo del shell (banner + cinta + header + main + footer), común a ambos layouts.
   const nucleo = (
     <>
+      {capaLuces && <LucesAmbiente capa={capaLuces} />}
       {/* Banner "Editar mi tienda" (F09): chrome de plataforma, monta post-hidratación (no toca el SSR). */}
       <BannerEditarTienda slug={branding.slug} />
       {/* Cinta SOBRE el nav (F13): en el tope absoluto, antes del header sticky. Al hacer scroll la cinta
@@ -140,7 +160,7 @@ export function StorefrontLayout({
             className="flex flex-1 flex-col"
             style={{
               maxWidth: columnaMaxWidth,
-              ...estiloShell,
+              ...estiloConLuces,
               boxShadow:
                 "0 0 60px -20px color-mix(in srgb, var(--mantine-color-black) 22%, transparent)",
             }}
@@ -149,7 +169,7 @@ export function StorefrontLayout({
           </Box>
         </div>
       ) : (
-        <div className="flex min-h-screen flex-col" style={estiloShell}>
+        <div className="flex min-h-screen flex-col" style={estiloConLuces}>
           {nucleo}
         </div>
       )}

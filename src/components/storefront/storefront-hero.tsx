@@ -21,6 +21,7 @@ import {
 
 import { iconoBeneficio } from "~/components/storefront/iconos-beneficio";
 import { ImagenConFallback } from "~/components/storefront/imagen-tenant";
+import { LucesAmbiente } from "~/components/storefront/luces-ambiente";
 import { MarcoHolo } from "~/components/storefront/marco-holo";
 import { RunsTexto } from "~/components/storefront/runs-texto";
 import { SeccionWrapper } from "~/components/storefront/seccion-wrapper";
@@ -36,6 +37,7 @@ import {
   type MotivoTarjeta,
   type RichTexto,
 } from "~/lib/pagebuilder/widgets";
+import { capaDeLuces } from "~/styles/estiloSeccion";
 import { gradienteTematico, type TenantBranding } from "~/styles/tenantTheme";
 
 /**
@@ -716,8 +718,23 @@ function HeroImagenFondo({
         : { tipo: "gradiente", preset: "marca_vivo" },
       padY: "xl",
     });
+  // Focos de luz sobre la imagen (focos-animados F02/D2). Acá la capa se monta TAMBIÉN sin animar
+  // (`lucesAnimadas:false`): a diferencia del shell —que ya trae su ambiente en el `background`—, en el
+  // hero esta capa ES la luz, y la imagen opaca no deja pasar nada de abajo. `luces:"ninguno"` (default)
+  // ⇒ `capaDeLuces` devuelve `null` ⇒ ni capa ni `isolation`: el hero de las 7 tiendas queda igual (I1).
+  //
+  // Interacción NO obvia, a propósito sin guard: con `estilo.anchoFondo:"contenido"` el fondo deja de
+  // pintarse en el `<section>` y pasa a un box interior EN FLUJO, que tapa la capa ⇒ las luces no se
+  // ven. Degrada a "sin luces", no rompe nada, y no se corta acá porque anularlas sería una excepción
+  // ad-hoc entre dos props que no tienen relación — justo la combinatoria que D2 quiso evitar.
+  const luces = capaDeLuces(props.luces, props.lucesAnimadas);
   return (
-    <SeccionWrapper id={nodo.id} estilo={estilo} divisorColor={divisorColor}>
+    <SeccionWrapper
+      id={nodo.id}
+      estilo={estilo}
+      divisorColor={divisorColor}
+      capaFondo={luces ? <LucesAmbiente capa={luces} /> : undefined}
+    >
       <Stack gap="lg" align="center" ta="center" maw={760} mx="auto" style={{ paddingBlock: 24 }}>
         <HeroEyebrow props={props} />
         <Title order={1} fz={{ base: 34, sm: 52 }} lh={1.1} fw={800} c="inherit">

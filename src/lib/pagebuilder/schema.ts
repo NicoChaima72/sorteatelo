@@ -181,6 +181,12 @@ export const TemaSchema = z
     anchoContenido: z.enum(ANCHO_CONTENIDO).default("contenido"), // default heredado por secciones
     fondoPagina: z.enum(ESQUEMAS_FONDO).default("superficie"), // pinta el <body>/shell
     ambiente: z.enum(AMBIENTE_FONDO).default("ninguno"), // Tanda 2 F05/D5: stage-lights sobre el shell
+    // ¿Las luces del `ambiente` se MUEVEN? (storefront-focos-ambiente-animados F01/D2). Ortogonal al
+    // enum: no duplica vocabulario ni agrega combinatoria — prende el movimiento del ambiente que YA
+    // eligió el Organizador, y el ESTILO de ese movimiento se deriva del tipo (focos→deriva, neon→pulso).
+    // `false` (DEFAULT) ⇒ el shell queda exactamente como hoy: mismos gradientes estáticos, cero markup
+    // nuevo (I1). Sin efecto con `ambiente:"ninguno"` (no hay luz que mover).
+    ambienteAnimado: z.boolean().default(false),
     // Escala de los títulos de SECCIÓN (fidelidad landing_idol prueba). `normal` (DEFAULT, no-op I-H) =
     // los fz de siempre (~30px). `poster` = títulos grandes tipo poster (~52px, el look Bebas del mockup):
     // `_app` inyecta una regla CSS SOLO para tenants poster que escala `.st-titulo-poster`. Enum cerrado.

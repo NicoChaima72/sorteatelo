@@ -230,11 +230,19 @@ export function FormProps({
   valor,
   onChange,
   slug,
+  ocultarCampo,
 }: {
   propsSchema: z.ZodTypeAny;
   valor: Obj;
   onChange: (v: Obj) => void;
   slug: string;
+  /**
+   * Oculta campos que no aplican al estado ACTUAL de las props (focos-animados F03/D5): p.ej. el switch
+   * «Luces animadas» del hero no tiene sentido mientras no haya luces elegidas. Es solo presentación —
+   * el campo sigue existiendo en el schema y conserva su valor; ocultarlo no lo borra ni lo apaga.
+   * Ausente ⇒ se muestran todos los campos (comportamiento actual de todos los demás widgets).
+   */
+  ocultarCampo?: (campo: string, valor: Obj) => boolean;
 }) {
   const campos = camposDeSchema(propsSchema);
   if (!campos) {
@@ -242,16 +250,18 @@ export function FormProps({
   }
   return (
     <Stack gap="sm">
-      {campos.map(({ campo, schema }) => (
-        <Campo
-          key={campo}
-          campo={campo}
-          schema={schema}
-          valor={valor[campo]}
-          onChange={(v) => onChange({ ...valor, [campo]: v })}
-          slug={slug}
-        />
-      ))}
+      {campos
+        .filter(({ campo }) => !ocultarCampo?.(campo, valor))
+        .map(({ campo, schema }) => (
+          <Campo
+            key={campo}
+            campo={campo}
+            schema={schema}
+            valor={valor[campo]}
+            onChange={(v) => onChange({ ...valor, [campo]: v })}
+            slug={slug}
+          />
+        ))}
     </Stack>
   );
 }

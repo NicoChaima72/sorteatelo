@@ -41,6 +41,20 @@ type Obj = Record<string, unknown>;
 type NavEnvelope = NonNullable<SeccionNode["nav"]>;
 
 /**
+ * Campos del form de props que se ESCONDEN según el estado actual de las props (focos-animados F03/D5).
+ * Devuelve `undefined` para los widgets sin reglas ⇒ `FormProps` los muestra enteros, como siempre.
+ *
+ * Vive acá y no en la introspección porque no es una propiedad del SCHEMA (que solo sabe de tipos) sino
+ * de la UX del inspector: qué control deja de tener sentido dado lo que el Organizador ya eligió.
+ */
+function ocultarCampoDe(tipo: SeccionNode["tipo"]) {
+  if (tipo !== "hero") return undefined;
+  return (campo: string, props: Obj) =>
+    // «Luces animadas» no aparece hasta que haya luces que animar. `luces` ausente ⇒ default `ninguno`.
+    campo === "lucesAnimadas" && (props.luces ?? "ninguno") === "ninguno";
+}
+
+/**
  * Panel de EDICIÓN de una sección (catálogo-v2 F10): dos pestañas — "Contenido" (form de props generado
  * desde el `propsSchema` del registro, D8) y "Estilo" (fondo/spacing/ancho/divisor/entrada como selects,
  * D2). Cada "Guardar" emite una mutación (`update_section_props` / `set_section_style`) que el use case
@@ -131,7 +145,13 @@ export function PanelEdicion({
             {nodo.tipo === "fila" ? (
               <PanelFila slug={slug} valor={props} onChange={setProps} />
             ) : (
-              <FormProps propsSchema={propsSchema} valor={props} onChange={setProps} slug={slug} />
+              <FormProps
+                propsSchema={propsSchema}
+                valor={props}
+                onChange={setProps}
+                slug={slug}
+                ocultarCampo={ocultarCampoDe(nodo.tipo)}
+              />
             )}
           </Stack>
         </Tabs.Panel>

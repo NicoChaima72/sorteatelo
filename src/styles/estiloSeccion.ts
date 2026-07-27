@@ -575,23 +575,28 @@ export function colorFondoSolido(estilo: EstiloSeccion | undefined): string {
 // `acento*` con fallback a marca (I-T2). El `background` compone `<gradientes>, <color base>` (el color
 // va en la capa final, que es la background-color del shorthand).
 
-const AMBIENTE_CAPAS: Record<AmbienteFondo, string | null> = {
+// Cada ambiente es una LISTA de capas (no un string joineado) desde
+// `storefront-focos-ambiente-animados` F01: el shell estático las apila con `.join(", ")` en un solo
+// `background` (byte-idéntico a antes, I1) y el motor ANIMADO necesita cada capa por separado, porque
+// lo que las hace leer como luces vivas es que deriven DESINCRONIZADAS entre sí.
+
+const AMBIENTE_CAPAS: Record<AmbienteFondo, readonly string[] | null> = {
   ninguno: null,
   focos_marca: [
     "radial-gradient(60% 45% at 18% 0%, color-mix(in srgb, var(--mantine-primary-color-5) 22%, transparent), transparent 70%)",
     "radial-gradient(50% 40% at 85% 12%, color-mix(in srgb, var(--mantine-primary-color-7) 16%, transparent), transparent 65%)",
     "radial-gradient(55% 45% at 50% 100%, color-mix(in srgb, var(--mantine-primary-color-8) 14%, transparent), transparent 75%)",
-  ].join(", "),
+  ],
   focos_acento: [
     "radial-gradient(60% 45% at 18% 0%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 22%, transparent), transparent 70%)",
     "radial-gradient(50% 40% at 85% 12%, color-mix(in srgb, var(--mantine-color-acento-7, var(--mantine-primary-color-7)) 16%, transparent), transparent 65%)",
     "radial-gradient(55% 45% at 50% 100%, color-mix(in srgb, var(--mantine-color-acento-8, var(--mantine-primary-color-8)) 14%, transparent), transparent 75%)",
-  ].join(", "),
+  ],
   aurora: [
     "radial-gradient(55% 45% at 15% 8%, color-mix(in srgb, var(--mantine-primary-color-5) 20%, transparent), transparent 70%)",
     "radial-gradient(50% 45% at 85% 18%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 20%, transparent), transparent 70%)",
     "radial-gradient(60% 50% at 50% 100%, color-mix(in srgb, var(--mantine-primary-color-8) 16%, transparent), transparent 75%)",
-  ].join(", "),
+  ],
   // Tanda 2 F14/F15 (fidelidad concert): stage-lights de RECITAL — UN foco de marca CONCENTRADO arriba-
   // centro (el `radial(120% 50% at 50% -5%, #2a0f55→#070310)` del prototipo). F15 lo RE-CONCENTRA: menos
   // extensión (62%×42% vs 100%×55%), pico más alto (46%) y falloff más corto (50%) ⇒ el glow no lava el
@@ -602,21 +607,101 @@ const AMBIENTE_CAPAS: Record<AmbienteFondo, string | null> = {
     "radial-gradient(62% 42% at 50% -2%, color-mix(in srgb, var(--mantine-primary-color-5) 46%, transparent), transparent 50%)",
     "radial-gradient(34% 30% at 14% 4%, color-mix(in srgb, var(--mantine-color-acento-5, var(--mantine-primary-color-5)) 20%, transparent), transparent 55%)",
     "radial-gradient(34% 30% at 86% 6%, color-mix(in srgb, var(--mantine-color-acento-6, var(--mantine-primary-color-6)) 18%, transparent), transparent 55%)",
-  ].join(", "),
+  ],
 };
 
 /**
  * Fondo del shell del storefront con el ambiente aplicado (Tanda 2 F05/D5). `ambiente:"ninguno"` ⇒ solo
  * el color sólido del `fondoPagina` (idéntico al shell actual, no-op I-H). Otro ambiente ⇒ los
  * radial-gradients de tokens del tenant apilados sobre ese color base. PURO (SSR + cliente igual).
+ *
+ * `animado` (storefront-focos-ambiente-animados F01) MUDA los gradientes a la capa animada en vez de
+ * sumarlos: si el shell conservara su `background` de stage-lights mientras la capa pinta los MISMOS
+ * radiales encima, la luz se aplicaría dos veces y la tienda saldría al doble de intensidad. Con el
+ * flag prendido el shell se queda con el color sólido y la capa se lleva la luz — y como la capa con
+ * `prefers-reduced-motion` queda quieta, ese caso vuelve a verse exactamente como el ambiente de hoy (I4).
+ * El parámetro tiene DEFAULT `false` a propósito: los call sites que no lo pasan (incl. la herencia de
+ * las páginas de plataforma) siguen dando el mismo CSS byte a byte (I1).
  */
 export function fondoShellConAmbiente(
   fondoPagina: EsquemaFondo,
   ambiente: AmbienteFondo,
+  animado = false,
 ): CSSProperties {
   const base = colorSolidoDeEsquema(fondoPagina);
+  const capas = animado ? null : AMBIENTE_CAPAS[ambiente];
+  return { background: capas ? `${capas.join(", ")}, ${base}` : base };
+}
+
+// ── Luces de ambiente ANIMADAS (storefront-focos-ambiente-animados F01/F02, D2/D3) ──────────────
+//
+// Las mismas capas de arriba, pero repartidas en divs propios para poder moverlas por CSS. El estilo de
+// movimiento NO es configurable (D2): se DERIVA del tipo de ambiente, así que el Organizador elige un
+// ambiente y el movimiento que le corresponde viene puesto — no hay knobs de velocidad/intensidad/
+// dirección con los que pueda producir un mareo. Los keyframes viven en el CSS module de la capa
+// (`luces-ambiente.module.css`); acá solo se decide CUÁL movimiento y CON QUÉ colores.
+
+/** Estilo de movimiento de una capa de luces. Derivado del tipo de ambiente (D2), nunca elegido. */
+export type MovimientoAmbiente = "drift" | "pulso";
+
+/** La capa de luces resuelta: qué pintar (`vars`) y cómo moverlo (`movimiento`). */
+export interface CapaDeLuces {
+  /**
+   * Movimiento a aplicar, o `null` si la capa va ESTÁTICA. Estática es un estado legítimo, no un
+   * degradado: el hero `imagen_fondo` con `lucesAnimadas:false` igual pinta sus focos sobre la imagen
+   * (ahí la capa ES la luz — a diferencia del shell, que ya tiene el ambiente estático en su fondo).
+   */
+  movimiento: MovimientoAmbiente | null;
+  /**
+   * Custom properties `--amb-1..--amb-N` (una por capa) con su `radial-gradient` de tokens del tenant.
+   * Van inline en el contenedor de la capa; el CSS module las lee con `var(--amb-N)`. Es el seam que
+   * deja los COLORES del tenant fuera del stylesheet estático sin escribir un solo hex (I2).
+   */
+  vars: Record<string, string>;
+  /** Cantidad de capas (= cantidad de claves de `vars`). El componente pinta un div por capa. */
+  total: number;
+}
+
+/** Movimiento que le toca a cada ambiente (D2): los focos y la aurora DERIVAN; el neon PULSA. */
+function movimientoDeAmbiente(ambiente: AmbienteFondo): MovimientoAmbiente {
+  // `neon` es un glow de recital CONCENTRADO y anclado arriba-centro: si derivara, se despegaría del
+  // borde superior y dejaría una banda muerta. Pulsar (respirar) es su gesto natural.
+  return ambiente === "neon" ? "pulso" : "drift";
+}
+
+/**
+ * Resuelve la capa de luces de un ambiente, o `null` si no hay nada que pintar. PURA (SSR + cliente
+ * calculan lo mismo ⇒ sin hydration mismatch), sin una línea de JS de animación (I5).
+ *
+ * `ninguno` ⇒ `null` SIEMPRE, aunque `animado` sea `true`: los dos flags son ortogonales (D2), así que
+ * la combinación "animado sobre nada" existe y tiene que resolver a nada. Si devolviera una capa vacía,
+ * el shell montaría un div de más y dejaría de ser byte-idéntico (I1).
+ */
+export function capaDeLuces(ambiente: AmbienteFondo, animado: boolean): CapaDeLuces | null {
   const capas = AMBIENTE_CAPAS[ambiente];
-  return { background: capas ? `${capas}, ${base}` : base };
+  if (!capas) return null;
+  const vars: Record<string, string> = {};
+  capas.forEach((gradiente, i) => {
+    vars[`--amb-${i + 1}`] = gradiente;
+  });
+  return {
+    movimiento: animado ? movimientoDeAmbiente(ambiente) : null,
+    vars,
+    total: capas.length,
+  };
+}
+
+/**
+ * La capa de luces que le toca al SHELL del storefront según su tema, o `null` si no lleva ninguna.
+ *
+ * El shell tiene una regla propia que el hero no tiene, y por eso existe este envoltorio en vez de que
+ * cada página llame a `capaDeLuces` con su condición a mano: **sin `ambienteAnimado` el shell NO monta
+ * capa**, porque su ambiente ya está pintado como `background` estático. Montar una capa estática ahí
+ * sería duplicar la luz y, peor, agregar markup donde hoy no hay ⇒ adiós byte-idéntico (I1). En el hero
+ * es al revés (la capa ES la luz), así que ese call site usa `capaDeLuces` directo.
+ */
+export function lucesDelShell(tema: Pick<Tema, "ambiente" | "ambienteAnimado">): CapaDeLuces | null {
+  return tema.ambienteAnimado ? capaDeLuces(tema.ambiente, true) : null;
 }
 
 // ── Ancho de contenido del shell · columna estrecha editorial (Tanda 2 F15/D fidelidad) ────────

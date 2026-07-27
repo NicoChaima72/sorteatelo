@@ -6,6 +6,7 @@ import {
   Loader,
   Select,
   Stack,
+  Switch,
   Text,
 } from "@mantine/core";
 import { IconArrowLeft } from "@tabler/icons-react";
@@ -94,6 +95,19 @@ export function PanelTema({
       {sel("vibe", "suave", VIBE)}
       {sel("anchoContenido", "contenido", ANCHO_CONTENIDO)}
       {sel("fondoPagina", "superficie", ESQUEMAS_FONDO)}
+
+      {/* Luces en movimiento (focos-animados F03/D5): solo aparece si la tienda YA tiene un ambiente —
+          sin focos no hay nada que animar y el switch sería una promesa vacía. El movimiento no se
+          elige: lo deriva el tipo de ambiente (focos y aurora derivan, neón pulsa), así que este es el
+          único control que necesita. */}
+      {(t.ambiente ?? "ninguno") !== "ninguno" && (
+        <Switch
+          label="Luces en movimiento"
+          description="Los focos del fondo se mueven muy lento. Se detienen solos si la persona pidió menos animaciones."
+          checked={Boolean(t.ambienteAnimado)}
+          onChange={(e) => set("ambienteAnimado", e.currentTarget.checked)}
+        />
+      )}
 
       <Divider label="Segundo color de marca" labelPosition="left" mt="xs" />
       <ColorInput

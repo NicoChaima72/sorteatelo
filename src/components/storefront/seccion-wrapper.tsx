@@ -19,6 +19,7 @@ export function SeccionWrapper({
   id,
   estilo,
   divisorColor,
+  capaFondo,
   comoHoja = false,
   children,
 }: {
@@ -27,6 +28,20 @@ export function SeccionWrapper({
   estilo?: EstiloSeccion;
   /** Color sólido de la sección SIGUIENTE (fill del divisor inferior — lee como transición). */
   divisorColor?: string;
+  /**
+   * Capa decorativa que va ENTRE el fondo de la sección y su contenido (focos-animados F02): el fondo
+   * de la sección incluye su overlay, así que este slot es literalmente "sobre la imagen y su overlay,
+   * debajo del texto". Lo usa hoy el hero `imagen_fondo` con sus focos de luz.
+   *
+   * La composición la resuelve el wrapper y no el widget: el nodo que aporta el bloque contenedor es
+   * este `<section>` (el único posicionado), y la capa necesita `isolation: isolate` acá arriba para
+   * que su `z-index:-1` la deje entre fondo y contenido en vez de mandarla detrás de todo. Ausente ⇒ ni
+   * capa ni `isolation` ⇒ la sección sale byte-idéntica (I1).
+   *
+   * **No aplica en modo `comoHoja`**: una hoja no tiene chrome de sección propio (el fondo lo pone la
+   * fila), así que no hay "entre fondo y contenido" donde meterla. Ningún widget-hoja la pasa hoy.
+   */
+  capaFondo?: ReactNode;
   /**
    * `true` cuando la sección se renderiza como HOJA dentro de una `fila` (Tanda 3 F08/D14): se DESCARTA
    * todo el chrome de sección (Container, py, fondo, altoMin, entrada, divisor) — el estilo de sección
@@ -140,6 +155,9 @@ export function SeccionWrapper({
       style={{
         ...(fondoEnSeccion ? r.fondo : {}),
         position: "relative",
+        // Contexto de apilamiento SOLO si hay capa de fondo (F02): sin esto, el `z-index:-1` de la capa
+        // la mandaría detrás del fondo de la sección y no se vería. Sin capa no se emite (I1).
+        ...(capaFondo ? { isolation: "isolate" as const } : {}),
         // Custom props responsive (F10/D17): las lee `globals.css` en su media query. Vacío ⇒ sin efecto.
         ...(resp.vars as CSSProperties),
         // Alto mínimo + alineación vertical (F06/D9): solo con `altoMin` presente ⇒ la sección pasa a
@@ -151,6 +169,10 @@ export function SeccionWrapper({
           : {}),
       }}
     >
+      {/* Capa decorativa entre el fondo (con su overlay) y el contenido (F02). Va ANTES del contenido
+          en el DOM, pero lo que la mantiene debajo es su `z-index:-1`, no el orden. */}
+      {capaFondo}
+
       {/* Entrada on-scroll (F03): SSR-visible + reduced-motion + solo-bajo-el-fold (I-B..I-E). */}
       <Animar preset={preset}>{contenido}</Animar>
 

@@ -98,6 +98,13 @@ export async function manejarWebhookFlow({
   // entero). Si difiere ⇒ NO transicionar (log + ack 200 SIN reintento: es irreintentable, no un
   // fallo transitorio). Si Flow omite `amount` (undefined), se procede con un warning — no se bloquea
   // un pago legítimo por un campo que Flow puede no informar. Solo aplica a la rama PAGADO.
+  //
+  // El `amount` llega SIEMPRE como `number` porque el ADAPTER ya lo normalizó
+  // (`normalizarAmountFlow` en `services/flow.ts`): Flow producción lo serializa como STRING
+  // (`"3000"`) y el sandbox como number, y esa diferencia de wire se absorbe allá, no acá. Un
+  // `amount` presente pero ILEGIBLE llega como `NaN`, que jamás iguala al esperado ⇒ cae en la
+  // rama de mismatch de abajo y NO transiciona (fail-closed, D1 del plan
+  // `26-08-15-pago-webhook-amount-string`).
   if (resultado === "PAGADO") {
     if (flowPago.amount === undefined) {
       console.warn("[webhookFlow] getStatus sin amount: se procede sin verificar monto", {

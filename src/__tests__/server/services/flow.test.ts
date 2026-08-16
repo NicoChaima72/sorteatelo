@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   crearFlowService,
   firmarParams,
+  type FlowGetStatusWire,
   type HttpGet,
   type HttpPost,
 } from "~/server/services/flow";
@@ -155,7 +156,7 @@ describe("services/flow — crearPago", () => {
 
 describe("services/flow — getStatus", () => {
   // flow.getStatus.001
-  it("consulta payment/getStatus firmado y devuelve el estado crudo de Flow", async () => {
+  it("consulta payment/getStatus firmado y devuelve el estado de Flow", async () => {
     const httpGet = vi.fn<HttpGet>().mockResolvedValue({
       flowOrder: 991,
       commerceOrder: "clorder000000000000000001",
@@ -183,6 +184,79 @@ describe("services/flow — getStatus", () => {
     );
     expect(status).toMatchObject({
       commerceOrder: "clorder000000000000000001",
+      status: 2,
+      paymentData: { fee: "103" },
+    });
+  });
+});
+
+/**
+ * Normalización de `amount` (plan `26-08-15-pago-webhook-amount-string`, D1/D2).
+ *
+ * Flow PRODUCCIÓN serializa `amount` como STRING (`{"status":2,"amount":"3000"}`,
+ * verificado crudo contra la cuenta real) y el sandbox como number. El dominio recibe
+ * SIEMPRE `number` porque la normalización vive acá, en el adapter (D2): el Gate 5 del
+ * webhook no cambia su lógica y el tipo `FlowGetStatusResponse.amount?: number` vuelve a
+ * ser cierto. No es aritmética de dinero (I1): el número solo se compara contra
+ * `Payment.monto` como defensa; la plata persistida sigue en `Decimal`.
+ */
+describe("services/flow — getStatus normaliza el amount del wire", () => {
+  function getStatusConWire(amount: FlowGetStatusWire["amount"]) {
+    const httpGet = vi.fn<HttpGet>().mockResolvedValue({
+      flowOrder: 177895518,
+      commerceOrder: "cmsovwfxe000cyg2vru7qxe7n",
+      status: 2,
+      ...(amount === undefined ? {} : { amount }),
+      paymentData: { fee: "103" },
+    });
+    const flow = crearFlowService({
+      apiKey: "api-key-1",
+      secretKey: "secret-1",
+      baseUrl: "https://www.flow.cl/api",
+      urlConfirmation: undefined,
+      urlReturn: undefined,
+      httpGet,
+    });
+    return flow.getStatus("flow-token-xyz");
+  }
+
+  // flow.getStatus.002 — el shape REAL de producción
+  it("convierte el amount STRING de producción ('3000') a number", async () => {
+    const status = await getStatusConWire("3000");
+    expect(status.amount).toBe(3000);
+    expect(typeof status.amount).toBe("number");
+  });
+
+  // flow.getStatus.003 — el shape del sandbox no se toca
+  it("deja pasar el amount NUMBER del sandbox (3000) sin alterarlo", async () => {
+    const status = await getStatusConWire(3000);
+    expect(status.amount).toBe(3000);
+  });
+
+  // flow.getStatus.004 — D1 fail-closed: ilegible ⇒ NaN (nunca iguala al monto esperado)
+  it.each([["abc"], [""], ["   "]])(
+    "convierte un amount ILEGIBLE (%j) a NaN (fail-closed)",
+    async (amount) => {
+      const status = await getStatusConWire(amount);
+      expect(Number.isNaN(status.amount)).toBe(true);
+    },
+  );
+
+  // flow.getStatus.005 — ausente sigue siendo ausente (la rama tolerante del webhook)
+  it.each([[undefined], [null]])(
+    "deja el amount en undefined cuando Flow no lo informa (%j)",
+    async (amount) => {
+      const status = await getStatusConWire(amount);
+      expect(status.amount).toBeUndefined();
+    },
+  );
+
+  // flow.getStatus.006 — normalizar el amount no toca ningún otro campo (fee crudo incluido)
+  it("no altera el resto de la respuesta: fee sigue crudo (string) para el Decimal del dominio", async () => {
+    const status = await getStatusConWire("3000");
+    expect(status).toMatchObject({
+      flowOrder: 177895518,
+      commerceOrder: "cmsovwfxe000cyg2vru7qxe7n",
       status: 2,
       paymentData: { fee: "103" },
     });

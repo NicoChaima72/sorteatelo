@@ -44,12 +44,35 @@ export interface FlowCrearPagoResponse {
   flowOrder?: number;
 }
 
-/** Respuesta (cruda, parseada) de `payment/getStatus`. */
+/**
+ * Respuesta CRUDA del wire de `payment/getStatus` — lo que Flow serializa de verdad,
+ * antes de normalizar. Es el tipo del seam `HttpGet`, no el que ve el dominio.
+ */
+export interface FlowGetStatusWire {
+  flowOrder?: number;
+  commerceOrder: string;
+  /** Estado Flow: 1 pendiente, 2 pagada, 3 rechazada, 4 anulada. */
+  status: number;
+  /**
+   * Flow **PRODUCCIÓN lo manda como STRING** (`{"status":2,"amount":"3000"}`, verificado
+   * crudo contra la cuenta real); el sandbox lo manda como number. Mismo criterio que
+   * `FlowEstadoPago.amount` en `services/flowPlataforma.ts`.
+   */
+  amount?: number | string | null;
+  paymentData?: { fee?: string; balance?: string } | null;
+}
+
+/** Respuesta de `payment/getStatus` YA normalizada: es la que ve el dominio. */
 export interface FlowGetStatusResponse {
   flowOrder?: number;
   commerceOrder: string;
   /** Estado Flow: 1 pendiente, 2 pagada, 3 rechazada, 4 anulada. */
   status: number;
+  /**
+   * Monto en CLP entero, ya normalizado a `number` por el adapter (ver
+   * `normalizarAmountFlow`): number si el wire lo trajo legible, `NaN` si lo trajo
+   * ilegible (fail-closed) y `undefined` si Flow no lo informó.
+   */
   amount?: number;
   paymentData?: { fee?: string; balance?: string } | null;
 }
@@ -62,7 +85,7 @@ export type HttpPost = (
 export type HttpGet = (
   url: string,
   query: Record<string, string>,
-) => Promise<FlowGetStatusResponse>;
+) => Promise<FlowGetStatusWire>;
 
 export interface FlowConfig {
   apiKey: string | undefined;
@@ -101,6 +124,31 @@ function exigir(valor: string | undefined, nombre: string): string {
     );
   }
   return valor;
+}
+
+/**
+ * Normaliza el `amount` del wire de Flow a `number` (D1/D2 del plan
+ * `26-08-15-pago-webhook-amount-string`). No es aritmética de dinero: el resultado se usa
+ * SOLO para la comparación de defensa del webhook contra `Payment.monto` (CLP entero); la
+ * plata que se persiste sigue saliendo de `Decimal`.
+ *
+ * - `"3000"` (producción) / `3000` (sandbox) ⇒ `3000`.
+ * - Presente pero ILEGIBLE (`"abc"`, `""`, o un tipo que no es number ni string) ⇒ `NaN`
+ *   (**fail-closed**: `NaN` nunca iguala al monto esperado, así que el Gate 5 del webhook
+ *   lo atrapa en su rama `amount_mismatch` y NO transiciona a PAGADO).
+ * - Ausente (`undefined`/`null`) ⇒ `undefined`: Flow puede no informar el campo, y esa
+ *   tolerancia la cubre la rama de warning del webhook, que sí procede.
+ */
+export function normalizarAmountFlow(
+  amount: number | string | null | undefined,
+): number | undefined {
+  if (amount === undefined || amount === null) return undefined;
+  if (typeof amount === "number") return amount;
+  if (typeof amount !== "string") return NaN;
+  // `Number("")` y `Number("  ")` son 0, no NaN: el vacío se declara ilegible a mano
+  // para que el fail-closed no dependa de que el monto esperado no sea 0.
+  const limpio = amount.trim();
+  return limpio === "" ? NaN : Number(limpio);
 }
 
 export function crearFlowService(config: FlowConfig): FlowService {
@@ -159,7 +207,8 @@ export function crearFlowService(config: FlowConfig): FlowService {
 
       const params: Record<string, string> = { apiKey, token };
       const query = { ...params, s: firmarParams(params, secretKey) };
-      return httpGet(`${baseUrl}/payment/getStatus`, query);
+      const wire = await httpGet(`${baseUrl}/payment/getStatus`, query);
+      return { ...wire, amount: normalizarAmountFlow(wire.amount) };
     },
   };
 }
@@ -185,5 +234,5 @@ const fetchGet: HttpGet = async (url, query) => {
   if (!res.ok) {
     throw new Error(`Flow payment/getStatus respondió ${res.status}`);
   }
-  return (await res.json()) as FlowGetStatusResponse;
+  return (await res.json()) as FlowGetStatusWire;
 };

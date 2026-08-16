@@ -5,7 +5,12 @@ import type {
   TransicionPago,
 } from "~/server/domain/pago/confirmarPagoDeOrden";
 import type { EnrutarFlowFn, FlowRuteado } from "~/server/pago/enrutarPagoFlow";
-import type { FlowGetStatusResponse } from "~/server/services/flow";
+import type {
+  FlowGetStatusResponse,
+  FlowGetStatusWire,
+  HttpGet,
+} from "~/server/services/flow";
+import { crearFlowService } from "~/server/services/flow";
 import { manejarWebhookFlow } from "~/server/pago/webhookFlow";
 
 /**
@@ -305,6 +310,153 @@ describe("pago/webhookFlow — núcleo del webhook de Flow (multi-tenant)", () =
     );
     expect(res.status).toBe(200);
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Enrutador cableado con el ADAPTER REAL de Flow: el `getStatus` del ruteo es el del
+ * `FlowService` de verdad y lo único fake es el WIRE (`httpGet`, la respuesta cruda que
+ * Flow serializa). Así estos tests ejercen el camino completo wire → adapter → Gate 5,
+ * que es exactamente donde vivía el bug de producción: Flow PRODUCCIÓN manda
+ * `{"status":2,"amount":"3000"}` (amount STRING) y el gate comparaba estricto contra
+ * un `number`. Un fake del `getStatus` entero no habría visto nunca este bug.
+ */
+function enrutarConWireReal(
+  wire: FlowGetStatusWire,
+  montoEsperado: number,
+): { enrutar: EnrutarFlowFn; httpGet: ReturnType<typeof vi.fn> } {
+  const httpGet = vi.fn<HttpGet>().mockResolvedValue(wire);
+  const flow = crearFlowService({
+    apiKey: "api-key-tenant",
+    secretKey: "secret-tenant",
+    baseUrl: "https://www.flow.cl/api",
+    urlConfirmation: undefined, // getStatus no las usa
+    urlReturn: undefined,
+    httpGet,
+  });
+  const ruteo: FlowRuteado = {
+    tenantId: "tenant-iselk",
+    orderId: "order-real",
+    montoEsperado,
+    getStatus: (t) => flow.getStatus(t),
+  };
+  const enrutar = vi
+    .fn<EnrutarFlowFn>()
+    .mockResolvedValue(ruteo) as unknown as EnrutarFlowFn;
+  return { enrutar, httpGet };
+}
+
+/** Respuesta cruda de producción (2026-08-11, orden atascada de iselk), con el amount variable. */
+function wireDeProduccion(amount: FlowGetStatusWire["amount"]): FlowGetStatusWire {
+  return {
+    flowOrder: 177895518,
+    commerceOrder: "cmsovwfxe000cyg2vru7qxe7n",
+    status: 2,
+    ...(amount === undefined ? {} : { amount }),
+    paymentData: { fee: "103", balance: "2897" },
+  };
+}
+
+describe("pago/webhookFlow — amount del WIRE real de Flow (adapter + Gate 5)", () => {
+  // webhook.amount.wire.string — el incidente: Flow producción manda amount STRING
+  it("con amount STRING del wire ('3000') igual al esperado transiciona a PAGADO", async () => {
+    const { enrutar } = enrutarConWireReal(wireDeProduccion("3000"), 3000);
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "tok-real" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).toHaveBeenCalledTimes(1);
+    expect(confirmarPago).toHaveBeenCalledWith(
+      expect.objectContaining({ resultado: "PAGADO", commerceOrder: "order-real" }),
+    );
+    expect(res.body).not.toMatchObject({ ignorado: "amount_mismatch" });
+  });
+
+  // webhook.amount.wire.number — el sandbox manda amount NUMBER: no puede regresionar
+  it("con amount NUMBER del wire (3000, shape sandbox) igual al esperado transiciona a PAGADO", async () => {
+    const { enrutar } = enrutarConWireReal(wireDeProduccion(3000), 3000);
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "tok-sandbox" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).toHaveBeenCalledTimes(1);
+    expect(confirmarPago).toHaveBeenCalledWith(
+      expect.objectContaining({ resultado: "PAGADO" }),
+    );
+    expect(res.body).not.toMatchObject({ ignorado: "amount_mismatch" });
+  });
+
+  // webhook.amount.wire.mismatch — normalizar NO relaja el gate (I2): string ≠ esperado sigue bloqueando
+  it("con amount STRING del wire ('9999') distinto del esperado NO transiciona: amount_mismatch", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { enrutar } = enrutarConWireReal(wireDeProduccion("9999"), 3000);
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "tok-adulterado" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).not.toHaveBeenCalled();
+    expect(res.status).toBe(200); // irreintentable: ack sin reintento
+    expect(res.body).toMatchObject({ received: true, ignorado: "amount_mismatch" });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  // webhook.amount.wire.ilegible — D1 fail-closed: presente pero no parseable ⇒ NO transiciona
+  it.each([
+    ["abc", "texto que no es un número"],
+    ["", "string vacío"],
+  ])(
+    "con amount ILEGIBLE del wire (%j, %s) NO transiciona: fail-closed en amount_mismatch",
+    async (amount) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const { enrutar } = enrutarConWireReal(wireDeProduccion(amount), 3000);
+      const confirmarPago = confirmarPagoMock();
+
+      const res = await manejarWebhookFlow({
+        req: { method: "POST", headers: {}, body: { token: "tok-corrupto" } },
+        enrutarFlow: enrutar,
+        confirmarPago,
+      });
+
+      expect(confirmarPago).not.toHaveBeenCalled();
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ received: true, ignorado: "amount_mismatch" });
+      expect(warn).toHaveBeenCalled();
+    },
+  );
+
+  // webhook.amount.wire.ausente — Flow omite el campo ⇒ warning y procede (tolerancia intacta)
+  it("sin amount en el wire procede a confirmar con warning (comportamiento actual intacto)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { enrutar } = enrutarConWireReal(wireDeProduccion(undefined), 3000);
+    const confirmarPago = confirmarPagoMock();
+
+    const res = await manejarWebhookFlow({
+      req: { method: "POST", headers: {}, body: { token: "tok-sin-amount" } },
+      enrutarFlow: enrutar,
+      confirmarPago,
+    });
+
+    expect(confirmarPago).toHaveBeenCalledTimes(1);
+    expect(confirmarPago).toHaveBeenCalledWith(
+      expect.objectContaining({ resultado: "PAGADO" }),
+    );
+    expect(res.status).toBe(200);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("sin amount"),
+      expect.anything(),
+    );
   });
 });
 

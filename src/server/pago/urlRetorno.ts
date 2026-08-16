@@ -58,3 +58,34 @@ export function construirUrlRetorno(
   if (origen) return `${origen}${PATH_RETORNO}`;
   return fallback;
 }
+
+/**
+ * Techo del token que aceptamos re-emitir en la URL. Los tokens reales de Flow miden 40
+ * caracteres; algo mucho más largo no es un token — es basura o un intento de abuso, y NO se
+ * refleja de vuelta en un redirect.
+ */
+const LARGO_MAX_TOKEN_RETORNO = 200;
+
+/**
+ * Destino del redirect cuando Flow devuelve al Comprador con un **POST** (incidente 2026-08-16):
+ * `payment/create` recibe `urlReturn` y Flow retorna el navegador con un form auto-submit que
+ * trae el `token` en el BODY urlencoded — no en la query. La página de retorno lee `?token=` (su
+ * contrato con `estadoOrden`), así que TODO comprador real aterrizaba en la fase `sin_token`
+ * («No encontramos tu compra») aunque su pago, su ticket y su correo salieran perfectos.
+ *
+ * Esta función es el núcleo PURO del puente: recibe el body crudo del POST y devuelve el destino
+ * del `303 See Other` (303 a propósito: convierte el POST en GET sobre la misma página, que desde
+ * ahí funciona exactamente como siempre). Sin token legible ⇒ el path pelado, que cae en la fase
+ * `sin_token` — la misma degradación honesta de hoy, nunca un error nuevo.
+ *
+ * I6/ADR-0001 intacto: el token en la URL NO es prueba de pago — la página solo lo usa para
+ * SONDEAR `estadoOrden`, y la verdad sigue siendo el webhook.
+ */
+export function destinoRetornoDesdePost(
+  body: string | null | undefined,
+): string {
+  if (!body) return PATH_RETORNO;
+  const token = new URLSearchParams(body).get("token")?.trim();
+  if (!token || token.length > LARGO_MAX_TOKEN_RETORNO) return PATH_RETORNO;
+  return `${PATH_RETORNO}?token=${encodeURIComponent(token)}`;
+}

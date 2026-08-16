@@ -15,6 +15,7 @@ import { type ComponentType, useEffect, useRef, useState } from "react";
 import { BoletosDelSorteo } from "~/components/storefront/boletos-del-sorteo";
 import { StorefrontLayout } from "~/components/storefront/storefront-layout";
 import { faseDelRetorno, type FaseRetorno } from "~/lib/faseRetornoCheckout";
+import { destinoRetornoDesdePost } from "~/server/pago/urlRetorno";
 import {
   getPropsPaginaEntrega,
   type PropsStorefront,
@@ -56,9 +57,47 @@ import { api } from "~/utils/api";
  * pagar, verlo rebotar a la página neutral sería quitarle el comprobante de una compra que ya hizo —
  * la mora del Organizador no la paga el Comprador.
  */
+/**
+ * Techo del body que se lee en el puente POST→GET de abajo. El form de retorno de Flow trae UN
+ * token de 40 caracteres; 10 KB es holgado para eso y corta cualquier body abusivo sin cargarlo
+ * entero en memoria.
+ */
+const BODY_MAX_RETORNO = 10_000;
+
+/** Lee el body crudo del request hasta el techo (borde de IO; el parseo vive en `urlRetorno.ts`). */
+function leerBodyCrudo(req: NodeJS.ReadableStream): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let acumulado = "";
+    req.on("data", (chunk: Buffer | string) => {
+      acumulado += chunk.toString();
+      if (acumulado.length > BODY_MAX_RETORNO) {
+        resolve(acumulado.slice(0, BODY_MAX_RETORNO));
+        req.removeAllListeners("data");
+        req.removeAllListeners("end");
+      }
+    });
+    req.on("end", () => resolve(acumulado));
+    req.on("error", reject);
+  });
+}
+
 export const getServerSideProps: GetServerSideProps<PropsStorefront> = async (
   ctx,
-) => getPropsPaginaEntrega(ctx);
+) => {
+  // Flow devuelve al Comprador con un POST (auto-submit con el `token` en el body urlencoded), no
+  // con `?token=` en la URL — sin este puente, TODO comprador real caía en la fase `sin_token`
+  // («No encontramos tu compra») aunque su pago/ticket/correo salieran perfectos (incidente
+  // 2026-08-16). El 303 convierte el POST en GET sobre esta misma página, que desde ahí corre su
+  // flujo de siempre (`?token=` → polling de `estadoOrden` → celebración con los boletos).
+  // I6/ADR-0001 intacto: el token solo alimenta el SONDEO; la confirmación sigue siendo el webhook.
+  if (ctx.req.method === "POST") {
+    const body = await leerBodyCrudo(ctx.req).catch(() => null);
+    return {
+      redirect: { destination: destinoRetornoDesdePost(body), statusCode: 303 },
+    };
+  }
+  return getPropsPaginaEntrega(ctx);
+};
 
 export default function RetornoPage({
   tenantBranding,

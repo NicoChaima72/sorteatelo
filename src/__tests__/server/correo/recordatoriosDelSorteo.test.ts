@@ -80,6 +80,7 @@ async function sembrar({
   estadoTienda = "PUBLICADA",
   estadoSorteo = "ACTIVO",
   suscripcion = "AL_DIA",
+  ahora = AHORA,
 }: {
   nombre: string;
   horasAlCierre: number;
@@ -92,6 +93,14 @@ async function sembrar({
    * el caso que importa acá, porque **sigue PUBLICADA** y su storefront sirve la página neutral.
    */
   suscripcion?: "AL_DIA" | "EN_PAUSA_POR_PAGO" | null;
+  /**
+   * Reloj de referencia de las fechas sembradas. El default `AHORA` (fijo) sirve a los casos que
+   * inyectan ese mismo reloj al armado; el caso del REGISTRO real del cron (014) debe sembrar
+   * relativo al reloj DE PARED, porque el cableado de producción no recibe `ahora` y un fixture
+   * con fecha fija se vence solo (bomba de tiempo: este archivo estuvo verde hasta que el reloj
+   * real pasó `2026-08-01T18:30Z` y el fail-closed `fechaFin > ahora` empezó a descartar el sorteo).
+   */
+  ahora?: Date;
 }) {
   const tenant = await db.tenant.create({
     data: {
@@ -115,7 +124,7 @@ async function sembrar({
                 exentaHasta:
                   suscripcion === "AL_DIA"
                     ? null
-                    : new Date(AHORA.getTime() - 24 * HORA),
+                    : new Date(ahora.getTime() - 24 * HORA),
               },
             },
           }),
@@ -128,8 +137,8 @@ async function sembrar({
       nombre: `Sorteo ${nombre}`,
       premio: "Un photobook firmado",
       estado: estadoSorteo,
-      fechaInicio: new Date(AHORA.getTime() - 30 * 24 * HORA),
-      fechaFin: new Date(AHORA.getTime() + horasAlCierre * HORA),
+      fechaInicio: new Date(ahora.getTime() - 30 * 24 * HORA),
+      fechaFin: new Date(ahora.getTime() + horasAlCierre * HORA),
       ultimoNumero: 0,
       basesPdfUrl: "https://pub.r2.dev/t/sorteo/bases.pdf",
     },
@@ -496,12 +505,19 @@ describe("domain/correo/recordatorioDelSorteo — armado del correo (F06)", () =
   // El modo de falla que cubre es MUDO: un tipo resuelto pero no declarado queda encolado para
   // siempre y ni siquiera aparece en el contador de «sin resolver» (el filtro lo saca antes).
   it("el resolvedor REAL del cron declara y resuelve RECORDATORIO_SORTEO", async () => {
+    // El registro del cron NO recibe `ahora`: resuelve con el reloj DE PARED, que es lo que corre
+    // en Vercel. Por eso este caso —y solo este— siembra relativo al ahora real: con la fecha fija
+    // del resto del archivo el sorteo nace vencido y el fail-closed de `fechaFin > ahora` lo
+    // descarta (bomba de tiempo diagnosticada 2026-08-16: rojo desde que el reloj real pasó
+    // 2026-08-01T18:30Z).
+    const ahora = new Date();
     const { tenantId } = await sembrar({
       nombre: "registro",
       horasAlCierre: 6.5,
       participantes: [{ email: "ana@fan.cl", numeros: [1], consiente: true }],
+      ahora,
     });
-    await planificarRecordatorios({ db, ahora: AHORA });
+    await planificarRecordatorios({ db, ahora });
 
     const resolvedor = resolvedorDeCorreos({ db, baseUrl: "https://app.test" });
     expect(resolvedor.tipos).toContain("RECORDATORIO_SORTEO");

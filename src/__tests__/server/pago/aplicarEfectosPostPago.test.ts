@@ -27,7 +27,6 @@ import { manejarWebhookFlow } from "~/server/pago/webhookFlow";
  */
 
 const PREFIJO = "test-efectos-";
-const DIA_MS = 24 * 60 * 60 * 1000;
 
 async function limpiar() {
   const tenants = await db.tenant.findMany({
@@ -249,8 +248,13 @@ function aplicar(orderId: string) {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 describe("domain/pago/aplicarEfectosPostPago (DB-backed, tenant-scoped, tickets por cantidad)", () => {
-  // efectos.001 — N productos ⇒ N DownloadGrant con token, expiresAt y tenantId de la orden
-  it("crea exactamente N DownloadGrant (uno por producto) con token único, expiresAt y el tenantId de la orden", async () => {
+  // efectos.001 — N productos ⇒ N DownloadGrant con token único, tenantId de la orden y SIN
+  // vencimiento. Lo último cambió en F01 de `entrega-postpago-retorno-y-reacceso` (D2): hasta acá
+  // el grant nacía con `expiresAt` a 30 días (`GRANT_TTL_DIAS`, un placeholder de la era S3 que
+  // nunca se re-decidió) y a los 3 meses el Comprador legítimo se encontraba un 404 sin ningún
+  // camino de recuperación. Ahora nace `null` = no vence, y `expiresAt` queda como seam de
+  // revocación administrativa. El resto del contrato del test es el de siempre.
+  it("crea exactamente N DownloadGrant (uno por producto) con token único, SIN vencimiento y el tenantId de la orden", async () => {
     const t = await crearTenant("a");
     const p1 = await crearProducto(t.id, "P1");
     const p2 = await crearProducto(t.id, "P2");
@@ -275,8 +279,9 @@ describe("domain/pago/aplicarEfectosPostPago (DB-backed, tenant-scoped, tickets 
     for (const g of grants) {
       expect(g.token.length).toBeGreaterThan(0);
       expect(g.tenantId).toBe(t.id);
-      expect(g.expiresAt.getTime()).toBeGreaterThan(Date.now() + 29 * DIA_MS);
-      expect(g.expiresAt.getTime()).toBeLessThan(Date.now() + 31 * DIA_MS);
+      // NO vence: `null`, no «una fecha muy lejana». Que el assert sea `toBeNull` y no un rango es
+      // deliberado — un sentinel a 100 años volvería a poner una bomba de tiempo en la entrega.
+      expect(g.expiresAt).toBeNull();
     }
   });
 

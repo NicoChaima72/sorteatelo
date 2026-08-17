@@ -457,3 +457,69 @@ modo (D1): NO ambiente (los glows de stage-lights), NO ancho estrecho, NO títul
   > bloqueado por el navegador ni por falta de datos, sino **solo por el túnel** (o por la
   > autorización del usuario para forzar el estado PAGADO en DB, como se hizo en
   > `storefront.campos.persistencia.001`).
+
+## Entrega post-pago: descarga en el retorno + re-acceso persistente
+
+> Plan: `tasks/26-08-16-entrega-postpago-retorno-y-reacceso.md`. Los grants dejaron de vencer (D2) y
+> el retorno pasó a ofrecer la descarga en el acto (D1). Los tres primeros checks necesitan Flow
+> sandbox con túnel (memoria `flow-sandbox-e2e`); el cuarto es un paso OPERATIVO post-deploy.
+
+- [ ] **entrega.reacceso.001** (F01, D2) — Reabrir `/entrega/<token>` de una compra PREVIA cuyo grant no
+  vence y comprobar que muestra la orden COMPLETA y que la descarga funciona **de verdad**: seguir el
+  302 de `/api/descargas/<token>` hasta R2 y verificar que llegan los BYTES (archivo íntegro, se
+  abre/se ve), no solo que el redirect existe. Es la mitad visible de F01: quien compró hace meses
+  sigue teniendo su archivo. Confirmar en DB que ese grant tiene `expiresAt = NULL`. En Network: la
+  URL prefirmada no aparece en el HTML y la key del bucket no se filtra (I2).
+
+  > 🟡 [feature-tester 2026-08-17] **PARCIAL — pasa todo salvo la precondición del grant null.** Contra
+  > la compra REAL `cmswahd0i0002d195nguic0hy` de `iselk` (grant `KaKnuaeLd8yj…`) en el dev server local:
+  > `/entrega/<token>` muestra la orden COMPLETA («Prueba técnica (temporal)» / `prueba-tecnica.pdf`),
+  > `/api/descargas/<token>` da **302** a R2 con `X-Amz-Expires=600` y `filename*` RFC 5987, y siguiendo
+  > el redirect llegan **470 bytes de PDF válido** (`%PDF-1.4` … `%%EOF`) — bytes reales, no solo el
+  > redirect. **I2 limpio**: cero `X-Amz-*` y cero key de bucket en el HTML. Lo que NO se pudo comprobar
+  > es «`expiresAt = NULL`»: hoy ese grant vence 2026-09-15 porque **el backfill es post-deploy** (D5/I7)
+  > y este pase tiene prohibido escribir en la DB real. Cerrar junto con `entrega.backfill.001`.
+
+- [ ] **entrega.retorno.001** (F02, D1/I1) — Compra sandbox de Flow COMPLETA en un subdominio de tienda
+  (tarjeta de prueba Transbank, túnel vivo para el webhook). Seguir el retorno por sus fases y
+  comprobar que, al confirmar PAGADO, aparece el botón primario «Descargar mi compra»; el click
+  aterriza en `/entrega/<token>` con la orden completa y la descarga real funciona. El correo tiene
+  que llegar IGUAL que siempre (I5: el canal queda intacto, el botón es ADICIONAL). Ojo con el puente
+  POST→GET (ead7d0c): Flow devuelve el navegador con un POST y el 303 lo convierte en GET — si el
+  retorno mostrara «No encontramos tu compra», eso es una regresión de ese puente, no de F02.
+
+  > 🟡 [feature-tester 2026-08-17] **PARCIAL — todo lo observable pasa; falta la compra nueva.** El pase
+  > tenía PROHIBIDA la compra sandbox (código sin deployar, sin túnel), así que el retorno se ejerció con
+  > el `Payment.token` real de una compra pagada de `iselk` (`9DA57A16…`) en `http://iselk.localhost:3000`:
+  > fase `pagado` con boleto **ARMY-14**, **botón primario «Descargar mi compra»** apuntando a
+  > `/entrega/KaKnua…`, el click aterriza en la entrega con la orden completa y la descarga real
+  > entrega los bytes. **La trampa del puente POST→GET quedó ejercida**: `POST /checkout/retorno` con
+  > `token=` en el body ⇒ **303** a `/checkout/retorno?token=…`, y el mismo POST disparado desde el
+  > navegador con un form auto-submit (lo que hace Flow) aterriza en la celebración con el botón — cero
+  > regresión de `ead7d0c`. Pendiente para el pase post-deploy del orquestador: la travesía de fases con
+  > un pago sandbox de verdad y la llegada del correo (I5).
+
+- [x] **entrega.retorno.002** (F02, I1) — En la MISMA corrida, antes de que el webhook confirme (fase
+  `esperando`), verificar que el botón NO existe en el DOM: la capability solo aparece con
+  confirmación server-side, jamás por haber vuelto de Flow. Y en la fase `pagado`, que el copy
+  mencione el correo como respaldo. Chequear de paso que el polling real (~24 req/min) no dispara el
+  rate limit de F03 — ningún `TOO_MANY_REQUESTS` en la pestaña Network.
+
+  > ✅ [feature-tester 2026-08-17] Con el token de una orden **PENDIENTE real** de `iselk` (`19A5D391…`,
+  > del 2026-08-10): fase `esperando` («¡Gracias por tu compra!»), y **ni el botón ni un solo `/entrega/`
+  > en todo el HTML** — la capability no se infiere de haber vuelto de Flow (I1). El polling real corrió
+  > 32 s = **6 llamadas a `checkout.estadoOrden`, las 6 con 200 y ni un `TOO_MANY_REQUESTS`** (F03/I8
+  > verificado en vivo, no solo por Vitest). En la fase `pagado` el copy sí menciona el correo como
+  > respaldo y le suma la política de D2: «Te enviamos el enlace de descarga por correo **y no vence**».
+
+- [ ] ⏭️ **entrega.backfill.001** (F01, D5/I7 — OPERATIVO POST-DEPLOY, NO corre con la implementación) —
+  Solo DESPUÉS de que el código null-aware esté READY en Vercel: contar los grants con
+  `expiresAt IS NOT NULL` (informar el número ANTES), correr
+  `UPDATE "DownloadGrant" SET "expiresAt" = NULL`, verificar count = 0 DESPUÉS, y hacer spot-check
+  abriendo en PROD el `/entrega/<token>` de una compra vieja real de `iselk` que antes daba 404.
+  Es un UPDATE masivo sobre datos de compradores reales: requiere OK explícito del usuario.
+
+  > ⏭️ [feature-tester 2026-08-17] NO corre en este pase (es del orquestador, post-deploy). **Censo ANTES
+  > tomado read-only**: `DownloadGrant` = **14 filas, las 14 con `expiresAt` no-null, 0 en null**. Las
+  > más viejas vencen el 2026-08-16 (o sea que YA hay compradores reales de iselk con acceso muerto que
+  > el backfill resucita) y las más nuevas el 2026-09-15.

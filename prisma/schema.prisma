@@ -805,16 +805,37 @@ model RaffleEntry {
 }
 
 // Entitlement (CONTEXT § Entitlement, ADR-0002): autoridad de descarga por (Orden
-// pagada, Producto). Inmutable (sin updatedAt). El `token` opaco crypto-random es la
-// autoridad intrínseca; la URL firmada corta de R2 la genera F03. Ver CONTEXT.md § Entitlement.
+// pagada, Producto). Inmutable HOY (sin updatedAt) — si el seam de revocación de
+// expiresAt pasa de contrato a feature real (algo lo escribe post-creación), sumar
+// updatedAt para auditar el revoke, como McpAccessToken/McpRefreshToken.revokedAt.
+// El `token` opaco crypto-random es la autoridad intrínseca; la URL firmada corta de
+// R2 la genera manejarDescarga por visita (ADR-0002/0009).
+//
+// Acceso PERMANENTE por defecto (D2, 2026-08-16 — tasks/26-08-16-entrega-postpago-
+// retorno-y-reacceso.md): expiresAt null = no vence, como Gumroad/Lemon Squeezy/Itch.io
+// (nunca reinstalar un TTL tipo GRANT_TTL_DIAS). No-null = corte administrativo: seam de
+// revocación FUTURA (p.ej. si la decisión abierta #6 de marca de agua obligara a
+// revertir la política) — no es una feature hoy. Pasado el corte, la entrega responde
+// el MISMO 404/null neutral que un token inexistente/ajeno (I3): el seam nunca es
+// sondeable. Ver CONTEXT.md § Entitlement.
+//
+// Aprobado por schema-guardian: APPROVE CON OBSERVACIONES, revisión RETROACTIVA
+// (2026-08-17) — el push se hizo antes de consultarlo. `DateTime → DateTime?` es
+// DROP NOT NULL: aditivo, sin data loss. Reusar expiresAt en vez de sumar un
+// revokedAt aparte (patrón McpAccessToken) es deliberado: sin TTL por defecto no
+// hay dos conceptos que convivan, y la columna sigue significando lo mismo («desde
+// esta fecha el derecho no vale»), no una semántica invertida. Sin índice sobre
+// expiresAt a propósito — ninguna query lo filtra en SQL; si el seam se vuelve
+// feature, el índice natural sería @@index([tenantId, expiresAt]), scoped.
+// Ver Bitácora de tasks/26-08-16-entrega-postpago-retorno-y-reacceso.md.
 model DownloadGrant {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tenantId  String
   orderId   String
   productId String
-  token     String   @unique // opaco crypto-random; global como Payment.token (F03 rutea token⇒grant⇒tenant)
-  expiresAt DateTime // ventana de validez del derecho (S3: 30 días; política final en F03)
-  createdAt DateTime @default(now())
+  token     String    @unique // opaco crypto-random; global como Payment.token (F03 rutea token⇒grant⇒tenant)
+  expiresAt DateTime? // null = SIN VENCIMIENTO (acceso permanente, D2); no-null = corte administrativo del seam de revocación — pasado, la entrega responde el MISMO 404/null neutral que un token inexistente (I3), nunca un TTL a reinstalar
+  createdAt DateTime  @default(now())
 
   tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)

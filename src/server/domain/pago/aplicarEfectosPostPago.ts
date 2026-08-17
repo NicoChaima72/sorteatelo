@@ -17,9 +17,9 @@ import { muestrearPacks } from "~/server/productos/muestrearPacks";
  *
  *  1. **Entitlement** (`DownloadGrant`, ADR-0002): un grant por `OrderItem`/producto
  *     (D4), con un `token` opaco crypto-random inadivinable (nunca logueado — I4) y
- *     `expiresAt` (S3: 30 días desde la confirmación). Idempotente por
- *     `@@unique([orderId, productId])`. **La cantidad NO lo altera** (I5/D4): comprar
- *     3 unidades de un PDF da 1 derecho de descarga, no 3.
+ *     `expiresAt: null` = **el derecho no vence** (D2 de `entrega-postpago-retorno-y-reacceso`;
+ *     antes eran 30 días). Idempotente por `@@unique([orderId, productId])`. **La cantidad NO lo
+ *     altera** (I5/D4): comprar 3 unidades de un PDF da 1 derecho de descarga, no 3.
  *  2. **Participación por TICKET** (`RaffleEntry`, CONTEXT § Participación, ADR-0012):
  *     `K = Σ cantidad de los ítems cuyo snapshot `participaEnSorteo` es true` (cada unidad
  *     de un producto participante = 1 ticket). Se crean **K** entries con `ordinal` 0..K-1
@@ -45,17 +45,11 @@ import { muestrearPacks } from "~/server/productos/muestrearPacks";
  */
 
 /**
- * Ventana de validez del derecho de descarga (S3; política final en F03). Exportada (aditivo,
- * sin cambio de comportamiento) para que el reenvío de F04 regenere los grants expirados con el
- * MISMO TTL y el correo de F04 avise la expiración correcta — una sola fuente de verdad.
+ * Token opaco crypto-random (autoridad intrínseca del grant; D5/I4). Nunca se loguea. Privado
+ * desde `entrega-postpago` D2: el reenvío ya no regenera tokens (los grants no vencen), así que
+ * el único escritor es la creación post-pago de acá abajo.
  */
-export const GRANT_TTL_DIAS = 30;
-
-/**
- * Token opaco crypto-random (autoridad intrínseca del grant; D5/I4). Nunca se loguea. Exportado
- * (aditivo) para que el reenvío de F04 regenere tokens con exactamente la misma entropía/forma.
- */
-export function generarTokenGrant(): string {
+function generarTokenGrant(): string {
   return randomBytes(32).toString("base64url");
 }
 
@@ -229,16 +223,23 @@ export const aplicarEfectosPostPago: EfectosPostPago = async ({ tx, orderId }) =
 
   // 1) Entitlement: un DownloadGrant por ítem/producto (D4 — la cantidad NO lo altera), con el
   //    tenantId de la orden. Idempotente por @@unique([orderId, productId]) + skipDuplicates.
-  const expiresAt = new Date(
-    Date.now() + GRANT_TTL_DIAS * 24 * 60 * 60 * 1000,
-  );
+  //
+  //    `expiresAt: null` = el derecho NO vence (D2 de `entrega-postpago-retorno-y-reacceso`). Hasta
+  //    acá nacía a 30 días (`GRANT_TTL_DIAS`, placeholder de la era S3 que nunca se re-decidió) y
+  //    el Comprador que volvía a los 3 meses encontraba un 404 sin camino de recuperación. La
+  //    seguridad real de la entrega no era ese TTL sino la URL prefirmada de 600 s sobre un bucket
+  //    privado (ADR-0002/0009), que sigue igual. El campo queda como seam de REVOCACIÓN: escribirle
+  //    una fecha pasada corta el acceso con la misma respuesta neutral de siempre.
+  //
+  //    Se pasa EXPLÍCITO y no se omite: dejar que la columna caiga sola sería depender de que nadie
+  //    le ponga un `@default` más adelante.
   await tx.downloadGrant.createMany({
     data: order.items.map((item) => ({
       tenantId: order.tenantId,
       orderId: order.id,
       productId: item.productId,
       token: generarTokenGrant(),
-      expiresAt,
+      expiresAt: null,
     })),
     skipDuplicates: true,
   });

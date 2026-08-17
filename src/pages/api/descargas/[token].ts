@@ -7,7 +7,26 @@ import {
   manejarDescarga,
 } from "~/server/descargas/manejarDescarga";
 import { archivosDelGrant } from "~/server/entrega/archivosDelGrant";
+import { ipDeRequest } from "~/server/ipDeRequest";
+import { crearLimitadorDeIntentos } from "~/server/security/limiteDeIntentos";
 import { crearStorageDeEnv } from "~/server/storage/storageDeEnv";
+
+/**
+ * Cuota de descargas por IP (F03/D3 de `entrega-postpago-retorno-y-reacceso`): 30 por minuto.
+ *
+ * Por qué existe recién ahora: hasta D2 el `DownloadGrant` moría a los 30 días, así que barrer tokens
+ * al azar tenía fecha de vencimiento. Con el acceso permanente la URL es una capability que no
+ * caduca, y esta superficie pasó a merecer fricción.
+ *
+ * Por qué 30 y no menos: un producto SOBRE entrega N archivos y la página de entrega los linkea uno
+ * por uno — alguien que compró un sobre grande puede dispararle 10-15 descargas en un minuto, sin
+ * nada raro. 30 deja el doble de margen a ese caso y sigue arruinándole el barrido a un script.
+ *
+ * A nivel de MÓDULO —una instancia por proceso, o sea «por lambda» en Vercel— igual que el verificador
+ * de tickets. Es fricción anti-script, NO un perímetro: quien quiera pagar el costo de N lambdas pasa.
+ * Se acepta a propósito (mismo criterio del limitador; sin Redis, principio rector «simple y barato»).
+ */
+const limiteDescargas = crearLimitadorDeIntentos({ limite: 30, ventanaMs: 60_000 });
 
 /**
  * Endpoint público de descarga del Comprador (F03/D5) — wrapper Next (borde de cableado).
@@ -38,10 +57,17 @@ export default async function handler(
 
   const storage = crearStorageDeEnv();
 
+  // La clave es la IP sola: esta ruta es global (token ⇒ grant ⇒ tenant), así que acá todavía no se
+  // sabe de qué Tienda es la descarga — y averiguarlo costaría justo la query que la cuota quiere
+  // evitar. Sin IP resoluble, todos esos requests comparten un balde (mismo criterio conservador que
+  // `verificarTickets`), que con techo 30 no molesta a nadie real.
+  const ip = ipDeRequest(req.headers);
+
   const { status, headers, body } = await manejarDescarga({
     req,
     buscarGrant: buscarGrantPorToken,
     presignarDescarga: (input) => storage.presignarDescarga(input),
+    permitirIntento: () => limiteDescargas.permitirIntento(ip ?? "sin-ip"),
   });
 
   if (headers) {

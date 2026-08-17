@@ -3,6 +3,7 @@ import { useReducedMotion } from "@mantine/hooks";
 import {
   IconClock,
   IconCreditCardOff,
+  IconDownload,
   IconLinkOff,
   IconMailCheck,
   IconSparkles,
@@ -29,8 +30,17 @@ import { api } from "~/utils/api";
  * Comprador (fuera de storefront ⇒ notFound). Es a donde Flow devuelve el navegador tras el pago.
  *
  * I6/ADR-0001: el redirect del navegador NO es prueba de pago ni marca la orden. La confirmación
- * real es server-side en el webhook (`/api/webhooks/flow`) contra `payment/getStatus`, y la entrega
- * llega por correo (DownloadGrant, ADR-0002/0010). Esta página SOLO informa — no linkea el PDF (I7).
+ * real es server-side en el webhook (`/api/webhooks/flow`) contra `payment/getStatus`. Esta página
+ * SOLO informa — no linkea el PDF (I7) ni presigna nada.
+ *
+ * Descarga en el acto (`entrega-postpago-retorno-y-reacceso` F02/D1): hasta acá la única salida era
+ * «te enviamos un correo», y quien no lo recibía en el minuto de máxima ansiedad quedaba en el aire.
+ * Ahora, cuando el polling confirma PAGADO, `estadoOrden` trae además `urlEntrega` y la fase `pagado`
+ * muestra un botón primario a `/entrega/<grantToken>` — la MISMA página de entrega que ya usaba el
+ * enlace del correo, con sus URLs firmadas por visita (I2). No es una superficie de descarga nueva:
+ * es un atajo a la que ya existía. El botón depende de `urlEntrega`, que solo viaja con PAGADO
+ * server-side ⇒ el redirect de Flow sigue sin poder inventar una descarga (I1). Y el correo NO se
+ * toca como canal (I5): se sigue mandando igual y el copy lo mantiene como respaldo durable.
  *
  * Confetti de celebración (builder-tanda-1 F08/D12): con el `token` de Flow en la URL, sondea la
  * query pública `estadoOrden` (sin PII, I-T6); cuando el webhook ya confirmó `PAGADO`, la página pasa
@@ -170,12 +180,17 @@ interface CopyFase {
  * reloj = todavía está en camino— y no la entidad.
  */
 const COPY_FASE: Record<FaseRetorno, CopyFase> = {
+  // El copy NO nombra el botón ni depende de él (F02/D4a): la descarga inmediata la comunica el
+  // botón, y este párrafo se ocupa del correo como RESPALDO durable — que es lo que sigue siendo
+  // cierto si `urlEntrega` no viajó (orden PAGADA sin grants, el caso defensivo de estado.011).
+  // «No vence» es la política de D2 dicha al Comprador: es la razón por la que guardar el correo
+  // ahora sirve de algo.
   pagado: {
     icono: IconSparkles,
     color: null,
     titulo: "¡Pago confirmado!",
     cuerpo:
-      "Tu compra quedó lista. Te enviamos un correo con el enlace para descargar tu producto — si no lo ves en unos minutos, revisa tu carpeta de spam.",
+      "Tu compra quedó lista. Te enviamos el enlace de descarga por correo y no vence: guárdalo para volver a bajarla cuando quieras. Si no lo ves en unos minutos, revisa tu carpeta de spam.",
   },
   // Terminal y honesto: no se promete correo ni números, porque no hay compra que entregar. El
   // «ningún cargo definitivo» es lo primero que la persona necesita saber al ver una pantalla así.
@@ -263,6 +278,11 @@ function RetornoContenido({ branding }: { branding: TenantBranding }) {
   const copy = COPY_FASE[fase];
   const Icono = copy.icono;
 
+  // URL de la página de entrega (F02/D1), solo si el polling la trajo. Se saca a una constante —y no
+  // se repite el `q.data?.…` inline— porque la miran DOS cosas: el botón y el espaciado del botón que
+  // le sigue. Con la condición duplicada, cambiar una y olvidar la otra deja un hueco raro.
+  const urlEntrega = fase === "pagado" ? q.data?.urlEntrega : undefined;
+
   return (
     <Stack align="center" gap="md" maw={480} mx="auto">
       <ThemeIcon size={56} radius="xl" variant="light" color={copy.color ?? undefined}>
@@ -279,7 +299,26 @@ function RetornoContenido({ branding }: { branding: TenantBranding }) {
       <Text c="dimmed" ta="center">
         {copy.cuerpo}
       </Text>
-      <Button component={Link} href="/" variant="default" mt="sm">
+      {/* Descarga en el acto (F02/D1). Existe SOLO si `estadoOrden` —server-side— trajo la URL: no se
+          infiere de la fase, ni del `?token=` de Flow, ni de nada que traiga el navegador (I1). Es un
+          link común y corriente a la página de entrega, que es la que presigna por visita (I2); acá no
+          se toca ni una key de R2. Va ANTES de «Volver a la tienda» y en variante primaria porque es
+          lo que la persona vino a hacer — el otro botón queda secundario, como ya estaba.
+
+          El `mt="sm"` lo lleva el PRIMER botón de la cola y no los dos: lo que separa es la zona de
+          acción del párrafo, no un botón del otro (entre ellos alcanza el `gap` del Stack). Con el
+          `mt` repetido, el par dejaba de leerse como un grupo. */}
+      {urlEntrega && (
+        <Button
+          component={Link}
+          href={urlEntrega}
+          mt="sm"
+          leftSection={<IconDownload className="size-4" stroke={1.75} />}
+        >
+          Descargar mi compra
+        </Button>
+      )}
+      <Button component={Link} href="/" variant="default" mt={urlEntrega ? undefined : "sm"}>
         Volver a la tienda
       </Button>
     </Stack>

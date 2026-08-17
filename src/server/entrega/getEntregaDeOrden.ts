@@ -79,18 +79,22 @@ export interface EntregaDeOrden {
    * identifica al tenant: derivar la marca de ahí es a la vez más correcto y más simple.
    */
   branding: TenantBranding;
-  /** Vencimiento del grant por el que se entró (los de una orden se emiten juntos, D5). */
-  expiraEn: Date;
+  /**
+   * Corte de validez del grant por el que se entró (los de una orden se emiten juntos, D5).
+   * **`null` = no vence** (D2 de `entrega-postpago-retorno-y-reacceso`), que es el caso normal:
+   * un valor presente significa que a ese grant lo revocaron con esa fecha.
+   */
+  expiraEn: Date | null;
   lineas: LineaEntregada[];
 }
 
 /**
- * Resuelve la entrega de la orden a la que pertenece `token`, o `null` si el token no existe, está
- * vencido, o su orden no está PAGADA.
+ * Resuelve la entrega de la orden a la que pertenece `token`, o `null` si el token no existe, fue
+ * revocado, o su orden no está PAGADA.
  *
  * `null` es UNA sola respuesta para los tres casos a propósito (misma neutralidad que el 404 del
  * endpoint de descarga, I3): quien prueba tokens al azar no puede distinguir "no existe" de "existe
- * pero venció".
+ * pero lo revocaron".
  */
 export async function getEntregaDeOrden({
   db,
@@ -155,7 +159,16 @@ export async function getEntregaDeOrden({
   });
 
   if (!grant) return null;
-  if (grant.expiresAt.getTime() <= ahora.getTime()) return null;
+  // REVOCADO ⇒ null. `expiresAt` null es el caso normal (el derecho no vence, D2), así que este
+  // corte solo se activa si alguien le escribió una fecha a mano: es el seam de revocación, y su
+  // respuesta es la misma que la de un token inexistente (I3).
+  //
+  // El chequeo es en TypeScript y no un `where: { expiresAt: { gt: ahora } }` a propósito: en
+  // Postgres una comparación contra NULL no da true, así que ese `where` dejaría fuera justo a los
+  // grants permanentes — o sea a todos.
+  if (grant.expiresAt !== null && grant.expiresAt.getTime() <= ahora.getTime()) {
+    return null;
+  }
   // Una orden no pagada no tiene nada que entregar (no debería tener grants, pero el estado manda).
   if (grant.order.estado !== "PAGADO") return null;
 

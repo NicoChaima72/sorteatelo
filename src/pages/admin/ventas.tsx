@@ -77,8 +77,10 @@ export default function VentasPage() {
     },
   );
 
-  // Reenvío del correo de descarga (F04/D9). No invalida queries: la regeneración de tokens no
-  // cambia nada visible en la tabla de ventas. El loading es por-fila (variables.orderId).
+  // Reenvío del correo de descarga (F04/D9). No invalida queries: reenviar no MUTA nada —desde F01 de
+  // `entrega-postpago-retorno-y-reacceso` el use case es lectura + envío, sin escribir una sola fila—
+  // así que no hay nada que la tabla de ventas pueda estar mostrando desactualizado. El loading es
+  // por-fila (`variables.orderId`).
   const reenviar = api.panel.reenviarCorreoDescarga.useMutation({
     onSuccess: () =>
       notifications.show({

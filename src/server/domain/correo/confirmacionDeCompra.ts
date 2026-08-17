@@ -5,7 +5,6 @@ import {
   armarCorreoConfirmacionCompra,
   type SorteoDeLaCompra,
 } from "~/server/domain/correo/plantillaConfirmacionCompra";
-import { GRANT_TTL_DIAS } from "~/server/domain/pago/aplicarEfectosPostPago";
 import { type CorreoInput } from "~/server/services/correo";
 
 /**
@@ -221,7 +220,6 @@ export async function armarConfirmacionesDeCompra({
       colorPrimario: orden.tenant.colorPrimario,
       identidadLegal: orden.tenant.identidadLegal,
       items,
-      diasExpiracion: GRANT_TTL_DIAS,
       orden: {
         numeroDeOrden: orden.id,
         fecha: orden.createdAt,

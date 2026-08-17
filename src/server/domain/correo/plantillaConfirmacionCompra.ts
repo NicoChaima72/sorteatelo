@@ -35,7 +35,11 @@ import {
  *    cuando escribe preguntando algo, y lo que el Organizador busca en su export de ventas.
  * 5. **Bases del sorteo** cuando la Tienda las cargó, + el disclaimer de responsabilidad (ADR-0008)
  *    que pone el layout.
- * 6. Los **enlaces de entrega** y su aviso de expiración, que es lo que este correo ya hacía.
+ * 6. Los **enlaces de entrega** y el aviso de que **no vencen**, que es lo que este correo ya hacía
+ *    —al revés—. Hasta `entrega-postpago` (D2) el aviso decía «vencen en 30 días» porque el
+ *    `DownloadGrant` nacía con un TTL heredado de la era S3; ahora el grant nace sin vencimiento
+ *    (`expiresAt` null = acceso permanente) y el correo dice la verdad nueva: guardarlo sirve. El
+ *    número de días desapareció del contrato de la plantilla — no hay prop que pueda mentir.
  *
  * **Degradación limpia sin sorteo**: una orden sin tickets (producto que no participa, o Tienda sin
  * sorteo ACTIVO al pagar) recibe el MISMO correo sin la sección de sorteo — ni rótulo vacío, ni
@@ -111,7 +115,6 @@ export function armarCorreoConfirmacionCompra({
   colorPrimario,
   identidadLegal,
   items,
-  diasExpiracion,
   orden,
   sorteo,
 }: {
@@ -123,7 +126,6 @@ export function armarCorreoConfirmacionCompra({
   /** `Tenant.identidadLegal` (F05/D6) — quién responde por la venta, en el pie. Ausente ⇒ sin línea. */
   identidadLegal?: string | null;
   items: ItemDescarga[];
-  diasExpiracion: number;
   orden: ResumenDeOrden;
   /** Ausente ⇒ la compra no generó tickets: el correo sale sin sección de sorteo. */
   sorteo?: SorteoDeLaCompra;
@@ -157,9 +159,14 @@ export function armarCorreoConfirmacionCompra({
     ? `Tus números: ${boletos.texto} · ${sorteo!.nombre}`
     : `Tus enlaces de descarga de ${tienda}`;
 
-  const avisoExpiracion =
-    `Estos enlaces vencen en ${diasExpiracion} días. Si necesitas que te los reenviemos, ` +
-    `responde este correo y ${tienda} podrá ayudarte.`;
+  // Acceso permanente (`entrega-postpago` D2): el grant nace sin vencimiento, así que el correo
+  // pasa de avisar un plazo a dar la razón para GUARDARLO. La segunda frase queda igual que antes y
+  // sigue siendo cierta: el reenvío del panel existe y ahora manda estos mismos enlaces, porque
+  // dejó de regenerar tokens. No se promete «para siempre» —`expiresAt` no-null sigue siendo el
+  // seam de revocación— sino lo que hoy es verdad: no vencen y se puede volver.
+  const avisoAcceso =
+    `Guarda este correo: estos enlaces no vencen, así que puedes volver a descargar cuando ` +
+    `quieras. Si necesitas que te los reenviemos, responde este correo y ${tienda} podrá ayudarte.`;
 
   // ── Sección del sorteo (D1/D8/D10/I7/I10) ──────────────────────────────────
   const cierre = conSorteo ? fechaHoraEnChile(sorteo!.fechaFin) : "";
@@ -221,7 +228,7 @@ export function armarCorreoConfirmacionCompra({
       ``,
       ...items.map((it) => `- ${it.titulo}: ${it.enlace}`),
       ``,
-      avisoExpiracion,
+      avisoAcceso,
       ``,
       `Resumen de tu compra`,
       ...filasResumen.map(([etiqueta, valor]) => `- ${etiqueta}: ${valor}`),
@@ -239,7 +246,7 @@ export function armarCorreoConfirmacionCompra({
           )
           .join("") +
         `</ul>`,
-      `<p style="${ESTILO.nota}">${escaparHtml(avisoExpiracion)}</p>`,
+      `<p style="${ESTILO.nota}">${escaparHtml(avisoAcceso)}</p>`,
       // El resumen va con tabla (no `<dl>`): es lo único que un cliente de correo alinea igual en
       // todas partes, y acá la alineación es lo que lo hace legible de un vistazo.
       `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;width:100%;border-top:1px solid ${tema.linea};">` +

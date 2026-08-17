@@ -37,6 +37,8 @@ import { type Tema } from "~/lib/pagebuilder/schema";
 import { apexDesdeHost, construirUrlSubdominio } from "~/lib/urlApex";
 import { db } from "~/server/db";
 import { getEntregaDeOrden } from "~/server/entrega/getEntregaDeOrden";
+import { ipDeRequest } from "~/server/ipDeRequest";
+import { crearLimitadorDeIntentos } from "~/server/security/limiteDeIntentos";
 import { crearStorageDeEnv } from "~/server/storage/storageDeEnv";
 import {
   resolverChrome,
@@ -74,6 +76,19 @@ import { env } from "~/env";
 
 /** Miniaturas: mucho más cortas que la descarga (~10 min). Se pintan al abrir y no se guardan. */
 const EXPIRACION_MINIATURA_SEGUNDOS = 300;
+
+/**
+ * Cuota de aperturas por IP (F03/D3 de `entrega-postpago-retorno-y-reacceso`): 30 por minuto.
+ *
+ * Cada apertura de esta página presigna TODAS las miniaturas de la orden, así que es la superficie
+ * más cara de las tres — y desde D2 el enlace ya no vence, o sea que sondear tokens dejó de tener
+ * fecha de caducidad. 30/min es holgadísimo para una persona (el retorno la abre UNA vez, y recargar
+ * de nervios no llega ni a diez) y corta un barrido.
+ *
+ * A nivel de MÓDULO —«por lambda» en Vercel—, igual que el verificador de tickets: fricción
+ * anti-script, no un perímetro. Falla ABIERTO bajo presión de memoria (I8, ver el limitador).
+ */
+const limiteEntrega = crearLimitadorDeIntentos({ limite: 30, ventanaMs: 60_000 });
 
 const ICONO_TIPO: Record<ProductFileType, typeof IconFileText> = {
   PDF: IconFileText,
@@ -128,8 +143,17 @@ export const getServerSideProps: GetServerSideProps<PropsEntrega> = async (
   const token = typeof ctx.params?.token === "string" ? ctx.params.token : null;
   if (!token) return { notFound: true };
 
+  // Cuota por IP (F03/D3), antes de tocar la DB. Acá el exceso SÍ devuelve el mismo `notFound` que
+  // todo lo demás, al revés que en `/api/descargas` (que responde 429): esto es una PÁGINA, y un 404
+  // ya es lo que ve cualquiera que llegue con un token que no sirve. Meterle un estado nuevo a la
+  // única puerta del Comprador —una pantalla de «demasiados intentos» que él no sabría interpretar—
+  // compraría precisión de diagnóstico a cambio de asustar a quien recargó tres veces de nervios.
+  if (!limiteEntrega.permitirIntento(ipDeRequest(ctx.req.headers) ?? "sin-ip")) {
+    return { notFound: true };
+  }
+
   const entrega = await getEntregaDeOrden({ db, token });
-  // Token inexistente / vencido / orden no pagada ⇒ la MISMA respuesta (I3).
+  // Token inexistente / revocado / orden no pagada ⇒ la MISMA respuesta (I3).
   if (!entrega) return { notFound: true };
 
   // Las miniaturas necesitan R2 configurado; sin eso la página igual sirve (los enlaces de descarga

@@ -17,10 +17,14 @@ import { sanearNombreArchivo } from "~/server/services/storage";
  * - `token` ⇒ grant (unique global: token⇒grant⇒tenant/producto, igual que `Payment.token`).
  *   El endpoint NO exige sesión (ADR-0004: el Comprador no tiene cuenta; el token ES la
  *   autoridad).
- * - Grant vigente (`expiresAt` > ahora) Y archivo entregable ⇒ **302** con `Location` = URL
- *   prefirmada corta (~10 min) de la key de ESE archivo, con su content-type REAL.
- * - **Cualquier otro caso ⇒ 404 neutral IDÉNTICO** (I3): token inexistente, grant expirado o
- *   archivo pendiente son indistinguibles por construcción (mismo status y body).
+ * - Grant vigente (`expiresAt` null —el caso normal: no vence, D2— o todavía futuro) Y archivo
+ *   entregable ⇒ **302** con `Location` = URL prefirmada corta (~10 min) de la key de ESE archivo,
+ *   con su content-type REAL.
+ * - **Cualquier otro caso ⇒ 404 neutral IDÉNTICO** (I3): token inexistente, grant REVOCADO
+ *   (`expiresAt` no-null y pasado) o archivo pendiente son indistinguibles por construcción (mismo
+ *   status y body).
+ * - **Cuota por IP ⇒ 429** (F03/D3 de `entrega-postpago-retorno-y-reacceso`): el gate se consulta
+ *   antes de resolver el token, falla ABIERTO, y su respuesta NO es el 404 neutral (ver `RESPUESTA_429`).
  * - **Defensa en profundidad (I9/I2)**: si la key no empieza con `<grant.tenantId>/`, también
  *   404 neutral — jamás se presigna una key fuera del prefijo del tenant del grant (aunque la
  *   FK lo haga imposible por construcción, no confiamos: un tenant NUNCA sirve archivos de otro).
@@ -30,7 +34,13 @@ import { sanearNombreArchivo } from "~/server/services/storage";
 /** Proyección del grant necesaria para decidir y presignar (la carga el repo del wrapper). */
 export interface GrantParaDescarga {
   tenantId: string;
-  expiresAt: Date;
+  /**
+   * Corte de validez del derecho. **`null` = no vence** (acceso permanente, D2 de
+   * `entrega-postpago-retorno-y-reacceso`): es el estado normal de todo grant emitido. Un valor
+   * no-null es una **revocación** administrativa, y si ya pasó, esta descarga responde el 404
+   * neutral de siempre.
+   */
+  expiresAt: Date | null;
   /**
    * El archivo a servir, ya resuelto por el repo vía `archivosParaEntrega` (productos-tipos-digitales
    * F03): trae su `key`, su `contentType` REAL y el `nombreArchivo` con el que el Comprador lo
@@ -75,6 +85,16 @@ export interface ManejarDescargaArgs {
   presignarDescarga: PresignarDescargaFn;
   /** Reloj inyectable (default: ahora). Permite testear la expiración sin esperar. */
   ahora?: Date;
+  /**
+   * Gate anti-abuso por IP (F03/D3 de `entrega-postpago-retorno-y-reacceso`), inyectado por el borde
+   * —la IP es del transporte, no del dominio— igual que en `verificarTickets`. Se consulta ANTES de
+   * mirar el token: una cuota agotada no debe costar ni una query.
+   *
+   * El **default es `true`** y eso es la política, no una comodidad de tests: el limitador falla
+   * ABIERTO (I8). Un wrapper que se olvide de pasarlo sirve la descarga, que es infinitamente mejor
+   * que dejar sin su archivo a alguien que ya pagó.
+   */
+  permitirIntento?: () => boolean;
 }
 
 export interface RespuestaDescarga {
@@ -87,6 +107,18 @@ export interface RespuestaDescarga {
 const RESPUESTA_404_NEUTRAL: RespuestaDescarga = {
   status: 404,
   body: "No encontrado.",
+};
+
+/**
+ * Cuota de IP agotada (F03). Es 429 y NO el 404 neutral a propósito: se devuelve ANTES de mirar el
+ * token, así que no dice absolutamente nada sobre si ese grant existe — y decirle «no encontrado» a
+ * quien simplemente fue muy rápido lo mandaría a buscar un problema que no tiene. La neutralidad que
+ * protege I3 es entre token inexistente / revocado / archivo pendiente, y esos tres siguen siendo
+ * indistinguibles entre sí.
+ */
+const RESPUESTA_429: RespuestaDescarga = {
+  status: 429,
+  body: "Demasiadas descargas seguidas. Espera un minuto y vuelve a intentarlo.",
 };
 
 /** Extrae el token del query del route dinámico `[token]`. */
@@ -110,11 +142,17 @@ export async function manejarDescarga({
   buscarGrant,
   presignarDescarga,
   ahora = new Date(),
+  permitirIntento = () => true,
 }: ManejarDescargaArgs): Promise<RespuestaDescarga> {
   // Gate de método: solo GET (es una descarga que el Comprador abre en el navegador).
   if (req.method !== "GET") {
     return { status: 405, body: "Método no permitido." };
   }
+
+  // Cuota por IP (F03/D3). Va DESPUÉS del gate de método —un POST no consume cuota de nadie— y ANTES
+  // de resolver el token: con el acceso permanente (D2) esta URL es una capability que no caduca, así
+  // que barrer tokens al azar dejó de tener fecha de caducidad y merece fricción.
+  if (!permitirIntento()) return RESPUESTA_429;
 
   const token = extraerToken(req.query);
   if (!token) return RESPUESTA_404_NEUTRAL;
@@ -123,8 +161,11 @@ export async function manejarDescarga({
   // Token inexistente ⇒ 404 neutral (indistinguible de expirado / PDF pendiente).
   if (!grant) return RESPUESTA_404_NEUTRAL;
 
-  // Grant expirado ⇒ 404 neutral.
-  if (grant.expiresAt.getTime() <= ahora.getTime()) return RESPUESTA_404_NEUTRAL;
+  // Grant REVOCADO ⇒ 404 neutral. `expiresAt` null es el caso normal (el derecho no vence, D2), así
+  // que este corte solo se activa cuando alguien puso una fecha a mano: es el seam de revocación.
+  if (grant.expiresAt !== null && grant.expiresAt.getTime() <= ahora.getTime()) {
+    return RESPUESTA_404_NEUTRAL;
+  }
 
   // Qué archivo de los que el grant autoriza se pide. Sin `?archivo=` se sirve el primero, que es
   // el comportamiento de siempre (y en un ESTANDAR el único). Con `?archivo=<fileId>` se busca EN EL

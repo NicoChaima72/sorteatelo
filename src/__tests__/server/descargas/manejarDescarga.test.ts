@@ -6,6 +6,7 @@ import {
   manejarDescarga,
   type PresignarDescargaFn,
 } from "~/server/descargas/manejarDescarga";
+import { crearLimitadorDeIntentos } from "~/server/security/limiteDeIntentos";
 
 /**
  * Núcleo del endpoint público de descarga por token (F03/D5). El repo de grants y el presigner
@@ -125,16 +126,20 @@ describe("descargas/manejarDescarga — núcleo del endpoint de descarga", () =>
     expect(presignarDescarga).not.toHaveBeenCalled();
   });
 
-  // descargas.404.neutral — token inexistente, expirado y PDF pendiente ⇒ MISMA respuesta 404
-  it("token inexistente, grant expirado y PDF pendiente devuelven la MISMA respuesta 404 neutral", async () => {
+  // descargas.404.neutral — token inexistente, grant REVOCADO y archivo pendiente ⇒ MISMA respuesta
+  // 404. Re-narrado en F01 de `entrega-postpago-retorno-y-reacceso`: desde D2 un `expiresAt` no-null
+  // y pasado ya no es «se venció solo a los 30 días» sino «alguien lo revocó», y lo que esta prueba
+  // fija es que el seam de revocación NO se puede sondear — responde exactamente lo mismo que un
+  // token inventado (I3).
+  it("token inexistente, grant revocado y archivo pendiente devuelven la MISMA respuesta 404 neutral", async () => {
     const inexistente = await manejarDescarga({
       req: reqGet("no-existe"),
       buscarGrant: vi.fn<BuscarGrantPorToken>().mockResolvedValue(null),
       presignarDescarga: presignOk,
       ahora: AHORA,
     });
-    const expirado = await manejarDescarga({
-      req: reqGet("tok-expirado"),
+    const revocado = await manejarDescarga({
+      req: reqGet("tok-revocado"),
       buscarGrant: vi
         .fn<BuscarGrantPorToken>()
         .mockResolvedValue(grant({ expiresAt: new Date("2026-07-01T00:00:00Z") })),
@@ -152,8 +157,95 @@ describe("descargas/manejarDescarga — núcleo del endpoint de descarga", () =>
 
     // Los tres son EXACTAMENTE iguales (status + body): indistinguibles (I3).
     expect(inexistente).toEqual({ status: 404, body: "No encontrado." });
-    expect(expirado).toEqual(inexistente);
+    expect(revocado).toEqual(inexistente);
     expect(pendiente).toEqual(inexistente);
+  });
+
+  // descargas.permanente.001 — grant SIN vencimiento (`expiresAt: null`, D2 de
+  // entrega-postpago-retorno-y-reacceso) ⇒ 302 igual que siempre: el derecho de descarga NO caduca.
+  // Es la mitad visible de F01 — quien compró hace tres meses sigue bajando su archivo.
+  it("un grant sin vencimiento (expiresAt null) entrega igual: 302 a la URL prefirmada", async () => {
+    const presignarDescarga = vi
+      .fn<PresignarDescargaFn>()
+      .mockResolvedValue("https://r2.example/firmada-10min");
+
+    const res = await manejarDescarga({
+      req: reqGet("tok-permanente"),
+      buscarGrant: vi
+        .fn<BuscarGrantPorToken>()
+        .mockResolvedValue(grant({ expiresAt: null })),
+      presignarDescarga,
+      ahora: AHORA,
+    });
+
+    expect(res.status).toBe(302);
+    expect(res.headers?.Location).toBe("https://r2.example/firmada-10min");
+  });
+
+  /*
+    ── F03/D3: cuota por IP ────────────────────────────────────────────────────────────────────────
+    Con el limitador REAL, no con un `() => false`: lo que hay que probar es la política (que el cupo
+    se agote donde corresponde y que sea POR clave), no que el núcleo respete un booleano.
+  */
+
+  // rate.descargas.001 — al exceder el techo responde 429, y lo hace SIN resolver el token: una cuota
+  // agotada no debe costar ni una query. El 429 no es el 404 neutral a propósito (ver RESPUESTA_429):
+  // se decide antes de mirar el token, así que no dice nada sobre si ese grant existe.
+  it("al exceder la cuota por IP responde 429 sin buscar el grant", async () => {
+    const limitador = crearLimitadorDeIntentos({ limite: 2, ventanaMs: 60_000 });
+    const permitirIntento = () => limitador.permitirIntento("1.2.3.4");
+    const buscarGrant = vi.fn<BuscarGrantPorToken>().mockResolvedValue(grant());
+
+    for (let i = 0; i < 2; i++) {
+      const ok = await manejarDescarga({
+        req: reqGet("tok-1"), buscarGrant, presignarDescarga: presignOk, ahora: AHORA, permitirIntento,
+      });
+      expect(ok.status).toBe(302);
+    }
+
+    const limitada = await manejarDescarga({
+      req: reqGet("tok-1"), buscarGrant, presignarDescarga: presignOk, ahora: AHORA, permitirIntento,
+    });
+    expect(limitada.status).toBe(429);
+    expect(buscarGrant).toHaveBeenCalledTimes(2); // la 3ª ni se asomó al repo
+
+    // Y otra IP tiene su propio cupo intacto: que alguien abuse no deja sin su archivo a quien pagó.
+    const otraIp = await manejarDescarga({
+      req: reqGet("tok-1"),
+      buscarGrant,
+      presignarDescarga: presignOk,
+      ahora: AHORA,
+      permitirIntento: () => limitador.permitirIntento("9.9.9.9"),
+    });
+    expect(otraIp.status).toBe(302);
+  });
+
+  // rate.descargas.002 — un método ≠ GET no consume cuota: el gate va DESPUÉS del gate de método, así
+  // que un preflight o un bot mandando POST no le gasta el cupo al Comprador que viene detrás.
+  it("un request que no es GET no consume cuota", async () => {
+    const permitirIntento = vi.fn().mockReturnValue(true);
+    const res = await manejarDescarga({
+      req: { method: "POST", query: { token: "tok-1" } },
+      buscarGrant: vi.fn<BuscarGrantPorToken>().mockResolvedValue(grant()),
+      presignarDescarga: presignOk,
+      ahora: AHORA,
+      permitirIntento,
+    });
+    expect(res.status).toBe(405);
+    expect(permitirIntento).not.toHaveBeenCalled();
+  });
+
+  // rate.descargas.003 — sin gate inyectado, la descarga procede: el limitador falla ABIERTO (I8). Es
+  // el default del núcleo y es la política, no una comodidad de tests — un wrapper que se olvide de
+  // cablear la cuota sirve el archivo igual, que es infinitamente mejor que negárselo a quien pagó.
+  it("sin gate inyectado la descarga procede: el limitador falla ABIERTO", async () => {
+    const res = await manejarDescarga({
+      req: reqGet("tok-1"),
+      buscarGrant: vi.fn<BuscarGrantPorToken>().mockResolvedValue(grant()),
+      presignarDescarga: presignOk,
+      ahora: AHORA,
+    });
+    expect(res.status).toBe(302);
   });
 
   // descargas.405 — método ≠ GET ⇒ 405 sin efecto

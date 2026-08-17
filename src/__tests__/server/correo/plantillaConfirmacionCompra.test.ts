@@ -14,8 +14,10 @@ import { armarCorreoConfirmacionCompra } from "~/server/domain/correo/plantillaC
  * correo post-pago confirma ahora la compra COMPLETA. Por eso este archivo tiene dos mitades:
  *
  * - `correo.template.001-008` — la herencia de F04/F07, migrada tal cual. Son la mitad **cero
- *   regresión**: lo que ya cumplía (un enlace por ítem, aviso de expiración, disclaimer ADR-0008,
- *   escapado/saneo, layout con branding del tenant) tiene que seguir cumpliéndolo.
+ *   regresión**: lo que ya cumplía (un enlace por ítem, aviso sobre la vigencia de los enlaces,
+ *   disclaimer ADR-0008, escapado/saneo, layout con branding del tenant) tiene que seguir
+ *   cumpliéndolo. El único que cambió de CONTENIDO es el 001: con `entrega-postpago` D2 el aviso
+ *   pasó de «vencen en 30 días» a «no vencen», y el prop `diasExpiracion` se fue del contrato.
  * - `correo.template.009+` — lo NUEVO de F03: números como boletos con prefijo, sorteo nombrado
  *   (I10), cierre en hora de Chile (I7), resumen de la orden en CLP y degradación sin tickets.
  */
@@ -49,12 +51,16 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
       { titulo: "Guía del bias", enlace: "https://app.test/entrega/tok-1" },
       { titulo: "Photobook", enlace: "https://app.test/entrega/tok-2" },
     ],
-    diasExpiracion: 30,
-    orden: ORDEN,
+      orden: ORDEN,
   });
 
-  // correo.template.001 — UN correo con un enlace por ítem, nombre de Tienda y aviso de expiración
-  it("produce UN correo con from de la Tienda, un enlace por ítem, el nombre de la Tienda y el aviso de expiración", () => {
+  // correo.template.001 — UN correo con un enlace por ítem, nombre de Tienda y aviso de acceso
+  // permanente. El aviso cambió de signo con `entrega-postpago` D2: hasta entonces decía «vencen en
+  // 30 días» (el TTL heredado de la era S3) y ahora el grant nace sin vencimiento, así que el correo
+  // invita a GUARDARLO. Lo que se fija acá no es la frase sino que el correo **no le prometa al
+  // Comprador un plazo que el código ya no impone** — una mentira en el único registro durable que
+  // tiene de su compra (ADR-0004: sin cuentas de comprador, este correo ES el acceso).
+  it("produce UN correo con from de la Tienda, un enlace por ítem, el nombre de la Tienda y el aviso de que los enlaces no vencen", () => {
     expect(armado.from).toContain("Tienda ARMY");
     expect(armado.subject).toContain("Tienda ARMY");
 
@@ -66,9 +72,17 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
       expect(parte).toContain("Photobook");
       expect(parte).toContain("Tienda ARMY");
     }
-    // Aviso de expiración con los días.
-    expect(armado.text).toContain("30 días");
-    // Indicación de reenvío respondiendo el correo.
+    // El aviso dice la política vigente (D2): no vencen, y por eso vale la pena guardar el correo.
+    for (const parte of [armado.text, armado.html]) {
+      expect(parte).toContain("no vencen");
+      // Y NUNCA un plazo: ni «vencen en N días» ni ninguna otra cuenta regresiva. Es la aserción
+      // que impide que vuelva a colarse un número de días desde donde sea.
+      expect(parte).not.toMatch(/vencen? en/i);
+      expect(parte).not.toMatch(/\d+\s*d[ií]as/i);
+      expect(parte.toLowerCase()).not.toContain("expira");
+    }
+    // Indicación de reenvío respondiendo el correo — sigue siendo cierta: el panel reenvía ESTOS
+    // mismos enlaces (desde D2 el reenvío ya no regenera tokens).
     expect(armado.text.toLowerCase()).toContain("responde este correo");
   });
 
@@ -124,7 +138,6 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
       items: [
         { titulo: 'Guía "premium" <script>', enlace: "https://app.test/entrega/x" },
       ],
-      diasExpiracion: 30,
       orden: ORDEN,
     });
     // En el HTML los caracteres peligrosos quedan escapados (no como tags reales).
@@ -159,7 +172,6 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
       logoUrl: "https://pub.r2.dev/ten1/branding/logo?v=3",
       colorPrimario: "#e11d48",
       items: [{ titulo: "P", enlace: "https://app.test/entrega/x" }],
-      diasExpiracion: 30,
       orden: ORDEN,
     });
     expect(conMarca.html).toContain('src="https://pub.r2.dev/ten1/branding/logo?v=3"');
@@ -173,7 +185,6 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
     const conCrlf = armarCorreoConfirmacionCompra({
       nombreTienda: "Malo\r\nBcc: victima@x.cl",
       items: [{ titulo: "P", enlace: "https://app.test/entrega/x" }],
-      diasExpiracion: 30,
       orden: ORDEN,
     });
     // Ni el from ni el subject conservan CR/LF (una cabecera con salto de línea es inyección).
@@ -185,7 +196,6 @@ describe("domain/correo/plantillaConfirmacionCompra — sin sorteo (herencia F04
     const vacio = armarCorreoConfirmacionCompra({
       nombreTienda: "   ",
       items: [{ titulo: "P", enlace: "https://app.test/entrega/x" }],
-      diasExpiracion: 30,
       orden: ORDEN,
     });
     expect(vacio.from.startsWith(`${MARCA_PLATAFORMA} · vía`)).toBe(true);
@@ -196,8 +206,7 @@ describe("domain/correo/plantillaConfirmacionCompra — con sorteo (F03/C1)", ()
   const conSorteo = armarCorreoConfirmacionCompra({
     nombreTienda: "Tienda ARMY",
     items: [{ titulo: "Guía del bias", enlace: "https://app.test/entrega/tok-1" }],
-    diasExpiracion: 30,
-    orden: ORDEN,
+      orden: ORDEN,
     sorteo: {
       nombre: "Sorteo Photocard Firmada",
       fechaFin: CIERRE,
@@ -255,13 +264,11 @@ describe("domain/correo/plantillaConfirmacionCompra — con sorteo (F03/C1)", ()
     const sinSorteo = armarCorreoConfirmacionCompra({
       nombreTienda: "Tienda ARMY",
       items: [{ titulo: "P", enlace: "https://app.test/entrega/x" }],
-      diasExpiracion: 30,
       orden: ORDEN,
     });
     const sorteoSinNumeros = armarCorreoConfirmacionCompra({
       nombreTienda: "Tienda ARMY",
       items: [{ titulo: "P", enlace: "https://app.test/entrega/x" }],
-      diasExpiracion: 30,
       orden: ORDEN,
       sorteo: {
         nombre: "Sorteo Photocard Firmada",

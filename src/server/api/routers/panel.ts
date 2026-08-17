@@ -402,7 +402,10 @@ export const panelRouter = createTRPCRouter({
 
   // ── Reenvío del correo de descarga de una orden PAGADA (F04/D9) ────────────
   // El correo y el baseUrl se cablan desde env en el borde (crearCorreoDeEnv/baseUrlApp, I6);
-  // el use case los recibe inyectados. Regenera los grants expirados antes de reenviar.
+  // el use case los recibe inyectados. **No escribe nada**: manda de nuevo el mismo correo, con los
+  // tokens que la orden ya tenía. Hasta F01 de `entrega-postpago-retorno-y-reacceso` regeneraba los
+  // grants vencidos; con el acceso permanente (D2) el único `expiresAt` no-null posible es una
+  // revocación deliberada, así que regenerar volvería este botón una puerta trasera para desrevocar.
   reenviarCorreoDescarga: panelProcedure
     .input(reenviarCorreoDescargaInput)
     .mutation(({ ctx, input }) =>

@@ -28,7 +28,12 @@ interface GrantView {
    * mostraba como "pendiente — 404" cuando su descarga funcionaba perfecto.
    */
   entregable: boolean;
-  expiresAt: string;
+  /**
+   * Corte de validez del grant, ISO. **`null` = no vence** (D2 de
+   * `entrega-postpago-retorno-y-reacceso`), que es el caso normal desde F01: un valor presente
+   * significa que a ese grant lo REVOCARON, y por eso la página lo dice con esas palabras.
+   */
+  expiresAt: string | null;
 }
 
 interface OrdenView {
@@ -85,7 +90,7 @@ export const getServerSideProps: GetServerSideProps<{
           // MISMA regla que la entrega, importada y no re-escrita (I5): si esta página y la descarga
           // discrepan, la página de dev es inútil justo cuando más se la necesita.
           entregable: esProductoEntregable(datosEntregableDeFila(g.product)),
-          expiresAt: g.expiresAt.toISOString(),
+          expiresAt: g.expiresAt?.toISOString() ?? null,
         })),
       })),
     },
@@ -152,7 +157,12 @@ export default function DevDescargasPage({
                       </span>
                     )}{" "}
                     <span style={{ color: "#999", fontSize: 12 }}>
-                      · vence {new Date(grant.expiresAt).toLocaleDateString("es-CL")}
+                      {/* Sin fecha = no vence (el caso normal desde D2). Con fecha, el grant está
+                          REVOCADO desde ese día — se dice con esa palabra para que nadie lo lea
+                          como un TTL que hay que renovar. */}
+                      {grant.expiresAt === null
+                        ? "· no vence"
+                        : `· revocado desde ${new Date(grant.expiresAt).toLocaleDateString("es-CL")}`}
                     </span>
                   </li>
                 ))}

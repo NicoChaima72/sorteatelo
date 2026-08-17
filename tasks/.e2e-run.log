@@ -1,55 +1,49 @@
-# Corrida E2E — feature-tester
-modo: feature (slug=storefront-verificador-tickets)
-scope: Vitest del área + 9 checkboxes E2E del plan
-server: http://localhost:3001 (200 OK)
-inicio: 2026-07-27 01:51
+# .e2e-run.log — corrida del feature-tester
+modo: feature
+slug: entrega-postpago-retorno-y-reacceso
+scope: Vitest suite COMPLETA (--no-file-parallelism) + E2E F01/F02 contra dev server local
+server: http://localhost:3000 (apex) / http://iselk.localhost:3000 (storefront) — levantado por el tester
+inicio: 2026-08-17 (feature-tester)
+restricciones del pase: SIN compra nueva, SIN tunel, SIN escrituras en DB, sin tocar tiendas publicadas
 
-## Vitest
-[01:52] limiteDeIntentos 4/4 · verificarTickets 9/9 · getVerificarProps 4/4
-[01:52] temaEnPaginasDePlataforma 10/10 · paginas 12/12 · getEstadoOrden 9/9 · basesDelSorteo 7/7
-[01:52] slugTienda 3/3 · faseRetornoCheckout 6/6
-[01:52] TOTAL 64/64 VERDE — E2E habilitado
-
-## Censo read-only de insumos
-[01:53] iselk PUBLICADA, sorteo "Entrada para ver a BTS", 12 tickets, prefijoTicket=null
-[01:53]   nikochaima72+f14@gmail.com => 1..8 ; nikochaima72+f14t3@gmail.com => 9..12
-[01:53] NINGUNA tienda PUBLICADA sin sorteo activo (bcac/demo-*/iselk/prueba todas con ACTIVO)
-[01:53]   e2e-alta-2707 y e2e-numeros estan en CONFIGURACION => /verificar les da 404 por zona
-[01:53] carriles: chrome-devtools OCUPADO, playwright OCUPADO => claude-in-chrome
-
-## E2E
-
-## Cierre
-VEREDICTO: F05 y F06 VERDES — listas para `passing`.
-Vitest 205/205 (1 flake ajeno de F04, verde en retry).  E2E 12/12.  Design findings: 1 (repetido).
-Findings: F1 barrido global de retirarRecordatoriosObsoletos + `ahora` sintético en tests vs DB prod
-          F2 «exactamente lo mismo» de correo.baja.012 sobreafirma (el válido nombra la Tienda)
-          F3 recordatorios sin reply-to (C1/C4/C5 sí lo llevan)
-NO se tocó `state` ni `status`; NO se corrió `npm run check`; NO hay commit.
-fin: 2026-07-27 02:00
-[02:15] F01 iselk  +f14@gmail.com          => boleto "1-8"     PASS
-[02:15] F01 iselk  +f14t3@gmail.com        => boleto "9-12"    PASS
-[02:16] F03 iselk  correo desconocido      => neutral D4       PASS
-[02:18] F03 tema   iselk /verificar vs /bases   shell/scheme/bg identicos (light, Nunito) PASS
-[02:18] F03 tema   demo-noche /verificar vs /bases identicos (dark rgb(36,36,36), Roboto) PASS
-[02:20] F04 links  iselk/demo-noche/prueba/bcac: 1 ancla /verificar en header + 1 en footer PASS
-[02:21] F04 nav    click header iselk  => iselk.localhost:3001/verificar      PASS
-[02:21] F04 nav    click footer noche  => demo-noche.localhost:3001/verificar PASS
-[02:22] zona       127.0.0.1/verificar => 404 (== /bases)                     PASS
-[02:22] zona       apex localhost      => 200 por override DEV F09d (== /bases) NO-DEFECTO
-[02:25] F02 retorno orden PAGADA iselk => "Pago confirmado" + boleto 1-8      PASS
-[02:25] F02 html   outerHTML boletos retorno === /verificar (identico)        PASS
-[02:27] cuota      bcac intentos 1-10 OK, 11 y 12 => "Demasiadas busquedas"   PASS
-[02:30] F04 320px  iselk sin sesion: sin overflow, wordmark entero            PASS
-[02:32] ---- dev server 500 en TODAS las paginas (.next corrupto, carril ajeno) ----
-[02:35] ---- server reiniciado solo; se retoma ----
-[02:37] F04 320px  iselk dueña logueada: banner plataforma, AccesoSesion oculta PASS
-[02:37] F04 320px  demo-noche "Mi panel": 4 items, gap min 12px, sin overflow  PASS
-[02:38] F03 vacio  test-efectos-sobre-f/g (PUBLICADAS sin sorteo): sin form    PASS
-[02:39] F01 prefijo test-recordatorio-54216-filtro (ARMY) => boleto "ARMY-1"   PASS
-
-## Resultado
-Vitest 64/64 · E2E 9/9 · auto-retries por fallo funcional: 0
-Design findings: 1 (preexistente, Anton + fw800 = falso negrita; igual en /bases y la home)
-Hallazgos: apex 200 por override DEV (no defecto) · link Bases del footer solo post-hidratacion
-fin: 2026-07-27 02:40
+[09:52] dev server arriba (curl 200, Ready in 1797ms, next dev :3000) — lo levanto YO, lo bajo al cierre.
+[09:53] Vitest suite COMPLETA lanzada en background con --no-file-parallelism (log en scratchpad/vitest-full.log).
+[09:54] DB read-only: orden cmswahd0i0002d195nguic0hy = PAGADO / tenant iselk / ARMY-14 / 1 grant
+        token KaKnuaeLd8yj… expiresAt 2026-09-15 (no-null, VIGENTE — backfill sigue pendiente, esperado).
+        Censo global DownloadGrant: 14 total, 14 con expiresAt, 0 null (pre-backfill, coherente con D5).
+[09:55] E2E-1 retorno PAGADO (iselk.localhost:3000/checkout/retorno?token=9DA57A16…): «¡Pago confirmado!»
+        + boleto ARMY-14 + BOTÓN «Descargar mi compra» → /entrega/KaKnua… ✅ (screenshot tmp/tester-retorno-pagado.png)
+        Copy dice «no vence» y menciona el correo como respaldo. Consola sin errores. 1 sola llamada a
+        estadoOrden (el polling se detiene al confirmar). Cero fuga de presign/keys en el HTML.
+[09:56] E2E-2 click del botón → /entrega/KaKnua… con la orden completa («Prueba técnica (temporal)» /
+        prueba-tecnica.pdf + link Descargar) ✅ (screenshot tmp/tester-entrega-pagina.png). Sin fecha de
+        vencimiento en pantalla; sin X-Amz-* ni key de bucket en el HTML (I2).
+[09:57] E2E-3 descarga REAL: /api/descargas/KaKnua… → 302 a R2 (X-Amz-Expires=600, content-disposition
+        con filename RFC 5987) → 200, 470 bytes, %PDF-1.4 … %%EOF ✅ bytes íntegros.
+[09:58] E2E-4 fase esperando (token de orden PENDIENTE 19A5D391…): «¡Gracias por tu compra!», el botón
+        NO existe en el DOM y no hay ni un «/entrega/» en el HTML ✅. Polling real ~6 req en 32 s, TODAS 200,
+        cero TOO_MANY_REQUESTS (I8/F03).
+[09:59] E2E-5 puente POST→GET: POST con token en body → 303 Location /checkout/retorno?token=… ✅;
+        repetido en el navegador con form auto-submit estilo Flow → aterriza en la celebración con
+        ARMY-14 + botón. NO hay regresión de ead7d0c.
+[10:00] E2E-6 neutralidad I3: /entrega/<basura> = 404, /api/descargas/<basura> = 404; /entrega/<token real>
+        desde el APEX = 200 (host-agnóstica, el camino del correo).
+[10:15] I6/I3 en vivo por tRPC (curl, 4 formas de la misma query):
+        PAGADA  -> {"estado":"PAGADO","numeros":[14],"prefijo":"ARMY","urlEntrega":"/entrega/KaKnua…"}  (shape exacto, sin PII)
+        PENDIENTE -> {"estado":"PENDIENTE","numeros":null,"prefijo":null}                               (sin urlEntrega)
+        TOKEN AJENO (mismo token pedido desde prueba.localhost) -> {"estado":null,"numeros":null,"prefijo":null}
+        INEXISTENTE -> {"estado":null,"numeros":null,"prefijo":null}   ⇒ ajeno e inexistente IDÉNTICOS byte a byte
+[10:16] Seam de revocación EN VIVO: grant real vencido ayer (uuqfeqOspVOy…, expiresAt 2026-08-16)
+        -> /entrega 404 y /api/descargas 404, mismos 404 que un token inventado. Grant vigente -> 200.
+[14:20] npx tsc --noEmit en todo el árbol: exit 0.
+[10:40] VITEST SUITE COMPLETA (--no-file-parallelism): 228 archivos, 1665 pass / 1 fail / 1 skip, 2828 s.
+        Único rojo: mcp/conexiones.test.ts -> PrismaClientInitializationError «Can't reach database
+        server» en el beforeEach (corte de red al pooler, ajeno a la tanda).
+[10:41] Re-corrida AISLADA de mcp/conexiones.test.ts: 2/2 verde en 33 s => flake de infra confirmado.
+        Neto: 1666/1667 + 1 skip, cero rojos reales.
+[10:42] Archivos de la tanda: getEstadoOrden 16/16, manejarDescarga 14/14, aplicarEfectosPostPago 25/25,
+        plantillaConfirmacionCompra 13/13, enviarCorreoDescargaDeOrden 10/10,
+        reenviarCorreoDescargaDeOrden 6/6, getEntregaDeOrden 4/4, rateLimitEntrega 3/3,
+        temaEntregaPorGrant 7/7.
+[10:45] Cierre: 14 checkboxes Vitest marcados + 1 E2E marcado + 2 E2E parciales + 1 E2E diferido.
+        VEREDICTO: PASS (con 2 E2E parciales por restricción del pase, no por fallo).

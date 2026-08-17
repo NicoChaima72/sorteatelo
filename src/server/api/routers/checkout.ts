@@ -31,6 +31,24 @@ import { crearLimitadorDeIntentos } from "~/server/security/limiteDeIntentos";
 const limiteVerificarTickets = crearLimitadorDeIntentos({ limite: 10, ventanaMs: 60_000 });
 
 /**
+ * Cuota de `estadoOrden` (F03/D3 de `entrega-postpago-retorno-y-reacceso`): 240 por minuto y por
+ * `tenant+IP`. Es la más holgada de las tres superficies, por lejos, y a propósito.
+ *
+ * El plan proponía 90 como default explícitamente ajustable «con criterio documentado». Se sube a 240
+ * por el peor caso realista: el retorno sondea cada 2,5 s (~24 req/min por compra), y detrás de un
+ * CGNAT móvil chileno pueden caer MUCHAS compras de la misma tienda en la misma IP durante un
+ * lanzamiento. Con 90 el cupo se agota con menos de 4 compradores simultáneos; con 240 hacen falta
+ * más de 10.
+ *
+ * El intercambio no está parejo: del lado del abuso, lo único que hay detrás de esta query es el
+ * estado de una orden y sus Números —públicos por diseño (ADR-0024), sin PII (I-T6)—, keyeados por un
+ * token de Flow de 40 caracteres que nadie adivina; o sea el techo protege COSTO, no un secreto. Del
+ * lado del falso positivo, en cambio, hay alguien que acaba de pagar mirando una pantalla que se
+ * quedaría clavada en «estamos confirmando» (I8). Ante esa asimetría, holgado.
+ */
+const limiteEstadoOrden = crearLimitadorDeIntentos({ limite: 240, ventanaMs: 60_000 });
+
+/**
  * Router de checkout — borde de cara al Comprador, que vive SIEMPRE en el subdominio de
  * una Tienda publicada (ADR-0007). Usa `tenantProcedure` (no `publicProcedure`): garantiza
  * `ctx.tenant` no-null, resuelto server-side desde el host — el `tenantId` con el que se
@@ -93,7 +111,18 @@ export const checkoutRouter = createTRPCRouter({
     .input(getEstadoOrdenInput)
     .query(({ ctx, input }) =>
       runDomain(() =>
-        getEstadoOrden({ db: ctx.db, tenantId: ctx.tenant.id, token: input.token }),
+        getEstadoOrden({
+          db: ctx.db,
+          tenantId: ctx.tenant.id,
+          token: input.token,
+          // Misma clave que el verificador (`tenant:ip`, y solo-tenant sin IP resoluble): sin el
+          // tenant, el lanzamiento de una tienda grande le comería la cuota a las demás de la misma
+          // lambda. La clave se arma acá, en el borde, porque la IP es del transporte.
+          permitirIntento: () =>
+            limiteEstadoOrden.permitirIntento(
+              ctx.ip ? `${ctx.tenant.id}:${ctx.ip}` : ctx.tenant.id,
+            ),
+        }),
       ),
     ),
 

@@ -41,7 +41,13 @@ async function limpiar() {
 beforeEach(limpiar);
 afterEach(limpiar);
 
-const EN_30_DIAS = () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+/**
+ * Los grants de los fixtures felices nacen **sin vencimiento**, que es como nacen en producción
+ * desde D2 de `entrega-postpago-retorno-y-reacceso` (F01): `null` = el derecho no vence. Antes acá
+ * había un `EN_30_DIAS()` que espejaba el TTL viejo; que ahora sea `null` hace que TODOS los casos
+ * felices de este archivo prueben, de paso, que un grant permanente resuelve la orden completa.
+ */
+const SIN_VENCIMIENTO = null;
 
 /**
  * Siembra una Tienda con UN sobre (pool de `pool` archivos) y una orden PAGADA que compró un pack
@@ -112,7 +118,7 @@ async function sembrarCompraDeSobre({
           tenantId: tenant.id,
           productId: producto.id,
           token,
-          expiresAt: EN_30_DIAS(),
+          expiresAt: SIN_VENCIMIENTO,
         },
       },
     },
@@ -173,8 +179,15 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
     }
   });
 
-  // entrega.pagina.002 — token de otra orden ⇒ ve LA SUYA, y token inválido/vencido ⇒ null neutral
-  it("un token de otra orden no muestra esta orden; uno inexistente o vencido devuelve null", async () => {
+  /*
+    entrega.pagina.002 — token de otra orden ⇒ ve LA SUYA, y token inexistente/REVOCADO ⇒ null
+    neutral. Re-narrado en F01 de `entrega-postpago-retorno-y-reacceso`: el grant de los fixtures
+    ya no vence (`SIN_VENCIMIENTO`), así que lo que este caso ejerce al escribirle una fecha pasada
+    ya no es «se cumplió el TTL» sino el **seam de revocación** de D2. Lo que se fija es que ese
+    seam responda EXACTAMENTE lo mismo que un token inventado (I3): un grant revocado no se puede
+    distinguir de uno que nunca existió.
+  */
+  it("un token de otra orden no muestra esta orden; uno inexistente o revocado devuelve null", async () => {
     const a = await sembrarCompraDeSobre({ nombre: "b", pool: 2, unidades: 1 });
     const b = await sembrarCompraDeSobre({ nombre: "c", pool: 2, unidades: 1 });
 
@@ -196,7 +209,7 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
     // Token inexistente ⇒ null.
     expect(await getEntregaDeOrden({ db, token: "no-existe" })).toBeNull();
 
-    // Token vencido ⇒ el MISMO null (indistinguible de inexistente, I3).
+    // Token REVOCADO (corte administrativo ya pasado) ⇒ el MISMO null (indistinguible, I3).
     await db.downloadGrant.updateMany({
       where: { token: a.token },
       data: { expiresAt: new Date(Date.now() - 1000) },
@@ -316,7 +329,7 @@ describe("entrega/getEntregaDeOrden (DB real)", () => {
             tenantId: tenant.id,
             productId: pack.id,
             token,
-            expiresAt: EN_30_DIAS(),
+            expiresAt: SIN_VENCIMIENTO,
           },
         },
       },

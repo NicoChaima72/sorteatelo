@@ -63,7 +63,7 @@ async function crearOrdenConGrants(
   tenantId: string,
   email: string,
   estado: "PENDIENTE" | "PAGADO" | "FALLIDO",
-  grants: Array<{ productId: string; token: string; expiresAt: Date }>,
+  grants: Array<{ productId: string; token: string; expiresAt: Date | null }>,
 ) {
   const order = await db.order.create({
     data: {
@@ -164,53 +164,58 @@ describe("domain/correo/reenviarCorreoDescargaDeOrden (DB-backed, panel)", () =>
     // El grant NO se tocó (mismo token, misma expiración vencida).
     const grant = await db.downloadGrant.findFirst({ where: { orderId: orden } });
     expect(grant?.token).toBe("tok-pendiente");
-    expect(grant?.expiresAt.getTime()).toBe(vencido.getTime());
+    expect(grant?.expiresAt?.getTime()).toBe(vencido.getTime());
   });
 
-  // reenvio.003 — regenera SOLO los grants expirados (token nuevo + expiresAt futuro); vigentes intactos
-  it("regenera los grants expirados (token distinto + expiresAt futuro) en transacción y el correo lleva los enlaces NUEVOS; los vigentes conservan su token", async () => {
+  /*
+    reenvio.003 — REESCRITO en F01 de `entrega-postpago-retorno-y-reacceso` (D2). El caso viejo
+    («regenera SOLO los grants expirados, token nuevo + expiresAt a 30 días») quedó obsoleto junto
+    con el TTL: ahora los grants no vencen (`expiresAt` null) y el único no-null que puede quedar en
+    una fila es una REVOCACIÓN deliberada.
+
+    Por eso el comportamiento nuevo es «nunca regenera», y no es un simplificar por simplificar: si
+    el reenvío siguiera re-escribiendo token+expiresAt de todo grant con fecha pasada, el botón
+    «Reenviar correo» del panel sería una puerta trasera para DESREVOCAR — un Organizador
+    desharía con un click una revocación administrativa, sin saber que lo está haciendo y sin que
+    quede rastro de nada. Reenviar es mandar de nuevo el mismo correo, no devolver un derecho.
+  */
+  it("no regenera ningún grant: el correo reenviado lleva los MISMOS tokens que la orden ya tenía, y un grant revocado sigue revocado", async () => {
     const t = await crearTenant("a");
-    const pExpirado = await crearProducto(t.id, "Expirado");
-    const pVigente = await crearProducto(t.id, "Vigente");
-    const expVieja = futuro(); // el vigente conserva ESTA expiración
+    const pPermanente = await crearProducto(t.id, "Permanente");
+    const pRevocado = await crearProducto(t.id, "Revocado");
+    const revocadoEl = pasado(); // corte administrativo ya vencido
     const orden = await crearOrdenConGrants(t.id, "fan@a.cl", "PAGADO", [
-      { productId: pExpirado.id, token: "tok-viejo-expirado", expiresAt: pasado() },
-      { productId: pVigente.id, token: "tok-vigente", expiresAt: expVieja },
+      // El caso NORMAL desde D2: sin vencimiento.
+      { productId: pPermanente.id, token: "tok-permanente", expiresAt: null },
+      { productId: pRevocado.id, token: "tok-revocado", expiresAt: revocadoEl },
     ]);
 
     const { service, enviados } = correoFake();
-    const res = await reenviarCorreoDescargaDeOrden({
+    await reenviarCorreoDescargaDeOrden({
       db,
       acceso: acceso([t.id]),
       correo: service,
       baseUrl: BASE_URL,
       input: { orderId: orden },
-      generarToken: () => "tok-NUEVO-regenerado",
     });
-
-    expect(res.grantsRegenerados).toBe(1);
 
     const grants = await db.downloadGrant.findMany({
       where: { orderId: orden },
       select: { productId: true, token: true, expiresAt: true },
     });
-    const gExpirado = grants.find((g) => g.productId === pExpirado.id)!;
-    const gVigente = grants.find((g) => g.productId === pVigente.id)!;
+    const gPermanente = grants.find((g) => g.productId === pPermanente.id)!;
+    const gRevocado = grants.find((g) => g.productId === pRevocado.id)!;
 
-    // El expirado: token NUEVO + expiresAt futuro (~30 días).
-    expect(gExpirado.token).toBe("tok-NUEVO-regenerado");
-    expect(gExpirado.token).not.toBe("tok-viejo-expirado");
-    expect(gExpirado.expiresAt.getTime()).toBeGreaterThan(Date.now() + 29 * DIA_MS);
-    // El vigente: intacto (mismo token, misma expiración).
-    expect(gVigente.token).toBe("tok-vigente");
-    expect(gVigente.expiresAt.getTime()).toBe(expVieja.getTime());
+    // Ninguno de los dos se tocó: mismo token, misma (no) expiración.
+    expect(gPermanente.token).toBe("tok-permanente");
+    expect(gPermanente.expiresAt).toBeNull();
+    expect(gRevocado.token).toBe("tok-revocado");
+    expect(gRevocado.expiresAt?.getTime()).toBe(revocadoEl.getTime());
 
-    // El correo lleva el enlace NUEVO del regenerado y el enlace vigente sin cambios.
+    // El correo salió con los tokens que ya existían — ninguno nuevo.
     expect(enviados).toHaveLength(1);
-    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-NUEVO-regenerado`);
-    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-vigente`);
-    // El token viejo expirado ya NO aparece (fue reemplazado).
-    expect(enviados[0]!.text).not.toContain("tok-viejo-expirado");
+    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-permanente`);
+    expect(enviados[0]!.text).toContain(`${BASE_URL}/entrega/tok-revocado`);
   });
 
   // reenvio.004 — el reenvío respeta los mismos invariantes de contenido que F02

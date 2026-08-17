@@ -349,10 +349,20 @@ del navegador); el webhook es idempotente y **rutea la notificación a la Tienda
 ## Entrega
 
 ### Entitlement (derecho de descarga; `DownloadGrant`)
-La **autoridad de acceso** a la descarga de un [[Producto]]: liga una [[Orden]] pagada a un producto,
-con un token firmado y expiración. Sin Entitlement vigente no hay descarga. Se crea al confirmarse el
-[[Pago]]. La descarga se sirve por **URL firmada con expiración corta** o endpoint autenticado, nunca
-por enlace público (ADR-0002).
+La **autoridad de acceso** a la descarga de un [[Producto]]: liga una [[Orden]] pagada a un producto
+mediante un **token opaco** (32 bytes aleatorios — no va firmado ni codifica nada: se busca en la DB).
+Sin Entitlement vigente no hay descarga. Se crea al confirmarse el [[Pago]].
+
+**El acceso es permanente**: el token NO vence (`expiresAt` null) y el [[Comprador]] puede volver a
+`/entrega/<token>` cuando quiera. Sin cuentas de comprador (ADR-0004), su correo de confirmación es la
+llave, y matarla a plazo fijo lo dejaba sin camino de vuelta. `expiresAt` no-null es el **seam de
+revocación** —un corte administrativo deliberado, con la misma respuesta neutral que un token
+inexistente—, nunca un vencimiento automático (D2 de
+`tasks/26-08-16-entrega-postpago-retorno-y-reacceso.md`; hasta esa tanda el grant moría a los 30 días).
+
+Lo que sí expira corto es la **URL firmada del bucket**, regenerada POR VISITA (600 s la descarga,
+300 s las miniaturas): esa ventana y el bucket privado son la seguridad real, no el plazo del grant.
+El archivo jamás se sirve por enlace público (ADR-0002/0009).
 
 ---
 

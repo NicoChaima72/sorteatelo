@@ -1,6 +1,6 @@
 ---
 slug: pago-webhook-amount-string
-status: testing               # F01 implementada + backend-reviewer APPROVE 2026-08-16; F02 es operativa post-deploy
+status: done               # cierre del usuario 2026-08-18: fix deployado, rescate verificado, compras reales fluyendo
 owner: nicolas
 created: 2026-08-15
 related_adrs: [ADR-0001, ADR-0006]
@@ -9,11 +9,11 @@ related_context: [Orden, Pago, Ticket, Número del sorteo, Ledger de correos]
 features:
   - id: F01
     behavior: "El adapter Flow normaliza `amount` de `payment/getStatus` a number ANTES de que el dominio lo vea (Flow producción lo manda como string); el Gate 5 del webhook sigue bloqueando montos realmente distintos y montos ilegibles (fail-closed vía NaN), y sigue procediendo con warning cuando Flow omite el campo"
-    state: active
+    state: done
 
   - id: F02
     behavior: "Rescate operativo de la orden real atascada de iselk (`cmsovwfxe000cyg2vru7qxe7n`): re-POST del webhook con el token real transiciona la orden a PAGADO y materializa TODO el pipeline post-pago (ticket número 13, DownloadGrant, fila del ledger, correo entregado a la compradora)"
-    state: not_started
+    state: done
 ---
 
 # Fix incidente producción: webhook Flow rechaza pagos reales por `amount` string
@@ -134,3 +134,4 @@ Grounding ya hecho (ver Bitácora 2026-08-15): facturación NO tiene el bug (ya 
   - **Sin cambios de `state`/`status`** (los decide el usuario) y **sin commit**. No se levantó dev server ni se tocó navegador (innecesario para F01). **F02 sigue `not_started`**: es post-deploy y la ejecuta el orquestador.
 - [2026-08-16 14:20] [orquestador] DEPLOY + RESCATE F02 EJECUTADOS. Gate completo: change-set-reviewer APPROVE (0 blockers, 2 nits aplicados/documentados; check:types y check:lint 100% verdes; los 2 rojos de check:test verificados independientemente como preexistentes y ajenos — flake de contención + correo.recordatorio.014, este último con dueño anotado para troubleshooter), next build local exit 0 (dev-ref apartado, NEXT_PUBLIC_PLATFORM_DOMAIN=sorteatelo.cl). Commit `ddd3915` pusheado; deployment `dpl_3PqMhfB3v1iXpLkGcREQU8cxqr5t` READY en producción, aliases apex + wildcard; smoke 200 en apex, autora, iselk y e2e-alta-2707. Rescate: webhook re-POST transicionó la orden real a PAGADO — ticket número 13 emitido, grant creado, fee 96 registrado, correo DELIVERED a la compradora (Resend). Replay verificado no-op. Los 7 checkboxes operativos de F02 marcados con evidencia. Decisión sobre el ROJO preexistente: el usuario delegó el cierre nocturno completo (mensaje "visto bueno de todo y finaliza todo"); el orquestador procedió documentando — ratificación formal del usuario pendiente al despertar. Pendientes del usuario: states F01/F02 y status global, drift de backend-conventions.md (AWAITING), rojo correo.recordatorio.014 al troubleshooter.
 - [2026-08-16 14:25] [orquestador] E2E DE ACEPTACIÓN COMPLETO (pedido del usuario: "una compra en ambiente de test en la tienda y que me lleguen los tickets"). Tienda `e2e-alta-2707` publicada vía panel (checklist completo: ToS, Flow sandbox, producto con PDF, bases, plan FULL AL_DIA; membresía agregada a nikochaima72 — pertenecía a nicolas.chaima@datawalt.cl). Compra real en producción con Flow sandbox: Guía de prueba E2E $3.000, Webpay tarjeta test Transbank, comprador nikochaima72+e2e-prod@gmail.com. La orden `cmsw4mwzc0002338nr57fxien` transicionó a PAGADO por el WEBHOOK AUTOMÁTICO (sin re-POST — valida FLOW_URL_CONFIRMATION nueva + fix del amount juntos): ticket número 1, grant, fee 96, ledger ENVIADO, Resend delivered, correo VERIFICADO EN EL GMAIL del usuario (asunto «Tu compra en Sorteos de Prueba 27-07: tus números y tu descarga», número 1 + enlace /entrega 200). Nota UX menor detectada (NO de este plan): el retorno del sandbox llegó a /checkout/retorno SIN token en la query ⇒ la página mostró el fallback "No encontramos tu compra" (honesto, el correo sí llegó); candidato a issue aparte.
+- [2026-08-18 09:00] [orquestador] CIERRE (decisión del usuario: «cerramos así»). F01 done (deployado ddd3915, validado por 3 compras reales posteriores). F02 done (rescate ejecutado y verificado: orden PAGADO, ticket 13, correo delivered a la compradora real). El plan completo queda done.
